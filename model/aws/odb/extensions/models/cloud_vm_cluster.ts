@@ -117,6 +117,9 @@ const GlobalArgsSchema = z.object({
   ClusterName: z.string().min(1).max(11).regex(
     new RegExp("^[a-zA-Z][a-zA-Z0-9-]*$"),
   ).describe("The name of the Grid Infrastructure (GI) cluster.").optional(),
+  CpuCoreCount: z.number().int().min(0).max(368).describe(
+    "The number of CPU cores enabled on the VM cluster.",
+  ).optional(),
   DataCollectionOptions: z.object({
     IsDiagnosticsEventsEnabled: z.boolean().describe(
       "Indicates whether diagnostic collection is enabled for the VM cluster.",
@@ -133,12 +136,18 @@ const GlobalArgsSchema = z.object({
   DataStorageSizeInTBs: z.number().describe(
     "The size of the data disk group, in terabytes (TB), that's allocated for the VM cluster.",
   ).optional(),
+  DbNodeStorageSizeInGBs: z.number().int().describe(
+    "The amount of local node storage, in gigabytes (GB), that's allocated for the VM cluster.",
+  ).optional(),
   DisplayName: z.string().min(1).max(255).regex(
     new RegExp("^[a-zA-Z_](?!.*--)[a-zA-Z0-9_-]*$"),
   ).describe("The user-friendly name for the VM cluster.").optional(),
   GiVersion: z.string().min(1).max(255).describe(
     "The software version of the Oracle Grid Infrastructure (GI) for the VM cluster.",
   ).optional(),
+  Hostname: z.string().min(1).max(12).regex(
+    new RegExp("^[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9]$"),
+  ).describe("The host name for the VM cluster.").optional(),
   IsLocalBackupEnabled: z.boolean().describe(
     "Indicates whether database backups to local Exadata storage is enabled for the VM cluster.",
   ).optional(),
@@ -147,6 +156,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   LicenseModel: z.enum(["BRING_YOUR_OWN_LICENSE", "LICENSE_INCLUDED"]).describe(
     "The Oracle license model applied to the VM cluster.",
+  ).optional(),
+  MemorySizeInGBs: z.number().int().describe(
+    "The amount of memory, in gigabytes (GB), that's allocated for the VM cluster.",
   ).optional(),
   OdbNetworkId: z.string().describe(
     "The unique identifier of the ODB network for the VM cluster.",
@@ -234,6 +246,9 @@ const InputsSchema = z.object({
   ClusterName: z.string().min(1).max(11).regex(
     new RegExp("^[a-zA-Z][a-zA-Z0-9-]*$"),
   ).describe("The name of the Grid Infrastructure (GI) cluster.").optional(),
+  CpuCoreCount: z.number().int().min(0).max(368).describe(
+    "The number of CPU cores enabled on the VM cluster.",
+  ).optional(),
   DataCollectionOptions: z.object({
     IsDiagnosticsEventsEnabled: z.boolean().describe(
       "Indicates whether diagnostic collection is enabled for the VM cluster.",
@@ -250,12 +265,18 @@ const InputsSchema = z.object({
   DataStorageSizeInTBs: z.number().describe(
     "The size of the data disk group, in terabytes (TB), that's allocated for the VM cluster.",
   ).optional(),
+  DbNodeStorageSizeInGBs: z.number().int().describe(
+    "The amount of local node storage, in gigabytes (GB), that's allocated for the VM cluster.",
+  ).optional(),
   DisplayName: z.string().min(1).max(255).regex(
     new RegExp("^[a-zA-Z_](?!.*--)[a-zA-Z0-9_-]*$"),
   ).describe("The user-friendly name for the VM cluster.").optional(),
   GiVersion: z.string().min(1).max(255).describe(
     "The software version of the Oracle Grid Infrastructure (GI) for the VM cluster.",
   ).optional(),
+  Hostname: z.string().min(1).max(12).regex(
+    new RegExp("^[a-zA-Z][a-zA-Z0-9-]*[a-zA-Z0-9]$"),
+  ).describe("The host name for the VM cluster.").optional(),
   IsLocalBackupEnabled: z.boolean().describe(
     "Indicates whether database backups to local Exadata storage is enabled for the VM cluster.",
   ).optional(),
@@ -264,6 +285,9 @@ const InputsSchema = z.object({
   ).optional(),
   LicenseModel: z.enum(["BRING_YOUR_OWN_LICENSE", "LICENSE_INCLUDED"]).describe(
     "The Oracle license model applied to the VM cluster.",
+  ).optional(),
+  MemorySizeInGBs: z.number().int().describe(
+    "The amount of memory, in gigabytes (GB), that's allocated for the VM cluster.",
   ).optional(),
   OdbNetworkId: z.string().describe(
     "The unique identifier of the ODB network for the VM cluster.",
@@ -312,7 +336,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ODB CloudVmCluster. Registered at `@swamp/aws/odb/cloud-vm-cluster`. */
 export const model = {
   type: "@swamp/aws/odb/cloud-vm-cluster",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -372,6 +396,12 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description:
+        "Added: CpuCoreCount, DbNodeStorageSizeInGBs, Hostname, MemorySizeInGBs",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -501,7 +531,7 @@ export const model = {
             "DisplayName",
             "MemorySizeInGBs",
             "DbServers",
-            "DbServerId",
+            "DbNodes/*/DbServerId",
           ],
           credentials,
         );

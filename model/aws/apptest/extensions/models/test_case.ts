@@ -170,6 +170,7 @@ const GlobalArgsSchema = z.object({
   Description: z.string().min(0).max(1000).optional(),
   LatestVersion: z.object({
     Version: z.number(),
+    Status: z.enum(["Active", "Deleting"]),
   }).optional(),
   Name: z.string().regex(new RegExp("^[A-Za-z][A-Za-z0-9_\\-]{1,59}$")),
   Steps: z.array(StepSchema),
@@ -204,6 +205,7 @@ const InputsSchema = z.object({
   Description: z.string().min(0).max(1000).optional(),
   LatestVersion: z.object({
     Version: z.number().optional(),
+    Status: z.enum(["Active", "Deleting"]).optional(),
   }).optional(),
   Name: z.string().regex(new RegExp("^[A-Za-z][A-Za-z0-9_\\-]{1,59}$"))
     .optional(),
@@ -230,7 +232,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppTest TestCase. Registered at `@swamp/aws/apptest/test-case`. */
 export const model = {
   type: "@swamp/aws/apptest/test-case",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -289,6 +291,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

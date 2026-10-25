@@ -101,6 +101,7 @@ const GlobalArgsSchema = z.object({
   }).optional(),
   Configuration: z.object({
     Revision: z.number().int(),
+    Id: z.string(),
   }).describe(
     "The intended configuration (ID and revision) to be set when creating or updating. This property is write-only so that applications of a ConfigurationAssociation do not cause drift.",
   ).optional(),
@@ -240,6 +241,7 @@ const InputsSchema = z.object({
   }).optional(),
   Configuration: z.object({
     Revision: z.number().int().optional(),
+    Id: z.string().optional(),
   }).describe(
     "The intended configuration (ID and revision) to be set when creating or updating. This property is write-only so that applications of a ConfigurationAssociation do not cause drift.",
   ).optional(),
@@ -295,7 +297,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AmazonMQ Broker. Registered at `@swamp/aws/amazonmq/broker`. */
 export const model = {
   type: "@swamp/aws/amazonmq/broker",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -364,6 +366,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

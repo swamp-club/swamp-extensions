@@ -75,6 +75,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ContainerProvider: z.object({
     Type: z.string().describe("The type of the container provider"),
+    Id: z.string().min(1).max(100).regex(
+      new RegExp("^[0-9A-Za-z][A-Za-z0-9\\-_]*"),
+    ).describe("The ID of the container cluster"),
     Info: ContainerInfoSchema,
   }).describe("Container provider of the virtual cluster."),
   Name: z.string().min(1).max(64).regex(new RegExp("[\\.\\-_/#A-Za-z0-9]+"))
@@ -114,6 +117,9 @@ const InputsSchema = z.object({
   region: z.string().optional(),
   ContainerProvider: z.object({
     Type: z.string().describe("The type of the container provider").optional(),
+    Id: z.string().min(1).max(100).regex(
+      new RegExp("^[0-9A-Za-z][A-Za-z0-9\\-_]*"),
+    ).describe("The ID of the container cluster").optional(),
     Info: ContainerInfoSchema.optional(),
   }).describe("Container provider of the virtual cluster.").optional(),
   Name: z.string().min(1).max(64).regex(new RegExp("[\\.\\-_/#A-Za-z0-9]+"))
@@ -148,7 +154,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EMRContainers VirtualCluster. Registered at `@swamp/aws/emrcontainers/virtual-cluster`. */
 export const model = {
   type: "@swamp/aws/emrcontainers/virtual-cluster",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -212,6 +218,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

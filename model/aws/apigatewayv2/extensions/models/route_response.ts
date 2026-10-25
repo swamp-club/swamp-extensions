@@ -38,6 +38,12 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const ParameterConstraintsSchema = z.object({
+  Required: z.boolean().describe(
+    "Specifies whether the parameter is required.",
+  ),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -55,6 +61,9 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   RouteResponseKey: z.string().describe("The route response key."),
+  ResponseParameters: z.record(z.string(), ParameterConstraintsSchema).describe(
+    "The route response parameters.",
+  ).optional(),
   RouteId: z.string().describe("The route ID."),
   ModelSelectionExpression: z.string().describe(
     "The model selection expression for the route response. Supported only for WebSocket APIs.",
@@ -67,6 +76,7 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   RouteResponseKey: z.string().optional(),
+  ResponseParameters: z.record(z.string(), z.unknown()).optional(),
   RouteId: z.string(),
   ModelSelectionExpression: z.string().optional(),
   ApiId: z.string(),
@@ -83,6 +93,9 @@ const InputsSchema = z.object({
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
   RouteResponseKey: z.string().describe("The route response key.").optional(),
+  ResponseParameters: z.record(z.string(), ParameterConstraintsSchema).describe(
+    "The route response parameters.",
+  ).optional(),
   RouteId: z.string().describe("The route ID.").optional(),
   ModelSelectionExpression: z.string().describe(
     "The model selection expression for the route response. Supported only for WebSocket APIs.",
@@ -112,7 +125,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApiGatewayV2 RouteResponse. Registered at `@swamp/aws/apigatewayv2/route-response`. */
 export const model = {
   type: "@swamp/aws/apigatewayv2/route-response",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -177,6 +190,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: ResponseParameters",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

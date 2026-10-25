@@ -281,6 +281,9 @@ const GlobalArgsSchema = z.object({
   PerformanceInsightsRetentionPeriod: z.number().int().describe(
     "The number of days to retain Performance Insights data. When creating a DB instance without enabling Performance Insights, you can't specify the parameter PerformanceInsightsRetentionPeriod. This setting doesn't apply to RDS Custom DB instances. Valid Values: 7 *month* * 31, where *month* is a number of months from 1-23. Examples: 93 (3 months * 31), 341 (11 months * 31), 589 (19 months * 31) 731 Default: 7 days If you specify a retention period that isn't valid, such as 94, Amazon RDS returns an error.",
   ).optional(),
+  Port: z.string().regex(new RegExp("^\\d*$")).describe(
+    "The port number on which the database accepts connections. This setting doesn't apply to Aurora DB instances. The port number is managed by the cluster. Valid Values: 1150-65535 Default: RDS for Db2 - 50000 RDS for MariaDB - 3306 RDS for Microsoft SQL Server - 1433 RDS for MySQL - 3306 RDS for Oracle - 1521 RDS for PostgreSQL - 5432 Constraints: For RDS for Microsoft SQL Server, the value can't be 1234, 1434, 3260, 3343, 3389, 47001, or 49152-49156.",
+  ).optional(),
   PreferredBackupWindow: z.string().describe(
     "The daily time range during which automated backups are created if automated backups are enabled, using the BackupRetentionPeriod parameter. For more information, see [Backup Window](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_WorkingWithAutomatedBackups.html#USER_WorkingWithAutomatedBackups.BackupWindow) in the *Amazon RDS User Guide.* Constraints: Must be in the format hh24:mi-hh24:mi. Must be in Universal Coordinated Time (UTC). Must not conflict with the preferred maintenance window. Must be at least 30 minutes. *Amazon Aurora* Not applicable. The daily time range for creating automated backups is managed by the DB cluster.",
   ).optional(),
@@ -662,6 +665,9 @@ const InputsSchema = z.object({
   PerformanceInsightsRetentionPeriod: z.number().int().describe(
     "The number of days to retain Performance Insights data. When creating a DB instance without enabling Performance Insights, you can't specify the parameter PerformanceInsightsRetentionPeriod. This setting doesn't apply to RDS Custom DB instances. Valid Values: 7 *month* * 31, where *month* is a number of months from 1-23. Examples: 93 (3 months * 31), 341 (11 months * 31), 589 (19 months * 31) 731 Default: 7 days If you specify a retention period that isn't valid, such as 94, Amazon RDS returns an error.",
   ).optional(),
+  Port: z.string().regex(new RegExp("^\\d*$")).describe(
+    "The port number on which the database accepts connections. This setting doesn't apply to Aurora DB instances. The port number is managed by the cluster. Valid Values: 1150-65535 Default: RDS for Db2 - 50000 RDS for MariaDB - 3306 RDS for Microsoft SQL Server - 1433 RDS for MySQL - 3306 RDS for Oracle - 1521 RDS for PostgreSQL - 5432 Constraints: For RDS for Microsoft SQL Server, the value can't be 1234, 1434, 3260, 3343, 3389, 47001, or 49152-49156.",
+  ).optional(),
   PreferredBackupWindow: z.string().describe(
     "The daily time range during which automated backups are created if automated backups are enabled, using the BackupRetentionPeriod parameter. For more information, see [Backup Window](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/USER_WorkingWithAutomatedBackups.html#USER_WorkingWithAutomatedBackups.BackupWindow) in the *Amazon RDS User Guide.* Constraints: Must be in the format hh24:mi-hh24:mi. Must be in Universal Coordinated Time (UTC). Must not conflict with the preferred maintenance window. Must be at least 30 minutes. *Amazon Aurora* Not applicable. The daily time range for creating automated backups is managed by the DB cluster.",
   ).optional(),
@@ -750,7 +756,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RDS DBInstance. Registered at `@swamp/aws/rds/dbinstance`. */
 export const model = {
   type: "@swamp/aws/rds/dbinstance",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -830,6 +836,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: Port",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

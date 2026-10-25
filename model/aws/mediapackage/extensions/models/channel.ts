@@ -59,9 +59,6 @@ const TagSchema = z.object({
 });
 
 const GlobalArgsSchema = z.object({
-  name: z.string().describe(
-    "Instance name for this resource (used as the unique identifier in the factory pattern)",
-  ),
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -74,6 +71,9 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
+  Id: z.string().min(1).max(256).regex(new RegExp("^[0-9a-zA-Z-_]+$")).describe(
+    "The ID of the Channel.",
+  ),
   Description: z.string().describe("A short text description of the Channel.")
     .optional(),
   HlsIngest: z.object({
@@ -122,11 +122,13 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  name: z.string().optional(),
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
+  Id: z.string().min(1).max(256).regex(new RegExp("^[0-9a-zA-Z-_]+$")).describe(
+    "The ID of the Channel.",
+  ).optional(),
   Description: z.string().describe("A short text description of the Channel.")
     .optional(),
   HlsIngest: z.object({
@@ -175,7 +177,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaPackage Channel. Registered at `@swamp/aws/mediapackage/channel`. */
 export const model = {
   type: "@swamp/aws/mediapackage/channel",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -237,6 +239,14 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: Id. Removed: name",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { name: _name, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -257,7 +267,6 @@ export const model = {
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {
-          if (key === "name") continue;
           if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
@@ -266,10 +275,8 @@ export const model = {
           desiredState,
           credentials,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = ((result.Id ?? g.Id)?.toString() ?? "current")
+          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -293,10 +300,8 @@ export const model = {
           credentials,
         ) as StateData;
         const instanceName =
-          (context.globalArgs.name?.toString() ?? args.identifier).replace(
-            /[\/\\]/g,
-            "_",
-          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          ((result.Id ?? context.globalArgs.Id)?.toString() ?? args.identifier)
+            .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -311,7 +316,7 @@ export const model = {
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildCredentials(g);
-        const instanceName = (g.name?.toString() ?? "current").replace(
+        const instanceName = (g.Id?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");
@@ -335,7 +340,6 @@ export const model = {
         ) as StateData;
         const desiredState: Record<string, unknown> = { ...currentState };
         for (const [key, value] of Object.entries(g)) {
-          if (key === "name") continue;
           if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
@@ -370,7 +374,7 @@ export const model = {
           credentials,
         );
         const instanceName =
-          (context.globalArgs.name?.toString() ?? args.identifier).replace(
+          (context.globalArgs.Id?.toString() ?? args.identifier).replace(
             /[\/\\]/g,
             "_",
           ).replace(/\.\./g, "_").replace(/\0/g, "");
@@ -389,7 +393,7 @@ export const model = {
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildCredentials(g);
-        const instanceName = (g.name?.toString() ?? "current").replace(
+        const instanceName = (g.Id?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");

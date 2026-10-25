@@ -38,6 +38,16 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const ThemeValueSchema = z.object({
+  Value: z.string().optional(),
+  Children: z.array(z.record(z.string(), z.unknown())).optional(),
+});
+
+const ThemeValuesSchema = z.object({
+  Key: z.string().optional(),
+  Value: ThemeValueSchema.optional(),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -57,9 +67,9 @@ const GlobalArgsSchema = z.object({
   AppId: z.string().optional(),
   EnvironmentName: z.string().optional(),
   Name: z.string().min(1).max(255).optional(),
-  Overrides: z.array(z.string()).optional(),
+  Overrides: z.array(ThemeValuesSchema).optional(),
   Tags: z.record(z.string(), z.string().min(1).max(256)).optional(),
-  Values: z.array(z.string()).optional(),
+  Values: z.array(ThemeValuesSchema).optional(),
 });
 
 const StateSchema = z.object({
@@ -69,9 +79,9 @@ const StateSchema = z.object({
   Id: z.string(),
   ModifiedAt: z.string().optional(),
   Name: z.string().optional(),
-  Overrides: z.array(z.string()).optional(),
+  Overrides: z.array(ThemeValuesSchema).optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
-  Values: z.array(z.string()).optional(),
+  Values: z.array(ThemeValuesSchema).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -85,9 +95,9 @@ const InputsSchema = z.object({
   AppId: z.string().optional(),
   EnvironmentName: z.string().optional(),
   Name: z.string().min(1).max(255).optional(),
-  Overrides: z.array(z.string()).optional(),
+  Overrides: z.array(ThemeValuesSchema).optional(),
   Tags: z.record(z.string(), z.string().min(1).max(256)).optional(),
-  Values: z.array(z.string()).optional(),
+  Values: z.array(ThemeValuesSchema).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -109,7 +119,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AmplifyUIBuilder Theme. Registered at `@swamp/aws/amplifyuibuilder/theme`. */
 export const model = {
   type: "@swamp/aws/amplifyuibuilder/theme",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -168,6 +178,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

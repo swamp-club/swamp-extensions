@@ -210,6 +210,9 @@ const GlobalArgsSchema = z.object({
   PerformanceInsightsRetentionPeriod: z.number().int().describe(
     "The number of days to retain Performance Insights data. When creating a DB cluster without enabling Performance Insights, you can't specify the parameter PerformanceInsightsRetentionPeriod. Valid for Cluster Type: Aurora DB clusters and Multi-AZ DB clusters Valid Values: 7 *month* * 31, where *month* is a number of months from 1-23. Examples: 93 (3 months * 31), 341 (11 months * 31), 589 (19 months * 31) 731 Default: 7 days If you specify a retention period that isn't valid, such as 94, Amazon RDS issues an error.",
   ).optional(),
+  Port: z.number().int().describe(
+    "The port number on which the DB instances in the DB cluster accept connections. Default: RDS for MySQL and Aurora MySQL - 3306 RDS for PostgreSQL and Aurora PostgreSQL - 5432 The No interruption on update behavior only applies to DB clusters. If you are updating a DB instance, see [Port](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-rds-database-instance.html#cfn-rds-dbinstance-port) for the AWS::RDS::DBInstance resource. Valid for: Aurora DB clusters and Multi-AZ DB clusters",
+  ).optional(),
   PreferredBackupWindow: z.string().describe(
     "The daily time range during which automated backups are created. For more information, see [Backup Window](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Managing.Backups.html#Aurora.Managing.Backups.BackupWindow) in the *Amazon Aurora User Guide.* Constraints: Must be in the format hh24:mi-hh24:mi. Must be in Universal Coordinated Time (UTC). Must not conflict with the preferred maintenance window. Must be at least 30 minutes. Valid for: Aurora DB clusters and Multi-AZ DB clusters",
   ).optional(),
@@ -692,6 +695,9 @@ const InputsSchema = z.object({
   PerformanceInsightsRetentionPeriod: z.number().int().describe(
     "The number of days to retain Performance Insights data. When creating a DB cluster without enabling Performance Insights, you can't specify the parameter PerformanceInsightsRetentionPeriod. Valid for Cluster Type: Aurora DB clusters and Multi-AZ DB clusters Valid Values: 7 *month* * 31, where *month* is a number of months from 1-23. Examples: 93 (3 months * 31), 341 (11 months * 31), 589 (19 months * 31) 731 Default: 7 days If you specify a retention period that isn't valid, such as 94, Amazon RDS issues an error.",
   ).optional(),
+  Port: z.number().int().describe(
+    "The port number on which the DB instances in the DB cluster accept connections. Default: RDS for MySQL and Aurora MySQL - 3306 RDS for PostgreSQL and Aurora PostgreSQL - 5432 The No interruption on update behavior only applies to DB clusters. If you are updating a DB instance, see [Port](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-properties-rds-database-instance.html#cfn-rds-dbinstance-port) for the AWS::RDS::DBInstance resource. Valid for: Aurora DB clusters and Multi-AZ DB clusters",
+  ).optional(),
   PreferredBackupWindow: z.string().describe(
     "The daily time range during which automated backups are created. For more information, see [Backup Window](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Aurora.Managing.Backups.html#Aurora.Managing.Backups.BackupWindow) in the *Amazon Aurora User Guide.* Constraints: Must be in the format hh24:mi-hh24:mi. Must be in Universal Coordinated Time (UTC). Must not conflict with the preferred maintenance window. Must be at least 30 minutes. Valid for: Aurora DB clusters and Multi-AZ DB clusters",
   ).optional(),
@@ -793,7 +799,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RDS DBCluster. Registered at `@swamp/aws/rds/dbcluster`. */
 export const model = {
   type: "@swamp/aws/rds/dbcluster",
-  version: "2026.10.24.2",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -918,6 +924,11 @@ export const model = {
     {
       toVersion: "2026.10.24.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: Port",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

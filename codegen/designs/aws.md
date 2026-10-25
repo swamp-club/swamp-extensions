@@ -74,7 +74,19 @@ callback stamps each resolved reference with a `title` derived from its
 definition name. This title is used later by the Zod generator to create named
 extracted schemas (e.g., `TagSchema`, `BlockDeviceMappingSchema`).
 
-Circular references are handled by the parser's `circular: "ignore"` option.
+Circular references are handled by the parser's `circular: "ignore"` option,
+which leaves in place every `$ref` whose target leads into a cycle — not only
+the self-reference itself. `AWS::Budgets::Budget`'s `Budget` property points at
+`BudgetData`, which reaches the self-recursive `Expression` through
+`FilterExpression`, so the parser leaves `Budget` as a bare `$ref`.
+`resolveResidualRefs()` then inlines those refs itself: each is replaced with a
+copy of its definition (titled with the definition name, like `onDereference`
+does), and a ref back to a definition already being expanded on the same path is
+a true cycle. A cycle becomes a free-form terminal — an untyped object for an
+object-shaped definition, an empty schema otherwise — so `Expression.Not`
+generates as `z.record(z.string(), z.unknown())`. A ref that is not local
+(`#/definitions/...`) or names a missing definition fails generation for that
+type.
 
 ### What gets skipped
 
@@ -196,6 +208,17 @@ function splitAwsProperties(schema, onlyProperties) {
 }
 ```
 
+Both sets keep properties without a `type` keyword. `normalizeProperty()` infers
+`object` from `properties` or `patternProperties`, merges an untyped `allOf`
+into one property, and the Zod generator emits `z.unknown()` for a free-form
+`{}` schema (e.g. `AWS::ControlTower::LandingZone`'s `Manifest`).
+
+After splitting, `assertRequiredPropertiesKept()` fails generation for a type if
+any property in the CF schema's `required` list (other than a read-only one) is
+missing from the domain properties. A failed type is reported in the run's
+errors, keeps its last good model file, and makes `generate:aws` exit 2, so the
+nightly regeneration cannot pass with a type that cannot be created.
+
 ### Why resource schema includes everything
 
 AWS CloudControl's `GetResource` returns all properties — both writable inputs
@@ -215,22 +238,39 @@ arrays:
 | `writeOnlyProperties`  | Not returned in read (e.g., `Password`)       |
 | `primaryIdentifier`    | Fields that uniquely identify the resource    |
 
-These JSON Pointer paths (e.g., `/properties/InstanceId`) are normalized to
-simple field names (`InstanceId`) by `normalizeOnlyProperties()`.
+These JSON Pointer paths are normalized by `normalizeOnlyProperties()` to paths
+relative to the schema's properties, keeping every segment:
+`/properties/InstanceId` → `InstanceId`, `/properties/Budget/BudgetName` →
+`Budget/BudgetName`, `/properties/Treatments/*/Key` → `Treatments/*/Key`.
+Keeping only the last segment would make a nested pointer collide with an
+unrelated property of the same name — `AWS::RDS::DBInstance`'s read-only
+`Endpoint/Port` would remove its writable top-level `Port`.
+
+Read-only pruning matches a property by its full path from the top of the
+schema, so `Endpoint/Port` prunes only `Endpoint.Port`. `pruneProperties()`
+walks nested objects, not array items, so a read-only pointer through `*` leaves
+the array's item fields in the domain properties.
 
 ### Create-only property handling
 
 Properties in `createOnlyProperties` can be set during creation but not changed
-via update. The update method passes these to `updateResource()` which filters
-them from the JSON patch:
+via update. The update method passes these paths to `updateResource()`, which
+drops every JSON-patch operation whose path is a create-only path or lies below
+one:
 
 ```typescript
 const rawPatch = jsonpatch.compare(currentState, desiredState);
-const patch = rawPatch.filter((op) => {
-  const topLevelProp = op.path.split("/")[1];
-  return !createOnlySet.has(topLevelProp);
-});
+const patch = rawPatch.filter((op) =>
+  !isCreateOnlyPath(op.path, createOnlyProperties ?? [])
+);
 ```
+
+`isCreateOnlyPath()` compares segment by segment; a `*` segment matches one
+array index, and escaped segments (`~1`, `~0`) compare as-is because patch paths
+and CF pointers escape the same way. A change to `Budget.BudgetName` is skipped,
+while a top-level `Name` beside a nested `.../Name` pointer stays updatable. An
+operation on an ancestor of a create-only path (replacing the whole `Budget`
+object) cannot be split and is still sent.
 
 This prevents CloudControl from rejecting update requests that attempt to modify
 immutable properties.
@@ -249,6 +289,12 @@ Pointer paths that uniquely identify the resource:
 { "primaryIdentifier": ["/properties/VpcId"] }
 { "primaryIdentifier": ["/properties/RouteTableId", "/properties/CidrBlock"] }
 ```
+
+A few identifiers are nested (`AWS::QuickSight::RefreshSchedule`'s
+`/properties/Schedule/ScheduleId`). The generated methods read each identifier
+from its full path, optional-chained per segment
+(`existing.Schedule?.ScheduleId`, with a cast on each nested hop), because
+CloudControl returns the value inside its parent object.
 
 ### Single vs composite identifiers
 

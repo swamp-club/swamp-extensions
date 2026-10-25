@@ -76,6 +76,9 @@ const GlobalArgsSchema = z.object({
   Policy: z.record(z.string(), z.unknown()).describe(
     "A JSON string that describes the permission policy statement for the event bus.",
   ).optional(),
+  DeadLetterConfig: z.object({
+    Arn: z.string().optional(),
+  }).describe("Dead Letter Queue for the event bus.").optional(),
   LogConfig: z.object({
     IncludeDetail: z.enum(["FULL", "NONE"]).describe(
       "Configures whether or not to include event detail, input transformer details, target properties, and target input in the applicable log messages.",
@@ -227,6 +230,9 @@ const InputsSchema = z.object({
   Policy: z.record(z.string(), z.unknown()).describe(
     "A JSON string that describes the permission policy statement for the event bus.",
   ).optional(),
+  DeadLetterConfig: z.object({
+    Arn: z.string().optional(),
+  }).describe("Dead Letter Queue for the event bus.").optional(),
   LogConfig: z.object({
     IncludeDetail: z.enum(["FULL", "NONE"]).describe(
       "Configures whether or not to include event detail, input transformer details, target properties, and target input in the applicable log messages.",
@@ -256,7 +262,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Events EventBus. Registered at `@swamp/aws/events/event-bus`. */
 export const model = {
   type: "@swamp/aws/events/event-bus",
-  version: "2026.10.24.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -346,6 +352,11 @@ export const model = {
     {
       toVersion: "2026.10.24.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: DeadLetterConfig",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

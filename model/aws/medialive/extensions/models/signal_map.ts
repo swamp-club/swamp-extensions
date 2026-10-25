@@ -73,6 +73,18 @@ const GlobalArgsSchema = z.object({
     DetailsUri: z.string().min(0).max(2048).describe(
       "URI associated with a signal map's monitor deployment.",
     ),
+    Status: z.enum([
+      "NOT_DEPLOYED",
+      "DRY_RUN_DEPLOYMENT_COMPLETE",
+      "DRY_RUN_DEPLOYMENT_FAILED",
+      "DRY_RUN_DEPLOYMENT_IN_PROGRESS",
+      "DEPLOYMENT_COMPLETE",
+      "DEPLOYMENT_FAILED",
+      "DEPLOYMENT_IN_PROGRESS",
+      "DELETE_COMPLETE",
+      "DELETE_FAILED",
+      "DELETE_IN_PROGRESS",
+    ]).describe("A signal map's monitor deployment status."),
   }).describe(
     "Represents the latest successful monitor deployment of a signal map.",
   ).optional(),
@@ -80,6 +92,21 @@ const GlobalArgsSchema = z.object({
     DetailsUri: z.string().min(0).max(2048).describe(
       "URI associated with a signal map's monitor deployment.",
     ).optional(),
+    ErrorMessage: z.string().min(0).max(2048).describe(
+      "Error message associated with a failed monitor deployment of a signal map.",
+    ).optional(),
+    Status: z.enum([
+      "NOT_DEPLOYED",
+      "DRY_RUN_DEPLOYMENT_COMPLETE",
+      "DRY_RUN_DEPLOYMENT_FAILED",
+      "DRY_RUN_DEPLOYMENT_IN_PROGRESS",
+      "DEPLOYMENT_COMPLETE",
+      "DEPLOYMENT_FAILED",
+      "DEPLOYMENT_IN_PROGRESS",
+      "DELETE_COMPLETE",
+      "DELETE_FAILED",
+      "DELETE_IN_PROGRESS",
+    ]).describe("A signal map's monitor deployment status."),
   }).describe("Represents the latest monitor deployment of a signal map.")
     .optional(),
   Name: z.string().min(1).max(255).regex(new RegExp("^[^\\s]+$")).describe(
@@ -149,6 +176,18 @@ const InputsSchema = z.object({
     DetailsUri: z.string().min(0).max(2048).describe(
       "URI associated with a signal map's monitor deployment.",
     ).optional(),
+    Status: z.enum([
+      "NOT_DEPLOYED",
+      "DRY_RUN_DEPLOYMENT_COMPLETE",
+      "DRY_RUN_DEPLOYMENT_FAILED",
+      "DRY_RUN_DEPLOYMENT_IN_PROGRESS",
+      "DEPLOYMENT_COMPLETE",
+      "DEPLOYMENT_FAILED",
+      "DEPLOYMENT_IN_PROGRESS",
+      "DELETE_COMPLETE",
+      "DELETE_FAILED",
+      "DELETE_IN_PROGRESS",
+    ]).describe("A signal map's monitor deployment status.").optional(),
   }).describe(
     "Represents the latest successful monitor deployment of a signal map.",
   ).optional(),
@@ -156,6 +195,21 @@ const InputsSchema = z.object({
     DetailsUri: z.string().min(0).max(2048).describe(
       "URI associated with a signal map's monitor deployment.",
     ).optional(),
+    ErrorMessage: z.string().min(0).max(2048).describe(
+      "Error message associated with a failed monitor deployment of a signal map.",
+    ).optional(),
+    Status: z.enum([
+      "NOT_DEPLOYED",
+      "DRY_RUN_DEPLOYMENT_COMPLETE",
+      "DRY_RUN_DEPLOYMENT_FAILED",
+      "DRY_RUN_DEPLOYMENT_IN_PROGRESS",
+      "DEPLOYMENT_COMPLETE",
+      "DEPLOYMENT_FAILED",
+      "DEPLOYMENT_IN_PROGRESS",
+      "DELETE_COMPLETE",
+      "DELETE_FAILED",
+      "DELETE_IN_PROGRESS",
+    ]).describe("A signal map's monitor deployment status.").optional(),
   }).describe("Represents the latest monitor deployment of a signal map.")
     .optional(),
   Name: z.string().min(1).max(255).regex(new RegExp("^[^\\s]+$")).describe(
@@ -185,7 +239,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaLive SignalMap. Registered at `@swamp/aws/medialive/signal-map`. */
 export const model = {
   type: "@swamp/aws/medialive/signal-map",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -244,6 +298,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

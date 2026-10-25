@@ -79,9 +79,22 @@ const GlobalArgsSchema = z.object({
   Pipeline: z.object({
     CreatedTimeStamp: z.number().optional(),
     LastUpdateTimeStamp: z.number().optional(),
+    Arn: z.string().min(1).max(1011).regex(
+      new RegExp(
+        "^arn:aws([a-z0-9\\-]+)?:([a-zA-Z0-9\\-]+):([a-z0-9\\-]+)?:([0-9]{12})?:(.+)$",
+      ),
+    ).optional(),
     Name: z.string().min(3).max(28).regex(new RegExp("[a-z][a-z0-9\\-]+"))
       .optional(),
     Configuration: TelemetryPipelineConfigurationSchema.optional(),
+    Status: z.enum([
+      "CREATING",
+      "ACTIVE",
+      "UPDATING",
+      "DELETING",
+      "CREATE_FAILED",
+      "UPDATE_FAILED",
+    ]).optional(),
     StatusReason: TelemetryPipelineStatusReasonSchema.optional(),
     Tags: z.array(TagSchema).describe(
       "An array of key-value pairs to apply to this resource",
@@ -131,9 +144,22 @@ const InputsSchema = z.object({
   Pipeline: z.object({
     CreatedTimeStamp: z.number().optional(),
     LastUpdateTimeStamp: z.number().optional(),
+    Arn: z.string().min(1).max(1011).regex(
+      new RegExp(
+        "^arn:aws([a-z0-9\\-]+)?:([a-zA-Z0-9\\-]+):([a-z0-9\\-]+)?:([0-9]{12})?:(.+)$",
+      ),
+    ).optional(),
     Name: z.string().min(3).max(28).regex(new RegExp("[a-z][a-z0-9\\-]+"))
       .optional(),
     Configuration: TelemetryPipelineConfigurationSchema.optional(),
+    Status: z.enum([
+      "CREATING",
+      "ACTIVE",
+      "UPDATING",
+      "DELETING",
+      "CREATE_FAILED",
+      "UPDATE_FAILED",
+    ]).optional(),
     StatusReason: TelemetryPipelineStatusReasonSchema.optional(),
     Tags: z.array(TagSchema).describe(
       "An array of key-value pairs to apply to this resource",
@@ -166,7 +192,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ObservabilityAdmin TelemetryPipelines. Registered at `@swamp/aws/observabilityadmin/telemetry-pipelines`. */
 export const model = {
   type: "@swamp/aws/observabilityadmin/telemetry-pipelines",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -175,6 +201,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

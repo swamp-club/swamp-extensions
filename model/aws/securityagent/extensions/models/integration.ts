@@ -48,6 +48,12 @@ const GitHubInputSchema = z.object({
   OrganizationName: z.string().describe(
     "The name of the GitHub organization to integrate with.",
   ).optional(),
+  TargetUrl: z.string().describe(
+    "The HTTPS URL of a self-hosted GitHub Enterprise Server instance. Omit this value for GitHub.com.",
+  ).optional(),
+  InstallationId: z.string().describe(
+    "The installation identifier provided by GitHub Enterprise Server on the install callback. Required for GitHub Enterprise Server integrations and ignored for GitHub.com.",
+  ).optional(),
 });
 
 const GitLabInputSchema = z.object({
@@ -57,12 +63,18 @@ const GitLabInputSchema = z.object({
   TokenType: z.enum(["PERSONAL", "GROUP"]).describe(
     "The type of GitLab access token.",
   ),
+  TargetUrl: z.string().describe(
+    "The HTTPS URL of a self-managed GitLab instance. Omit this value for GitLab SaaS (gitlab.com).",
+  ).optional(),
   GroupId: z.string().describe(
     "The identifier of the GitLab group. Required when TokenType is GROUP and ignored for personal tokens.",
   ).optional(),
 });
 
 const BitbucketInputSchema = z.object({
+  InstallationId: z.string().describe(
+    "The Atlassian installation identifier, available from the Atlassian administration console.",
+  ),
   Workspace: z.string().describe(
     "The Bitbucket workspace slug that identifies the workspace to integrate.",
   ),
@@ -75,6 +87,9 @@ const BitbucketInputSchema = z.object({
 });
 
 const ConfluenceInputSchema = z.object({
+  InstallationId: z.string().describe(
+    "The Atlassian installation identifier, available from the Atlassian administration console.",
+  ),
   Code: z.string().describe(
     "The OAuth 2.0 authorization code returned from the consent redirect.",
   ),
@@ -216,7 +231,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecurityAgent Integration. Registered at `@swamp/aws/securityagent/integration`. */
 export const model = {
   type: "@swamp/aws/securityagent/integration",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -225,6 +240,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

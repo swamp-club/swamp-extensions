@@ -63,6 +63,7 @@ const GlobalArgsSchema = z.object({
   Description: z.string().min(0).max(1024).regex(
     new RegExp('^(?!\\s+$)[^{}"\\\\<>]*$'),
   ).optional(),
+  FlowDefinition: z.unknown(),
   Name: z.string().min(1).max(128).regex(
     new RegExp('^(?!\\s+$)[^{}"\\\\<>]*$'),
   ),
@@ -74,6 +75,7 @@ const StateSchema = z.object({
   AwsAccountId: z.string().optional(),
   CreatedTime: z.string().optional(),
   Description: z.string().optional(),
+  FlowDefinition: z.unknown().optional(),
   FlowId: z.string().optional(),
   LastUpdatedTime: z.string().optional(),
   Name: z.string().optional(),
@@ -98,6 +100,7 @@ const InputsSchema = z.object({
   Description: z.string().min(0).max(1024).regex(
     new RegExp('^(?!\\s+$)[^{}"\\\\<>]*$'),
   ).optional(),
+  FlowDefinition: z.unknown().optional(),
   Name: z.string().min(1).max(128).regex(new RegExp('^(?!\\s+$)[^{}"\\\\<>]*$'))
     .optional(),
   Permissions: z.array(PermissionSchema).optional(),
@@ -122,7 +125,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight Flow. Registered at `@swamp/aws/quicksight/flow`. */
 export const model = {
   type: "@swamp/aws/quicksight/flow",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -142,6 +145,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: FlowDefinition",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

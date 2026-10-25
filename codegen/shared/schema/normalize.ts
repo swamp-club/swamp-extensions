@@ -10,9 +10,49 @@ import { isCfPropertyType } from "./types.ts";
 export function normalizeProperty(
   prop: RawCfProperty,
 ): CfProperty {
-  let result: RawCfProperty = normalizePropertyType(prop);
+  let result: RawCfProperty = normalizePropertyType(flattenAllOf(prop));
   result = normalizeAnyOfAndOneOfTypes(result);
   return result as CfProperty;
+}
+
+/**
+ * Merges the members of an untyped `allOf` into one property, so e.g.
+ * `allOf: [{ type: "string", enum: [...] }, { default: ... }]` is typed as
+ * that string enum. Member `properties` and `required` are combined; the
+ * property's own keys win over its members'.
+ */
+function flattenAllOf(prop: RawCfProperty): RawCfProperty {
+  if (typeof prop !== "object" || prop.type || !prop.allOf) return prop;
+
+  const { allOf, ...rest } = prop;
+  let merged: RawCfProperty = {};
+  for (const member of allOf) {
+    const flat = flattenAllOf(member);
+    merged = {
+      ...merged,
+      ...flat,
+      ...(merged.properties || flat.properties
+        ? { properties: { ...merged.properties, ...flat.properties } }
+        : {}),
+      ...(merged.required || flat.required
+        ? { required: [...(merged.required ?? []), ...(flat.required ?? [])] }
+        : {}),
+    };
+  }
+  return {
+    ...merged,
+    ...rest,
+    ...(merged.properties || rest.properties
+      ? { properties: { ...merged.properties, ...rest.properties } }
+      : {}),
+    ...(merged.required || rest.required
+      ? {
+        required: [
+          ...new Set([...(merged.required ?? []), ...(rest.required ?? [])]),
+        ],
+      }
+      : {}),
+  };
 }
 
 /**

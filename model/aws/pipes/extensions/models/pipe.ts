@@ -93,8 +93,17 @@ const FilterCriteriaSchema = z.object({
   Filters: z.array(FilterSchema).optional(),
 });
 
+const DeadLetterConfigSchema = z.object({
+  Arn: z.string().min(1).max(1600).regex(
+    new RegExp(
+      "^arn:(aws[a-zA-Z0-9-]*):([a-zA-Z0-9\\-]+):([a-z]{2}((-gov)|(-iso([a-z]?)))?-[a-z]+-\\d{1})?:(\\d{12})?:(.+)$",
+    ),
+  ).optional(),
+});
+
 const PipeSourceKinesisStreamParametersSchema = z.object({
   BatchSize: z.number().int().min(1).max(10000).optional(),
+  DeadLetterConfig: DeadLetterConfigSchema.optional(),
   OnPartialBatchItemFailure: z.enum(["AUTOMATIC_BISECT"]).optional(),
   MaximumBatchingWindowInSeconds: z.number().int().min(0).max(300).optional(),
   MaximumRecordAgeInSeconds: z.number().int().min(-1).max(604800).optional(),
@@ -106,6 +115,7 @@ const PipeSourceKinesisStreamParametersSchema = z.object({
 
 const PipeSourceDynamoDBStreamParametersSchema = z.object({
   BatchSize: z.number().int().min(1).max(10000).optional(),
+  DeadLetterConfig: DeadLetterConfigSchema.optional(),
   OnPartialBatchItemFailure: z.enum(["AUTOMATIC_BISECT"]).optional(),
   MaximumBatchingWindowInSeconds: z.number().int().min(0).max(300).optional(),
   MaximumRecordAgeInSeconds: z.number().int().min(-1).max(604800).optional(),
@@ -793,7 +803,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Pipes Pipe. Registered at `@swamp/aws/pipes/pipe`. */
 export const model = {
   type: "@swamp/aws/pipes/pipe",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -852,6 +862,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -960,19 +975,19 @@ export const model = {
           [
             "Name",
             "Source",
-            "StartingPosition",
-            "StartingPosition",
-            "StartingPositionTimestamp",
-            "QueueName",
-            "QueueName",
-            "VirtualHost",
-            "TopicName",
-            "StartingPosition",
-            "ConsumerGroupID",
-            "TopicName",
-            "StartingPosition",
-            "AdditionalBootstrapServers",
-            "ConsumerGroupID",
+            "SourceParameters/DynamoDBStreamParameters/StartingPosition",
+            "SourceParameters/KinesisStreamParameters/StartingPosition",
+            "SourceParameters/KinesisStreamParameters/StartingPositionTimestamp",
+            "SourceParameters/ActiveMQBrokerParameters/QueueName",
+            "SourceParameters/RabbitMQBrokerParameters/QueueName",
+            "SourceParameters/RabbitMQBrokerParameters/VirtualHost",
+            "SourceParameters/ManagedStreamingKafkaParameters/TopicName",
+            "SourceParameters/ManagedStreamingKafkaParameters/StartingPosition",
+            "SourceParameters/ManagedStreamingKafkaParameters/ConsumerGroupID",
+            "SourceParameters/SelfManagedKafkaParameters/TopicName",
+            "SourceParameters/SelfManagedKafkaParameters/StartingPosition",
+            "SourceParameters/SelfManagedKafkaParameters/AdditionalBootstrapServers",
+            "SourceParameters/SelfManagedKafkaParameters/ConsumerGroupID",
           ],
           credentials,
         );

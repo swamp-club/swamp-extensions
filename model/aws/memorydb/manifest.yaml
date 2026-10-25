@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/memorydb"
-version: "2026.10.24.1"
+version: "2026.10.25.1"
 license: "AGPL-3.0-or-later"
 description: "AWS MEMORYDB infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -10,6 +10,8 @@ labels:
   - memorydb
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: cluster
 models:
   - acl.ts
   - cluster.ts

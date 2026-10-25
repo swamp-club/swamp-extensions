@@ -319,7 +319,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Batch ComputeEnvironment. Registered at `@swamp/aws/batch/compute-environment`. */
 export const model = {
   type: "@swamp/aws/batch/compute-environment",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -398,6 +398,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -509,14 +514,14 @@ export const model = {
           currentState,
           desiredState,
           [
-            "SpotIamFleetRole",
+            "ComputeResources/SpotIamFleetRole",
             "ComputeEnvironmentName",
             "Tags",
             "Type",
-            "EksClusterArn",
-            "KubernetesNamespace",
-            "CapacityOptionType",
-            "FipsEnabled",
+            "EksConfiguration/EksClusterArn",
+            "EksConfiguration/KubernetesNamespace",
+            "ComputeResources/ManagedInstancesProvider/InstanceLaunchTemplate/CapacityOptionType",
+            "ComputeResources/ManagedInstancesProvider/InstanceLaunchTemplate/FipsEnabled",
           ],
           credentials,
         );

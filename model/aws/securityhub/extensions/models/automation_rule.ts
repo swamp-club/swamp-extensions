@@ -238,6 +238,12 @@ const GlobalArgsSchema = z.object({
     LastObservedAt: z.array(DateFilterSchema).describe(
       "A timestamp that indicates when the security findings provider most recently observed a change in the resource that is involved in the finding. For more information about the validation and formatting of timestamp fields in ASHlong, see [Timestamps](https://docs.aws.amazon.com/securityhub/1.0/APIReference/Welcome.html#timestamps). Array Members: Minimum number of 1 item. Maximum number of 20 items.",
     ).optional(),
+    CreatedAt: z.array(DateFilterSchema).describe(
+      "A timestamp that indicates when this finding record was created. For more information about the validation and formatting of timestamp fields in ASHlong, see [Timestamps](https://docs.aws.amazon.com/securityhub/1.0/APIReference/Welcome.html#timestamps). Array Members: Minimum number of 1 item. Maximum number of 20 items.",
+    ).optional(),
+    UpdatedAt: z.array(DateFilterSchema).describe(
+      "A timestamp that indicates when the finding record was most recently updated. For more information about the validation and formatting of timestamp fields in ASHlong, see [Timestamps](https://docs.aws.amazon.com/securityhub/1.0/APIReference/Welcome.html#timestamps). Array Members: Minimum number of 1 item. Maximum number of 20 items.",
+    ).optional(),
     Confidence: z.array(NumberFilterSchema).describe(
       "The likelihood that a finding accurately identifies the behavior or issue that it was intended to identify. Confidence is scored on a 0–100 basis using a ratio scale. A value of 0 means 0 percent confidence, and a value of 100 means 100 percent confidence. For example, a data exfiltration detection based on a statistical deviation of network traffic has low confidence because an actual exfiltration hasn't been verified. For more information, see [Confidence](https://docs.aws.amazon.com/securityhub/latest/userguide/asff-top-level-attributes.html#asff-confidence) in the *User Guide*. Array Members: Minimum number of 1 item. Maximum number of 20 items.",
     ).optional(),
@@ -422,6 +428,12 @@ const InputsSchema = z.object({
     LastObservedAt: z.array(DateFilterSchema).describe(
       "A timestamp that indicates when the security findings provider most recently observed a change in the resource that is involved in the finding. For more information about the validation and formatting of timestamp fields in ASHlong, see [Timestamps](https://docs.aws.amazon.com/securityhub/1.0/APIReference/Welcome.html#timestamps). Array Members: Minimum number of 1 item. Maximum number of 20 items.",
     ).optional(),
+    CreatedAt: z.array(DateFilterSchema).describe(
+      "A timestamp that indicates when this finding record was created. For more information about the validation and formatting of timestamp fields in ASHlong, see [Timestamps](https://docs.aws.amazon.com/securityhub/1.0/APIReference/Welcome.html#timestamps). Array Members: Minimum number of 1 item. Maximum number of 20 items.",
+    ).optional(),
+    UpdatedAt: z.array(DateFilterSchema).describe(
+      "A timestamp that indicates when the finding record was most recently updated. For more information about the validation and formatting of timestamp fields in ASHlong, see [Timestamps](https://docs.aws.amazon.com/securityhub/1.0/APIReference/Welcome.html#timestamps). Array Members: Minimum number of 1 item. Maximum number of 20 items.",
+    ).optional(),
     Confidence: z.array(NumberFilterSchema).describe(
       "The likelihood that a finding accurately identifies the behavior or issue that it was intended to identify. Confidence is scored on a 0–100 basis using a ratio scale. A value of 0 means 0 percent confidence, and a value of 100 means 100 percent confidence. For example, a data exfiltration detection based on a statistical deviation of network traffic has low confidence because an actual exfiltration hasn't been verified. For more information, see [Confidence](https://docs.aws.amazon.com/securityhub/latest/userguide/asff-top-level-attributes.html#asff-confidence) in the *User Guide*. Array Members: Minimum number of 1 item. Maximum number of 20 items.",
     ).optional(),
@@ -527,7 +539,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecurityHub AutomationRule. Registered at `@swamp/aws/securityhub/automation-rule`. */
 export const model = {
   type: "@swamp/aws/securityhub/automation-rule",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -596,6 +608,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

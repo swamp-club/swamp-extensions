@@ -550,7 +550,7 @@ export function generateAwsExtensionModel(
     if (isCompositeId) {
       // Composite identifier: join all primary identifier fields with "|"
       const idParts = onlyProperties.primaryIdentifier.map(
-        (f) => `existing.${f}?.toString()`,
+        (f) => `${idAccess("existing", f)}?.toString()`,
       );
       lines.push(
         `        const idParts = [${idParts.join(", ")}];`,
@@ -563,7 +563,9 @@ export function generateAwsExtensionModel(
       );
     } else {
       lines.push(
-        `        const identifier = existing.${primaryId}?.toString();`,
+        `        const identifier = ${
+          idAccess("existing", primaryId)
+        }?.toString();`,
       );
       lines.push(
         `        if (!identifier) throw new Error("No identifier found in existing state");`,
@@ -695,7 +697,7 @@ export function generateAwsExtensionModel(
 
     if (isCompositeId) {
       const idParts = onlyProperties.primaryIdentifier.map(
-        (f) => `existing.${f}?.toString()`,
+        (f) => `${idAccess("existing", f)}?.toString()`,
       );
       lines.push(
         `        const idParts = [${idParts.join(", ")}];`,
@@ -708,7 +710,9 @@ export function generateAwsExtensionModel(
       );
     } else {
       lines.push(
-        `        const identifier = existing.${primaryId}?.toString();`,
+        `        const identifier = ${
+          idAccess("existing", primaryId)
+        }?.toString();`,
       );
       lines.push(
         `        if (!identifier) throw new Error("No identifier found in existing state");`,
@@ -771,7 +775,7 @@ export function generateAwsExtensionModel(
     lines.push(
       `          const instanceName = ${
         wrapWithSanitize(
-          `item.${primaryId}?.toString() ?? String(i)`,
+          `${idAccess("item", primaryId)}?.toString() ?? String(i)`,
         )
       };`,
     );
@@ -830,7 +834,9 @@ export function generateAwsExtensionModel(
       lines.push(
         `          const instanceName = ${
           wrapWithSanitize(
-            `item.properties?.${primaryId}?.toString() ?? item.identifier`,
+            `${
+              idAccess("item.properties?", primaryId)
+            }?.toString() ?? item.identifier`,
           )
         };`,
       );
@@ -1051,6 +1057,22 @@ export function resolveNamingField(
 
   // Fallback: synthetic
   return { field: "name", synthetic: true };
+}
+
+/**
+ * Property access on `root` for a primary identifier path, so a nested
+ * identifier ("Schedule/ScheduleId") is read from where Cloud Control returns
+ * it. Each nested hop is optional-chained and cast, because list items type
+ * their properties as `Record<string, unknown>`. A top-level identifier is a
+ * plain `root.Field`.
+ */
+function idAccess(root: string, path: string): string {
+  const [first, ...rest] = path.split("/");
+  let expr = `${root}.${first}`;
+  for (const segment of rest) {
+    expr = `(${expr} as Record<string, unknown> | undefined)?.${segment}`;
+  }
+  return expr;
 }
 
 /**

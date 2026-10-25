@@ -67,6 +67,9 @@ const SamplingRuleSchema = z.object({
   ResourceARN: z.string().max(500).describe(
     "Matches the ARN of the AWS resource on which the service runs.",
   ),
+  RuleARN: z.string().describe(
+    "The ARN of the sampling rule. Specify a rule by either name or ARN, but not both.",
+  ).optional(),
   RuleName: z.string().min(1).max(32).describe(
     "The ARN of the sampling rule. Specify a rule by either name or ARN, but not both.",
   ).optional(),
@@ -126,6 +129,9 @@ const GlobalArgsSchema = z.object({
     ResourceARN: z.string().max(500).describe(
       "Matches the ARN of the AWS resource on which the service runs.",
     ),
+    RuleARN: z.string().describe(
+      "The ARN of the sampling rule. Specify a rule by either name or ARN, but not both.",
+    ).optional(),
     RuleName: z.string().min(1).max(32).describe(
       "The ARN of the sampling rule. Specify a rule by either name or ARN, but not both.",
     ).optional(),
@@ -173,6 +179,9 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     ResourceARN: z.string().max(500).describe(
       "Matches the ARN of the AWS resource on which the service runs.",
+    ).optional(),
+    RuleARN: z.string().describe(
+      "The ARN of the sampling rule. Specify a rule by either name or ARN, but not both.",
     ).optional(),
     RuleName: z.string().min(1).max(32).describe(
       "The ARN of the sampling rule. Specify a rule by either name or ARN, but not both.",
@@ -253,6 +262,9 @@ const InputsSchema = z.object({
     ResourceARN: z.string().max(500).describe(
       "Matches the ARN of the AWS resource on which the service runs.",
     ).optional(),
+    RuleARN: z.string().describe(
+      "The ARN of the sampling rule. Specify a rule by either name or ARN, but not both.",
+    ).optional(),
     RuleName: z.string().min(1).max(32).describe(
       "The ARN of the sampling rule. Specify a rule by either name or ARN, but not both.",
     ).optional(),
@@ -301,6 +313,9 @@ const InputsSchema = z.object({
     ResourceARN: z.string().max(500).describe(
       "Matches the ARN of the AWS resource on which the service runs.",
     ).optional(),
+    RuleARN: z.string().describe(
+      "The ARN of the sampling rule. Specify a rule by either name or ARN, but not both.",
+    ).optional(),
     RuleName: z.string().min(1).max(32).describe(
       "The ARN of the sampling rule. Specify a rule by either name or ARN, but not both.",
     ).optional(),
@@ -342,7 +357,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for XRay SamplingRule. Registered at `@swamp/aws/xray/sampling-rule`. */
 export const model = {
   type: "@swamp/aws/xray/sampling-rule",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -401,6 +416,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -511,7 +531,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["Version"],
+          ["SamplingRule/Version"],
           credentials,
         );
         const handle = await context.writeResource(

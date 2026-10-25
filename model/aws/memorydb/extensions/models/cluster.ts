@@ -89,6 +89,9 @@ const GlobalArgsSchema = z.object({
   ParameterGroupName: z.string().describe(
     "The name of the parameter group associated with the cluster.",
   ).optional(),
+  Port: z.number().int().describe(
+    "The port number on which each member of the cluster accepts connections.",
+  ).optional(),
   SnapshotRetentionLimit: z.number().int().describe(
     "The number of days for which MemoryDB retains automatic snapshots before deleting them. For example, if you set SnapshotRetentionLimit to 5, a snapshot that was taken today is retained for 5 days before being deleted.",
   ).optional(),
@@ -215,6 +218,9 @@ const InputsSchema = z.object({
   ParameterGroupName: z.string().describe(
     "The name of the parameter group associated with the cluster.",
   ).optional(),
+  Port: z.number().int().describe(
+    "The port number on which each member of the cluster accepts connections.",
+  ).optional(),
   SnapshotRetentionLimit: z.number().int().describe(
     "The number of days for which MemoryDB retains automatic snapshots before deleting them. For example, if you set SnapshotRetentionLimit to 5, a snapshot that was taken today is retained for 5 days before being deleted.",
   ).optional(),
@@ -286,7 +292,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MemoryDB Cluster. Registered at `@swamp/aws/memorydb/cluster`. */
 export const model = {
   type: "@swamp/aws/memorydb/cluster",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -351,6 +357,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: Port",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -142,7 +142,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecurityHub Connector. Registered at `@swamp/aws/securityhub/connector`. */
 export const model = {
   type: "@swamp/aws/securityhub/connector",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -166,6 +166,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -276,7 +281,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["Name", "AWSConfigConnectorArn"],
+          ["Name", "Provider/Azure/AWSConfigConnectorArn"],
           credentials,
         );
         const handle = await context.writeResource(

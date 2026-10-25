@@ -95,6 +95,7 @@ const GlobalArgsSchema = z.object({
     "The Kubernetes labels to be applied to the nodes in the node group when they are created.",
   ).optional(),
   LaunchTemplate: z.object({
+    Id: z.string().min(1).optional(),
     Version: z.string().min(1).optional(),
     Name: z.string().min(1).optional(),
   }).describe(
@@ -269,6 +270,7 @@ const InputsSchema = z.object({
     "The Kubernetes labels to be applied to the nodes in the node group when they are created.",
   ).optional(),
   LaunchTemplate: z.object({
+    Id: z.string().min(1).optional(),
     Version: z.string().min(1).optional(),
     Name: z.string().min(1).optional(),
   }).describe(
@@ -381,7 +383,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EKS Nodegroup. Registered at `@swamp/aws/eks/nodegroup`. */
 export const model = {
   type: "@swamp/aws/eks/nodegroup",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -450,6 +452,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

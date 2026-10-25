@@ -156,6 +156,16 @@ const PrometheusMonitoringConfigurationSchema = z.object({
   ).optional(),
 });
 
+const ConfigurationObjectSchema = z.object({
+  Classification: z.string().min(1).max(1024).regex(new RegExp(".*\\S.*"))
+    .describe("String with a maximum length of 1024."),
+  Properties: z.record(
+    z.string(),
+    z.string().min(1).max(1024).regex(new RegExp(".*\\S.*")),
+  ).optional(),
+  Configurations: z.array(z.record(z.string(), z.unknown())).optional(),
+});
+
 const ImageConfigurationInputSchema = z.object({
   ImageUri: z.string().min(1).max(1024).regex(
     new RegExp(
@@ -257,6 +267,9 @@ const GlobalArgsSchema = z.object({
       .optional(),
   }).describe("Monitoring configuration for batch and interactive JobRun.")
     .optional(),
+  RuntimeConfiguration: z.array(ConfigurationObjectSchema).describe(
+    "Runtime configuration for batch and interactive JobRun.",
+  ).optional(),
   InteractiveConfiguration: z.object({
     LivyEndpointEnabled: z.boolean().describe(
       "Enables an Apache Livy endpoint that you can connect to and run interactive jobs",
@@ -335,6 +348,7 @@ const StateSchema = z.object({
     CloudWatchLoggingConfiguration: CloudWatchLoggingConfigurationSchema,
     PrometheusMonitoringConfiguration: PrometheusMonitoringConfigurationSchema,
   }).optional(),
+  RuntimeConfiguration: z.array(ConfigurationObjectSchema).optional(),
   InteractiveConfiguration: z.object({
     LivyEndpointEnabled: z.boolean(),
     StudioEnabled: z.boolean(),
@@ -433,6 +447,9 @@ const InputsSchema = z.object({
       .optional(),
   }).describe("Monitoring configuration for batch and interactive JobRun.")
     .optional(),
+  RuntimeConfiguration: z.array(ConfigurationObjectSchema).describe(
+    "Runtime configuration for batch and interactive JobRun.",
+  ).optional(),
   InteractiveConfiguration: z.object({
     LivyEndpointEnabled: z.boolean().describe(
       "Enables an Apache Livy endpoint that you can connect to and run interactive jobs",
@@ -503,7 +520,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EMRServerless Application. Registered at `@swamp/aws/emrserverless/application`. */
 export const model = {
   type: "@swamp/aws/emrserverless/application",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -568,6 +585,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: RuntimeConfiguration",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

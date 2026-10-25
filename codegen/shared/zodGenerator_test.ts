@@ -1,6 +1,8 @@
 import { assertSnapshot } from "@std/testing/snapshot";
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertStringIncludes } from "@std/assert";
 import { generateZodSchemas } from "./zodGenerator.ts";
+import { resolveResidualRefs } from "./schema/loader.ts";
+import { normalizeOnlyProperties, splitAwsProperties } from "./schema/split.ts";
 import type { CfProperty, CfSchema, OnlyProperties } from "./schema/types.ts";
 
 // ---------------------------------------------------------------------------
@@ -479,4 +481,119 @@ Deno.test("generateZodSchemas - bare object with no properties emits z.record", 
   );
 
   assertEquals(result.extractedSchemas.length, 0);
+});
+
+// ---------------------------------------------------------------------------
+// allOf flattening
+// ---------------------------------------------------------------------------
+
+Deno.test("generateZodSchemas - untyped allOf is merged into one property", () => {
+  const props = {
+    ProtocolType: {
+      allOf: [
+        { type: "string", enum: ["MCP"], title: "GatewayProtocolType" },
+        { default: "MCP" },
+      ],
+    },
+  } as unknown as Record<string, CfProperty>;
+  const result = generateZodSchemas(
+    props,
+    props,
+    makeCfSchema({ properties: props }),
+    makeOnlyProperties(),
+  );
+  assertEquals(
+    result.inputSchemaBody,
+    `  ProtocolType: z.enum(["MCP"]).optional(),`,
+  );
+});
+
+// ---------------------------------------------------------------------------
+// End to end: loader → split → generator (swamp-club #3936, #3943)
+// ---------------------------------------------------------------------------
+
+Deno.test("generateZodSchemas - Budget-shaped schema survives resolve, split and generate", () => {
+  const raw = {
+    typeName: "AWS::Budgets::Budget",
+    description: "",
+    primaryIdentifier: ["/properties/Id"],
+    definitions: {
+      BudgetData: {
+        type: "object",
+        title: "BudgetData",
+        properties: {
+          BudgetType: { type: "string" },
+          BudgetLimit: {
+            type: "object",
+            title: "Spend",
+            properties: { Amount: { type: "number" } },
+            required: ["Amount"],
+          },
+          FilterExpression: { $ref: "#/definitions/Expression" },
+        },
+        required: ["BudgetType"],
+      },
+      Expression: {
+        type: "object",
+        properties: { Not: { $ref: "#/definitions/Expression" } },
+      },
+    },
+    properties: {
+      Budget: { $ref: "#/definitions/BudgetData" },
+      Settings: {},
+      Port: { type: "integer" },
+      Endpoint: {
+        type: "object",
+        properties: { Port: { type: "string" } },
+      },
+      Id: { type: "string" },
+    },
+    required: ["Budget"],
+    readOnlyProperties: ["/properties/Id", "/properties/Endpoint/Port"],
+  } as unknown as CfSchema;
+
+  const cfSchema = resolveResidualRefs(raw);
+  const onlyProperties = makeOnlyProperties({
+    readOnly: normalizeOnlyProperties(raw.readOnlyProperties),
+  });
+  const { domainProperties, resourceValueProperties } = splitAwsProperties(
+    cfSchema,
+    onlyProperties,
+  );
+  const result = generateZodSchemas(
+    domainProperties,
+    resourceValueProperties,
+    cfSchema,
+    onlyProperties,
+  );
+
+  assertEquals(Object.keys(domainProperties), ["Budget", "Settings", "Port"]);
+  assertStringIncludes(result.inputSchemaBody, "  Budget: z.object({");
+  assertStringIncludes(result.inputSchemaBody, "BudgetLimit: SpendSchema");
+  assertStringIncludes(
+    result.inputSchemaBody,
+    "FilterExpression: ExpressionSchema",
+  );
+  assertStringIncludes(
+    result.inputSchemaBody,
+    "  Settings: z.unknown().optional(),",
+  );
+  assertStringIncludes(
+    result.inputSchemaBody,
+    "  Port: z.number().int().optional(),",
+  );
+  // Budget is required: its object closes without .optional()
+  assertStringIncludes(result.inputSchemaBody, "\n}),\n  Settings:");
+
+  const declarations = result.extractedSchemas.map((s) => s.declaration).join(
+    "\n",
+  );
+  assertStringIncludes(
+    declarations,
+    "const SpendSchema = z.object({\n  Amount: z.number(),",
+  );
+  assertStringIncludes(
+    declarations,
+    "Not: z.record(z.string(), z.unknown()).optional(),",
+  );
 });

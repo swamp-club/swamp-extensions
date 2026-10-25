@@ -45,6 +45,9 @@ const StarterProfileSourceSchema = z.object({
 });
 
 const ExistingVersionedProfileSourceSchema = z.object({
+  ProfileId: z.string().describe(
+    "The unique identifier of the source profile to clone.",
+  ),
   Version: z.number().int().describe(
     "The version number of the source profile to clone.",
   ),
@@ -180,7 +183,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for HealthLake DataTransformationProfile. Registered at `@swamp/aws/healthlake/data-transformation-profile`. */
 export const model = {
   type: "@swamp/aws/healthlake/data-transformation-profile",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -199,6 +202,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

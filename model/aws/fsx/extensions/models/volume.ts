@@ -405,10 +405,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for FSx Volume. Registered at `@swamp/aws/fsx/volume`. */
 export const model = {
   type: "@swamp/aws/fsx/volume",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -522,17 +527,17 @@ export const model = {
           [
             "BackupId",
             "VolumeType",
-            "OntapVolumeType",
-            "StorageVirtualMachineId",
-            "VolumeStyle",
-            "AggregateConfiguration",
-            "Aggregates",
-            "ConstituentsPerAggregate",
-            "SnaplockType",
-            "OriginSnapshot",
-            "CopyStrategy",
-            "SnapshotARN",
-            "ParentVolumeId",
+            "OntapConfiguration/OntapVolumeType",
+            "OntapConfiguration/StorageVirtualMachineId",
+            "OntapConfiguration/VolumeStyle",
+            "OntapConfiguration/AggregateConfiguration",
+            "OntapConfiguration/AggregateConfiguration/Aggregates",
+            "OntapConfiguration/AggregateConfiguration/ConstituentsPerAggregate",
+            "OntapConfiguration/SnaplockConfiguration/SnaplockType",
+            "OpenZFSConfiguration/OriginSnapshot",
+            "OpenZFSConfiguration/OriginSnapshot/CopyStrategy",
+            "OpenZFSConfiguration/OriginSnapshot/SnapshotARN",
+            "OpenZFSConfiguration/ParentVolumeId",
           ],
           credentials,
         );

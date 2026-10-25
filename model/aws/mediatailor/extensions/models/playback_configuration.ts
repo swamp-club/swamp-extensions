@@ -171,6 +171,10 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "The configuration for using a content delivery network (CDN), like Amazon CloudFront, for content and ad segment management.",
   ).optional(),
+  ConfigurationAliases: z.record(z.string(), z.record(z.string(), z.unknown()))
+    .describe(
+      "The player parameters and aliases used as dynamic variables during session initialization. For more information, see Domain Variables.",
+    ).optional(),
   DashConfiguration: z.object({
     MpdLocation: z.string().describe(
       "The setting that controls whether MediaTailor includes the Location tag in DASH manifests. MediaTailor populates the Location tag with the URL for manifest update requests, to be used by players that don't support sticky redirects. Disable this if you have CDN routing rules set up for accessing MediaTailor manifests, and you are either using client-side reporting or your players support sticky HTTP redirects. Valid values are DISABLED and EMT_DEFAULT. The EMT_DEFAULT setting enables the inclusion of the tag and is the default value.",
@@ -300,6 +304,7 @@ const StateSchema = z.object({
     AdSegmentUrlPrefix: z.string(),
     ContentSegmentUrlPrefix: z.string(),
   }).optional(),
+  ConfigurationAliases: z.record(z.string(), z.unknown()).optional(),
   DashConfiguration: z.object({
     MpdLocation: z.string(),
     OriginManifestType: z.string(),
@@ -402,6 +407,10 @@ const InputsSchema = z.object({
   }).describe(
     "The configuration for using a content delivery network (CDN), like Amazon CloudFront, for content and ad segment management.",
   ).optional(),
+  ConfigurationAliases: z.record(z.string(), z.record(z.string(), z.unknown()))
+    .describe(
+      "The player parameters and aliases used as dynamic variables during session initialization. For more information, see Domain Variables.",
+    ).optional(),
   DashConfiguration: z.object({
     MpdLocation: z.string().describe(
       "The setting that controls whether MediaTailor includes the Location tag in DASH manifests. MediaTailor populates the Location tag with the URL for manifest update requests, to be used by players that don't support sticky redirects. Disable this if you have CDN routing rules set up for accessing MediaTailor manifests, and you are either using client-side reporting or your players support sticky HTTP redirects. Valid values are DISABLED and EMT_DEFAULT. The EMT_DEFAULT setting enables the inclusion of the tag and is the default value.",
@@ -529,7 +538,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaTailor PlaybackConfiguration. Registered at `@swamp/aws/mediatailor/playback-configuration`. */
 export const model = {
   type: "@swamp/aws/mediatailor/playback-configuration",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -605,6 +614,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: ConfigurationAliases",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

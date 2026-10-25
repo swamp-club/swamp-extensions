@@ -96,6 +96,12 @@ const EbsBlockDeviceConfigSchema = z.object({
   ).optional(),
 });
 
+const AppConfigurationSchema = z.object({
+  ConfigurationProperties: z.record(z.string(), z.string()).optional(),
+  Configurations: z.array(z.record(z.string(), z.unknown())).optional(),
+  Classification: z.string().optional(),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -125,7 +131,7 @@ const GlobalArgsSchema = z.object({
   }).optional(),
   InstanceRole: z.string(),
   CustomAmiId: z.string().optional(),
-  Configurations: z.array(z.string()).optional(),
+  Configurations: z.array(AppConfigurationSchema).optional(),
   InstanceType: z.string(),
   Market: z.string().optional(),
   Name: z.string().optional(),
@@ -146,7 +152,7 @@ const StateSchema = z.object({
   InstanceRole: z.string().optional(),
   CustomAmiId: z.string().optional(),
   InstanceGroupId: z.string(),
-  Configurations: z.array(z.string()).optional(),
+  Configurations: z.array(AppConfigurationSchema).optional(),
   InstanceType: z.string().optional(),
   Market: z.string().optional(),
   Name: z.string().optional(),
@@ -173,7 +179,7 @@ const InputsSchema = z.object({
   }).optional(),
   InstanceRole: z.string().optional(),
   CustomAmiId: z.string().optional(),
-  Configurations: z.array(z.string()).optional(),
+  Configurations: z.array(AppConfigurationSchema).optional(),
   InstanceType: z.string().optional(),
   Market: z.string().optional(),
   Name: z.string().optional(),
@@ -198,7 +204,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EMR InstanceGroupConfig. Registered at `@swamp/aws/emr/instance-group-config`. */
 export const model = {
   type: "@swamp/aws/emr/instance-group-config",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -207,6 +213,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

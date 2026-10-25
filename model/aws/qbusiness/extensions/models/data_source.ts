@@ -135,6 +135,7 @@ const GlobalArgsSchema = z.object({
   ApplicationId: z.string().min(36).max(36).regex(
     new RegExp("^[a-zA-Z0-9][a-zA-Z0-9-]{35}$"),
   ),
+  Configuration: z.unknown(),
   Description: z.string().min(0).max(1000).regex(new RegExp("^[\\s\\S]*$"))
     .optional(),
   DisplayName: z.string().min(1).max(1000).regex(
@@ -173,6 +174,7 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   ApplicationId: z.string(),
+  Configuration: z.unknown().optional(),
   CreatedAt: z.string().optional(),
   DataSourceArn: z.string().optional(),
   DataSourceId: z.string(),
@@ -212,6 +214,7 @@ const InputsSchema = z.object({
   ApplicationId: z.string().min(36).max(36).regex(
     new RegExp("^[a-zA-Z0-9][a-zA-Z0-9-]{35}$"),
   ).optional(),
+  Configuration: z.unknown().optional(),
   Description: z.string().min(0).max(1000).regex(new RegExp("^[\\s\\S]*$"))
     .optional(),
   DisplayName: z.string().min(1).max(1000).regex(
@@ -267,7 +270,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QBusiness DataSource. Registered at `@swamp/aws/qbusiness/data-source`. */
 export const model = {
   type: "@swamp/aws/qbusiness/data-source",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -327,6 +330,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: Configuration",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -195,7 +195,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IVS RecordingConfiguration. Registered at `@swamp/aws/ivs/recording-configuration`. */
 export const model = {
   type: "@swamp/aws/ivs/recording-configuration",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -254,6 +254,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -367,17 +372,17 @@ export const model = {
           [
             "Name",
             "DestinationConfiguration",
-            "S3",
-            "BucketName",
+            "DestinationConfiguration/S3",
+            "DestinationConfiguration/S3/BucketName",
             "RecordingReconnectWindowSeconds",
             "ThumbnailConfiguration",
-            "RecordingMode",
-            "TargetIntervalSeconds",
-            "Storage",
-            "Resolution",
+            "ThumbnailConfiguration/RecordingMode",
+            "ThumbnailConfiguration/TargetIntervalSeconds",
+            "ThumbnailConfiguration/Storage",
+            "ThumbnailConfiguration/Resolution",
             "RenditionConfiguration",
-            "RenditionSelection",
-            "Renditions",
+            "RenditionConfiguration/RenditionSelection",
+            "RenditionConfiguration/Renditions",
           ],
           credentials,
         );

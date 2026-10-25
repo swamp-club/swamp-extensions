@@ -180,6 +180,9 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "An Amazon EC2 launch template AWS PCS uses to launch compute nodes.",
   ).optional(),
+  Tags: z.record(z.string(), z.string()).describe(
+    "1 or more tags added to the resource. Each tag consists of a tag key and tag value. The tag value is optional and can be an empty string.",
+  ).optional(),
   AmiId: z.string().regex(new RegExp("^ami-[a-z0-9]+$")).describe(
     "The ID of the Amazon Machine Image (AMI) that AWS PCS uses to launch instances. If not provided, AWS PCS uses the AMI ID specified in the custom launch template.",
   ).optional(),
@@ -225,6 +228,7 @@ const StateSchema = z.object({
     Version: z.string(),
     TemplateId: z.string(),
   }).optional(),
+  Tags: z.record(z.string(), z.unknown()).optional(),
   AmiId: z.string().optional(),
   IamInstanceProfileArn: z.string().optional(),
 }).passthrough();
@@ -308,6 +312,9 @@ const InputsSchema = z.object({
   }).describe(
     "An Amazon EC2 launch template AWS PCS uses to launch compute nodes.",
   ).optional(),
+  Tags: z.record(z.string(), z.string()).describe(
+    "1 or more tags added to the resource. Each tag consists of a tag key and tag value. The tag value is optional and can be an empty string.",
+  ).optional(),
   AmiId: z.string().regex(new RegExp("^ami-[a-z0-9]+$")).describe(
     "The ID of the Amazon Machine Image (AMI) that AWS PCS uses to launch instances. If not provided, AWS PCS uses the AMI ID specified in the custom launch template.",
   ).optional(),
@@ -339,7 +346,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for PCS ComputeNodeGroup. Registered at `@swamp/aws/pcs/compute-node-group`. */
 export const model = {
   type: "@swamp/aws/pcs/compute-node-group",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -429,6 +436,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: Tags",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

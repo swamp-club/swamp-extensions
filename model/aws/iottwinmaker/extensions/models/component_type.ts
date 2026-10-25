@@ -63,6 +63,98 @@ const FunctionSchema = z.object({
     .optional(),
 });
 
+const DataValueSchema = z.object({
+  BooleanValue: z.boolean().describe("A Boolean value.").optional(),
+  DoubleValue: z.number().describe("A double value.").optional(),
+  Expression: z.string().min(1).max(316).regex(
+    new RegExp("(^\\$\\{Parameters\\.[a-zA-z]+([a-zA-z_0-9]*)}$)"),
+  ).describe("An expression that produces the value.").optional(),
+  IntegerValue: z.number().int().describe("An integer value.").optional(),
+  ListValue: z.array(z.record(z.string(), z.unknown())).describe(
+    "A list of multiple values.",
+  ).optional(),
+  LongValue: z.number().describe("A long value.").optional(),
+  StringValue: z.string().min(1).max(256).regex(new RegExp(".*")).describe(
+    "A string value.",
+  ).optional(),
+  MapValue: z.record(z.string(), z.record(z.string(), z.unknown())).describe(
+    "An object that maps strings to multiple DataValue objects.",
+  ).optional(),
+  RelationshipValue: z.object({
+    TargetComponentName: z.string().min(1).max(256).regex(
+      new RegExp("[a-zA-Z_\\-0-9]+"),
+    ).optional(),
+    TargetEntityId: z.string().min(1).max(128).regex(
+      new RegExp(
+        "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|^[a-zA-Z0-9][a-zA-Z_\\-0-9.:]*[a-zA-Z0-9]+",
+      ),
+    ).optional(),
+  }).describe("A value that relates a component to another component.")
+    .optional(),
+});
+
+const RelationshipSchema = z.object({
+  RelationshipType: z.string().min(1).max(256).regex(new RegExp(".*")).describe(
+    "The type of the relationship.",
+  ).optional(),
+  TargetComponentTypeId: z.string().min(1).max(256).regex(
+    new RegExp("[a-zA-Z_\\.\\-0-9:]+"),
+  ).describe(
+    "The ID of the target component type associated with this relationship.",
+  ).optional(),
+});
+
+const DataTypeSchema = z.object({
+  AllowedValues: z.array(DataValueSchema).describe(
+    "The allowed values for this data type.",
+  ).optional(),
+  NestedType: z.record(z.string(), z.unknown()).describe(
+    "The nested type in the data type.",
+  ).optional(),
+  Relationship: RelationshipSchema.describe(
+    "A relationship that associates a component with another component.",
+  ).optional(),
+  Type: z.enum([
+    "RELATIONSHIP",
+    "STRING",
+    "LONG",
+    "BOOLEAN",
+    "INTEGER",
+    "DOUBLE",
+    "LIST",
+    "MAP",
+  ]).describe("The underlying type of the data type."),
+  UnitOfMeasure: z.string().min(1).max(256).regex(new RegExp(".*")).describe(
+    "The unit of measure used in this data type.",
+  ).optional(),
+});
+
+const PropertyDefinitionSchema = z.object({
+  Configurations: z.record(
+    z.string(),
+    z.string().min(1).max(256).regex(new RegExp("[a-zA-Z_\\-0-9]+")),
+  ).describe("An object that specifies information about a property.")
+    .optional(),
+  DataType: DataTypeSchema.describe(
+    "An object that contains information about the data type.",
+  ).optional(),
+  DefaultValue: DataValueSchema.describe(
+    "An object that contains the default value.",
+  ).optional(),
+  IsExternalId: z.boolean().describe(
+    "A Boolean value that specifies whether the property ID comes from an external data store.",
+  ).optional(),
+  IsRequiredInEntity: z.boolean().describe(
+    "A Boolean value that specifies whether the property is required.",
+  ).optional(),
+  IsStoredExternally: z.boolean().describe(
+    "A Boolean value that specifies whether the property is stored externally.",
+  ).optional(),
+  IsTimeSeries: z.boolean().describe(
+    "A Boolean value that specifies whether the property consists of time series data.",
+  ).optional(),
+});
+
 const PropertyGroupSchema = z.object({
   GroupType: z.enum(["TABULAR"]).describe("The type of property group.")
     .optional(),
@@ -109,7 +201,7 @@ const GlobalArgsSchema = z.object({
   IsSingleton: z.boolean().describe(
     "A Boolean value that specifies whether an entity can have more than one component of this type.",
   ).optional(),
-  PropertyDefinitions: z.record(z.string(), z.string()).describe(
+  PropertyDefinitions: z.record(z.string(), PropertyDefinitionSchema).describe(
     "An map of the property definitions in the component type. Each property definition's key must be unique to this map.",
   ).optional(),
   PropertyGroups: z.record(z.string(), PropertyGroupSchema).describe(
@@ -177,7 +269,7 @@ const InputsSchema = z.object({
   IsSingleton: z.boolean().describe(
     "A Boolean value that specifies whether an entity can have more than one component of this type.",
   ).optional(),
-  PropertyDefinitions: z.record(z.string(), z.string()).describe(
+  PropertyDefinitions: z.record(z.string(), PropertyDefinitionSchema).describe(
     "An map of the property definitions in the component type. Each property definition's key must be unique to this map.",
   ).optional(),
   PropertyGroups: z.record(z.string(), PropertyGroupSchema).describe(
@@ -216,7 +308,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTTwinMaker ComponentType. Registered at `@swamp/aws/iottwinmaker/component-type`. */
 export const model = {
   type: "@swamp/aws/iottwinmaker/component-type",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -280,6 +372,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

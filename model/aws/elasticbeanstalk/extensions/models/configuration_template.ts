@@ -88,6 +88,9 @@ const GlobalArgsSchema = z.object({
     ApplicationName: z.string().describe(
       "The name of the application associated with the configuration.",
     ),
+    TemplateName: z.string().describe(
+      "The name of the configuration template.",
+    ),
   }).describe(
     "An Elastic Beanstalk configuration template to base this one on. If specified, Elastic Beanstalk uses the configuration values from the specified configuration template to create a new configuration. Values specified in OptionSettings override any values obtained from the SourceConfiguration. You must specify SourceConfiguration if you don't specify PlatformArn, EnvironmentId, or SolutionStackName. Constraint: If both solution stack name and source configuration are specified, the solution stack of the source configuration template must match the specified solution stack name.",
   ).optional(),
@@ -137,6 +140,8 @@ const InputsSchema = z.object({
     ApplicationName: z.string().describe(
       "The name of the application associated with the configuration.",
     ).optional(),
+    TemplateName: z.string().describe("The name of the configuration template.")
+      .optional(),
   }).describe(
     "An Elastic Beanstalk configuration template to base this one on. If specified, Elastic Beanstalk uses the configuration values from the specified configuration template to create a new configuration. Values specified in OptionSettings override any values obtained from the SourceConfiguration. You must specify SourceConfiguration if you don't specify PlatformArn, EnvironmentId, or SolutionStackName. Constraint: If both solution stack name and source configuration are specified, the solution stack of the source configuration template must match the specified solution stack name.",
   ).optional(),
@@ -161,7 +166,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElasticBeanstalk ConfigurationTemplate. Registered at `@swamp/aws/elasticbeanstalk/configuration-template`. */
 export const model = {
   type: "@swamp/aws/elasticbeanstalk/configuration-template",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -220,6 +225,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

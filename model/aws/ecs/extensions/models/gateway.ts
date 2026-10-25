@@ -215,10 +215,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECS Gateway. Registered at `@swamp/aws/ecs/gateway`. */
 export const model = {
   type: "@swamp/aws/ecs/gateway",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -331,11 +336,11 @@ export const model = {
           desiredState,
           [
             "GatewayName",
-            "Subnets",
-            "IpAddressType",
-            "Scheme",
-            "Port",
-            "Protocol",
+            "Configuration/HostSharedAlb/NetworkConfiguration/Subnets",
+            "Configuration/HostSharedAlb/NetworkConfiguration/IpAddressType",
+            "Configuration/HostSharedAlb/Scheme",
+            "Configuration/HostSharedAlb/Port",
+            "Configuration/HostSharedAlb/Protocol",
           ],
           credentials,
         );

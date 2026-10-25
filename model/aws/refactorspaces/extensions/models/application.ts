@@ -63,6 +63,8 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   ApiGatewayProxy: z.object({
+    StageName: z.string().min(1).max(128).regex(new RegExp("^[-a-zA-Z0-9_]*$"))
+      .optional(),
     EndpointType: z.enum(["REGIONAL", "PRIVATE"]).optional(),
   }).optional(),
   EnvironmentIdentifier: z.string().min(14).max(14).regex(
@@ -109,6 +111,8 @@ const InputsSchema = z.object({
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
   ApiGatewayProxy: z.object({
+    StageName: z.string().min(1).max(128).regex(new RegExp("^[-a-zA-Z0-9_]*$"))
+      .optional(),
     EndpointType: z.enum(["REGIONAL", "PRIVATE"]).optional(),
   }).optional(),
   EnvironmentIdentifier: z.string().min(14).max(14).regex(
@@ -145,7 +149,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RefactorSpaces Application. Registered at `@swamp/aws/refactorspaces/application`. */
 export const model = {
   type: "@swamp/aws/refactorspaces/application",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -204,6 +208,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

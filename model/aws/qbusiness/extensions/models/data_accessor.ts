@@ -38,6 +38,40 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const DocumentAttributeSchema = z.object({
+  Name: z.string().min(1).max(200).regex(
+    new RegExp("^[a-zA-Z0-9_][a-zA-Z0-9_-]*$"),
+  ),
+  Value: z.object({
+    StringValue: z.string().max(2048).optional(),
+    StringListValue: z.array(z.string().min(1).max(2048)).optional(),
+    LongValue: z.number().optional(),
+    DateValue: z.string().optional(),
+  }),
+});
+
+const AttributeFilterSchema = z.object({
+  AndAllFilters: z.array(z.record(z.string(), z.unknown())).optional(),
+  OrAllFilters: z.array(z.record(z.string(), z.unknown())).optional(),
+  NotFilter: z.record(z.string(), z.unknown()).optional(),
+  EqualsTo: DocumentAttributeSchema.optional(),
+  ContainsAll: DocumentAttributeSchema.optional(),
+  ContainsAny: DocumentAttributeSchema.optional(),
+  GreaterThan: DocumentAttributeSchema.optional(),
+  GreaterThanOrEquals: DocumentAttributeSchema.optional(),
+  LessThan: DocumentAttributeSchema.optional(),
+  LessThanOrEquals: DocumentAttributeSchema.optional(),
+});
+
+const ActionFilterConfigurationSchema = z.object({
+  DocumentAttributeFilter: AttributeFilterSchema,
+});
+
+const ActionConfigurationSchema = z.object({
+  Action: z.string().regex(new RegExp("^qbusiness:[a-zA-Z]+$")),
+  FilterConfiguration: ActionFilterConfigurationSchema.optional(),
+});
+
 const DataAccessorIdcTrustedTokenIssuerConfigurationSchema = z.object({
   IdcTrustedTokenIssuerArn: z.string().min(0).max(1284).regex(
     new RegExp(
@@ -67,7 +101,7 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  ActionConfigurations: z.array(z.string()),
+  ActionConfigurations: z.array(ActionConfigurationSchema),
   ApplicationId: z.string().min(36).max(36).regex(
     new RegExp("^[a-zA-Z0-9][a-zA-Z0-9-]{35}$"),
   ),
@@ -93,7 +127,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  ActionConfigurations: z.array(z.string()).optional(),
+  ActionConfigurations: z.array(ActionConfigurationSchema).optional(),
   ApplicationId: z.string(),
   AuthenticationDetail: z.object({
     AuthenticationType: z.string(),
@@ -121,7 +155,7 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  ActionConfigurations: z.array(z.string()).optional(),
+  ActionConfigurations: z.array(ActionConfigurationSchema).optional(),
   ApplicationId: z.string().min(36).max(36).regex(
     new RegExp("^[a-zA-Z0-9][a-zA-Z0-9-]{35}$"),
   ).optional(),
@@ -166,7 +200,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QBusiness DataAccessor. Registered at `@swamp/aws/qbusiness/data-accessor`. */
 export const model = {
   type: "@swamp/aws/qbusiness/data-accessor",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -225,6 +259,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -38,6 +38,11 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const ConfigParameterSchema = z.object({
+  ParameterKey: z.string().min(0).max(255).optional(),
+  ParameterValue: z.string().min(0).max(15000).optional(),
+});
+
 const TagSchema = z.object({
   Key: z.string().min(1).max(128),
   Value: z.string().min(0).max(256),
@@ -61,13 +66,11 @@ const EndpointSchema = z.object({
 });
 
 const PerformanceTargetSchema = z.object({
+  Status: z.enum(["ENABLED", "DISABLED"]).optional(),
   Level: z.number().int().min(1).max(100).optional(),
 });
 
 const GlobalArgsSchema = z.object({
-  name: z.string().describe(
-    "Instance name for this resource (used as the unique identifier in the factory pattern)",
-  ),
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -80,7 +83,40 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
+  WorkgroupName: z.string().min(3).max(64).regex(
+    new RegExp("^(?=^[a-z0-9-]+$).{3,64}$"),
+  ).describe("The name of the workgroup."),
+  NamespaceName: z.string().min(3).max(64).regex(
+    new RegExp("^(?=^[a-z0-9-]+$).{3,64}$"),
+  ).describe("The namespace the workgroup is associated with.").optional(),
+  BaseCapacity: z.number().int().describe(
+    "The base compute capacity of the workgroup in Redshift Processing Units (RPUs).",
+  ).optional(),
+  MaxCapacity: z.number().int().describe(
+    "The max compute capacity of the workgroup in Redshift Processing Units (RPUs).",
+  ).optional(),
+  EnhancedVpcRouting: z.boolean().describe(
+    "The value that specifies whether to enable enhanced virtual private cloud (VPC) routing, which forces Amazon Redshift Serverless to route traffic through your VPC.",
+  ).optional(),
+  ConfigParameters: z.array(ConfigParameterSchema).describe(
+    "A list of parameters to set for finer control over a database. Available options are datestyle, enable_user_activity_logging, query_group, search_path, max_query_execution_time, and require_ssl.",
+  ).optional(),
+  SecurityGroupIds: z.array(
+    z.string().min(0).max(255).regex(new RegExp("^sg-[0-9a-fA-F]{8,}$")),
+  ).describe("A list of security group IDs to associate with the workgroup.")
+    .optional(),
+  SubnetIds: z.array(
+    z.string().min(0).max(255).regex(new RegExp("^subnet-[0-9a-fA-F]{8,}$")),
+  ).describe("A list of subnet IDs the workgroup is associated with.")
+    .optional(),
+  PubliclyAccessible: z.boolean().describe(
+    "A value that specifies whether the workgroup can be accessible from a public network.",
+  ).optional(),
+  Port: z.number().int().describe(
+    "The custom port to use when connecting to a workgroup. Valid port ranges are 5431-5455 and 8191-8215. The default is 5439.",
+  ).optional(),
   PricePerformanceTarget: z.object({
+    Status: z.enum(["ENABLED", "DISABLED"]).optional(),
     Level: z.number().int().min(1).max(100).optional(),
   }).describe(
     "A property that represents the price performance target settings for the workgroup.",
@@ -100,6 +136,8 @@ const GlobalArgsSchema = z.object({
   Tags: z.array(TagSchema).describe(
     "The map of the key-value pairs used to tag the workgroup.",
   ).optional(),
+  TrackName: z.string().min(1).max(256).regex(new RegExp("^[a-zA-Z0-9_]+$"))
+    .optional(),
   Workgroup: z.object({
     Endpoint: EndpointSchema.optional(),
     PricePerformanceTarget: PerformanceTargetSchema.optional(),
@@ -112,10 +150,7 @@ const StateSchema = z.object({
   BaseCapacity: z.number().optional(),
   MaxCapacity: z.number().optional(),
   EnhancedVpcRouting: z.boolean().optional(),
-  ConfigParameters: z.array(z.object({
-    ParameterKey: z.string(),
-    ParameterValue: z.string(),
-  })).optional(),
+  ConfigParameters: z.array(ConfigParameterSchema).optional(),
   SecurityGroupIds: z.array(z.string()).optional(),
   SubnetIds: z.array(z.string()).optional(),
   PubliclyAccessible: z.boolean().optional(),
@@ -135,10 +170,7 @@ const StateSchema = z.object({
     BaseCapacity: z.number(),
     MaxCapacity: z.number(),
     EnhancedVpcRouting: z.boolean(),
-    ConfigParameters: z.array(z.object({
-      ParameterKey: z.string(),
-      ParameterValue: z.string(),
-    })),
+    ConfigParameters: z.array(ConfigParameterSchema),
     SecurityGroupIds: z.array(z.string()),
     SubnetIds: z.array(z.string()),
     Status: z.string(),
@@ -153,12 +185,44 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  name: z.string().optional(),
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
+  WorkgroupName: z.string().min(3).max(64).regex(
+    new RegExp("^(?=^[a-z0-9-]+$).{3,64}$"),
+  ).describe("The name of the workgroup.").optional(),
+  NamespaceName: z.string().min(3).max(64).regex(
+    new RegExp("^(?=^[a-z0-9-]+$).{3,64}$"),
+  ).describe("The namespace the workgroup is associated with.").optional(),
+  BaseCapacity: z.number().int().describe(
+    "The base compute capacity of the workgroup in Redshift Processing Units (RPUs).",
+  ).optional(),
+  MaxCapacity: z.number().int().describe(
+    "The max compute capacity of the workgroup in Redshift Processing Units (RPUs).",
+  ).optional(),
+  EnhancedVpcRouting: z.boolean().describe(
+    "The value that specifies whether to enable enhanced virtual private cloud (VPC) routing, which forces Amazon Redshift Serverless to route traffic through your VPC.",
+  ).optional(),
+  ConfigParameters: z.array(ConfigParameterSchema).describe(
+    "A list of parameters to set for finer control over a database. Available options are datestyle, enable_user_activity_logging, query_group, search_path, max_query_execution_time, and require_ssl.",
+  ).optional(),
+  SecurityGroupIds: z.array(
+    z.string().min(0).max(255).regex(new RegExp("^sg-[0-9a-fA-F]{8,}$")),
+  ).describe("A list of security group IDs to associate with the workgroup.")
+    .optional(),
+  SubnetIds: z.array(
+    z.string().min(0).max(255).regex(new RegExp("^subnet-[0-9a-fA-F]{8,}$")),
+  ).describe("A list of subnet IDs the workgroup is associated with.")
+    .optional(),
+  PubliclyAccessible: z.boolean().describe(
+    "A value that specifies whether the workgroup can be accessible from a public network.",
+  ).optional(),
+  Port: z.number().int().describe(
+    "The custom port to use when connecting to a workgroup. Valid port ranges are 5431-5455 and 8191-8215. The default is 5439.",
+  ).optional(),
   PricePerformanceTarget: z.object({
+    Status: z.enum(["ENABLED", "DISABLED"]).optional(),
     Level: z.number().int().min(1).max(100).optional(),
   }).describe(
     "A property that represents the price performance target settings for the workgroup.",
@@ -178,6 +242,8 @@ const InputsSchema = z.object({
   Tags: z.array(TagSchema).describe(
     "The map of the key-value pairs used to tag the workgroup.",
   ).optional(),
+  TrackName: z.string().min(1).max(256).regex(new RegExp("^[a-zA-Z0-9_]+$"))
+    .optional(),
   Workgroup: z.object({
     Endpoint: EndpointSchema.optional(),
     PricePerformanceTarget: PerformanceTargetSchema.optional(),
@@ -203,7 +269,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RedshiftServerless Workgroup. Registered at `@swamp/aws/redshiftserverless/workgroup`. */
 export const model = {
   type: "@swamp/aws/redshiftserverless/workgroup",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -270,6 +336,15 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.25.1",
+      description:
+        "Added: WorkgroupName, NamespaceName, BaseCapacity, MaxCapacity, EnhancedVpcRouting, ConfigParameters, SecurityGroupIds, SubnetIds, PubliclyAccessible, Port, TrackName. Removed: name",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { name: _name, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -290,7 +365,6 @@ export const model = {
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {
-          if (key === "name") continue;
           if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
@@ -299,10 +373,9 @@ export const model = {
           desiredState,
           credentials,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName =
+          ((result.WorkgroupName ?? g.WorkgroupName)?.toString() ?? "current")
+            .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -326,10 +399,11 @@ export const model = {
           credentials,
         ) as StateData;
         const instanceName =
-          (context.globalArgs.name?.toString() ?? args.identifier).replace(
-            /[\/\\]/g,
-            "_",
-          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          ((result.WorkgroupName ?? context.globalArgs.WorkgroupName)
+            ?.toString() ?? args.identifier).replace(/[\/\\]/g, "_").replace(
+              /\.\./g,
+              "_",
+            ).replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -344,7 +418,7 @@ export const model = {
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildCredentials(g);
-        const instanceName = (g.name?.toString() ?? "current").replace(
+        const instanceName = (g.WorkgroupName?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");
@@ -368,7 +442,6 @@ export const model = {
         ) as StateData;
         const desiredState: Record<string, unknown> = { ...currentState };
         for (const [key, value] of Object.entries(g)) {
-          if (key === "name") continue;
           if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
@@ -403,10 +476,8 @@ export const model = {
           credentials,
         );
         const instanceName =
-          (context.globalArgs.name?.toString() ?? args.identifier).replace(
-            /[\/\\]/g,
-            "_",
-          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          (context.globalArgs.WorkgroupName?.toString() ?? args.identifier)
+            .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           identifier: args.identifier,
           existed,
@@ -422,7 +493,7 @@ export const model = {
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildCredentials(g);
-        const instanceName = (g.name?.toString() ?? "current").replace(
+        const instanceName = (g.WorkgroupName?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");

@@ -85,6 +85,9 @@ const GlobalArgsSchema = z.object({
   DiskName: z.string().min(1).max(254).regex(
     new RegExp("^[a-zA-Z0-9][\\w\\-.]*[a-zA-Z0-9]$"),
   ).describe("The names to use for your new Lightsail disk."),
+  AvailabilityZone: z.string().min(1).max(255).describe(
+    "The Availability Zone in which to create your instance. Use the following format: us-east-2a (case sensitive). Be sure to add the include Availability Zones parameter to your request.",
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -125,6 +128,9 @@ const InputsSchema = z.object({
   DiskName: z.string().min(1).max(254).regex(
     new RegExp("^[a-zA-Z0-9][\\w\\-.]*[a-zA-Z0-9]$"),
   ).describe("The names to use for your new Lightsail disk.").optional(),
+  AvailabilityZone: z.string().min(1).max(255).describe(
+    "The Availability Zone in which to create your instance. Use the following format: us-east-2a (case sensitive). Be sure to add the include Availability Zones parameter to your request.",
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -153,7 +159,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lightsail Disk. Registered at `@swamp/aws/lightsail/disk`. */
 export const model = {
   type: "@swamp/aws/lightsail/disk",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -213,6 +219,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: AvailabilityZone",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

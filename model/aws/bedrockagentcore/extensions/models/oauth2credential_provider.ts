@@ -182,6 +182,9 @@ const CustomOauth2ProviderConfigInputSchema = z.object({
   ClientSecretConfig: SecretReferenceSchema.describe(
     "A reference to a customer-provided secret stored in AWS Secrets Manager",
   ).optional(),
+  ClientSecretSource: z.enum(["MANAGED", "EXTERNAL"]).describe(
+    "The source of the client secret",
+  ).optional(),
   OnBehalfOfTokenExchangeConfig: OnBehalfOfTokenExchangeConfigSchema.describe(
     "Configuration for on-behalf-of token exchange",
   ).optional(),
@@ -210,6 +213,7 @@ const GoogleOauth2ProviderConfigInputSchema = z.object({
   ClientSecretConfig: SecretReferenceSchema.describe(
     "A reference to a customer-provided secret stored in AWS Secrets Manager",
   ).optional(),
+  ClientSecretSource: z.enum(["MANAGED", "EXTERNAL"]).optional(),
 });
 
 const GithubOauth2ProviderConfigInputSchema = z.object({
@@ -218,6 +222,7 @@ const GithubOauth2ProviderConfigInputSchema = z.object({
   ClientSecretConfig: SecretReferenceSchema.describe(
     "A reference to a customer-provided secret stored in AWS Secrets Manager",
   ).optional(),
+  ClientSecretSource: z.enum(["MANAGED", "EXTERNAL"]).optional(),
 });
 
 const SlackOauth2ProviderConfigInputSchema = z.object({
@@ -226,6 +231,7 @@ const SlackOauth2ProviderConfigInputSchema = z.object({
   ClientSecretConfig: SecretReferenceSchema.describe(
     "A reference to a customer-provided secret stored in AWS Secrets Manager",
   ).optional(),
+  ClientSecretSource: z.enum(["MANAGED", "EXTERNAL"]).optional(),
 });
 
 const SalesforceOauth2ProviderConfigInputSchema = z.object({
@@ -234,6 +240,7 @@ const SalesforceOauth2ProviderConfigInputSchema = z.object({
   ClientSecretConfig: SecretReferenceSchema.describe(
     "A reference to a customer-provided secret stored in AWS Secrets Manager",
   ).optional(),
+  ClientSecretSource: z.enum(["MANAGED", "EXTERNAL"]).optional(),
 });
 
 const MicrosoftOauth2ProviderConfigInputSchema = z.object({
@@ -242,6 +249,7 @@ const MicrosoftOauth2ProviderConfigInputSchema = z.object({
   ClientSecretConfig: SecretReferenceSchema.describe(
     "A reference to a customer-provided secret stored in AWS Secrets Manager",
   ).optional(),
+  ClientSecretSource: z.enum(["MANAGED", "EXTERNAL"]).optional(),
   TenantId: z.string().min(1).max(2048).describe(
     "The Microsoft Entra ID tenant ID",
   ).optional(),
@@ -253,6 +261,7 @@ const AtlassianOauth2ProviderConfigInputSchema = z.object({
   ClientSecretConfig: SecretReferenceSchema.describe(
     "A reference to a customer-provided secret stored in AWS Secrets Manager",
   ).optional(),
+  ClientSecretSource: z.enum(["MANAGED", "EXTERNAL"]).optional(),
 });
 
 const LinkedinOauth2ProviderConfigInputSchema = z.object({
@@ -261,6 +270,7 @@ const LinkedinOauth2ProviderConfigInputSchema = z.object({
   ClientSecretConfig: SecretReferenceSchema.describe(
     "A reference to a customer-provided secret stored in AWS Secrets Manager",
   ).optional(),
+  ClientSecretSource: z.enum(["MANAGED", "EXTERNAL"]).optional(),
 });
 
 const IncludedOauth2ProviderConfigInputSchema = z.object({
@@ -269,6 +279,7 @@ const IncludedOauth2ProviderConfigInputSchema = z.object({
   ClientSecretConfig: SecretReferenceSchema.describe(
     "A reference to a customer-provided secret stored in AWS Secrets Manager",
   ).optional(),
+  ClientSecretSource: z.enum(["MANAGED", "EXTERNAL"]).optional(),
   Issuer: z.string().describe(
     "Token issuer of your isolated OAuth2 application tenant",
   ).optional(),
@@ -562,7 +573,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore OAuth2CredentialProvider. Registered at `@swamp/aws/bedrockagentcore/oauth2credential-provider`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/oauth2credential-provider",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.23.1",
@@ -626,6 +637,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

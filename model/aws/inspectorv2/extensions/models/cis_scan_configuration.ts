@@ -38,6 +38,25 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const TimeSchema = z.object({
+  TimeOfDay: z.string().regex(new RegExp("^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$")),
+  TimeZone: z.string(),
+});
+
+const DailyScheduleSchema = z.object({
+  StartTime: TimeSchema,
+});
+
+const WeeklyScheduleSchema = z.object({
+  StartTime: TimeSchema,
+  Days: z.array(z.enum(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"])),
+});
+
+const MonthlyScheduleSchema = z.object({
+  StartTime: TimeSchema,
+  Day: z.enum(["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"]),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -56,6 +75,18 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ScanName: z.string().min(1).describe("Name of the scan"),
   SecurityLevel: z.enum(["LEVEL_1", "LEVEL_2"]),
+  Schedule: z.object({
+    OneTime: z.record(z.string(), z.unknown()).optional(),
+    Daily: DailyScheduleSchema.optional(),
+    Weekly: WeeklyScheduleSchema.optional(),
+    Monthly: MonthlyScheduleSchema.optional(),
+  }).describe("Choose a Schedule cadence"),
+  Targets: z.object({
+    AccountIds: z.array(
+      z.string().regex(new RegExp("^\\d{12}|ALL_ACCOUNTS|SELF$")),
+    ),
+    TargetResourceTags: z.record(z.string(), z.array(z.string())),
+  }),
   Tags: z.record(z.string(), z.string().regex(new RegExp("^.{1,255}$")))
     .optional(),
 });
@@ -63,6 +94,16 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   ScanName: z.string().optional(),
   SecurityLevel: z.string().optional(),
+  Schedule: z.object({
+    OneTime: z.record(z.string(), z.unknown()),
+    Daily: DailyScheduleSchema,
+    Weekly: WeeklyScheduleSchema,
+    Monthly: MonthlyScheduleSchema,
+  }).optional(),
+  Targets: z.object({
+    AccountIds: z.array(z.string()),
+    TargetResourceTags: z.record(z.string(), z.unknown()),
+  }).optional(),
   Arn: z.string(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
@@ -77,6 +118,18 @@ const InputsSchema = z.object({
   region: z.string().optional(),
   ScanName: z.string().min(1).describe("Name of the scan").optional(),
   SecurityLevel: z.enum(["LEVEL_1", "LEVEL_2"]).optional(),
+  Schedule: z.object({
+    OneTime: z.record(z.string(), z.unknown()).optional(),
+    Daily: DailyScheduleSchema.optional(),
+    Weekly: WeeklyScheduleSchema.optional(),
+    Monthly: MonthlyScheduleSchema.optional(),
+  }).describe("Choose a Schedule cadence").optional(),
+  Targets: z.object({
+    AccountIds: z.array(
+      z.string().regex(new RegExp("^\\d{12}|ALL_ACCOUNTS|SELF$")),
+    ).optional(),
+    TargetResourceTags: z.record(z.string(), z.array(z.string())).optional(),
+  }).optional(),
   Tags: z.record(z.string(), z.string().regex(new RegExp("^.{1,255}$")))
     .optional(),
 });
@@ -100,7 +153,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for InspectorV2 CisScanConfiguration. Registered at `@swamp/aws/inspectorv2/cis-scan-configuration`. */
 export const model = {
   type: "@swamp/aws/inspectorv2/cis-scan-configuration",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -160,6 +213,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: Schedule, Targets",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

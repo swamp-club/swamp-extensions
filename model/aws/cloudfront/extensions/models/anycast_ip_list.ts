@@ -38,6 +38,21 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const IpamCidrConfigResultSchema = z.object({
+  Cidr: z.string().describe(
+    "The CIDR that specifies the IP address range for this IPAM configuration.",
+  ).optional(),
+  IpamPoolArn: z.string().describe(
+    "The Amazon Resource Name (ARN) of the IPAM pool that the CIDR block is assigned to.",
+  ).optional(),
+  AnycastIp: z.string().describe(
+    "The specified Anycast IP address allocated from the IPAM pool for this CIDR configuration.",
+  ).optional(),
+  Status: z.string().describe(
+    "The current status of the IPAM CIDR configuration.",
+  ).optional(),
+});
+
 const IpamCidrConfigSchema = z.object({
   Cidr: z.string().describe(
     "The CIDR that specifies the IP address range for this IPAM configuration.",
@@ -83,11 +98,15 @@ const GlobalArgsSchema = z.object({
     Arn: z.string().describe(
       "The Amazon Resource Name (ARN) of the Anycast static IP list.",
     ),
+    Id: z.string().describe("The ID of the Anycast static IP list."),
     IpCount: z.number().int().describe(
       "The number of IP addresses in the Anycast static IP list.",
     ),
     IpAddressType: z.enum(["ipv4", "dualstack"]).describe(
       "The IP address type for the Anycast static IP list.",
+    ).optional(),
+    IpamCidrConfigResults: z.array(IpamCidrConfigResultSchema).describe(
+      "The results for the IPAM CIDRs that defines a specific IP address range, IPAM pool, and associated Anycast IP address.",
     ).optional(),
     LastModifiedTime: z.string().describe(
       "The last time the Anycast static IP list was modified.",
@@ -124,12 +143,7 @@ const StateSchema = z.object({
     Id: z.string(),
     IpCount: z.number(),
     IpAddressType: z.string(),
-    IpamCidrConfigResults: z.array(z.object({
-      Cidr: z.string(),
-      IpamPoolArn: z.string(),
-      AnycastIp: z.string(),
-      Status: z.string(),
-    })),
+    IpamCidrConfigResults: z.array(IpamCidrConfigResultSchema),
     LastModifiedTime: z.string(),
     Name: z.string(),
     Status: z.string(),
@@ -139,12 +153,7 @@ const StateSchema = z.object({
   IpCount: z.number().optional(),
   IpAddressType: z.string().optional(),
   IpamCidrConfigs: z.array(IpamCidrConfigSchema).optional(),
-  IpamCidrConfigResults: z.array(z.object({
-    Cidr: z.string(),
-    IpamPoolArn: z.string(),
-    AnycastIp: z.string(),
-    Status: z.string(),
-  })).optional(),
+  IpamCidrConfigResults: z.array(IpamCidrConfigResultSchema).optional(),
   Name: z.string().optional(),
   Tags: z.object({
     Items: z.array(TagSchema),
@@ -166,11 +175,15 @@ const InputsSchema = z.object({
     Arn: z.string().describe(
       "The Amazon Resource Name (ARN) of the Anycast static IP list.",
     ).optional(),
+    Id: z.string().describe("The ID of the Anycast static IP list.").optional(),
     IpCount: z.number().int().describe(
       "The number of IP addresses in the Anycast static IP list.",
     ).optional(),
     IpAddressType: z.enum(["ipv4", "dualstack"]).describe(
       "The IP address type for the Anycast static IP list.",
+    ).optional(),
+    IpamCidrConfigResults: z.array(IpamCidrConfigResultSchema).describe(
+      "The results for the IPAM CIDRs that defines a specific IP address range, IPAM pool, and associated Anycast IP address.",
     ).optional(),
     LastModifiedTime: z.string().describe(
       "The last time the Anycast static IP list was modified.",
@@ -219,7 +232,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFront AnycastIpList. Registered at `@swamp/aws/cloudfront/anycast-ip-list`. */
 export const model = {
   type: "@swamp/aws/cloudfront/anycast-ip-list",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -278,6 +291,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

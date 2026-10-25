@@ -132,6 +132,11 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Tags: z.array(TagSchema).describe("The tags for the channel.").optional(),
   CreatedBy: z.object({
+    Arn: z.string().min(5).max(1600).regex(
+      new RegExp(
+        "^arn:[a-z0-9-\\.]{1,63}:[a-z0-9-\\.]{0,63}:[a-z0-9-\\.]{0,63}:[a-z0-9-\\.]{0,63}:[^/].{0,1023}$",
+      ),
+    ).describe("The ARN in an identity.").optional(),
     Name: z.string().min(0).max(256).describe("The name in an identity.")
       .optional(),
   }).describe("The AppInstanceUser or AppInstanceBot that created the channel.")
@@ -252,6 +257,11 @@ const InputsSchema = z.object({
   ).optional(),
   Tags: z.array(TagSchema).describe("The tags for the channel.").optional(),
   CreatedBy: z.object({
+    Arn: z.string().min(5).max(1600).regex(
+      new RegExp(
+        "^arn:[a-z0-9-\\.]{1,63}:[a-z0-9-\\.]{0,63}:[a-z0-9-\\.]{0,63}:[a-z0-9-\\.]{0,63}:[^/].{0,1023}$",
+      ),
+    ).describe("The ARN in an identity.").optional(),
     Name: z.string().min(0).max(256).describe("The name in an identity.")
       .optional(),
   }).describe("The AppInstanceUser or AppInstanceBot that created the channel.")
@@ -277,7 +287,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Chime Channel. Registered at `@swamp/aws/chime/channel`. */
 export const model = {
   type: "@swamp/aws/chime/channel",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.10.14.1",
@@ -291,6 +301,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

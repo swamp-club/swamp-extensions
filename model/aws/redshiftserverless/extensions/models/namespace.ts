@@ -50,9 +50,6 @@ const SnapshotCopyConfigurationSchema = z.object({
 });
 
 const GlobalArgsSchema = z.object({
-  name: z.string().describe(
-    "Instance name for this resource (used as the unique identifier in the factory pattern)",
-  ),
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -75,6 +72,27 @@ const GlobalArgsSchema = z.object({
   ).describe(
     "The password associated with the admin user for the namespace that is being created. Password must be at least 8 characters in length, should be any printable ASCII character. Must contain at least one lowercase letter, one uppercase letter and one decimal digit. You can't use adminUserPassword if manageAdminPassword is true.",
   ).optional(),
+  AdminUsername: z.string().regex(new RegExp("[a-zA-Z][a-zA-Z_0-9+.@-]*"))
+    .describe(
+      "The user name associated with the admin user for the namespace that is being created. Only alphanumeric characters and underscores are allowed. It should start with an alphabet.",
+    ).optional(),
+  DbName: z.string().max(127).regex(new RegExp("[a-zA-Z][a-zA-Z_0-9+.@-]*"))
+    .describe(
+      "The database name associated for the namespace that is being created. Only alphanumeric characters and underscores are allowed. It should start with an alphabet.",
+    ).optional(),
+  DefaultIamRoleArn: z.string().describe(
+    "The default IAM role ARN for the namespace that is being created.",
+  ).optional(),
+  IamRoles: z.array(z.string().min(0).max(512)).describe(
+    "A list of AWS Identity and Access Management (IAM) roles that can be used by the namespace to access other AWS services. You must supply the IAM roles in their Amazon Resource Name (ARN) format. The Default role limit for each request is 10.",
+  ).optional(),
+  KmsKeyId: z.string().describe(
+    "The AWS Key Management Service (KMS) key ID of the encryption key that you want to use to encrypt data in the namespace.",
+  ).optional(),
+  LogExports: z.array(z.enum(["useractivitylog", "userlog", "connectionlog"]))
+    .describe(
+      "The collection of log types to be exported provided by the customer. Should only be one of the three supported log types: userlog, useractivitylog and connectionlog",
+    ).optional(),
   ManageAdminPassword: z.boolean().describe(
     "If true, Amazon Redshift uses AWS Secrets Manager to manage the namespace's admin credentials. You can't use adminUserPassword if manageAdminPassword is true. If manageAdminPassword is false or not set, Amazon Redshift uses adminUserPassword for the admin user account's password.",
   ).optional(),
@@ -82,6 +100,10 @@ const GlobalArgsSchema = z.object({
     AdminPasswordSecretArn: z.string().optional(),
     AdminPasswordSecretKmsKeyId: z.string().optional(),
   }).describe("Definition of Namespace resource.").optional(),
+  NamespaceName: z.string().min(3).max(64).regex(new RegExp("^[a-z0-9-]+$"))
+    .describe(
+      "A unique identifier for the namespace. You use this identifier to refer to the namespace for any subsequent namespace operations such as deleting or modifying. All alphabetical characters must be lower case. Namespace name should be unique for all namespaces within an AWS account.",
+    ),
   Tags: z.array(TagSchema).describe("The list of tags for the namespace.")
     .optional(),
   FinalSnapshotName: z.string().max(255).regex(
@@ -141,7 +163,6 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  name: z.string().optional(),
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
@@ -156,6 +177,27 @@ const InputsSchema = z.object({
   ).describe(
     "The password associated with the admin user for the namespace that is being created. Password must be at least 8 characters in length, should be any printable ASCII character. Must contain at least one lowercase letter, one uppercase letter and one decimal digit. You can't use adminUserPassword if manageAdminPassword is true.",
   ).optional(),
+  AdminUsername: z.string().regex(new RegExp("[a-zA-Z][a-zA-Z_0-9+.@-]*"))
+    .describe(
+      "The user name associated with the admin user for the namespace that is being created. Only alphanumeric characters and underscores are allowed. It should start with an alphabet.",
+    ).optional(),
+  DbName: z.string().max(127).regex(new RegExp("[a-zA-Z][a-zA-Z_0-9+.@-]*"))
+    .describe(
+      "The database name associated for the namespace that is being created. Only alphanumeric characters and underscores are allowed. It should start with an alphabet.",
+    ).optional(),
+  DefaultIamRoleArn: z.string().describe(
+    "The default IAM role ARN for the namespace that is being created.",
+  ).optional(),
+  IamRoles: z.array(z.string().min(0).max(512)).describe(
+    "A list of AWS Identity and Access Management (IAM) roles that can be used by the namespace to access other AWS services. You must supply the IAM roles in their Amazon Resource Name (ARN) format. The Default role limit for each request is 10.",
+  ).optional(),
+  KmsKeyId: z.string().describe(
+    "The AWS Key Management Service (KMS) key ID of the encryption key that you want to use to encrypt data in the namespace.",
+  ).optional(),
+  LogExports: z.array(z.enum(["useractivitylog", "userlog", "connectionlog"]))
+    .describe(
+      "The collection of log types to be exported provided by the customer. Should only be one of the three supported log types: userlog, useractivitylog and connectionlog",
+    ).optional(),
   ManageAdminPassword: z.boolean().describe(
     "If true, Amazon Redshift uses AWS Secrets Manager to manage the namespace's admin credentials. You can't use adminUserPassword if manageAdminPassword is true. If manageAdminPassword is false or not set, Amazon Redshift uses adminUserPassword for the admin user account's password.",
   ).optional(),
@@ -163,6 +205,10 @@ const InputsSchema = z.object({
     AdminPasswordSecretArn: z.string().optional(),
     AdminPasswordSecretKmsKeyId: z.string().optional(),
   }).describe("Definition of Namespace resource.").optional(),
+  NamespaceName: z.string().min(3).max(64).regex(new RegExp("^[a-z0-9-]+$"))
+    .describe(
+      "A unique identifier for the namespace. You use this identifier to refer to the namespace for any subsequent namespace operations such as deleting or modifying. All alphabetical characters must be lower case. Namespace name should be unique for all namespaces within an AWS account.",
+    ).optional(),
   Tags: z.array(TagSchema).describe("The list of tags for the namespace.")
     .optional(),
   FinalSnapshotName: z.string().max(255).regex(
@@ -203,7 +249,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RedshiftServerless Namespace. Registered at `@swamp/aws/redshiftserverless/namespace`. */
 export const model = {
   type: "@swamp/aws/redshiftserverless/namespace",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -270,6 +316,15 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.25.1",
+      description:
+        "Added: AdminUsername, DbName, DefaultIamRoleArn, IamRoles, KmsKeyId, LogExports, NamespaceName. Removed: name",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { name: _name, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -290,7 +345,6 @@ export const model = {
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {
-          if (key === "name") continue;
           if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
@@ -299,10 +353,9 @@ export const model = {
           desiredState,
           credentials,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName =
+          ((result.NamespaceName ?? g.NamespaceName)?.toString() ?? "current")
+            .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -326,10 +379,11 @@ export const model = {
           credentials,
         ) as StateData;
         const instanceName =
-          (context.globalArgs.name?.toString() ?? args.identifier).replace(
-            /[\/\\]/g,
-            "_",
-          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          ((result.NamespaceName ?? context.globalArgs.NamespaceName)
+            ?.toString() ?? args.identifier).replace(/[\/\\]/g, "_").replace(
+              /\.\./g,
+              "_",
+            ).replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -344,7 +398,7 @@ export const model = {
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildCredentials(g);
-        const instanceName = (g.name?.toString() ?? "current").replace(
+        const instanceName = (g.NamespaceName?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");
@@ -368,7 +422,6 @@ export const model = {
         ) as StateData;
         const desiredState: Record<string, unknown> = { ...currentState };
         for (const [key, value] of Object.entries(g)) {
-          if (key === "name") continue;
           if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
@@ -403,10 +456,8 @@ export const model = {
           credentials,
         );
         const instanceName =
-          (context.globalArgs.name?.toString() ?? args.identifier).replace(
-            /[\/\\]/g,
-            "_",
-          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          (context.globalArgs.NamespaceName?.toString() ?? args.identifier)
+            .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           identifier: args.identifier,
           existed,
@@ -422,7 +473,7 @@ export const model = {
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildCredentials(g);
-        const instanceName = (g.name?.toString() ?? "current").replace(
+        const instanceName = (g.NamespaceName?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");

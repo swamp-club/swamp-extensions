@@ -88,6 +88,13 @@ const GlobalArgsSchema = z.object({
   ).describe(
     "ARN of the IAM role that allows access to the stream processor, and provides Rekognition read permissions for KVS stream and write permissions to S3 bucket and SNS topic.",
   ),
+  KinesisVideoStream: z.object({
+    Arn: z.string().max(2048).regex(
+      new RegExp("(^arn:([a-z\\d-]+):kinesisvideo:([a-z\\d-]+):\\d{12}:.+$)"),
+    ).describe(
+      "ARN of the Kinesis Video Stream that streams the source video.",
+    ),
+  }).describe("The Kinesis Video Stream that streams the source video."),
   FaceSearchSettings: z.object({
     CollectionId: z.string().max(255).regex(new RegExp("^[a-zA-Z0-9_\\.\\-]+$"))
       .describe(
@@ -109,6 +116,13 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Connected home settings to use on a streaming video. Note that either ConnectedHomeSettings or FaceSearchSettings should be set. Not both",
   ).optional(),
+  KinesisDataStream: z.object({
+    Arn: z.string().max(2048).regex(
+      new RegExp("(^arn:([a-z\\d-]+):kinesis:([a-z\\d-]+):\\d{12}:.+$)"),
+    ).describe("ARN of the Kinesis Data Stream stream."),
+  }).describe(
+    "The Amazon Kinesis Data Stream stream to which the Amazon Rekognition stream processor streams the analysis results, as part of face search feature.",
+  ).optional(),
   S3Destination: z.object({
     BucketName: z.string().max(63).describe("Name of the S3 bucket."),
     ObjectKeyPrefix: z.string().max(256).describe(
@@ -116,6 +130,11 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "The S3 location in customer's account where inference output & artifacts are stored, as part of connected home feature.",
+  ).optional(),
+  NotificationChannel: z.object({
+    Arn: z.string().max(2048).describe("ARN of the SNS topic."),
+  }).describe(
+    "The ARN of the SNS notification channel where events of interests are published, as part of connected home feature.",
   ).optional(),
   DataSharingPreference: z.object({
     OptIn: z.boolean().describe("Flag to enable data-sharing"),
@@ -188,6 +207,13 @@ const InputsSchema = z.object({
   ).describe(
     "ARN of the IAM role that allows access to the stream processor, and provides Rekognition read permissions for KVS stream and write permissions to S3 bucket and SNS topic.",
   ).optional(),
+  KinesisVideoStream: z.object({
+    Arn: z.string().max(2048).regex(
+      new RegExp("(^arn:([a-z\\d-]+):kinesisvideo:([a-z\\d-]+):\\d{12}:.+$)"),
+    ).describe("ARN of the Kinesis Video Stream that streams the source video.")
+      .optional(),
+  }).describe("The Kinesis Video Stream that streams the source video.")
+    .optional(),
   FaceSearchSettings: z.object({
     CollectionId: z.string().max(255).regex(new RegExp("^[a-zA-Z0-9_\\.\\-]+$"))
       .describe(
@@ -209,6 +235,13 @@ const InputsSchema = z.object({
   }).describe(
     "Connected home settings to use on a streaming video. Note that either ConnectedHomeSettings or FaceSearchSettings should be set. Not both",
   ).optional(),
+  KinesisDataStream: z.object({
+    Arn: z.string().max(2048).regex(
+      new RegExp("(^arn:([a-z\\d-]+):kinesis:([a-z\\d-]+):\\d{12}:.+$)"),
+    ).describe("ARN of the Kinesis Data Stream stream.").optional(),
+  }).describe(
+    "The Amazon Kinesis Data Stream stream to which the Amazon Rekognition stream processor streams the analysis results, as part of face search feature.",
+  ).optional(),
   S3Destination: z.object({
     BucketName: z.string().max(63).describe("Name of the S3 bucket.")
       .optional(),
@@ -217,6 +250,11 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe(
     "The S3 location in customer's account where inference output & artifacts are stored, as part of connected home feature.",
+  ).optional(),
+  NotificationChannel: z.object({
+    Arn: z.string().max(2048).describe("ARN of the SNS topic.").optional(),
+  }).describe(
+    "The ARN of the SNS notification channel where events of interests are published, as part of connected home feature.",
   ).optional(),
   DataSharingPreference: z.object({
     OptIn: z.boolean().describe("Flag to enable data-sharing").optional(),
@@ -253,7 +291,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Rekognition StreamProcessor. Registered at `@swamp/aws/rekognition/stream-processor`. */
 export const model = {
   type: "@swamp/aws/rekognition/stream-processor",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -313,6 +351,12 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description:
+        "Added: KinesisVideoStream, KinesisDataStream, NotificationChannel",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -67,6 +67,12 @@ const GlobalArgsSchema = z.object({
     "The ID of the Connect attachment.",
   ),
   ConnectPeerConfiguration: z.object({
+    TransitGatewayAddress: z.string().describe(
+      "The Connect peer IP address on the transit gateway side of the tunnel.",
+    ).optional(),
+    PeerAddress: z.string().describe(
+      "The peer IP address (GRE outer IP address) on the appliance side of the Connect peer.",
+    ),
     InsideCidrBlocks: z.array(z.string()).describe(
       "The range of interior BGP peer IP addresses.",
     ),
@@ -108,6 +114,12 @@ const InputsSchema = z.object({
     "The ID of the Connect attachment.",
   ).optional(),
   ConnectPeerConfiguration: z.object({
+    TransitGatewayAddress: z.string().describe(
+      "The Connect peer IP address on the transit gateway side of the tunnel.",
+    ).optional(),
+    PeerAddress: z.string().describe(
+      "The peer IP address (GRE outer IP address) on the appliance side of the Connect peer.",
+    ).optional(),
     InsideCidrBlocks: z.array(z.string()).describe(
       "The range of interior BGP peer IP addresses.",
     ).optional(),
@@ -135,7 +147,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 TransitGatewayConnectPeer. Registered at `@swamp/aws/ec2/transit-gateway-connect-peer`. */
 export const model = {
   type: "@swamp/aws/ec2/transit-gateway-connect-peer",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -194,6 +206,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -307,10 +324,10 @@ export const model = {
           [
             "TransitGatewayAttachmentId",
             "ConnectPeerConfiguration",
-            "PeerAddress",
-            "InsideCidrBlocks",
-            "TransitGatewayAddress",
-            "PeerAsn",
+            "ConnectPeerConfiguration/PeerAddress",
+            "ConnectPeerConfiguration/InsideCidrBlocks",
+            "ConnectPeerConfiguration/TransitGatewayAddress",
+            "ConnectPeerConfiguration/BgpConfigurations/*/PeerAsn",
           ],
           credentials,
         );

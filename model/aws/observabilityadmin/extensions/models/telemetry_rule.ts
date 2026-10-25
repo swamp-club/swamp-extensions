@@ -418,7 +418,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ObservabilityAdmin TelemetryRule. Registered at `@swamp/aws/observabilityadmin/telemetry-rule`. */
 export const model = {
   type: "@swamp/aws/observabilityadmin/telemetry-rule",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.09.11.1",
@@ -437,6 +437,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -547,7 +552,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["RuleName", "AllRegions"],
+          ["RuleName", "Rule/AllRegions"],
           credentials,
         );
         const handle = await context.writeResource(

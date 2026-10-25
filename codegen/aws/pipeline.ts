@@ -2,8 +2,12 @@
 
 import { BlobReader, TextWriter, ZipReader } from "@zip-js/zip-js";
 import { dirname } from "@std/path";
-import { loadCfDatabase } from "../shared/schema/loader.ts";
 import {
+  loadCfDatabase,
+  resolveResidualRefs,
+} from "../shared/schema/loader.ts";
+import {
+  assertRequiredPropertiesKept,
   normalizeOnlyProperties,
   splitAwsProperties,
 } from "../shared/schema/split.ts";
@@ -301,10 +305,20 @@ export async function generateAwsModels(options: {
     // The output directory for this service
     const serviceOutputDir = `${options.outputDir}/aws/${serviceName}`;
 
-    for (const { typeName, cfSchema, onlyProperties, handlers } of resources) {
+    for (
+      const { typeName, cfSchema: rawSchema, onlyProperties, handlers }
+        of resources
+    ) {
       try {
+        const cfSchema = resolveResidualRefs(rawSchema);
         const { domainProperties, resourceValueProperties } =
           splitAwsProperties(cfSchema, onlyProperties);
+        assertRequiredPropertiesKept(
+          typeName,
+          cfSchema,
+          onlyProperties,
+          domainProperties,
+        );
 
         const zodResult = generateZodSchemas(
           domainProperties,

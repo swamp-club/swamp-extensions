@@ -280,6 +280,8 @@ const GlobalArgsSchema = z.object({
     VersionNumber: z.number().min(1).describe(
       "The version number of the theme.",
     ).optional(),
+    Arn: z.string().describe("The Amazon Resource Name (ARN) of the resource.")
+      .optional(),
     Description: z.string().min(1).max(512).describe(
       "The description of the theme.",
     ).optional(),
@@ -287,6 +289,9 @@ const GlobalArgsSchema = z.object({
       .describe(
         "The Amazon Quick-defined ID of the theme that a custom theme inherits from. All themes initially inherit from a default Quick theme.",
       ).optional(),
+    CreatedTime: z.string().describe(
+      "The date and time that this theme version was created.",
+    ).optional(),
     Configuration: ThemeConfigurationSchema.describe(
       "The theme configuration. This configuration contains all of the display properties for a theme.",
     ).optional(),
@@ -366,6 +371,8 @@ const InputsSchema = z.object({
     VersionNumber: z.number().min(1).describe(
       "The version number of the theme.",
     ).optional(),
+    Arn: z.string().describe("The Amazon Resource Name (ARN) of the resource.")
+      .optional(),
     Description: z.string().min(1).max(512).describe(
       "The description of the theme.",
     ).optional(),
@@ -373,6 +380,9 @@ const InputsSchema = z.object({
       .describe(
         "The Amazon Quick-defined ID of the theme that a custom theme inherits from. All themes initially inherit from a default Quick theme.",
       ).optional(),
+    CreatedTime: z.string().describe(
+      "The date and time that this theme version was created.",
+    ).optional(),
     Configuration: ThemeConfigurationSchema.describe(
       "The theme configuration. This configuration contains all of the display properties for a theme.",
     ).optional(),
@@ -412,7 +422,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight Theme. Registered at `@swamp/aws/quicksight/theme`. */
 export const model = {
   type: "@swamp/aws/quicksight/theme",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -476,6 +486,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -54,7 +54,12 @@ const TemplateSourceAnalysisSchema = z.object({
   DataSetReferences: z.array(DataSetReferenceSchema).describe(
     "A structure containing information about the dataset references used as placeholders in the template.",
   ),
+  Arn: z.string().describe("The Amazon Resource Name (ARN) of the resource."),
   TopicReferences: z.array(TopicReferenceSchema).optional(),
+});
+
+const TemplateSourceTemplateSchema = z.object({
+  Arn: z.string().describe("The Amazon Resource Name (ARN) of the resource."),
 });
 
 const AssetOptionsSchema = z.object({
@@ -4142,6 +4147,9 @@ const GlobalArgsSchema = z.object({
     SourceAnalysis: TemplateSourceAnalysisSchema.describe(
       "The source analysis of the template.",
     ).optional(),
+    SourceTemplate: TemplateSourceTemplateSchema.describe(
+      "The source template of the template.",
+    ).optional(),
   }).describe("The source entity of the template.").optional(),
   Definition: z.object({
     Options: AssetOptionsSchema.optional(),
@@ -4178,6 +4186,9 @@ const GlobalArgsSchema = z.object({
     Errors: z.array(TemplateErrorSchema).describe(
       "Errors associated with this template version.",
     ).optional(),
+    CreatedTime: z.string().describe(
+      "The time that this template version was created.",
+    ).optional(),
     Description: z.string().min(1).max(512).describe(
       "The description of the template.",
     ).optional(),
@@ -4208,9 +4219,7 @@ const StateSchema = z.object({
   VersionDescription: z.string().optional(),
   SourceEntity: z.object({
     SourceAnalysis: TemplateSourceAnalysisSchema,
-    SourceTemplate: z.object({
-      Arn: z.string(),
-    }),
+    SourceTemplate: TemplateSourceTemplateSchema,
   }).optional(),
   Definition: z.object({
     Options: AssetOptionsSchema,
@@ -4261,6 +4270,9 @@ const InputsSchema = z.object({
     SourceAnalysis: TemplateSourceAnalysisSchema.describe(
       "The source analysis of the template.",
     ).optional(),
+    SourceTemplate: TemplateSourceTemplateSchema.describe(
+      "The source template of the template.",
+    ).optional(),
   }).describe("The source entity of the template.").optional(),
   Definition: z.object({
     Options: AssetOptionsSchema.optional(),
@@ -4296,6 +4308,9 @@ const InputsSchema = z.object({
     ]).optional(),
     Errors: z.array(TemplateErrorSchema).describe(
       "Errors associated with this template version.",
+    ).optional(),
+    CreatedTime: z.string().describe(
+      "The time that this template version was created.",
     ).optional(),
     Description: z.string().min(1).max(512).describe(
       "The description of the template.",
@@ -4343,7 +4358,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight Template. Registered at `@swamp/aws/quicksight/template`. */
 export const model = {
   type: "@swamp/aws/quicksight/template",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -4417,6 +4432,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

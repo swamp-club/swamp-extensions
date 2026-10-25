@@ -167,6 +167,7 @@ const GlobalArgsSchema = z.object({
     MatchCriteria: z.array(z.string()).describe(
       "A list of criteria that can be used in selecting this connection.",
     ).optional(),
+    Name: z.string().describe("The name of the connection.").optional(),
     PhysicalConnectionRequirements: PhysicalConnectionRequirementsSchema
       .describe("The physical connection requirements.").optional(),
     PythonProperties: z.record(z.string(), z.unknown()).describe(
@@ -234,6 +235,7 @@ const InputsSchema = z.object({
     MatchCriteria: z.array(z.string()).describe(
       "A list of criteria that can be used in selecting this connection.",
     ).optional(),
+    Name: z.string().describe("The name of the connection.").optional(),
     PhysicalConnectionRequirements: PhysicalConnectionRequirementsSchema
       .describe("The physical connection requirements.").optional(),
     PythonProperties: z.record(z.string(), z.unknown()).describe(
@@ -274,7 +276,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue Connection. Registered at `@swamp/aws/glue/connection`. */
 export const model = {
   type: "@swamp/aws/glue/connection",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.10.14.1",
@@ -283,6 +285,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -399,7 +406,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["CatalogId", "Name"],
+          ["CatalogId", "ConnectionInput/Name"],
           credentials,
         );
         const handle = await context.writeResource(

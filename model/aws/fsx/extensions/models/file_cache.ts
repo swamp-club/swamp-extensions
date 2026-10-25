@@ -204,7 +204,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for FSx FileCache. Registered at `@swamp/aws/fsx/file-cache`. */
 export const model = {
   type: "@swamp/aws/fsx/file-cache",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -213,6 +213,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -332,9 +337,9 @@ export const model = {
             "KmsKeyId",
             "CopyTagsToDataRepositoryAssociations",
             "DataRepositoryAssociations",
-            "PerUnitStorageThroughput",
-            "DeploymentType",
-            "MetadataConfiguration",
+            "LustreConfiguration/PerUnitStorageThroughput",
+            "LustreConfiguration/DeploymentType",
+            "LustreConfiguration/MetadataConfiguration",
           ],
           credentials,
         );

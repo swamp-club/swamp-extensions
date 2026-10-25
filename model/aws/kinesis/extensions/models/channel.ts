@@ -355,7 +355,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Kinesis Channel. Registered at `@swamp/aws/kinesis/channel`. */
 export const model = {
   type: "@swamp/aws/kinesis/channel",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -364,6 +364,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -479,10 +484,10 @@ export const model = {
             "ServiceExecutionRoleARN",
             "StreamConfigurationList",
             "EncryptionConfiguration",
-            "StorageConfiguration",
-            "DeadLetterQueueS3Configuration",
-            "S3TablesConfigurationList",
-            "DeadLetterQueueS3Configuration",
+            "S3DestinationConfiguration/StorageConfiguration",
+            "S3DestinationConfiguration/DeadLetterQueueS3Configuration",
+            "S3TablesDestinationConfiguration/S3TablesConfigurationList",
+            "S3TablesDestinationConfiguration/DeadLetterQueueS3Configuration",
           ],
           credentials,
         );

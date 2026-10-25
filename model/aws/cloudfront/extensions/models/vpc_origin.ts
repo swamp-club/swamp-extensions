@@ -67,6 +67,9 @@ const GlobalArgsSchema = z.object({
     "A complex type that contains zero or more Tag elements.",
   ).optional(),
   VpcOriginEndpointConfig: z.object({
+    Arn: z.string().describe(
+      "The ARN of the CloudFront VPC origin endpoint configuration.",
+    ),
     HTTPPort: z.number().int().describe(
       "The HTTP port for the CloudFront VPC origin endpoint configuration. The default value is 80.",
     ).optional(),
@@ -117,6 +120,9 @@ const InputsSchema = z.object({
     "A complex type that contains zero or more Tag elements.",
   ).optional(),
   VpcOriginEndpointConfig: z.object({
+    Arn: z.string().describe(
+      "The ARN of the CloudFront VPC origin endpoint configuration.",
+    ).optional(),
     HTTPPort: z.number().int().describe(
       "The HTTP port for the CloudFront VPC origin endpoint configuration. The default value is 80.",
     ).optional(),
@@ -155,7 +161,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFront VpcOrigin. Registered at `@swamp/aws/cloudfront/vpc-origin`. */
 export const model = {
   type: "@swamp/aws/cloudfront/vpc-origin",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -219,6 +225,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

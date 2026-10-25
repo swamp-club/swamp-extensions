@@ -44,9 +44,6 @@ const TagSchema = z.object({
 });
 
 const GlobalArgsSchema = z.object({
-  name: z.string().describe(
-    "Instance name for this resource (used as the unique identifier in the factory pattern)",
-  ),
   accessKeyId: z.string().meta({ sensitive: true }).describe(
     "AWS access key ID; overrides AWS_ACCESS_KEY_ID environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -58,6 +55,15 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
+  ).optional(),
+  SnapshotName: z.string().min(3).max(64).regex(
+    new RegExp("^(?=^[a-z0-9-]+$).{3,64}$"),
+  ).describe("The name of the snapshot."),
+  NamespaceName: z.string().min(3).max(64).regex(
+    new RegExp("^(?=^[a-z0-9-]+$).{3,64}$"),
+  ).describe("The namespace the snapshot is associated with.").optional(),
+  RetentionPeriod: z.number().int().describe(
+    "The retention period of the snapshot.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
@@ -87,11 +93,19 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  name: z.string().optional(),
   accessKeyId: z.string().meta({ sensitive: true }).optional(),
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
+  SnapshotName: z.string().min(3).max(64).regex(
+    new RegExp("^(?=^[a-z0-9-]+$).{3,64}$"),
+  ).describe("The name of the snapshot.").optional(),
+  NamespaceName: z.string().min(3).max(64).regex(
+    new RegExp("^(?=^[a-z0-9-]+$).{3,64}$"),
+  ).describe("The namespace the snapshot is associated with.").optional(),
+  RetentionPeriod: z.number().int().describe(
+    "The retention period of the snapshot.",
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -116,7 +130,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RedshiftServerless Snapshot. Registered at `@swamp/aws/redshiftserverless/snapshot`. */
 export const model = {
   type: "@swamp/aws/redshiftserverless/snapshot",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -178,6 +192,15 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.25.1",
+      description:
+        "Added: SnapshotName, NamespaceName, RetentionPeriod. Removed: name",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { name: _name, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -198,7 +221,6 @@ export const model = {
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {
-          if (key === "name") continue;
           if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
@@ -207,10 +229,9 @@ export const model = {
           desiredState,
           credentials,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName =
+          ((result.SnapshotName ?? g.SnapshotName)?.toString() ?? "current")
+            .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -234,10 +255,11 @@ export const model = {
           credentials,
         ) as StateData;
         const instanceName =
-          (context.globalArgs.name?.toString() ?? args.identifier).replace(
-            /[\/\\]/g,
-            "_",
-          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          ((result.SnapshotName ?? context.globalArgs.SnapshotName)
+            ?.toString() ?? args.identifier).replace(/[\/\\]/g, "_").replace(
+              /\.\./g,
+              "_",
+            ).replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -252,7 +274,7 @@ export const model = {
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildCredentials(g);
-        const instanceName = (g.name?.toString() ?? "current").replace(
+        const instanceName = (g.SnapshotName?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");
@@ -276,7 +298,6 @@ export const model = {
         ) as StateData;
         const desiredState: Record<string, unknown> = { ...currentState };
         for (const [key, value] of Object.entries(g)) {
-          if (key === "name") continue;
           if (_credentialKeys.has(key)) continue;
           if (value !== undefined) desiredState[key] = value;
         }
@@ -285,7 +306,13 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["NamespaceName", "SnapshotName", "Tags", "Key", "Value"],
+          [
+            "NamespaceName",
+            "SnapshotName",
+            "Tags",
+            "Tags/*/Key",
+            "Tags/*/Value",
+          ],
           credentials,
         );
         const handle = await context.writeResource(
@@ -311,10 +338,8 @@ export const model = {
           credentials,
         );
         const instanceName =
-          (context.globalArgs.name?.toString() ?? args.identifier).replace(
-            /[\/\\]/g,
-            "_",
-          ).replace(/\.\./g, "_").replace(/\0/g, "");
+          (context.globalArgs.SnapshotName?.toString() ?? args.identifier)
+            .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           identifier: args.identifier,
           existed,
@@ -330,7 +355,7 @@ export const model = {
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
         const credentials = _buildCredentials(g);
-        const instanceName = (g.name?.toString() ?? "current").replace(
+        const instanceName = (g.SnapshotName?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");

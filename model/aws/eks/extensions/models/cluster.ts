@@ -634,7 +634,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EKS Cluster. Registered at `@swamp/aws/eks/cluster`. */
 export const model = {
   type: "@swamp/aws/eks/cluster",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -729,6 +729,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -837,9 +842,9 @@ export const model = {
           [
             "OutpostConfig",
             "EncryptionConfig",
-            "IpFamily",
-            "ServiceIpv4Cidr",
-            "BootstrapClusterCreatorAdminPermissions",
+            "KubernetesNetworkConfig/IpFamily",
+            "KubernetesNetworkConfig/ServiceIpv4Cidr",
+            "AccessConfig/BootstrapClusterCreatorAdminPermissions",
             "Name",
             "RoleArn",
             "BootstrapSelfManagedAddons",

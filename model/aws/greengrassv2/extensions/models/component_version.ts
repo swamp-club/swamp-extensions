@@ -113,6 +113,8 @@ const GlobalArgsSchema = z.object({
     LambdaArn: z.string().regex(
       new RegExp("^arn:[^:]*:lambda:(([a-z]+-)+[0-9])?:([0-9]{12})?:[^.]+$"),
     ).optional(),
+    ComponentName: z.string().optional(),
+    ComponentVersion: z.string().optional(),
     ComponentPlatforms: z.array(ComponentPlatformSchema).optional(),
     ComponentDependencies: z.record(
       z.string(),
@@ -152,6 +154,8 @@ const InputsSchema = z.object({
     LambdaArn: z.string().regex(
       new RegExp("^arn:[^:]*:lambda:(([a-z]+-)+[0-9])?:([0-9]{12})?:[^.]+$"),
     ).optional(),
+    ComponentName: z.string().optional(),
+    ComponentVersion: z.string().optional(),
     ComponentPlatforms: z.array(ComponentPlatformSchema).optional(),
     ComponentDependencies: z.record(
       z.string(),
@@ -181,7 +185,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GreengrassV2 ComponentVersion. Registered at `@swamp/aws/greengrassv2/component-version`. */
 export const model = {
   type: "@swamp/aws/greengrassv2/component-version",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -240,6 +244,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

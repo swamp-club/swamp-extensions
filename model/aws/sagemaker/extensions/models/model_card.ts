@@ -64,6 +64,12 @@ const ModelOverviewSchema = z.object({
   }).describe("Overview about the inference.").optional(),
 });
 
+const ModelPackageCreatorSchema = z.object({
+  UserProfileName: z.string().max(63).describe(
+    "The name of the user's profile in Studio",
+  ).optional(),
+});
+
 const SourceAlgorithmSchema = z.object({
   AlgorithmName: z.string().max(170).describe(
     "The name of an algorithm that was used to create the model package. The algorithm must be either an algorithm resource in your SageMaker account or an algorithm in AWS Marketplace that you are subscribed to.",
@@ -97,6 +103,9 @@ const ModelPackageDetailsSchema = z.object({
   ).optional(),
   ModelPackageArn: z.string().min(1).max(2048).describe(
     "The Amazon Resource Name (ARN) of the model package",
+  ).optional(),
+  CreatedBy: ModelPackageCreatorSchema.describe(
+    "Information about the user who created model package.",
   ).optional(),
   ModelPackageStatus: z.enum([
     "Pending",
@@ -380,7 +389,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker ModelCard. Registered at `@swamp/aws/sagemaker/model-card`. */
 export const model = {
   type: "@swamp/aws/sagemaker/model-card",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -439,6 +448,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

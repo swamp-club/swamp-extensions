@@ -206,6 +206,13 @@ const GlobalArgsSchema = z.object({
   ScalingPolicies: z.array(ScalingPolicySchema).describe(
     "A list of rules that control how a fleet is scaled.",
   ).optional(),
+  AnywhereConfiguration: z.object({
+    Cost: z.string().min(1).max(11).regex(
+      new RegExp("^\\d{1,5}(?:\\.\\d{1,5})?$"),
+    ).describe(
+      "Cost of compute can be specified on Anywhere Fleets to prioritize placement across Queue destinations based on Cost.",
+    ),
+  }).describe("Configuration for Anywhere fleet.").optional(),
   ApplyCapacity: z.enum([
     "ON_UPDATE",
     "ON_CREATE_AND_UPDATE",
@@ -328,6 +335,9 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   ScalingPolicies: z.array(ScalingPolicySchema).optional(),
+  AnywhereConfiguration: z.object({
+    Cost: z.string(),
+  }).optional(),
   ApplyCapacity: z.string().optional(),
   CertificateConfiguration: z.object({
     CertificateType: z.string(),
@@ -382,6 +392,13 @@ const InputsSchema = z.object({
   ScalingPolicies: z.array(ScalingPolicySchema).describe(
     "A list of rules that control how a fleet is scaled.",
   ).optional(),
+  AnywhereConfiguration: z.object({
+    Cost: z.string().min(1).max(11).regex(
+      new RegExp("^\\d{1,5}(?:\\.\\d{1,5})?$"),
+    ).describe(
+      "Cost of compute can be specified on Anywhere Fleets to prioritize placement across Queue destinations based on Cost.",
+    ).optional(),
+  }).describe("Configuration for Anywhere fleet.").optional(),
   ApplyCapacity: z.enum([
     "ON_UPDATE",
     "ON_CREATE_AND_UPDATE",
@@ -521,7 +538,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GameLift Fleet. Registered at `@swamp/aws/gamelift/fleet`. */
 export const model = {
   type: "@swamp/aws/gamelift/fleet",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -591,6 +608,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: AnywhereConfiguration",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

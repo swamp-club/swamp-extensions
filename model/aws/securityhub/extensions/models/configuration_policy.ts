@@ -95,6 +95,9 @@ const SecurityHubPolicySchema = z.object({
   EnabledStandardIdentifiers: z.array(z.string().max(2048)).describe(
     "A list that defines which security standards are enabled in the configuration policy.",
   ).optional(),
+  ServiceEnabled: z.boolean().describe(
+    "Indicates whether Security Hub is enabled in the policy.",
+  ).optional(),
   SecurityControlsConfiguration: SecurityControlsConfigurationSchema.describe(
     "An object that defines which security controls are enabled in an AWS Security Hub configuration policy.",
   ).optional(),
@@ -190,7 +193,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecurityHub ConfigurationPolicy. Registered at `@swamp/aws/securityhub/configuration-policy`. */
 export const model = {
   type: "@swamp/aws/securityhub/configuration-policy",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -249,6 +252,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

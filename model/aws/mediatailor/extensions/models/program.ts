@@ -155,6 +155,9 @@ const AudienceMediaSchema = z.object({
 });
 
 const TransitionSchema = z.object({
+  DurationMillis: z.number().int().describe(
+    "The duration of the live program in seconds.",
+  ).optional(),
   RelativePosition: z.enum(["BEFORE_PROGRAM", "AFTER_PROGRAM"]).describe(
     "The position where this program will be inserted relative to the RelativePosition.",
   ),
@@ -296,7 +299,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaTailor Program. Registered at `@swamp/aws/mediatailor/program`. */
 export const model = {
   type: "@swamp/aws/mediatailor/program",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -305,6 +308,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

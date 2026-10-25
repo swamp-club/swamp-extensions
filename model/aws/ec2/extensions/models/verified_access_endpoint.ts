@@ -330,7 +330,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 VerifiedAccessEndpoint. Registered at `@swamp/aws/ec2/verified-access-endpoint`. */
 export const model = {
   type: "@swamp/aws/ec2/verified-access-endpoint",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -389,6 +389,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -506,15 +511,15 @@ export const model = {
             "EndpointDomainPrefix",
             "EndpointType",
             "SecurityGroupIds",
-            "NetworkInterfaceId",
-            "LoadBalancerArn",
-            "Protocol",
-            "RdsDbInstanceArn",
-            "RdsDbClusterArn",
-            "RdsDbProxyArn",
-            "Cidr",
-            "Protocol",
-            "SubnetIds",
+            "NetworkInterfaceOptions/NetworkInterfaceId",
+            "LoadBalancerOptions/LoadBalancerArn",
+            "RdsOptions/Protocol",
+            "RdsOptions/RdsDbInstanceArn",
+            "RdsOptions/RdsDbClusterArn",
+            "RdsOptions/RdsDbProxyArn",
+            "CidrOptions/Cidr",
+            "CidrOptions/Protocol",
+            "CidrOptions/SubnetIds",
           ],
           credentials,
         );

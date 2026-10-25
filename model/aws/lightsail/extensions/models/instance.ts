@@ -126,6 +126,9 @@ const GlobalArgsSchema = z.object({
   InstanceName: z.string().min(1).max(254).regex(
     new RegExp("^[a-zA-Z0-9][\\w\\-.]*[a-zA-Z0-9]$"),
   ).describe("The names to use for your new Lightsail instance."),
+  AvailabilityZone: z.string().min(1).max(255).describe(
+    "The Availability Zone in which to create your instance. Use the following format: us-east-2a (case sensitive). Be sure to add the include Availability Zones parameter to your request.",
+  ).optional(),
   BundleId: z.string().min(1).max(255).describe(
     "The bundle of specification information for your virtual private server (or instance), including the pricing plan (e.g., micro_1_0).",
   ),
@@ -200,6 +203,9 @@ const InputsSchema = z.object({
   InstanceName: z.string().min(1).max(254).regex(
     new RegExp("^[a-zA-Z0-9][\\w\\-.]*[a-zA-Z0-9]$"),
   ).describe("The names to use for your new Lightsail instance.").optional(),
+  AvailabilityZone: z.string().min(1).max(255).describe(
+    "The Availability Zone in which to create your instance. Use the following format: us-east-2a (case sensitive). Be sure to add the include Availability Zones parameter to your request.",
+  ).optional(),
   BundleId: z.string().min(1).max(255).describe(
     "The bundle of specification information for your virtual private server (or instance), including the pricing plan (e.g., micro_1_0).",
   ).optional(),
@@ -237,7 +243,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lightsail Instance. Registered at `@swamp/aws/lightsail/instance`. */
 export const model = {
   type: "@swamp/aws/lightsail/instance",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -297,6 +303,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: AvailabilityZone",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

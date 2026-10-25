@@ -270,10 +270,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker ComputeQuota. Registered at `@swamp/aws/sagemaker/compute-quota`. */
 export const model = {
   type: "@swamp/aws/sagemaker/compute-quota",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -384,7 +389,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["Name", "ClusterArn", "TeamName"],
+          ["Name", "ClusterArn", "ComputeQuotaTarget/TeamName"],
           credentials,
         );
         const handle = await context.writeResource(

@@ -38,6 +38,35 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const EMREKSConfigurationSchema = z.object({
+  Classification: z.string(),
+  Properties: z.record(z.string(), z.string()).optional(),
+  Configurations: z.array(z.record(z.string(), z.unknown())).optional(),
+});
+
+const ContainerLogRotationConfigurationSchema = z.object({
+  RotationSize: z.string(),
+  MaxFilesToKeep: z.number().int(),
+});
+
+const CloudWatchMonitoringConfigurationSchema = z.object({
+  LogGroupName: z.string(),
+  LogStreamNamePrefix: z.string().optional(),
+});
+
+const S3MonitoringConfigurationSchema = z.object({
+  LogUri: z.string(),
+});
+
+const MonitoringConfigurationSchema = z.object({
+  PersistentAppUI: z.enum(["ENABLED", "DISABLED"]).optional(),
+  ContainerLogRotationConfiguration: ContainerLogRotationConfigurationSchema
+    .optional(),
+  CloudWatchMonitoringConfiguration: CloudWatchMonitoringConfigurationSchema
+    .optional(),
+  S3MonitoringConfiguration: S3MonitoringConfigurationSchema.optional(),
+});
+
 const TagSchema = z.object({
   Key: z.string().min(1).max(128).describe(
     "A user-defined key, which is the minimum required information for a valid tag.",
@@ -75,6 +104,11 @@ const GlobalArgsSchema = z.object({
   ExecutionRoleArn: z.string().describe(
     "The execution role ARN for the managed endpoint.",
   ),
+  ConfigurationOverrides: z.object({
+    ApplicationConfiguration: z.array(EMREKSConfigurationSchema).optional(),
+    MonitoringConfiguration: MonitoringConfigurationSchema.optional(),
+  }).describe("The configuration overrides for the managed endpoint.")
+    .optional(),
   CertificateAuthority: z.object({
     CertificateArn: z.string().optional(),
     CertificateData: z.string().optional(),
@@ -95,6 +129,10 @@ const StateSchema = z.object({
   Type: z.string().optional(),
   ReleaseLabel: z.string().optional(),
   ExecutionRoleArn: z.string().optional(),
+  ConfigurationOverrides: z.object({
+    ApplicationConfiguration: z.array(EMREKSConfigurationSchema),
+    MonitoringConfiguration: MonitoringConfigurationSchema,
+  }).optional(),
   ServerUrl: z.string().optional(),
   State: z.string().optional(),
   StateDetails: z.string().optional(),
@@ -130,6 +168,11 @@ const InputsSchema = z.object({
   ExecutionRoleArn: z.string().describe(
     "The execution role ARN for the managed endpoint.",
   ).optional(),
+  ConfigurationOverrides: z.object({
+    ApplicationConfiguration: z.array(EMREKSConfigurationSchema).optional(),
+    MonitoringConfiguration: MonitoringConfigurationSchema.optional(),
+  }).describe("The configuration overrides for the managed endpoint.")
+    .optional(),
   CertificateAuthority: z.object({
     CertificateArn: z.string().optional(),
     CertificateData: z.string().optional(),
@@ -161,7 +204,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EMRContainers Endpoint. Registered at `@swamp/aws/emrcontainers/endpoint`. */
 export const model = {
   type: "@swamp/aws/emrcontainers/endpoint",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -226,6 +269,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: ConfigurationOverrides",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

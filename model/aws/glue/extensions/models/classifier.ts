@@ -61,6 +61,7 @@ const GlobalArgsSchema = z.object({
     Classification: z.string().describe(
       "An identifier of the data format that the classifier matches.",
     ),
+    Name: z.string().describe("The name of the classifier.").optional(),
   }).describe("A classifier for XML content.").optional(),
   CsvClassifier: z.object({
     ContainsCustomDatatype: z.array(z.string()).describe(
@@ -87,6 +88,7 @@ const GlobalArgsSchema = z.object({
     DisableValueTrimming: z.boolean().describe(
       "Specifies not to trim values before identifying the type of column values. The default value is true.",
     ).optional(),
+    Name: z.string().describe("The name of the classifier.").optional(),
   }).describe("A classifier for comma-separated values (CSV).").optional(),
   GrokClassifier: z.object({
     CustomPatterns: z.string().describe(
@@ -98,11 +100,13 @@ const GlobalArgsSchema = z.object({
     Classification: z.string().describe(
       "An identifier of the data format that the classifier matches, such as Twitter, JSON, Omniture logs, and so on.",
     ),
+    Name: z.string().describe("The name of the classifier.").optional(),
   }).describe("A classifier that uses grok.").optional(),
   JsonClassifier: z.object({
     JsonPath: z.string().describe(
       "A JsonPath string defining the JSON data for the classifier to classify. AWS Glue supports a subset of JsonPath, as described in Writing JsonPath Custom Classifiers.",
     ),
+    Name: z.string().describe("The name of the classifier.").optional(),
   }).describe("A classifier for JSON content.").optional(),
 });
 
@@ -151,6 +155,7 @@ const InputsSchema = z.object({
     Classification: z.string().describe(
       "An identifier of the data format that the classifier matches.",
     ).optional(),
+    Name: z.string().describe("The name of the classifier.").optional(),
   }).describe("A classifier for XML content.").optional(),
   CsvClassifier: z.object({
     ContainsCustomDatatype: z.array(z.string()).describe(
@@ -177,6 +182,7 @@ const InputsSchema = z.object({
     DisableValueTrimming: z.boolean().describe(
       "Specifies not to trim values before identifying the type of column values. The default value is true.",
     ).optional(),
+    Name: z.string().describe("The name of the classifier.").optional(),
   }).describe("A classifier for comma-separated values (CSV).").optional(),
   GrokClassifier: z.object({
     CustomPatterns: z.string().describe(
@@ -188,11 +194,13 @@ const InputsSchema = z.object({
     Classification: z.string().describe(
       "An identifier of the data format that the classifier matches, such as Twitter, JSON, Omniture logs, and so on.",
     ).optional(),
+    Name: z.string().describe("The name of the classifier.").optional(),
   }).describe("A classifier that uses grok.").optional(),
   JsonClassifier: z.object({
     JsonPath: z.string().describe(
       "A JsonPath string defining the JSON data for the classifier to classify. AWS Glue supports a subset of JsonPath, as described in Writing JsonPath Custom Classifiers.",
     ).optional(),
+    Name: z.string().describe("The name of the classifier.").optional(),
   }).describe("A classifier for JSON content.").optional(),
 });
 
@@ -215,7 +223,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue Classifier. Registered at `@swamp/aws/glue/classifier`. */
 export const model = {
   type: "@swamp/aws/glue/classifier",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -234,6 +242,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -344,7 +357,12 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["Name", "Name", "Name", "Name"],
+          [
+            "XMLClassifier/Name",
+            "CsvClassifier/Name",
+            "JsonClassifier/Name",
+            "GrokClassifier/Name",
+          ],
           credentials,
         );
         const handle = await context.writeResource(

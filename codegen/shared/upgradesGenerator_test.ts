@@ -247,6 +247,53 @@ Deno.test("computeUpgradesBlock - changed generates new entry for removed field"
   await assertSnapshot(t, result);
 });
 
+Deno.test("computeUpgradesBlock - restoring a once-dropped field gives the same block on the next run", () => {
+  // ProtocolType was dropped by the pipeline in 2026.06.03.1 and is restored
+  // now. The "changed" run and the "unchanged" run after it must agree.
+  const before = `const GlobalArgsSchema = z.object({
+  name: z.string(),
+});
+
+export const model = {
+  version: "2026.06.03.1",
+  upgrades: [
+    {
+      toVersion: "2026.06.03.1",
+      description: "Removed: ProtocolType",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { ProtocolType: _ProtocolType, ...rest } = old;
+        return rest;
+      },
+    },
+  ],
+};`;
+  const fields = ["name", "ProtocolType"];
+  const changed = computeUpgradesBlock(
+    "changed",
+    "2026.10.25.1",
+    before,
+    fields,
+  );
+  assertEquals(changed!.includes("Removed: ProtocolType"), false);
+  assertEquals(changed!.includes("Added: ProtocolType"), true);
+
+  const after = `const GlobalArgsSchema = z.object({
+  name: z.string(),
+  ProtocolType: z.string(),
+});
+
+export const model = {
+  version: "2026.10.25.1",
+${changed}
+};`;
+  // Extraction re-indents entries, so compare with whitespace collapsed.
+  const collapse = (block: string | undefined) => block?.replace(/\s+/g, " ");
+  assertEquals(
+    collapse(computeUpgradesBlock("unchanged", "2026.10.25.1", after, fields)),
+    collapse(changed),
+  );
+});
+
 Deno.test("extractGlobalArgsFieldNames - braces inside string literals do not end or extend the schema", () => {
   const content = `const GlobalArgsSchema = z.object({
   name: z.string().regex(

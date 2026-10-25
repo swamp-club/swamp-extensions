@@ -146,7 +146,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MPA ApprovalTeam. Registered at `@swamp/aws/mpa/approval-team`. */
 export const model = {
   type: "@swamp/aws/mpa/approval-team",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -205,6 +205,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -315,7 +320,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["Name", "Policies", "PolicyArn"],
+          ["Name", "Policies", "Policies/*/PolicyArn"],
           credentials,
         );
         const handle = await context.writeResource(

@@ -48,6 +48,84 @@ const FormButtonSchema = z.object({
   }).optional(),
 });
 
+const FormInputValuePropertyBindingPropertiesSchema = z.object({
+  Property: z.string(),
+  Field: z.string().optional(),
+});
+
+const FormInputValuePropertySchema = z.object({
+  Value: z.string().optional(),
+  BindingProperties: FormInputValuePropertyBindingPropertiesSchema.optional(),
+  Concat: z.array(z.record(z.string(), z.unknown())).optional(),
+});
+
+const ValueMappingSchema = z.object({
+  DisplayValue: FormInputValuePropertySchema.optional(),
+  Value: FormInputValuePropertySchema,
+});
+
+const FormInputBindingPropertiesValuePropertiesSchema = z.object({
+  Model: z.string().optional(),
+});
+
+const FormInputBindingPropertiesValueSchema = z.object({
+  Type: z.string().optional(),
+  BindingProperties: FormInputBindingPropertiesValuePropertiesSchema.optional(),
+});
+
+const ValueMappingsSchema = z.object({
+  Values: z.array(ValueMappingSchema),
+  BindingProperties: z.record(z.string(), FormInputBindingPropertiesValueSchema)
+    .optional(),
+});
+
+const FileUploaderFieldConfigSchema = z.object({
+  AccessLevel: z.enum(["public", "protected", "private"]),
+  AcceptedFileTypes: z.array(z.string()),
+  ShowThumbnails: z.boolean().optional(),
+  IsResumable: z.boolean().optional(),
+  MaxFileCount: z.number().optional(),
+  MaxSize: z.number().optional(),
+});
+
+const FieldInputConfigSchema = z.object({
+  Type: z.string(),
+  Required: z.boolean().optional(),
+  ReadOnly: z.boolean().optional(),
+  Placeholder: z.string().optional(),
+  DefaultValue: z.string().optional(),
+  DescriptiveText: z.string().optional(),
+  DefaultChecked: z.boolean().optional(),
+  DefaultCountryCode: z.string().optional(),
+  ValueMappings: ValueMappingsSchema.optional(),
+  Name: z.string().optional(),
+  MinValue: z.number().optional(),
+  MaxValue: z.number().optional(),
+  Step: z.number().optional(),
+  Value: z.string().optional(),
+  IsArray: z.boolean().optional(),
+  FileUploaderConfig: FileUploaderFieldConfigSchema.optional(),
+});
+
+const FieldValidationConfigurationSchema = z.object({
+  Type: z.string(),
+  StrValues: z.array(z.string()).optional(),
+  NumValues: z.array(z.number()).optional(),
+  ValidationMessage: z.string().optional(),
+});
+
+const FieldConfigSchema = z.object({
+  Label: z.string().optional(),
+  Position: z.object({
+    Fixed: z.enum(["first"]).optional(),
+    RightOf: z.string().optional(),
+    Below: z.string().optional(),
+  }).optional(),
+  Excluded: z.boolean().optional(),
+  InputType: FieldInputConfigSchema.optional(),
+  Validations: z.array(FieldValidationConfigurationSchema).optional(),
+});
+
 const SectionalElementSchema = z.object({
   Type: z.string(),
   Position: z.object({
@@ -89,6 +167,7 @@ const GlobalArgsSchema = z.object({
     DataTypeName: z.string(),
   }).optional(),
   EnvironmentName: z.string().optional(),
+  Fields: z.record(z.string(), FieldConfigSchema).optional(),
   FormActionType: z.enum(["create", "update"]).optional(),
   LabelDecorator: z.enum(["required", "optional", "none"]).optional(),
   Name: z.string().min(1).max(255).optional(),
@@ -124,6 +203,7 @@ const StateSchema = z.object({
     DataTypeName: z.string(),
   }).optional(),
   EnvironmentName: z.string(),
+  Fields: z.record(z.string(), z.unknown()).optional(),
   FormActionType: z.string().optional(),
   Id: z.string(),
   LabelDecorator: z.string().optional(),
@@ -167,6 +247,7 @@ const InputsSchema = z.object({
     DataTypeName: z.string().optional(),
   }).optional(),
   EnvironmentName: z.string().optional(),
+  Fields: z.record(z.string(), FieldConfigSchema).optional(),
   FormActionType: z.enum(["create", "update"]).optional(),
   LabelDecorator: z.enum(["required", "optional", "none"]).optional(),
   Name: z.string().min(1).max(255).optional(),
@@ -208,7 +289,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AmplifyUIBuilder Form. Registered at `@swamp/aws/amplifyuibuilder/form`. */
 export const model = {
   type: "@swamp/aws/amplifyuibuilder/form",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -268,6 +349,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: Fields",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

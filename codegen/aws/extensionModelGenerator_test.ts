@@ -222,6 +222,61 @@ Deno.test("generateAwsExtensionModel - composite primary identifier", async (t) 
 });
 
 // ---------------------------------------------------------------------------
+// Nested primary identifier (swamp-club #3944)
+// ---------------------------------------------------------------------------
+
+Deno.test("generateAwsExtensionModel - nested primary identifier is read from its nested path", () => {
+  const input: AwsExtensionModelInput = {
+    typeName: "AWS::S3::StorageLens",
+    zodResult: {
+      extractedSchemas: [],
+      inputSchemaBody:
+        `  StorageLensConfiguration: z.object({\n    Id: z.string(),\n  }),`,
+      resourceSchemaBody:
+        `  StorageLensConfiguration: z.object({\n    Id: z.string(),\n  }).optional(),`,
+    },
+    onlyProperties: {
+      primaryIdentifier: ["StorageLensConfiguration/Id"],
+      readOnly: [],
+      writeOnly: [],
+      createOnly: ["StorageLensConfiguration/Id"],
+    },
+    cfSchema: {
+      typeName: "AWS::S3::StorageLens",
+      description: "A Storage Lens configuration",
+      primaryIdentifier: ["/properties/StorageLensConfiguration/Id"],
+      properties: {
+        StorageLensConfiguration: {
+          type: "object",
+          properties: { Id: { type: "string" } },
+        },
+      },
+    },
+    handlers: {
+      create: true,
+      read: true,
+      update: true,
+      delete: true,
+      list: true,
+    },
+    version: "2026.01.01.1",
+    modelType: "@swamp/aws/s3/storage_lens",
+    domainPropertyNames: ["StorageLensConfiguration"],
+  };
+
+  const source = generateAwsExtensionModel(input);
+  const nested =
+    "(existing.StorageLensConfiguration as Record<string, unknown> | undefined)?.Id?.toString()";
+  assertEquals(source.split(nested).length - 1, 2); // update and delete
+  assertStringIncludes(
+    source,
+    "(item.properties?.StorageLensConfiguration as Record<string, unknown> | undefined)?.Id?.toString()",
+  );
+  assertStringIncludes(source, `["StorageLensConfiguration/Id"]`);
+  assert(!source.includes("existing.Id?"));
+});
+
+// ---------------------------------------------------------------------------
 // Snapshot: createOnly properties in update
 // ---------------------------------------------------------------------------
 

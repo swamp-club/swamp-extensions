@@ -216,3 +216,88 @@ Deno.test("resolveRegion: falls back to us-east-1 when HOME is unset and no AWS_
 Deno.test("generateAwsLibFile - imports only explicit or relative specifiers", () => {
   assertEquals(findBareSpecifiers(generateAwsLibFile()), []);
 });
+
+// isCreateOnlyPath() is module-private too; it is exported and imported the
+// same way as resolveRegion above.
+
+type IsCreateOnlyPath = (
+  opPath: string,
+  createOnlyProperties: string[],
+) => boolean;
+
+async function importIsCreateOnlyPath(): Promise<
+  { isCreateOnlyPath: IsCreateOnlyPath; cleanup: () => Promise<void> }
+> {
+  const testable = generateAwsLibFile()
+    .replace("function isCreateOnlyPath(", "export function isCreateOnlyPath(")
+    .replace(/^import\s+\{[\s\S]*?\}\s+from\s+"npm:@aws-sdk.*?";/m, "")
+    .replace(/^import\s+jsonpatch.*?;/m, "");
+  const tmp = await Deno.makeTempFile({ suffix: ".ts" });
+  await Deno.writeTextFile(tmp, testable);
+  try {
+    const mod = await import(`file://${tmp}?v=${crypto.randomUUID()}`) as {
+      isCreateOnlyPath: IsCreateOnlyPath;
+    };
+    return {
+      isCreateOnlyPath: mod.isCreateOnlyPath,
+      cleanup: async () => {
+        await Deno.remove(tmp);
+      },
+    };
+  } catch (err) {
+    await Deno.remove(tmp);
+    throw err;
+  }
+}
+
+Deno.test("isCreateOnlyPath: matches a top-level create-only property and its children", async () => {
+  const { isCreateOnlyPath, cleanup } = await importIsCreateOnlyPath();
+  try {
+    assertEquals(isCreateOnlyPath("/Name", ["Name"]), true);
+    assertEquals(isCreateOnlyPath("/Name/Inner", ["Name"]), true);
+    assertEquals(isCreateOnlyPath("/NameSuffix", ["Name"]), false);
+  } finally {
+    await cleanup();
+  }
+});
+
+Deno.test("isCreateOnlyPath: matches a nested create-only path, not its siblings", async () => {
+  const { isCreateOnlyPath, cleanup } = await importIsCreateOnlyPath();
+  try {
+    const createOnly = ["Budget/BudgetName"];
+    assertEquals(isCreateOnlyPath("/Budget/BudgetName", createOnly), true);
+    assertEquals(
+      isCreateOnlyPath("/Budget/BudgetLimit/Amount", createOnly),
+      false,
+    );
+    // A top-level property sharing the nested pointer's last segment is updatable
+    assertEquals(isCreateOnlyPath("/BudgetName", createOnly), false);
+    // Replacing the whole parent cannot be split, so it is still sent
+    assertEquals(isCreateOnlyPath("/Budget", createOnly), false);
+  } finally {
+    await cleanup();
+  }
+});
+
+Deno.test("isCreateOnlyPath: '*' matches one array index only", async () => {
+  const { isCreateOnlyPath, cleanup } = await importIsCreateOnlyPath();
+  try {
+    const createOnly = ["Peers/*/PeerAsn"];
+    assertEquals(isCreateOnlyPath("/Peers/0/PeerAsn", createOnly), true);
+    assertEquals(isCreateOnlyPath("/Peers/12/PeerAsn", createOnly), true);
+    assertEquals(isCreateOnlyPath("/Peers/key/PeerAsn", createOnly), false);
+    assertEquals(isCreateOnlyPath("/Peers/0/Other", createOnly), false);
+  } finally {
+    await cleanup();
+  }
+});
+
+Deno.test("isCreateOnlyPath: compares RFC 6901 escaped segments as-is", async () => {
+  const { isCreateOnlyPath, cleanup } = await importIsCreateOnlyPath();
+  try {
+    assertEquals(isCreateOnlyPath("/Map/a~1b", ["Map/a~1b"]), true);
+    assertEquals(isCreateOnlyPath("/Map/a/b", ["Map/a~1b"]), false);
+  } finally {
+    await cleanup();
+  }
+});

@@ -38,6 +38,24 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const MappingRuleSchema = z.object({
+  Claim: z.string(),
+  MatchType: z.string(),
+  RoleARN: z.string(),
+  Value: z.string(),
+});
+
+const RulesConfigurationTypeSchema = z.object({
+  Rules: z.array(MappingRuleSchema),
+});
+
+const RoleMappingSchema = z.object({
+  Type: z.string(),
+  AmbiguousRoleResolution: z.string().optional(),
+  RulesConfiguration: RulesConfigurationTypeSchema.optional(),
+  IdentityProvider: z.string().optional(),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -55,11 +73,15 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   IdentityPoolId: z.string(),
+  Roles: z.record(z.string(), z.string()).optional(),
+  RoleMappings: z.record(z.string(), RoleMappingSchema).optional(),
 });
 
 const StateSchema = z.object({
   IdentityPoolId: z.string().optional(),
+  Roles: z.record(z.string(), z.unknown()).optional(),
   Id: z.string(),
+  RoleMappings: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -71,6 +93,8 @@ const InputsSchema = z.object({
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
   IdentityPoolId: z.string().optional(),
+  Roles: z.record(z.string(), z.string()).optional(),
+  RoleMappings: z.record(z.string(), RoleMappingSchema).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -92,7 +116,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Cognito IdentityPoolRoleAttachment. Registered at `@swamp/aws/cognito/identity-pool-role-attachment`. */
 export const model = {
   type: "@swamp/aws/cognito/identity-pool-role-attachment",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -152,6 +176,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: Roles, RoleMappings",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

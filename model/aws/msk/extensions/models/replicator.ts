@@ -402,7 +402,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MSK Replicator. Registered at `@swamp/aws/msk/replicator`. */
 export const model = {
   type: "@swamp/aws/msk/replicator",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -476,6 +476,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -591,14 +596,14 @@ export const model = {
             "Description",
             "KafkaClusters",
             "ServiceExecutionRoleArn",
-            "SourceKafkaClusterArn",
-            "SourceKafkaClusterId",
-            "TargetKafkaClusterArn",
-            "TargetKafkaClusterId",
-            "TargetCompressionType",
-            "ConsumerGroupOffsetSyncMode",
-            "StartingPosition",
-            "TopicNameConfiguration",
+            "ReplicationInfoList/*/SourceKafkaClusterArn",
+            "ReplicationInfoList/*/SourceKafkaClusterId",
+            "ReplicationInfoList/*/TargetKafkaClusterArn",
+            "ReplicationInfoList/*/TargetKafkaClusterId",
+            "ReplicationInfoList/*/TargetCompressionType",
+            "ReplicationInfoList/*/ConsumerGroupReplication/ConsumerGroupOffsetSyncMode",
+            "ReplicationInfoList/*/TopicReplication/StartingPosition",
+            "ReplicationInfoList/*/TopicReplication/TopicNameConfiguration",
           ],
           credentials,
         );

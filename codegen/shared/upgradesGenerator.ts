@@ -492,12 +492,20 @@ export function computeUpgradesBlock(
   // status === "changed" — need to generate a new upgrade entry
   if (!existingContent) return undefined;
 
-  const existingEntries = extractExistingUpgrades(existingContent);
   const oldFieldNames = extractGlobalArgsFieldNames(existingContent);
 
   // Compute added and removed fields
   const oldSet = new Set(oldFieldNames);
   const newSet = new Set(newFieldNames);
+
+  // Drop stale removals here too, as the unchanged path does: otherwise a
+  // field the pipeline once dropped and now restores keeps its stale
+  // "Removed" entry on this run and loses it on the next, so a second
+  // generation is not a no-op.
+  const existingEntries = dropStaleRemovals(
+    extractExistingUpgrades(existingContent),
+    newSet,
+  );
 
   const addedFields: string[] = [];
   for (const name of newFieldNames) {

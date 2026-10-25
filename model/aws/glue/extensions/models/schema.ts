@@ -65,6 +65,9 @@ const GlobalArgsSchema = z.object({
     Name: z.string().min(1).max(255).describe(
       "Name of the registry in which the schema will be created.",
     ).optional(),
+    Arn: z.string().regex(
+      new RegExp("arn:aws(-(cn|us-gov|iso(-[bef])?))?:glue:.*"),
+    ).describe("Amazon Resource Name for the Registry.").optional(),
   }).describe("Identifier for the registry which the schema is part of.")
     .optional(),
   Name: z.string().min(1).max(255).describe("Name of the schema."),
@@ -132,6 +135,9 @@ const InputsSchema = z.object({
     Name: z.string().min(1).max(255).describe(
       "Name of the registry in which the schema will be created.",
     ).optional(),
+    Arn: z.string().regex(
+      new RegExp("arn:aws(-(cn|us-gov|iso(-[bef])?))?:glue:.*"),
+    ).describe("Amazon Resource Name for the Registry.").optional(),
   }).describe("Identifier for the registry which the schema is part of.")
     .optional(),
   Name: z.string().min(1).max(255).describe("Name of the schema.").optional(),
@@ -187,7 +193,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue Schema. Registered at `@swamp/aws/glue/schema`. */
 export const model = {
   type: "@swamp/aws/glue/schema",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -246,6 +252,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

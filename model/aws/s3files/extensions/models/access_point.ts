@@ -193,7 +193,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for S3Files AccessPoint. Registered at `@swamp/aws/s3files/access-point`. */
 export const model = {
   type: "@swamp/aws/s3files/access-point",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.23.1",
@@ -237,6 +237,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -351,15 +356,15 @@ export const model = {
             "FileSystemId",
             "ClientToken",
             "PosixUser",
-            "Uid",
-            "Gid",
-            "SecondaryGids",
+            "PosixUser/Uid",
+            "PosixUser/Gid",
+            "PosixUser/SecondaryGids",
             "RootDirectory",
-            "Path",
-            "CreationPermissions",
-            "OwnerUid",
-            "OwnerGid",
-            "Permissions",
+            "RootDirectory/Path",
+            "RootDirectory/CreationPermissions",
+            "RootDirectory/CreationPermissions/OwnerUid",
+            "RootDirectory/CreationPermissions/OwnerGid",
+            "RootDirectory/CreationPermissions/Permissions",
           ],
           credentials,
         );

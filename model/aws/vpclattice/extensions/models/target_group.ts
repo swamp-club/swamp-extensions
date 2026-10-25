@@ -169,7 +169,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for VpcLattice TargetGroup. Registered at `@swamp/aws/vpclattice/target-group`. */
 export const model = {
   type: "@swamp/aws/vpclattice/target-group",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -228,6 +228,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -341,12 +346,12 @@ export const model = {
           [
             "Name",
             "Type",
-            "Port",
-            "IpAddressType",
-            "Protocol",
-            "ProtocolVersion",
-            "VpcIdentifier",
-            "LambdaEventStructureVersion",
+            "Config/Port",
+            "Config/IpAddressType",
+            "Config/Protocol",
+            "Config/ProtocolVersion",
+            "Config/VpcIdentifier",
+            "Config/LambdaEventStructureVersion",
           ],
           credentials,
         );

@@ -67,6 +67,7 @@ const SpekeKeyProviderSchema = z.object({
   SystemIds: z.array(z.string()).describe(
     "The system IDs to include in key requests.",
   ),
+  Url: z.string().describe("The URL of the external key provider service."),
   RoleArn: z.string().describe(
     "An Amazon Resource Name (ARN) of an IAM role that AWS Elemental MediaPackage will assume when accessing the key provider service.",
   ),
@@ -705,7 +706,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaPackage OriginEndpoint. Registered at `@swamp/aws/mediapackage/origin-endpoint`. */
 export const model = {
   type: "@swamp/aws/mediapackage/origin-endpoint",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -764,6 +765,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

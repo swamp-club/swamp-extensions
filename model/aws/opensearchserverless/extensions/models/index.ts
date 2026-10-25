@@ -38,6 +38,65 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const PropertyMappingSchema = z.object({
+  Dimension: z.number().int().describe(
+    "Dimension size for vector fields, defines the number of dimensions in the vector",
+  ).optional(),
+  Index: z.boolean().describe("Whether a field should be indexed").optional(),
+  Method: z.object({
+    Engine: z.enum(["nmslib", "faiss", "lucene"]).describe(
+      "The k-NN search engine to use",
+    ).optional(),
+    Name: z.enum(["hnsw", "ivf"]).describe(
+      "The algorithm name for k-NN search",
+    ),
+    SpaceType: z.enum([
+      "l2",
+      "l1",
+      "linf",
+      "cosinesimil",
+      "innerproduct",
+      "hamming",
+    ]).describe("The distance function used for k-NN search").optional(),
+    Parameters: z.object({
+      EfConstruction: z.number().int().min(1).describe(
+        "The size of the dynamic list used during k-NN graph creation",
+      ).optional(),
+      M: z.number().int().min(2).max(100).describe(
+        "Number of neighbors to consider during k-NN search",
+      ).optional(),
+    }).describe("Additional parameters for the k-NN algorithm").optional(),
+  }).describe("Configuration for k-NN search method").optional(),
+  Properties: z.record(z.string(), z.record(z.string(), z.unknown())).describe(
+    "Nested fields within an object or nested field type",
+  ).optional(),
+  Type: z.enum(["text", "knn_vector", "keyword", "integer"]).describe(
+    "The field data type. Must be a valid OpenSearch field type.",
+  ),
+  Analyzer: z.string().describe(
+    "The analyzer to use for this field (for text and keyword fields)",
+  ).optional(),
+  SpaceType: z.enum([
+    "l2",
+    "l1",
+    "linf",
+    "cosinesimil",
+    "innerproduct",
+    "hamming",
+  ]).describe(
+    "The distance function used for k-NN search (field-level, outside Method)",
+  ).optional(),
+  CompressionLevel: z.enum(["16x", "32x", "8x", "4x", "2x", "1x"]).describe(
+    "The compression level for knn_vector fields",
+  ).optional(),
+  DataType: z.enum(["float", "byte"]).describe(
+    "The data type for knn_vector fields (e.g. float, byte). Controls how vector values are stored.",
+  ).optional(),
+  Value: z.string().describe(
+    "Default value for the field when not specified in a document",
+  ).optional(),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -88,7 +147,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe("Index settings").optional(),
   Mappings: z.object({
-    Properties: z.record(z.string(), z.string()).describe(
+    Properties: z.record(z.string(), PropertyMappingSchema).describe(
       "Defines the fields within the mapping, including their types and configurations",
     ).optional(),
   }).describe("Index Mappings").optional(),
@@ -156,7 +215,7 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe("Index settings").optional(),
   Mappings: z.object({
-    Properties: z.record(z.string(), z.string()).describe(
+    Properties: z.record(z.string(), PropertyMappingSchema).describe(
       "Defines the fields within the mapping, including their types and configurations",
     ).optional(),
   }).describe("Index Mappings").optional(),
@@ -181,7 +240,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for OpenSearchServerless Index. Registered at `@swamp/aws/opensearchserverless/index`. */
 export const model = {
   type: "@swamp/aws/opensearchserverless/index",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -245,6 +304,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -361,7 +425,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["IndexName", "CollectionEndpoint", "Analysis"],
+          ["IndexName", "CollectionEndpoint", "Settings/Analysis"],
           credentials,
         );
         const handle = await context.writeResource(

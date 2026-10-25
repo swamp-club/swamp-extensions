@@ -38,6 +38,66 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const TimePeriodSchema = z.object({
+  Start: z.string().optional(),
+  End: z.string().optional(),
+});
+
+const CostTypesSchema = z.object({
+  IncludeSupport: z.boolean().optional(),
+  IncludeOtherSubscription: z.boolean().optional(),
+  IncludeTax: z.boolean().optional(),
+  IncludeSubscription: z.boolean().optional(),
+  UseBlended: z.boolean().optional(),
+  IncludeUpfront: z.boolean().optional(),
+  IncludeDiscount: z.boolean().optional(),
+  IncludeCredit: z.boolean().optional(),
+  IncludeRecurring: z.boolean().optional(),
+  UseAmortized: z.boolean().optional(),
+  IncludeRefund: z.boolean().optional(),
+});
+
+const SpendSchema = z.object({
+  Unit: z.string(),
+  Amount: z.number(),
+});
+
+const HistoricalOptionsSchema = z.object({
+  BudgetAdjustmentPeriod: z.number().int(),
+});
+
+const AutoAdjustDataSchema = z.object({
+  AutoAdjustType: z.string(),
+  HistoricalOptions: HistoricalOptionsSchema.optional(),
+});
+
+const ExpressionDimensionValuesSchema = z.object({
+  Values: z.array(z.string()).optional(),
+  Key: z.string().optional(),
+  MatchOptions: z.array(z.string()).optional(),
+});
+
+const CostCategoryValuesSchema = z.object({
+  Values: z.array(z.string()).optional(),
+  Key: z.string().optional(),
+  MatchOptions: z.array(z.string()).optional(),
+});
+
+const TagValuesSchema = z.object({
+  Values: z.array(z.string()).optional(),
+  Key: z.string().optional(),
+  MatchOptions: z.array(z.string()).optional(),
+});
+
+const ExpressionSchema = z.object({
+  Not: z.record(z.string(), z.unknown()).optional(),
+  Or: z.array(z.record(z.string(), z.unknown())).optional(),
+  And: z.array(z.record(z.string(), z.unknown())).optional(),
+  Dimensions: ExpressionDimensionValuesSchema.optional(),
+  CostCategories: CostCategoryValuesSchema.optional(),
+  Tags: TagValuesSchema.optional(),
+});
+
 const SubscriberSchema = z.object({
   Address: z.string(),
   SubscriptionType: z.string(),
@@ -76,12 +136,40 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
+  Budget: z.object({
+    TimePeriod: TimePeriodSchema.optional(),
+    PlannedBudgetLimits: z.record(z.string(), z.unknown()).optional(),
+    CostFilters: z.record(z.string(), z.unknown()).optional(),
+    CostTypes: CostTypesSchema.optional(),
+    BudgetType: z.string(),
+    Metrics: z.array(z.string()).optional(),
+    BudgetLimit: SpendSchema.optional(),
+    BillingViewArn: z.string().optional(),
+    AutoAdjustData: AutoAdjustDataSchema.optional(),
+    TimeUnit: z.string(),
+    FilterExpression: ExpressionSchema.optional(),
+    BudgetName: z.string().optional(),
+  }),
   NotificationsWithSubscribers: z.array(NotificationWithSubscribersSchema)
     .optional(),
   ResourceTags: z.array(ResourceTagSchema).optional(),
 });
 
 const StateSchema = z.object({
+  Budget: z.object({
+    TimePeriod: TimePeriodSchema,
+    PlannedBudgetLimits: z.record(z.string(), z.unknown()),
+    CostFilters: z.record(z.string(), z.unknown()),
+    CostTypes: CostTypesSchema,
+    BudgetType: z.string(),
+    Metrics: z.array(z.string()),
+    BudgetLimit: SpendSchema,
+    BillingViewArn: z.string(),
+    AutoAdjustData: AutoAdjustDataSchema,
+    TimeUnit: z.string(),
+    FilterExpression: ExpressionSchema,
+    BudgetName: z.string(),
+  }).optional(),
   Id: z.string(),
   NotificationsWithSubscribers: z.array(NotificationWithSubscribersSchema)
     .optional(),
@@ -96,6 +184,20 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
+  Budget: z.object({
+    TimePeriod: TimePeriodSchema.optional(),
+    PlannedBudgetLimits: z.record(z.string(), z.unknown()).optional(),
+    CostFilters: z.record(z.string(), z.unknown()).optional(),
+    CostTypes: CostTypesSchema.optional(),
+    BudgetType: z.string().optional(),
+    Metrics: z.array(z.string()).optional(),
+    BudgetLimit: SpendSchema.optional(),
+    BillingViewArn: z.string().optional(),
+    AutoAdjustData: AutoAdjustDataSchema.optional(),
+    TimeUnit: z.string().optional(),
+    FilterExpression: ExpressionSchema.optional(),
+    BudgetName: z.string().optional(),
+  }).optional(),
   NotificationsWithSubscribers: z.array(NotificationWithSubscribersSchema)
     .optional(),
   ResourceTags: z.array(ResourceTagSchema).optional(),
@@ -120,11 +222,16 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Budgets Budget. Registered at `@swamp/aws/budgets/budget`. */
 export const model = {
   type: "@swamp/aws/budgets/budget",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: Budget",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -234,7 +341,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["BudgetName", "NotificationsWithSubscribers"],
+          ["Budget/BudgetName", "NotificationsWithSubscribers"],
           credentials,
         );
         const handle = await context.writeResource(

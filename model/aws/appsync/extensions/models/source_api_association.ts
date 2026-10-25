@@ -62,12 +62,20 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Description: z.string().describe("Description of the SourceApiAssociation.")
     .optional(),
+  SourceApiAssociationConfig: z.object({
+    MergeType: z.enum(["AUTO_MERGE", "MANUAL_MERGE"]).describe(
+      "Configuration of the merged behavior for the association. For example when it could be auto or has to be manual.",
+    ).optional(),
+  }).describe("Customized configuration for SourceApiAssociation.").optional(),
 });
 
 const StateSchema = z.object({
   SourceApiIdentifier: z.string().optional(),
   MergedApiIdentifier: z.string().optional(),
   Description: z.string().optional(),
+  SourceApiAssociationConfig: z.object({
+    MergeType: z.string(),
+  }).optional(),
   AssociationId: z.string().optional(),
   AssociationArn: z.string(),
   SourceApiId: z.string().optional(),
@@ -95,6 +103,11 @@ const InputsSchema = z.object({
   ).optional(),
   Description: z.string().describe("Description of the SourceApiAssociation.")
     .optional(),
+  SourceApiAssociationConfig: z.object({
+    MergeType: z.enum(["AUTO_MERGE", "MANUAL_MERGE"]).describe(
+      "Configuration of the merged behavior for the association. For example when it could be auto or has to be manual.",
+    ).optional(),
+  }).describe("Customized configuration for SourceApiAssociation.").optional(),
 });
 
 const _credentialKeys = new Set([
@@ -116,7 +129,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppSync SourceApiAssociation. Registered at `@swamp/aws/appsync/source-api-association`. */
 export const model = {
   type: "@swamp/aws/appsync/source-api-association",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -176,6 +189,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: SourceApiAssociationConfig",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -183,7 +183,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DevOpsAgent Service. Registered at `@swamp/aws/devopsagent/service`. */
 export const model = {
   type: "@swamp/aws/devopsagent/service",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -288,6 +288,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -400,12 +405,12 @@ export const model = {
           desiredState,
           [
             "ServiceType",
-            "Dynatrace",
-            "GitHub",
-            "MCPServerSplunk",
-            "ServiceNow",
-            "PagerDuty",
-            "AzureIdentity",
+            "ServiceDetails/Dynatrace",
+            "ServiceDetails/GitHub",
+            "ServiceDetails/MCPServerSplunk",
+            "ServiceDetails/ServiceNow",
+            "ServiceDetails/PagerDuty",
+            "ServiceDetails/AzureIdentity",
             "KmsKeyArn",
             "PrivateConnectionName",
             "TargetUrlPrivateConnectionName",

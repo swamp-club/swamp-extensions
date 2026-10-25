@@ -178,6 +178,7 @@ const GlobalArgsSchema = z.object({
     .describe("The name of the security configuration.").optional(),
   ContainerProvider: z.object({
     Type: z.enum(["EKS"]).describe("The container provider type."),
+    Id: z.string().describe("The container provider ID."),
     Info: ContainerInfoSchema.describe("Container information.").optional(),
   }).describe("Container provider for the security configuration.").optional(),
   SecurityConfigurationData: z.object({
@@ -225,6 +226,7 @@ const InputsSchema = z.object({
     .describe("The name of the security configuration.").optional(),
   ContainerProvider: z.object({
     Type: z.enum(["EKS"]).describe("The container provider type.").optional(),
+    Id: z.string().describe("The container provider ID.").optional(),
     Info: ContainerInfoSchema.describe("Container information.").optional(),
   }).describe("Container provider for the security configuration.").optional(),
   SecurityConfigurationData: z.object({
@@ -263,7 +265,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EMRContainers SecurityConfiguration. Registered at `@swamp/aws/emrcontainers/security-configuration`. */
 export const model = {
   type: "@swamp/aws/emrcontainers/security-configuration",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -322,6 +324,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -51,6 +51,14 @@ const WebAclCustomizationSchema = z.object({
   Action: z.enum(["override", "disable"]).describe(
     "The action for the WAF web ACL customization. You can specify override to specify a separate WAF web ACL for the distribution tenant. If you specify disable, the distribution tenant won't have WAF web ACL protections and won't inherit from the multi-tenant distribution.",
   ).optional(),
+  Arn: z.string().describe("The Amazon Resource Name (ARN) of the WAF web ACL.")
+    .optional(),
+});
+
+const CertificateSchema = z.object({
+  Arn: z.string().describe(
+    "The Amazon Resource Name (ARN) of the ACM certificate.",
+  ).optional(),
 });
 
 const GeoRestrictionCustomizationSchema = z.object({
@@ -92,6 +100,8 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Customizations: z.object({
     WebAcl: WebAclCustomizationSchema.describe("The WAF web ACL.").optional(),
+    Certificate: CertificateSchema.describe("The ACMlong (ACM) certificate.")
+      .optional(),
     GeoRestrictions: GeoRestrictionCustomizationSchema.describe(
       "The geographic restrictions.",
     ).optional(),
@@ -138,9 +148,7 @@ const StateSchema = z.object({
   Tags: z.array(TagSchema).optional(),
   Customizations: z.object({
     WebAcl: WebAclCustomizationSchema,
-    Certificate: z.object({
-      Arn: z.string(),
-    }),
+    Certificate: CertificateSchema,
     GeoRestrictions: GeoRestrictionCustomizationSchema,
   }).optional(),
   Parameters: z.array(ParameterSchema).optional(),
@@ -175,6 +183,8 @@ const InputsSchema = z.object({
   ).optional(),
   Customizations: z.object({
     WebAcl: WebAclCustomizationSchema.describe("The WAF web ACL.").optional(),
+    Certificate: CertificateSchema.describe("The ACMlong (ACM) certificate.")
+      .optional(),
     GeoRestrictions: GeoRestrictionCustomizationSchema.describe(
       "The geographic restrictions.",
     ).optional(),
@@ -228,7 +238,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFront DistributionTenant. Registered at `@swamp/aws/cloudfront/distribution-tenant`. */
 export const model = {
   type: "@swamp/aws/cloudfront/distribution-tenant",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -287,6 +297,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

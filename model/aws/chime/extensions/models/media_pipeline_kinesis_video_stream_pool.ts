@@ -131,7 +131,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Chime MediaPipelineKinesisVideoStreamPool. Registered at `@swamp/aws/chime/media-pipeline-kinesis-video-stream-pool`. */
 export const model = {
   type: "@swamp/aws/chime/media-pipeline-kinesis-video-stream-pool",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.10.14.1",
@@ -140,6 +140,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -250,7 +255,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["PoolName", "Region"],
+          ["PoolName", "StreamConfiguration/Region"],
           credentials,
         );
         const handle = await context.writeResource(

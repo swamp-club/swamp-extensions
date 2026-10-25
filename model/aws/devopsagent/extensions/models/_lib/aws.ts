@@ -430,6 +430,27 @@ export async function readResource(
 }
 
 /**
+ * True when a JSON-patch op path (e.g. "/Budget/BudgetName") is, or lies
+ * under, one of the create-only property paths ("Budget/BudgetName"). A "*"
+ * segment in a create-only path matches one array index. Segments compare
+ * as-is: patch paths and CloudFormation pointers escape "/" and "~" the same
+ * way (RFC 6901).
+ */
+function isCreateOnlyPath(
+  opPath: string,
+  createOnlyProperties: string[],
+): boolean {
+  const opSegments = opPath.split("/").slice(1);
+  return createOnlyProperties.some((createOnly) => {
+    const segments = createOnly.split("/");
+    if (segments.length > opSegments.length) return false;
+    return segments.every((segment, i) =>
+      segment === "*" ? /^\d+$/.test(opSegments[i]) : segment === opSegments[i]
+    );
+  });
+}
+
+/**
  * Update an AWS resource via CloudControl API.
  * Reads current state, computes JSON patch (filtering createOnlyProperties),
  * sends UpdateResourceCommand, polls, then reads the updated resource.
@@ -443,7 +464,6 @@ export async function updateResource(
   credentials?: AwsCredentials,
 ): Promise<Record<string, unknown>> {
   const client = createClient(credentials);
-  const createOnlySet = new Set(createOnlyProperties ?? []);
 
   console.log(
     `[UPDATE] Starting update for ${typeName} identifier: ${identifier}`,
@@ -452,9 +472,8 @@ export async function updateResource(
   // Compute JSON patch, filtering out create-only properties
   const rawPatch = jsonpatch.compare(currentState, desiredState);
   const patch = rawPatch.filter((op: { path: string }) => {
-    const topLevelProp = op.path.split("/")[1];
-    if (topLevelProp && createOnlySet.has(topLevelProp)) {
-      console.log(`[UPDATE] Skipping create-only property: ${topLevelProp}`);
+    if (isCreateOnlyPath(op.path, createOnlyProperties ?? [])) {
+      console.log(`[UPDATE] Skipping create-only property: ${op.path}`);
       return false;
     }
     return true;

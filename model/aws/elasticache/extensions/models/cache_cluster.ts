@@ -112,6 +112,9 @@ const GlobalArgsSchema = z.object({
   SnapshotArns: z.array(z.string()).describe(
     "A single-element string list containing an Amazon Resource Name (ARN) that uniquely identifies a Redis RDB snapshot file stored in Amazon S3.",
   ).optional(),
+  Port: z.number().int().describe(
+    "The port number on which each of the cache nodes accepts connections.",
+  ).optional(),
   NumCacheNodes: z.number().int().describe(
     "The number of cache nodes that the cache cluster should have.",
   ),
@@ -228,6 +231,9 @@ const InputsSchema = z.object({
   SnapshotArns: z.array(z.string()).describe(
     "A single-element string list containing an Amazon Resource Name (ARN) that uniquely identifies a Redis RDB snapshot file stored in Amazon S3.",
   ).optional(),
+  Port: z.number().int().describe(
+    "The port number on which each of the cache nodes accepts connections.",
+  ).optional(),
   NumCacheNodes: z.number().int().describe(
     "The number of cache nodes that the cache cluster should have.",
   ).optional(),
@@ -295,7 +301,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElastiCache CacheCluster. Registered at `@swamp/aws/elasticache/cache-cluster`. */
 export const model = {
   type: "@swamp/aws/elasticache/cache-cluster",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.06.06.1",
@@ -330,6 +336,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: Port",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

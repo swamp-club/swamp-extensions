@@ -94,6 +94,78 @@ const SpotResizingSpecificationSchema = z.object({
   ).optional(),
 });
 
+const VolumeSpecificationSchema = z.object({
+  SizeInGB: z.number().int().describe(
+    "The volume size, in gibibytes (GiB). This can be a number from 1 - 1024. If the volume type is EBS-optimized, the minimum value is 10.",
+  ),
+  VolumeType: z.string().describe(
+    "The volume type. Volume types supported are gp3, gp2, io1, st1, sc1, and standard.",
+  ),
+  Throughput: z.number().int().describe(
+    "The throughput, in mebibyte per second (MiB/s). This optional parameter can be a number from 125 - 1000 and is valid only for gp3 volumes.",
+  ).optional(),
+  Iops: z.number().int().describe(
+    "The number of I/O operations per second (IOPS) that the volume supports.",
+  ).optional(),
+});
+
+const EbsBlockDeviceConfigSchema = z.object({
+  VolumeSpecification: VolumeSpecificationSchema.describe(
+    "EBS volume specifications such as volume type, IOPS, size (GiB) and throughput (MiB/s) that are requested for the EBS volume attached to an Amazon EC2 instance in the cluster.",
+  ),
+  VolumesPerInstance: z.number().int().describe(
+    "Use of this property can confuse CloudFormation drift detection. The EbsBlockDeviceConfigs read from the system may return a list with one entry per volume, replacing any entry specified in the template with a VolumesPerInstance greater than one by that many entries containing only the VolumeSpecification. Thus to avoid false drift detection, it is recommended to supply repeated entries in EbsBlockDeviceConfigs for any VolumeSpecification which is intended to be repeated and not to use this property.",
+  ).optional(),
+});
+
+const EbsConfigurationSchema = z.object({
+  EbsBlockDeviceConfigs: z.array(EbsBlockDeviceConfigSchema).describe(
+    "An array of Amazon EBS volume specifications attached to a cluster instance.",
+  ).optional(),
+  EbsOptimized: z.boolean().describe(
+    "Indicates whether an Amazon EBS volume is EBS-optimized.",
+  ).optional(),
+});
+
+const ApplicationConfigurationSchema = z.object({
+  ConfigurationProperties: z.record(z.string(), z.string()).describe(
+    "Within a configuration classification, a set of properties that represent the settings that you want to change in the configuration file.",
+  ).optional(),
+  Configurations: z.array(z.record(z.string(), z.unknown())).describe(
+    "A list of additional configurations to apply within a configuration object.",
+  ).optional(),
+  Classification: z.string().describe(
+    "The classification within a configuration.",
+  ).optional(),
+});
+
+const InstanceTypeConfigSchema = z.object({
+  BidPrice: z.string().describe(
+    "The bid price for each Amazon EC2 Spot Instance type as defined by InstanceType. Expressed in USD. If neither BidPrice nor BidPriceAsPercentageOfOnDemandPrice is provided, BidPriceAsPercentageOfOnDemandPrice defaults to 100%.",
+  ).optional(),
+  WeightedCapacity: z.number().int().describe(
+    "The number of units that a provisioned instance of this type provides toward fulfilling the target capacities defined in InstanceFleetConfig. This value is 1 for a master instance fleet, and must be 1 or greater for core and task instance fleets. Defaults to 1 if not specified.",
+  ).optional(),
+  EbsConfiguration: EbsConfigurationSchema.describe(
+    "The configuration of Amazon Elastic Block Store (Amazon EBS) attached to each instance as defined by InstanceType.",
+  ).optional(),
+  BidPriceAsPercentageOfOnDemandPrice: z.number().describe(
+    "The bid price, as a percentage of On-Demand price, for each Amazon EC2 Spot Instance as defined by InstanceType. Expressed as a number (for example, 20 specifies 20%). If neither BidPrice nor BidPriceAsPercentageOfOnDemandPrice is provided, BidPriceAsPercentageOfOnDemandPrice defaults to 100%.",
+  ).optional(),
+  CustomAmiId: z.string().describe(
+    "The custom AMI ID to use for the instance type.",
+  ).optional(),
+  Configurations: z.array(ApplicationConfigurationSchema).describe(
+    "An optional configuration specification to be used when provisioning cluster instances, which can include configurations for applications and software bundled with Amazon EMR.",
+  ).optional(),
+  InstanceType: z.string().describe(
+    "An Amazon EC2 instance type, such as m3.xlarge.",
+  ),
+  Priority: z.number().describe(
+    "The priority at which Amazon EMR launches the Amazon EC2 instances with this instance type.",
+  ).optional(),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -136,7 +208,7 @@ const GlobalArgsSchema = z.object({
       "The resize specification for Spot Instances in the instance fleet, which contains the allocation strategy and the resize timeout period.",
     ).optional(),
   }).describe("The resize specification for the instance fleet.").optional(),
-  InstanceTypeConfigs: z.array(z.string()).describe(
+  InstanceTypeConfigs: z.array(InstanceTypeConfigSchema).describe(
     "InstanceTypeConfigs determine the EC2 instances that Amazon EMR attempts to provision to fulfill On-Demand and Spot target capacities.",
   ).optional(),
   Name: z.string().describe("The friendly name of the instance fleet.")
@@ -157,7 +229,7 @@ const StateSchema = z.object({
     SpotResizeSpecification: SpotResizingSpecificationSchema,
   }).optional(),
   InstanceFleetId: z.string(),
-  InstanceTypeConfigs: z.array(z.string()).optional(),
+  InstanceTypeConfigs: z.array(InstanceTypeConfigSchema).optional(),
   Name: z.string().optional(),
 }).passthrough();
 
@@ -196,7 +268,7 @@ const InputsSchema = z.object({
       "The resize specification for Spot Instances in the instance fleet, which contains the allocation strategy and the resize timeout period.",
     ).optional(),
   }).describe("The resize specification for the instance fleet.").optional(),
-  InstanceTypeConfigs: z.array(z.string()).describe(
+  InstanceTypeConfigs: z.array(InstanceTypeConfigSchema).describe(
     "InstanceTypeConfigs determine the EC2 instances that Amazon EMR attempts to provision to fulfill On-Demand and Spot target capacities.",
   ).optional(),
   Name: z.string().describe("The friendly name of the instance fleet.")
@@ -222,7 +294,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EMR InstanceFleetConfig. Registered at `@swamp/aws/emr/instance-fleet-config`. */
 export const model = {
   type: "@swamp/aws/emr/instance-fleet-config",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -231,6 +303,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

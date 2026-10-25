@@ -38,6 +38,117 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const PredicateSchema = z.object({
+  Or: z.array(z.record(z.string(), z.unknown())).optional(),
+  And: z.array(z.record(z.string(), z.unknown())).optional(),
+  Field: z.string().optional(),
+  Operator: z.string().optional(),
+  Operand: z.string().optional(),
+  OperandType: z.string().regex(new RegExp("^boolean|string|number$"))
+    .optional(),
+});
+
+const ComponentBindingPropertiesValuePropertiesSchema = z.object({
+  Model: z.string().optional(),
+  Field: z.string().optional(),
+  Predicates: z.array(PredicateSchema).optional(),
+  UserAttribute: z.string().optional(),
+  Bucket: z.string().optional(),
+  Key: z.string().optional(),
+  DefaultValue: z.string().optional(),
+  SlotName: z.string().optional(),
+});
+
+const ComponentBindingPropertiesValueSchema = z.object({
+  Type: z.string().optional(),
+  BindingProperties: ComponentBindingPropertiesValuePropertiesSchema.optional(),
+  DefaultValue: z.string().optional(),
+});
+
+const ComponentPropertyBindingPropertiesSchema = z.object({
+  Property: z.string(),
+  Field: z.string().optional(),
+});
+
+const FormBindingElementSchema = z.object({
+  Element: z.string(),
+  Property: z.string(),
+});
+
+const ComponentConditionPropertySchema = z.object({
+  Property: z.string().optional(),
+  Field: z.string().optional(),
+  Operator: z.string().optional(),
+  Operand: z.string().optional(),
+  Then: z.record(z.string(), z.unknown()).optional(),
+  Else: z.record(z.string(), z.unknown()).optional(),
+  OperandType: z.string().optional(),
+});
+
+const ComponentPropertySchema = z.object({
+  Value: z.string().optional(),
+  BindingProperties: ComponentPropertyBindingPropertiesSchema.optional(),
+  CollectionBindingProperties: ComponentPropertyBindingPropertiesSchema
+    .optional(),
+  DefaultValue: z.string().optional(),
+  Model: z.string().optional(),
+  Bindings: z.record(z.string(), FormBindingElementSchema).optional(),
+  Event: z.string().optional(),
+  UserAttribute: z.string().optional(),
+  Concat: z.array(z.record(z.string(), z.unknown())).optional(),
+  Condition: ComponentConditionPropertySchema.optional(),
+  Configured: z.boolean().optional(),
+  Type: z.string().optional(),
+  ImportedValue: z.string().optional(),
+  ComponentName: z.string().optional(),
+  Property: z.string().optional(),
+});
+
+const MutationActionSetStateParameterSchema = z.object({
+  ComponentName: z.string(),
+  Property: z.string(),
+  Set: ComponentPropertySchema,
+});
+
+const ActionParametersSchema = z.object({
+  Type: ComponentPropertySchema.optional(),
+  Url: ComponentPropertySchema.optional(),
+  Anchor: ComponentPropertySchema.optional(),
+  Target: ComponentPropertySchema.optional(),
+  Global: ComponentPropertySchema.optional(),
+  Model: z.string().optional(),
+  Id: ComponentPropertySchema.optional(),
+  Fields: z.record(z.string(), ComponentPropertySchema).optional(),
+  State: MutationActionSetStateParameterSchema.optional(),
+});
+
+const ComponentEventSchema = z.object({
+  Action: z.string().optional(),
+  Parameters: ActionParametersSchema.optional(),
+  BindingEvent: z.string().optional(),
+});
+
+const ComponentChildSchema = z.object({
+  ComponentType: z.string(),
+  Name: z.string(),
+  Properties: z.record(z.string(), ComponentPropertySchema),
+  Children: z.array(z.record(z.string(), z.unknown())).optional(),
+  Events: z.record(z.string(), ComponentEventSchema).optional(),
+  SourceId: z.string().optional(),
+});
+
+const SortPropertySchema = z.object({
+  Field: z.string(),
+  Direction: z.enum(["ASC", "DESC"]),
+});
+
+const ComponentDataConfigurationSchema = z.object({
+  Model: z.string(),
+  Sort: z.array(SortPropertySchema).optional(),
+  Predicate: PredicateSchema.optional(),
+  Identifiers: z.array(z.string()).optional(),
+});
+
 const ComponentVariantSchema = z.object({
   VariantValues: z.record(z.string(), z.string()).optional(),
   Overrides: z.record(z.string(), z.record(z.string(), z.string())).optional(),
@@ -60,11 +171,17 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   AppId: z.string().optional(),
-  Children: z.array(z.string()).optional(),
+  BindingProperties: z.record(z.string(), ComponentBindingPropertiesValueSchema)
+    .optional(),
+  Children: z.array(ComponentChildSchema).optional(),
+  CollectionProperties: z.record(z.string(), ComponentDataConfigurationSchema)
+    .optional(),
   ComponentType: z.string().min(1).max(255).optional(),
   EnvironmentName: z.string().optional(),
+  Events: z.record(z.string(), ComponentEventSchema).optional(),
   Name: z.string().min(1).max(255).optional(),
   Overrides: z.record(z.string(), z.record(z.string(), z.string())).optional(),
+  Properties: z.record(z.string(), ComponentPropertySchema).optional(),
   SchemaVersion: z.string().optional(),
   SourceId: z.string().optional(),
   Tags: z.record(z.string(), z.string().min(1).max(256)).optional(),
@@ -73,14 +190,18 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   AppId: z.string(),
-  Children: z.array(z.string()).optional(),
+  BindingProperties: z.record(z.string(), z.unknown()).optional(),
+  Children: z.array(ComponentChildSchema).optional(),
+  CollectionProperties: z.record(z.string(), z.unknown()).optional(),
   ComponentType: z.string().optional(),
   CreatedAt: z.string().optional(),
   EnvironmentName: z.string(),
+  Events: z.record(z.string(), z.unknown()).optional(),
   Id: z.string(),
   ModifiedAt: z.string().optional(),
   Name: z.string().optional(),
   Overrides: z.record(z.string(), z.unknown()).optional(),
+  Properties: z.record(z.string(), z.unknown()).optional(),
   SchemaVersion: z.string().optional(),
   SourceId: z.string().optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
@@ -96,11 +217,17 @@ const InputsSchema = z.object({
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
   AppId: z.string().optional(),
-  Children: z.array(z.string()).optional(),
+  BindingProperties: z.record(z.string(), ComponentBindingPropertiesValueSchema)
+    .optional(),
+  Children: z.array(ComponentChildSchema).optional(),
+  CollectionProperties: z.record(z.string(), ComponentDataConfigurationSchema)
+    .optional(),
   ComponentType: z.string().min(1).max(255).optional(),
   EnvironmentName: z.string().optional(),
+  Events: z.record(z.string(), ComponentEventSchema).optional(),
   Name: z.string().min(1).max(255).optional(),
   Overrides: z.record(z.string(), z.record(z.string(), z.string())).optional(),
+  Properties: z.record(z.string(), ComponentPropertySchema).optional(),
   SchemaVersion: z.string().optional(),
   SourceId: z.string().optional(),
   Tags: z.record(z.string(), z.string().min(1).max(256)).optional(),
@@ -126,7 +253,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AmplifyUIBuilder Component. Registered at `@swamp/aws/amplifyuibuilder/component`. */
 export const model = {
   type: "@swamp/aws/amplifyuibuilder/component",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -186,6 +313,12 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description:
+        "Added: BindingProperties, CollectionProperties, Events, Properties",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

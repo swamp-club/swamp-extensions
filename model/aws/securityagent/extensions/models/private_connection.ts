@@ -39,6 +39,12 @@ import {
 import type { AwsCredentials } from "./_lib/aws.ts";
 
 const ServiceManagedSchema = z.object({
+  HostAddress: z.string().describe(
+    "The IP address or DNS name of the target resource.",
+  ),
+  VpcId: z.string().describe(
+    "The VPC to create the service-managed resource gateway in.",
+  ),
   SubnetIds: z.array(z.string()).describe(
     "The subnets that the service-managed resource gateway spans.",
   ),
@@ -54,6 +60,15 @@ const ServiceManagedSchema = z.object({
   PortRanges: z.array(z.string()).describe(
     "The TCP port ranges that a consumer can use to access the resource.",
   ).optional(),
+  DnsResolution: z.enum(["PUBLIC", "IN_VPC"]).describe(
+    "The DNS resolution mode for the resource gateway.",
+  ).optional(),
+});
+
+const SelfManagedSchema = z.object({
+  ResourceConfigurationId: z.string().describe(
+    "The identifier or ARN of the resource configuration.",
+  ),
 });
 
 const TagSchema = z.object({
@@ -84,6 +99,9 @@ const GlobalArgsSchema = z.object({
     ServiceManaged: ServiceManagedSchema.describe(
       "The configuration for a service-managed private connection, where the service manages the resource gateway lifecycle.",
     ).optional(),
+    SelfManaged: SelfManagedSchema.describe(
+      "The configuration for a self-managed private connection, where you manage your own resource configuration.",
+    ).optional(),
   }).describe(
     "The configuration for the private connection. Specify either a service-managed or a self-managed mode.",
   ).optional(),
@@ -100,9 +118,7 @@ const StateSchema = z.object({
   PrivateConnectionName: z.string().optional(),
   Mode: z.object({
     ServiceManaged: ServiceManagedSchema,
-    SelfManaged: z.object({
-      ResourceConfigurationId: z.string(),
-    }),
+    SelfManaged: SelfManagedSchema,
   }).optional(),
   Certificate: z.string().optional(),
   Type: z.string().optional(),
@@ -130,6 +146,9 @@ const InputsSchema = z.object({
   Mode: z.object({
     ServiceManaged: ServiceManagedSchema.describe(
       "The configuration for a service-managed private connection, where the service manages the resource gateway lifecycle.",
+    ).optional(),
+    SelfManaged: SelfManagedSchema.describe(
+      "The configuration for a self-managed private connection, where you manage your own resource configuration.",
     ).optional(),
   }).describe(
     "The configuration for the private connection. Specify either a service-managed or a self-managed mode.",
@@ -161,7 +180,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecurityAgent PrivateConnection. Registered at `@swamp/aws/securityagent/private-connection`. */
 export const model = {
   type: "@swamp/aws/securityagent/private-connection",
-  version: "2026.10.24.1",
+  version: "2026.10.25.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

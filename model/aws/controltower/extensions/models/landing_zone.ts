@@ -59,6 +59,7 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
+  Manifest: z.unknown(),
   Version: z.string().min(3).max(10).regex(new RegExp("\\d+.\\d+")),
   RemediationTypes: z.array(z.enum(["INHERITANCE_DRIFT"])).optional(),
   Tags: z.array(TagSchema).optional(),
@@ -70,6 +71,7 @@ const StateSchema = z.object({
   Status: z.string().optional(),
   LatestAvailableVersion: z.string().optional(),
   DriftStatus: z.string().optional(),
+  Manifest: z.unknown().optional(),
   Version: z.string().optional(),
   RemediationTypes: z.array(z.string()).optional(),
   Tags: z.array(TagSchema).optional(),
@@ -83,6 +85,7 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
+  Manifest: z.unknown().optional(),
   Version: z.string().min(3).max(10).regex(new RegExp("\\d+.\\d+")).optional(),
   RemediationTypes: z.array(z.enum(["INHERITANCE_DRIFT"])).optional(),
   Tags: z.array(TagSchema).optional(),
@@ -107,7 +110,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ControlTower LandingZone. Registered at `@swamp/aws/controltower/landing-zone`. */
 export const model = {
   type: "@swamp/aws/controltower/landing-zone",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -167,6 +170,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: Manifest",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

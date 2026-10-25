@@ -37,6 +37,92 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const ConfigurationSchema = z.object({
+  Classification: z.string().min(1).max(1024).regex(new RegExp("\\S")).describe(
+    "The classification within a configuration.",
+  ),
+  Properties: z.record(
+    z.string(),
+    z.string().min(1).max(1024).regex(new RegExp("\\S")),
+  ).describe(
+    "A set of properties specified within a configuration classification.",
+  ).optional(),
+  Configurations: z.array(z.record(z.string(), z.unknown())).optional(),
+});
+
+const ParametricCloudWatchMonitoringConfigurationSchema = z.object({
+  LogGroupName: z.string().min(1).max(512).regex(
+    new RegExp("^[\\.\\-_/#A-Za-z0-9\\$\\{\\}]+$"),
+  ).describe(
+    "The name of the log group for log publishing, or a template parameter reference.",
+  ).optional(),
+  LogStreamNamePrefix: z.string().min(1).max(256).regex(new RegExp("\\S"))
+    .describe("The specified name prefix for log streams.").optional(),
+});
+
+const ParametricS3MonitoringConfigurationSchema = z.object({
+  LogUri: z.string().min(1).max(10280).regex(
+    new RegExp(
+      "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDBFF-\\uDC00\\uDFFF\\r\\n\\t]*$",
+    ),
+  ).describe("Amazon S3 destination URI for log publishing.").optional(),
+});
+
+const ParametricMonitoringConfigurationSchema = z.object({
+  PersistentAppUI: z.string().min(1).max(512).regex(
+    new RegExp("^[\\.\\-_/#A-Za-z0-9\\$\\{\\}]+$"),
+  ).describe(
+    "Monitoring configurations for the persistent application UI, or a template parameter reference.",
+  ).optional(),
+  CloudWatchMonitoringConfiguration:
+    ParametricCloudWatchMonitoringConfigurationSchema.describe(
+      "A configuration for CloudWatch monitoring. This data type allows job template parameters to be specified within.",
+    ).optional(),
+  S3MonitoringConfiguration: ParametricS3MonitoringConfigurationSchema.describe(
+    "Amazon S3 configuration for monitoring log publishing. This data type allows job template parameters to be specified within.",
+  ).optional(),
+});
+
+const ParametricConfigurationOverridesSchema = z.object({
+  ApplicationConfiguration: z.array(ConfigurationSchema).optional(),
+  MonitoringConfiguration: ParametricMonitoringConfigurationSchema.describe(
+    "Configuration setting for monitoring. This data type allows job template parameters to be specified within.",
+  ).optional(),
+});
+
+const SparkSubmitJobDriverSchema = z.object({
+  EntryPoint: z.string().min(1).max(256).regex(new RegExp("\\S")),
+  EntryPointArguments: z.array(
+    z.string().min(1).max(10280).regex(new RegExp("\\S")),
+  ).optional(),
+  SparkSubmitParameters: z.string().min(1).max(102400).regex(new RegExp("\\S"))
+    .optional(),
+});
+
+const SparkSqlJobDriverSchema = z.object({
+  EntryPoint: z.string().min(1).max(256).regex(new RegExp("\\S")).optional(),
+  SparkSqlParameters: z.string().min(1).max(102400).regex(new RegExp("\\S"))
+    .optional(),
+});
+
+const JobDriverSchema = z.object({
+  SparkSubmitJobDriver: SparkSubmitJobDriverSchema.describe(
+    "The information about job driver for Spark submit.",
+  ).optional(),
+  SparkSqlJobDriver: SparkSqlJobDriverSchema.describe(
+    "The job driver for job type.",
+  ).optional(),
+});
+
+const TemplateParameterConfigurationSchema = z.object({
+  Type: z.enum(["NUMBER", "STRING"]).describe(
+    "The type of the job template parameter.",
+  ).optional(),
+  DefaultValue: z.string().min(1).max(1024).regex(new RegExp("\\S")).describe(
+    "The default value for the job template parameter.",
+  ).optional(),
+});
+
 const TagSchema = z.object({
   Key: z.string().min(1).max(128),
   Value: z.string().min(0).max(256),
@@ -60,6 +146,36 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(64).regex(new RegExp("^[\\.\\-_/#A-Za-z0-9]+$"))
     .describe("The specified name of the job template."),
+  JobTemplateData: z.object({
+    ExecutionRoleArn: z.string().min(4).max(2048).regex(
+      new RegExp(
+        "^(^arn:(aws[a-zA-Z0-9-]*):iam::(\\d{12})?:(role((\\u002F)|(\\u002F[\\u0021-\\u007F]+\\u002F))[\\w+=,.@-]+)$)|([\\.\\-_\\#A-Za-z0-9\\$\\{\\}]+)$",
+      ),
+    ).describe(
+      "The execution role ARN of the job run, or a template parameter reference.",
+    ),
+    ReleaseLabel: z.string().min(1).max(64).regex(
+      new RegExp("^([\\.\\-_/A-Za-z0-9]+|\\$\\{[a-zA-Z]\\w*\\})$"),
+    ).describe(
+      "The release version of Amazon EMR, or a template parameter reference.",
+    ),
+    ConfigurationOverrides: ParametricConfigurationOverridesSchema.describe(
+      "A configuration specification to be used to override existing configurations. This data type allows job template parameters to be specified within.",
+    ).optional(),
+    JobDriver: JobDriverSchema.describe(
+      "Specify the driver that the job runs on. Exactly one of the two available job drivers is required, either SparkSqlJobDriver or SparkSubmitJobDriver.",
+    ),
+    ParameterConfiguration: z.record(
+      z.string(),
+      TemplateParameterConfigurationSchema,
+    ).describe("The configuration of parameters existing in the job template.")
+      .optional(),
+    JobTags: z.record(z.string(), z.string().min(0).max(256)).describe(
+      "The tags assigned to jobs started using the job template.",
+    ).optional(),
+  }).describe(
+    "The values of a StartJobRun API request used in job runs started using the job template.",
+  ),
   Tags: z.array(TagSchema).describe(
     "The tags that are associated with the job template.",
   ).optional(),
@@ -67,6 +183,14 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Name: z.string().optional(),
+  JobTemplateData: z.object({
+    ExecutionRoleArn: z.string(),
+    ReleaseLabel: z.string(),
+    ConfigurationOverrides: ParametricConfigurationOverridesSchema,
+    JobDriver: JobDriverSchema,
+    ParameterConfiguration: z.record(z.string(), z.unknown()),
+    JobTags: z.record(z.string(), z.unknown()),
+  }).optional(),
   Tags: z.array(TagSchema).optional(),
   Id: z.string().optional(),
   Arn: z.string(),
@@ -84,6 +208,36 @@ const InputsSchema = z.object({
   region: z.string().optional(),
   Name: z.string().min(1).max(64).regex(new RegExp("^[\\.\\-_/#A-Za-z0-9]+$"))
     .describe("The specified name of the job template.").optional(),
+  JobTemplateData: z.object({
+    ExecutionRoleArn: z.string().min(4).max(2048).regex(
+      new RegExp(
+        "^(^arn:(aws[a-zA-Z0-9-]*):iam::(\\d{12})?:(role((\\u002F)|(\\u002F[\\u0021-\\u007F]+\\u002F))[\\w+=,.@-]+)$)|([\\.\\-_\\#A-Za-z0-9\\$\\{\\}]+)$",
+      ),
+    ).describe(
+      "The execution role ARN of the job run, or a template parameter reference.",
+    ).optional(),
+    ReleaseLabel: z.string().min(1).max(64).regex(
+      new RegExp("^([\\.\\-_/A-Za-z0-9]+|\\$\\{[a-zA-Z]\\w*\\})$"),
+    ).describe(
+      "The release version of Amazon EMR, or a template parameter reference.",
+    ).optional(),
+    ConfigurationOverrides: ParametricConfigurationOverridesSchema.describe(
+      "A configuration specification to be used to override existing configurations. This data type allows job template parameters to be specified within.",
+    ).optional(),
+    JobDriver: JobDriverSchema.describe(
+      "Specify the driver that the job runs on. Exactly one of the two available job drivers is required, either SparkSqlJobDriver or SparkSubmitJobDriver.",
+    ).optional(),
+    ParameterConfiguration: z.record(
+      z.string(),
+      TemplateParameterConfigurationSchema,
+    ).describe("The configuration of parameters existing in the job template.")
+      .optional(),
+    JobTags: z.record(z.string(), z.string().min(0).max(256)).describe(
+      "The tags assigned to jobs started using the job template.",
+    ).optional(),
+  }).describe(
+    "The values of a StartJobRun API request used in job runs started using the job template.",
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "The tags that are associated with the job template.",
   ).optional(),
@@ -108,7 +262,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EMRContainers JobTemplate. Registered at `@swamp/aws/emrcontainers/job-template`. */
 export const model = {
   type: "@swamp/aws/emrcontainers/job-template",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -118,6 +272,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: JobTemplateData",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

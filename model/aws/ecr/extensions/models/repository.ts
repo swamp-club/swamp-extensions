@@ -236,7 +236,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECR Repository. Registered at `@swamp/aws/ecr/repository`. */
 export const model = {
   type: "@swamp/aws/ecr/repository",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -305,6 +305,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -414,8 +419,8 @@ export const model = {
           [
             "RepositoryName",
             "EncryptionConfiguration",
-            "EncryptionType",
-            "KmsKey",
+            "EncryptionConfiguration/EncryptionType",
+            "EncryptionConfiguration/KmsKey",
           ],
           credentials,
         );

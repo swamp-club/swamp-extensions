@@ -137,7 +137,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker Device. Registered at `@swamp/aws/sagemaker/device`. */
 export const model = {
   type: "@swamp/aws/sagemaker/device",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -191,6 +191,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -281,7 +286,9 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.DeviceName?.toString();
+        const identifier =
+          (existing.Device as Record<string, unknown> | undefined)?.DeviceName
+            ?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }
@@ -301,7 +308,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["DeviceName"],
+          ["Device/DeviceName"],
           credentials,
         );
         const handle = await context.writeResource(
@@ -359,7 +366,9 @@ export const model = {
           throw new Error("No existing state found - run create or get first");
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
-        const identifier = existing.DeviceName?.toString();
+        const identifier =
+          (existing.Device as Record<string, unknown> | undefined)?.DeviceName
+            ?.toString();
         if (!identifier) {
           throw new Error("No identifier found in existing state");
         }

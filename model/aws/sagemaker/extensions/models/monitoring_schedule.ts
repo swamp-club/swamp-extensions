@@ -338,6 +338,9 @@ const GlobalArgsSchema = z.object({
     "Contains the reason a monitoring job failed, if it failed.",
   ).optional(),
   LastMonitoringExecutionSummary: z.object({
+    CreationTime: z.string().describe(
+      "The time at which the monitoring job was created.",
+    ),
     EndpointName: z.string().max(63).regex(
       new RegExp("^[a-zA-Z0-9](-*[a-zA-Z0-9])*"),
     ).describe("The name of the endpoint used to run the monitoring job.")
@@ -345,6 +348,9 @@ const GlobalArgsSchema = z.object({
     FailureReason: z.string().max(1024).describe(
       "Contains the reason a monitoring job failed, if it failed.",
     ).optional(),
+    LastModifiedTime: z.string().describe(
+      "A timestamp that indicates the last time the monitoring job was modified.",
+    ),
     MonitoringExecutionStatus: z.enum([
       "Pending",
       "Completed",
@@ -445,12 +451,18 @@ const InputsSchema = z.object({
     "Contains the reason a monitoring job failed, if it failed.",
   ).optional(),
   LastMonitoringExecutionSummary: z.object({
+    CreationTime: z.string().describe(
+      "The time at which the monitoring job was created.",
+    ).optional(),
     EndpointName: z.string().max(63).regex(
       new RegExp("^[a-zA-Z0-9](-*[a-zA-Z0-9])*"),
     ).describe("The name of the endpoint used to run the monitoring job.")
       .optional(),
     FailureReason: z.string().max(1024).describe(
       "Contains the reason a monitoring job failed, if it failed.",
+    ).optional(),
+    LastModifiedTime: z.string().describe(
+      "A timestamp that indicates the last time the monitoring job was modified.",
     ).optional(),
     MonitoringExecutionStatus: z.enum([
       "Pending",
@@ -503,7 +515,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker MonitoringSchedule. Registered at `@swamp/aws/sagemaker/monitoring-schedule`. */
 export const model = {
   type: "@swamp/aws/sagemaker/monitoring-schedule",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -562,6 +574,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

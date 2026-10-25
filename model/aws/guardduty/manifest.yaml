@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/guardduty"
-version: "2026.10.24.1"
+version: "2026.10.25.1"
 license: "AGPL-3.0-or-later"
 description: "AWS GUARDDUTY infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -10,6 +10,8 @@ labels:
   - guardduty
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: malware_protection_plan
 models:
   - custom_detection_rule_association.ts
   - detector.ts

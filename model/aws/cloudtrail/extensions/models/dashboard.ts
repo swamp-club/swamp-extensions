@@ -88,6 +88,9 @@ const GlobalArgsSchema = z.object({
     TimeOfDay: z.string().regex(new RegExp("^[0-9]{2}:[0-9]{2}")).describe(
       "StartTime of the automatic schedule refresh.",
     ).optional(),
+    Status: z.enum(["ENABLED", "DISABLED"]).describe(
+      "The status of the schedule. Supported values are ENABLED and DISABLED.",
+    ).optional(),
   }).describe(
     "Configures the automatic refresh schedule for the dashboard. Includes the frequency unit (DAYS or HOURS) and value, as well as the status (ENABLED or DISABLED) of the refresh schedule.",
   ).optional(),
@@ -140,6 +143,9 @@ const InputsSchema = z.object({
     TimeOfDay: z.string().regex(new RegExp("^[0-9]{2}:[0-9]{2}")).describe(
       "StartTime of the automatic schedule refresh.",
     ).optional(),
+    Status: z.enum(["ENABLED", "DISABLED"]).describe(
+      "The status of the schedule. Supported values are ENABLED and DISABLED.",
+    ).optional(),
   }).describe(
     "Configures the automatic refresh schedule for the dashboard. Includes the frequency unit (DAYS or HOURS) and value, as well as the status (ENABLED or DISABLED) of the refresh schedule.",
   ).optional(),
@@ -171,7 +177,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudTrail Dashboard. Registered at `@swamp/aws/cloudtrail/dashboard`. */
 export const model = {
   type: "@swamp/aws/cloudtrail/dashboard",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -230,6 +236,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

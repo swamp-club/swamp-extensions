@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/ec2"
-version: "2026.10.24.1"
+version: "2026.10.25.1"
 license: "AGPL-3.0-or-later"
 description: "AWS EC2 infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -10,6 +10,8 @@ labels:
   - ec2
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: ec2fleet, spot_fleet, transit_gateway_connect_peer, vpcendpoint, verified_access_endpoint
 models:
   - application_status_check.ts
   - capacity_manager_data_export.ts

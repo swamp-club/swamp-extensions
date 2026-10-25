@@ -83,6 +83,9 @@ const GlobalArgsSchema = z.object({
   RoutingConfig: z.object({
     FailoverConfig: FailoverConfigSchema,
   }),
+  ReplicationConfig: z.object({
+    State: z.enum(["ENABLED", "DISABLED"]),
+  }).optional(),
   EventBuses: z.array(EndpointEventBusSchema),
 });
 
@@ -120,6 +123,9 @@ const InputsSchema = z.object({
   RoutingConfig: z.object({
     FailoverConfig: FailoverConfigSchema.optional(),
   }).optional(),
+  ReplicationConfig: z.object({
+    State: z.enum(["ENABLED", "DISABLED"]).optional(),
+  }).optional(),
   EventBuses: z.array(EndpointEventBusSchema).optional(),
 });
 
@@ -142,7 +148,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Events Endpoint. Registered at `@swamp/aws/events/endpoint`. */
 export const model = {
   type: "@swamp/aws/events/endpoint",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -202,6 +208,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: ReplicationConfig",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

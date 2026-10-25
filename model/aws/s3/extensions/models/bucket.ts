@@ -146,6 +146,9 @@ const S3TablesDestinationSchema = z.object({
   TableBucketArn: z.string().describe(
     "The Amazon Resource Name (ARN) for the table bucket that's specified as the destination in the metadata table configuration. The destination table bucket must be in the same Region and AWS-account as the general purpose bucket.",
   ),
+  TableName: z.string().describe(
+    "The name for the metadata table in your metadata table configuration. The specified metadata table name must be unique within the aws_s3_metadata namespace in the destination table bucket.",
+  ),
 });
 
 const DataExportSchema = z.object({
@@ -228,6 +231,9 @@ const MetadataDestinationSchema = z.object({
   TableBucketType: z.enum(["aws", "customer"]).describe(
     "The type of the table bucket where the metadata configuration is stored. The aws value indicates an AWS managed table bucket, and the customer value indicates a customer-managed table bucket. V2 metadata configurations are stored in AWS managed table buckets, and V1 metadata configurations are stored in customer-managed table buckets.",
   ),
+  TableNamespace: z.string().describe(
+    "The namespace in the table bucket where the metadata tables for a metadata configuration are stored.",
+  ).optional(),
 });
 
 const MetadataTableEncryptionConfigurationSchema = z.object({
@@ -1189,7 +1195,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for S3 Bucket. Registered at `@swamp/aws/s3/bucket`. */
 export const model = {
   type: "@swamp/aws/s3/bucket",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1278,6 +1284,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

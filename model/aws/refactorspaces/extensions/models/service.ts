@@ -72,6 +72,13 @@ const GlobalArgsSchema = z.object({
   EnvironmentIdentifier: z.string().min(14).max(14).regex(
     new RegExp("^env-([0-9A-Za-z]{10}$)"),
   ),
+  LambdaEndpoint: z.object({
+    Arn: z.string().min(1).max(2048).regex(
+      new RegExp(
+        "^arn:(aws[a-zA-Z-]*)?:lambda:[a-z]{2}((-gov)|(-iso(b?)))?-[a-z]+-\\d{1}:\\d{12}:function:[a-zA-Z0-9-_]+(:(\\$LATEST|[a-zA-Z0-9-_]+))?$",
+      ),
+    ),
+  }).optional(),
   Name: z.string().min(3).max(63).regex(
     new RegExp("^(?!svc-)[a-zA-Z0-9]+[a-zA-Z0-9-_ ]+$"),
   ),
@@ -132,6 +139,13 @@ const InputsSchema = z.object({
   EnvironmentIdentifier: z.string().min(14).max(14).regex(
     new RegExp("^env-([0-9A-Za-z]{10}$)"),
   ).optional(),
+  LambdaEndpoint: z.object({
+    Arn: z.string().min(1).max(2048).regex(
+      new RegExp(
+        "^arn:(aws[a-zA-Z-]*)?:lambda:[a-z]{2}((-gov)|(-iso(b?)))?-[a-z]+-\\d{1}:\\d{12}:function:[a-zA-Z0-9-_]+(:(\\$LATEST|[a-zA-Z0-9-_]+))?$",
+      ),
+    ).optional(),
+  }).optional(),
   Name: z.string().min(3).max(63).regex(
     new RegExp("^(?!svc-)[a-zA-Z0-9]+[a-zA-Z0-9-_ ]+$"),
   ).optional(),
@@ -174,7 +188,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RefactorSpaces Service. Registered at `@swamp/aws/refactorspaces/service`. */
 export const model = {
   type: "@swamp/aws/refactorspaces/service",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -234,6 +248,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: LambdaEndpoint",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

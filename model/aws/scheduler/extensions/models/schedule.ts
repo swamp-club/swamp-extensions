@@ -38,6 +38,14 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const DeadLetterConfigSchema = z.object({
+  Arn: z.string().min(1).max(1600).regex(
+    new RegExp("^arn:aws[a-z-]*:sqs:[a-z0-9\\-]+:\\d{12}:[a-zA-Z0-9\\-_]+$"),
+  ).describe(
+    "The ARN of the SQS queue specified as the target for the dead-letter queue.",
+  ).optional(),
+});
+
 const RetryPolicySchema = z.object({
   MaximumEventAgeInSeconds: z.number().min(60).max(86400).describe(
     "The maximum amount of time, in seconds, to continue to make retry attempts.",
@@ -233,11 +241,17 @@ const GlobalArgsSchema = z.object({
     "Specifies whether the schedule is enabled or disabled.",
   ).optional(),
   Target: z.object({
+    Arn: z.string().min(1).max(1600).describe(
+      "The Amazon Resource Name (ARN) of the target.",
+    ),
     RoleArn: z.string().min(1).max(1600).regex(
       new RegExp("^arn:aws[a-z-]*:iam::\\d{12}:role\\/[\\w+=,.@\\/-]+$"),
     ).describe(
       "The Amazon Resource Name (ARN) of the IAM role to be used for this target when the schedule is triggered.",
     ),
+    DeadLetterConfig: DeadLetterConfigSchema.describe(
+      "A DeadLetterConfig object that contains information about a dead-letter queue configuration.",
+    ).optional(),
     RetryPolicy: RetryPolicySchema.describe(
       "A RetryPolicy object that includes information about the retry policy settings.",
     ).optional(),
@@ -280,9 +294,7 @@ const StateSchema = z.object({
   Target: z.object({
     Arn: z.string(),
     RoleArn: z.string(),
-    DeadLetterConfig: z.object({
-      Arn: z.string(),
-    }),
+    DeadLetterConfig: DeadLetterConfigSchema,
     RetryPolicy: RetryPolicySchema,
     Input: z.string(),
     EcsParameters: EcsParametersSchema,
@@ -342,10 +354,16 @@ const InputsSchema = z.object({
     "Specifies whether the schedule is enabled or disabled.",
   ).optional(),
   Target: z.object({
+    Arn: z.string().min(1).max(1600).describe(
+      "The Amazon Resource Name (ARN) of the target.",
+    ).optional(),
     RoleArn: z.string().min(1).max(1600).regex(
       new RegExp("^arn:aws[a-z-]*:iam::\\d{12}:role\\/[\\w+=,.@\\/-]+$"),
     ).describe(
       "The Amazon Resource Name (ARN) of the IAM role to be used for this target when the schedule is triggered.",
+    ).optional(),
+    DeadLetterConfig: DeadLetterConfigSchema.describe(
+      "A DeadLetterConfig object that contains information about a dead-letter queue configuration.",
     ).optional(),
     RetryPolicy: RetryPolicySchema.describe(
       "A RetryPolicy object that includes information about the retry policy settings.",
@@ -390,7 +408,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Scheduler Schedule. Registered at `@swamp/aws/scheduler/schedule`. */
 export const model = {
   type: "@swamp/aws/scheduler/schedule",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -449,6 +467,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

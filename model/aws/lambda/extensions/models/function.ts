@@ -154,6 +154,13 @@ const GlobalArgsSchema = z.object({
   ReservedConcurrentExecutions: z.number().int().min(0).describe(
     "The number of simultaneous executions to reserve for the function.",
   ).optional(),
+  SnapStart: z.object({
+    ApplyOn: z.enum(["PublishedVersions", "None"]).describe(
+      "Set ApplyOn to PublishedVersions to create a snapshot of the initialized execution environment when you publish a function version.",
+    ),
+  }).describe(
+    "The function's [SnapStart](https://docs.aws.amazon.com/lambda/latest/dg/snapstart.html) setting.",
+  ).optional(),
   FileSystemConfigs: z.array(FileSystemConfigSchema).describe(
     "Connection settings for an Amazon EFS or Amazon S3 Files file system. To connect a function to a file system, a mount target must be available in every Availability Zone that your function connects to. If your template contains an [AWS::EFS::MountTarget](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-efs-mounttarget.html) or [AWS::S3Files::MountTarget](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-s3files-mounttarget.html) resource, you must also specify a DependsOn attribute to ensure that the mount target is created or updated before the function. For more information about using the DependsOn attribute, see [DependsOn Attribute](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-attribute-dependson.html).",
   ).optional(),
@@ -463,6 +470,13 @@ const InputsSchema = z.object({
   ReservedConcurrentExecutions: z.number().int().min(0).describe(
     "The number of simultaneous executions to reserve for the function.",
   ).optional(),
+  SnapStart: z.object({
+    ApplyOn: z.enum(["PublishedVersions", "None"]).describe(
+      "Set ApplyOn to PublishedVersions to create a snapshot of the initialized execution environment when you publish a function version.",
+    ).optional(),
+  }).describe(
+    "The function's [SnapStart](https://docs.aws.amazon.com/lambda/latest/dg/snapstart.html) setting.",
+  ).optional(),
   FileSystemConfigs: z.array(FileSystemConfigSchema).describe(
     "Connection settings for an Amazon EFS or Amazon S3 Files file system. To connect a function to a file system, a mount target must be available in every Availability Zone that your function connects to. If your template contains an [AWS::EFS::MountTarget](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-efs-mounttarget.html) or [AWS::S3Files::MountTarget](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-s3files-mounttarget.html) resource, you must also specify a DependsOn attribute to ensure that the mount target is created or updated before the function. For more information about using the DependsOn attribute, see [DependsOn Attribute](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-attribute-dependson.html).",
   ).optional(),
@@ -640,7 +654,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda Function. Registered at `@swamp/aws/lambda/function`. */
 export const model = {
   type: "@swamp/aws/lambda/function",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -750,6 +764,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: SnapStart",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

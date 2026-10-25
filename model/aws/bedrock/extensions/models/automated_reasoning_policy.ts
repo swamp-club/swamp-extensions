@@ -104,6 +104,7 @@ const GlobalArgsSchema = z.object({
   Name: z.string().min(1).max(256).regex(new RegExp("^[0-9a-zA-Z-_ ]+$")),
   Description: z.string().max(1024).regex(new RegExp("^[\\s\\S]+$")).optional(),
   PolicyDefinition: z.object({
+    Version: z.string().describe("The policy format version.").optional(),
     Types: z.array(PolicyDefinitionTypeSchema).describe(
       "The types definition block of an AutomatedReasoningPolicyDefinition.",
     ).optional(),
@@ -160,6 +161,7 @@ const InputsSchema = z.object({
     .optional(),
   Description: z.string().max(1024).regex(new RegExp("^[\\s\\S]+$")).optional(),
   PolicyDefinition: z.object({
+    Version: z.string().describe("The policy format version.").optional(),
     Types: z.array(PolicyDefinitionTypeSchema).describe(
       "The types definition block of an AutomatedReasoningPolicyDefinition.",
     ).optional(),
@@ -202,7 +204,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock AutomatedReasoningPolicy. Registered at `@swamp/aws/bedrock/automated-reasoning-policy`. */
 export const model = {
   type: "@swamp/aws/bedrock/automated-reasoning-policy",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -266,6 +268,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -238,7 +238,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue Partition. Registered at `@swamp/aws/glue/partition`. */
 export const model = {
   type: "@swamp/aws/glue/partition",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.10.14.1",
@@ -247,6 +247,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -365,7 +370,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["TableName", "DatabaseName", "CatalogId", "Values"],
+          ["TableName", "DatabaseName", "CatalogId", "PartitionInput/Values"],
           credentials,
         );
         const handle = await context.writeResource(

@@ -253,7 +253,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue MLTransform. Registered at `@swamp/aws/glue/mltransform`. */
 export const model = {
   type: "@swamp/aws/glue/mltransform",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.10.14.1",
@@ -262,6 +262,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -372,7 +377,11 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["InputRecordTables", "TransformEncryption", "PrimaryKeyColumnName"],
+          [
+            "InputRecordTables",
+            "TransformEncryption",
+            "TransformParameters/FindMatchesParameters/PrimaryKeyColumnName",
+          ],
           credentials,
         );
         const handle = await context.writeResource(

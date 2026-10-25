@@ -191,6 +191,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Tags: z.array(TagSchema).optional(),
   VPCConfig: z.object({
+    VpcId: z.string().optional(),
     SubnetIds: z.array(z.string()),
     SecurityGroupIds: z.array(z.string()),
     Ipv6AllowedForDualStack: z.boolean().describe(
@@ -352,6 +353,7 @@ const InputsSchema = z.object({
   ).optional(),
   Tags: z.array(TagSchema).optional(),
   VPCConfig: z.object({
+    VpcId: z.string().optional(),
     SubnetIds: z.array(z.string()).optional(),
     SecurityGroupIds: z.array(z.string()).optional(),
     Ipv6AllowedForDualStack: z.boolean().describe(
@@ -435,7 +437,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Synthetics Canary. Registered at `@swamp/aws/synthetics/canary`. */
 export const model = {
   type: "@swamp/aws/synthetics/canary",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -499,6 +501,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

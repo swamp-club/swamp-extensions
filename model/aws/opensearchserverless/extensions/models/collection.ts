@@ -84,6 +84,9 @@ const GlobalArgsSchema = z.object({
     AWSOwnedKey: z.boolean().describe(
       "Indicates whether to use an AWS owned key for encryption.",
     ).optional(),
+    KmsKeyArn: z.string().describe(
+      "Key Management Service key used to encrypt the collection.",
+    ).optional(),
   }).describe("Encryption settings for the collection").optional(),
   VectorOptions: z.object({
     ServerlessVectorAcceleration: z.enum(["ENABLED", "DISABLED", "ALLOWED"])
@@ -92,6 +95,10 @@ const GlobalArgsSchema = z.object({
       ).optional(),
   }).describe("Vector search configuration options for the collection")
     .optional(),
+  FipsEndpoints: z.object({
+    CollectionEndpoint: z.string().optional(),
+    DashboardEndpoint: z.string().optional(),
+  }).optional(),
 });
 
 const StateSchema = z.object({
@@ -153,6 +160,9 @@ const InputsSchema = z.object({
     AWSOwnedKey: z.boolean().describe(
       "Indicates whether to use an AWS owned key for encryption.",
     ).optional(),
+    KmsKeyArn: z.string().describe(
+      "Key Management Service key used to encrypt the collection.",
+    ).optional(),
   }).describe("Encryption settings for the collection").optional(),
   VectorOptions: z.object({
     ServerlessVectorAcceleration: z.enum(["ENABLED", "DISABLED", "ALLOWED"])
@@ -161,6 +171,10 @@ const InputsSchema = z.object({
       ).optional(),
   }).describe("Vector search configuration options for the collection")
     .optional(),
+  FipsEndpoints: z.object({
+    CollectionEndpoint: z.string().optional(),
+    DashboardEndpoint: z.string().optional(),
+  }).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -182,7 +196,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for OpenSearchServerless Collection. Registered at `@swamp/aws/opensearchserverless/collection`. */
 export const model = {
   type: "@swamp/aws/opensearchserverless/collection",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -257,6 +271,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: FipsEndpoints",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

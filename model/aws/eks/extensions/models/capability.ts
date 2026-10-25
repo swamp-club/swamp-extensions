@@ -234,7 +234,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EKS Capability. Registered at `@swamp/aws/eks/capability`. */
 export const model = {
   type: "@swamp/aws/eks/capability",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -308,6 +308,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -422,9 +427,9 @@ export const model = {
             "ClusterName",
             "CapabilityName",
             "Type",
-            "Namespace",
-            "EndpointPrefix",
-            "AwsIdc",
+            "Configuration/ArgoCd/Namespace",
+            "Configuration/ArgoCd/EndpointPrefix",
+            "Configuration/ArgoCd/AwsIdc",
           ],
           credentials,
         );

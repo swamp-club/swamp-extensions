@@ -102,12 +102,24 @@ const GlobalArgsSchema = z.object({
     RecommenderConfig: RecommenderConfigSchema.describe(
       "Configuration for the recommender",
     ).optional(),
+    Status: z.enum([
+      "PENDING",
+      "IN_PROGRESS",
+      "STOPPING",
+      "STARTING",
+      "ACTIVE",
+      "INACTIVE",
+      "FAILED",
+      "DELETING",
+    ]).describe("The status of the recommender").optional(),
     CreationDateTime: z.string().describe(
       "The timestamp of when the update was created",
     ).optional(),
     LastUpdatedDateTime: z.string().describe(
       "The timestamp of when the update was last modified",
     ).optional(),
+    FailureReason: z.string().describe("The reason for update failure")
+      .optional(),
   }).describe("Information about the latest recommender update").optional(),
   Tags: z.array(TagSchema).describe(
     "The tags used to organize, track, or control access for this resource.",
@@ -176,12 +188,24 @@ const InputsSchema = z.object({
     RecommenderConfig: RecommenderConfigSchema.describe(
       "Configuration for the recommender",
     ).optional(),
+    Status: z.enum([
+      "PENDING",
+      "IN_PROGRESS",
+      "STOPPING",
+      "STARTING",
+      "ACTIVE",
+      "INACTIVE",
+      "FAILED",
+      "DELETING",
+    ]).describe("The status of the recommender").optional(),
     CreationDateTime: z.string().describe(
       "The timestamp of when the update was created",
     ).optional(),
     LastUpdatedDateTime: z.string().describe(
       "The timestamp of when the update was last modified",
     ).optional(),
+    FailureReason: z.string().describe("The reason for update failure")
+      .optional(),
   }).describe("Information about the latest recommender update").optional(),
   Tags: z.array(TagSchema).describe(
     "The tags used to organize, track, or control access for this resource.",
@@ -207,7 +231,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CustomerProfiles Recommender. Registered at `@swamp/aws/customerprofiles/recommender`. */
 export const model = {
   type: "@swamp/aws/customerprofiles/recommender",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -266,6 +290,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

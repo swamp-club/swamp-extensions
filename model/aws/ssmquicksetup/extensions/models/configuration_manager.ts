@@ -125,7 +125,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SSMQuickSetup ConfigurationManager. Registered at `@swamp/aws/ssmquicksetup/configuration-manager`. */
 export const model = {
   type: "@swamp/aws/ssmquicksetup/configuration-manager",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -184,6 +184,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -294,7 +299,10 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["Type", "TypeVersion"],
+          [
+            "ConfigurationDefinitions/*/Type",
+            "ConfigurationDefinitions/*/TypeVersion",
+          ],
           credentials,
         );
         const handle = await context.writeResource(

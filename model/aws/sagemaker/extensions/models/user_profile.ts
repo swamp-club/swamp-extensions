@@ -909,7 +909,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker UserProfile. Registered at `@swamp/aws/sagemaker/user-profile`. */
 export const model = {
   type: "@swamp/aws/sagemaker/user-profile",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -973,6 +973,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1092,10 +1097,10 @@ export const model = {
           [
             "DomainId",
             "UserProfileName",
-            "AccessStatus",
+            "UserSettings/RStudioServerProAppSettings/AccessStatus",
             "SingleSignOnUserIdentifier",
             "SingleSignOnUserValue",
-            "UserGroup",
+            "UserSettings/RStudioServerProAppSettings/UserGroup",
           ],
           credentials,
         );

@@ -38,6 +38,230 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const DateTimeValueSchema = z.object({
+  Type: z.enum(["ABSOLUTE", "RELATIVE"]),
+  Value: z.string(),
+});
+
+const DateTimeRangeSchema = z.object({
+  StartTime: DateTimeValueSchema,
+  EndTime: DateTimeValueSchema,
+});
+
+const GroupDefinitionSchema = z.object({
+  Key: z.string().min(1).max(1024).regex(new RegExp("^[\\S\\s]*$")),
+  Type: z.enum(["DIMENSION", "TAG", "COST_CATEGORY"]).optional(),
+});
+
+const DimensionValuesSchema = z.object({
+  Key: z.enum([
+    "AZ",
+    "INSTANCE_TYPE",
+    "LINKED_ACCOUNT",
+    "OPERATION",
+    "PURCHASE_TYPE",
+    "REGION",
+    "SERVICE",
+    "USAGE_TYPE",
+    "USAGE_TYPE_GROUP",
+    "RECORD_TYPE",
+    "OPERATING_SYSTEM",
+    "TENANCY",
+    "SCOPE",
+    "PLATFORM",
+    "SUBSCRIPTION_ID",
+    "LEGAL_ENTITY_NAME",
+    "DEPLOYMENT_OPTION",
+    "DATABASE_ENGINE",
+    "CACHE_ENGINE",
+    "INSTANCE_TYPE_FAMILY",
+    "BILLING_ENTITY",
+    "RESERVATION_ID",
+    "RESOURCE_ID",
+    "SAVINGS_PLANS_TYPE",
+    "TAG_KEY",
+    "COST_CATEGORY_NAME",
+  ]),
+  Values: z.array(z.string()),
+  MatchOptions: z.array(
+    z.enum([
+      "EQUALS",
+      "ABSENT",
+      "STARTS_WITH",
+      "ENDS_WITH",
+      "CONTAINS",
+      "GREATER_THAN_OR_EQUAL",
+      "CASE_SENSITIVE",
+      "CASE_INSENSITIVE",
+    ]),
+  ).optional(),
+});
+
+const TagValuesSchema = z.object({
+  Key: z.string(),
+  Values: z.array(z.string()),
+  MatchOptions: z.array(
+    z.enum([
+      "EQUALS",
+      "ABSENT",
+      "STARTS_WITH",
+      "ENDS_WITH",
+      "CONTAINS",
+      "GREATER_THAN_OR_EQUAL",
+      "CASE_SENSITIVE",
+      "CASE_INSENSITIVE",
+    ]),
+  ).optional(),
+});
+
+const CostCategoryValuesSchema = z.object({
+  Key: z.string(),
+  Values: z.array(z.string()),
+  MatchOptions: z.array(
+    z.enum([
+      "EQUALS",
+      "ABSENT",
+      "STARTS_WITH",
+      "ENDS_WITH",
+      "CONTAINS",
+      "GREATER_THAN_OR_EQUAL",
+      "CASE_SENSITIVE",
+      "CASE_INSENSITIVE",
+    ]),
+  ).optional(),
+});
+
+const CostAndUsageExpressionSchema = z.object({
+  Or: z.array(z.record(z.string(), z.unknown())).optional(),
+  And: z.array(z.record(z.string(), z.unknown())).optional(),
+  Not: z.record(z.string(), z.unknown()).optional(),
+  Dimensions: DimensionValuesSchema.optional(),
+  Tags: TagValuesSchema.optional(),
+  CostCategories: CostCategoryValuesSchema.optional(),
+});
+
+const CostAndUsageQuerySchema = z.object({
+  Metrics: z.array(
+    z.enum([
+      "AmortizedCost",
+      "BlendedCost",
+      "NetAmortizedCost",
+      "NetUnblendedCost",
+      "NormalizedUsageAmount",
+      "UnblendedCost",
+      "UsageQuantity",
+      "SpendCoveredBySavingsPlans",
+      "Hour",
+      "Unit",
+      "Cost",
+    ]),
+  ),
+  TimeRange: DateTimeRangeSchema,
+  Granularity: z.enum(["HOURLY", "DAILY", "MONTHLY"]),
+  GroupBy: z.array(GroupDefinitionSchema).optional(),
+  Filter: CostAndUsageExpressionSchema.optional(),
+});
+
+const ExpressionSchema = z.object({
+  And: z.array(z.record(z.string(), z.unknown())).optional(),
+  Not: z.record(z.string(), z.unknown()).optional(),
+  Dimensions: DimensionValuesSchema.optional(),
+  Tags: TagValuesSchema.optional(),
+  CostCategories: CostCategoryValuesSchema.optional(),
+});
+
+const SavingsPlansCoverageQuerySchema = z.object({
+  TimeRange: DateTimeRangeSchema,
+  Metrics: z.array(
+    z.enum([
+      "AmortizedCost",
+      "BlendedCost",
+      "NetAmortizedCost",
+      "NetUnblendedCost",
+      "NormalizedUsageAmount",
+      "UnblendedCost",
+      "UsageQuantity",
+      "SpendCoveredBySavingsPlans",
+      "Hour",
+      "Unit",
+      "Cost",
+    ]),
+  ).optional(),
+  Granularity: z.enum(["HOURLY", "DAILY", "MONTHLY"]).optional(),
+  GroupBy: z.array(GroupDefinitionSchema).optional(),
+  Filter: ExpressionSchema.optional(),
+});
+
+const SavingsPlansUtilizationQuerySchema = z.object({
+  TimeRange: DateTimeRangeSchema,
+  Granularity: z.enum(["HOURLY", "DAILY", "MONTHLY"]).optional(),
+  Filter: ExpressionSchema.optional(),
+});
+
+const ReservationCoverageQuerySchema = z.object({
+  TimeRange: DateTimeRangeSchema,
+  GroupBy: z.array(GroupDefinitionSchema).optional(),
+  Granularity: z.enum(["HOURLY", "DAILY", "MONTHLY"]).optional(),
+  Filter: ExpressionSchema.optional(),
+  Metrics: z.array(
+    z.enum([
+      "AmortizedCost",
+      "BlendedCost",
+      "NetAmortizedCost",
+      "NetUnblendedCost",
+      "NormalizedUsageAmount",
+      "UnblendedCost",
+      "UsageQuantity",
+      "SpendCoveredBySavingsPlans",
+      "Hour",
+      "Unit",
+      "Cost",
+    ]),
+  ).optional(),
+});
+
+const ReservationUtilizationQuerySchema = z.object({
+  TimeRange: DateTimeRangeSchema,
+  GroupBy: z.array(GroupDefinitionSchema).optional(),
+  Granularity: z.enum(["HOURLY", "DAILY", "MONTHLY"]).optional(),
+  Filter: ExpressionSchema.optional(),
+});
+
+const QueryParametersSchema = z.object({
+  CostAndUsage: CostAndUsageQuerySchema.optional(),
+  SavingsPlansCoverage: SavingsPlansCoverageQuerySchema.optional(),
+  SavingsPlansUtilization: SavingsPlansUtilizationQuerySchema.optional(),
+  ReservationCoverage: ReservationCoverageQuerySchema.optional(),
+  ReservationUtilization: ReservationUtilizationQuerySchema.optional(),
+});
+
+const GraphDisplayConfigSchema = z.object({
+  VisualType: z.enum(["LINE", "BAR", "STACK"]),
+});
+
+const DisplayConfigSchema = z.object({
+  Graph: z.record(z.string(), GraphDisplayConfigSchema).optional(),
+  Table: z.record(z.string(), z.unknown()).optional(),
+});
+
+const WidgetConfigSchema = z.object({
+  QueryParameters: QueryParametersSchema,
+  DisplayConfig: DisplayConfigSchema,
+});
+
+const WidgetSchema = z.object({
+  Title: z.string().min(2).max(50).regex(
+    new RegExp("^(?!.* {2})[a-zA-Z0-9_-][ a-zA-Z0-9_-]*[a-zA-Z0-9_-]$"),
+  ),
+  Description: z.string().min(1).max(200).regex(
+    new RegExp("^(?!.* {2})[ a-zA-Z0-9.,!?;:@#$%&\\-_/\\\\]*$"),
+  ).optional(),
+  Width: z.number().int().min(2).max(6).optional(),
+  Height: z.number().int().min(4).max(10).optional(),
+  HorizontalOffset: z.number().int().optional(),
+  Configs: z.array(WidgetConfigSchema),
+});
+
 const TagSchema = z.object({
   Key: z.string().min(1).max(128),
   Value: z.string().min(0).max(256),
@@ -65,7 +289,7 @@ const GlobalArgsSchema = z.object({
   Description: z.string().min(1).max(200).regex(
     new RegExp("^(?!.* {2})[ a-zA-Z0-9.,!?;:@#$%&\\-_/\\\\]*$"),
   ).optional(),
-  Widgets: z.array(z.string()),
+  Widgets: z.array(WidgetSchema),
   Tags: z.array(TagSchema).optional(),
 });
 
@@ -74,7 +298,7 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   Description: z.string().optional(),
   Type: z.string().optional(),
-  Widgets: z.array(z.string()).optional(),
+  Widgets: z.array(WidgetSchema).optional(),
   CreatedAt: z.string().optional(),
   UpdatedAt: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
@@ -94,7 +318,7 @@ const InputsSchema = z.object({
   Description: z.string().min(1).max(200).regex(
     new RegExp("^(?!.* {2})[ a-zA-Z0-9.,!?;:@#$%&\\-_/\\\\]*$"),
   ).optional(),
-  Widgets: z.array(z.string()).optional(),
+  Widgets: z.array(WidgetSchema).optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
@@ -117,7 +341,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BCM Dashboard. Registered at `@swamp/aws/bcm/dashboard`. */
 export const model = {
   type: "@swamp/aws/bcm/dashboard",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.06.15.1",
@@ -141,6 +365,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -270,6 +270,9 @@ const GlobalArgsSchema = z.object({
     ).describe(
       "A cron expression that specifies when AWS DataSync initiates a scheduled transfer from a source to a destination location",
     ).optional(),
+    Status: z.enum(["ENABLED", "DISABLED"]).describe(
+      "Specifies status of a schedule.",
+    ).optional(),
   }).describe(
     "Specifies the schedule you want your task to use for repeated executions.",
   ).optional(),
@@ -513,6 +516,9 @@ const InputsSchema = z.object({
     ).describe(
       "A cron expression that specifies when AWS DataSync initiates a scheduled transfer from a source to a destination location",
     ).optional(),
+    Status: z.enum(["ENABLED", "DISABLED"]).describe(
+      "Specifies status of a schedule.",
+    ).optional(),
   }).describe(
     "Specifies the schedule you want your task to use for repeated executions.",
   ).optional(),
@@ -545,7 +551,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataSync Task. Registered at `@swamp/aws/datasync/task`. */
 export const model = {
   type: "@swamp/aws/datasync/task",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.09.17.1",
@@ -564,6 +570,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

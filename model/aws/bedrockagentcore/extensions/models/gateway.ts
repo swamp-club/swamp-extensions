@@ -197,6 +197,7 @@ const GlobalArgsSchema = z.object({
   ProtocolConfiguration: z.object({
     Mcp: MCPGatewayConfigurationSchema.optional(),
   }).optional(),
+  ProtocolType: z.enum(["MCP"]).optional(),
   RoleArn: z.string().min(1).max(2048).regex(
     new RegExp("^arn:aws(-[^:]+)?:iam::([0-9]{12})?:role/.+$"),
   ),
@@ -234,6 +235,7 @@ const StateSchema = z.object({
   ProtocolConfiguration: z.object({
     Mcp: MCPGatewayConfigurationSchema,
   }).optional(),
+  ProtocolType: z.string().optional(),
   RoleArn: z.string().optional(),
   Status: z.string().optional(),
   StatusReasons: z.array(z.string()).optional(),
@@ -282,6 +284,7 @@ const InputsSchema = z.object({
   ProtocolConfiguration: z.object({
     Mcp: MCPGatewayConfigurationSchema.optional(),
   }).optional(),
+  ProtocolType: z.enum(["MCP"]).optional(),
   RoleArn: z.string().min(1).max(2048).regex(
     new RegExp("^arn:aws(-[^:]+)?:iam::([0-9]{12})?:role/.+$"),
   ).optional(),
@@ -316,7 +319,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Gateway. Registered at `@swamp/aws/bedrockagentcore/gateway`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/gateway",
-  version: "2026.10.23.2",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -352,14 +355,6 @@ export const model = {
       toVersion: "2026.04.23.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.03.1",
-      description: "Removed: ProtocolType",
-      upgradeAttributes: (old: Record<string, unknown>) => {
-        const { ProtocolType: _ProtocolType, ...rest } = old;
-        return rest;
-      },
     },
     {
       toVersion: "2026.06.06.1",
@@ -434,6 +429,11 @@ export const model = {
     {
       toVersion: "2026.10.23.2",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: ProtocolType",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

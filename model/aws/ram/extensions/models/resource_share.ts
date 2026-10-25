@@ -169,7 +169,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RAM ResourceShare. Registered at `@swamp/aws/ram/resource-share`. */
 export const model = {
   type: "@swamp/aws/ram/resource-share",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -233,6 +233,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -343,7 +348,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["RetainSharingOnAccountLeaveOrganization"],
+          ["ResourceShareConfiguration/RetainSharingOnAccountLeaveOrganization"],
           credentials,
         );
         const handle = await context.writeResource(

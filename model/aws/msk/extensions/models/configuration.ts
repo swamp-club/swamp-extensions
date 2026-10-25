@@ -55,6 +55,7 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   Name: z.string(),
+  Description: z.string().optional(),
   ServerProperties: z.string(),
   KafkaVersionsList: z.array(z.string()).optional(),
 });
@@ -81,6 +82,7 @@ const InputsSchema = z.object({
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
   Name: z.string().optional(),
+  Description: z.string().optional(),
   ServerProperties: z.string().optional(),
   KafkaVersionsList: z.array(z.string()).optional(),
 });
@@ -104,7 +106,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MSK Configuration. Registered at `@swamp/aws/msk/configuration`. */
 export const model = {
   type: "@swamp/aws/msk/configuration",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -164,6 +166,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: Description",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

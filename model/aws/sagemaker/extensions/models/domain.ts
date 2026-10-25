@@ -721,6 +721,11 @@ const UnifiedStudioSettingsSchema = z.object({
     .describe(
       "The AWS Region where the domain is located in Amazon SageMaker Unified Studio. The default value, if you don't specify a Region, is the Region where the Amazon SageMaker AI domain is located.",
     ).optional(),
+  DomainId: z.string().min(1).max(36).regex(
+    new RegExp("^dzd[-_][a-zA-Z0-9_-]{1,36}$"),
+  ).describe(
+    "The ID of the Amazon SageMaker Unified Studio domain associated with this domain.",
+  ).optional(),
   ProjectId: z.string().regex(new RegExp("^[a-zA-Z0-9_-]{1,36}$")).describe(
     "The ID of the Amazon SageMaker Unified Studio project that corresponds to the domain.",
   ).optional(),
@@ -1100,7 +1105,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker Domain. Registered at `@swamp/aws/sagemaker/domain`. */
 export const model = {
   type: "@swamp/aws/sagemaker/domain",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -1179,6 +1184,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1289,7 +1299,12 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["AuthMode", "DomainName", "DefaultResourceSpec", "KmsKeyId"],
+          [
+            "AuthMode",
+            "DomainName",
+            "DomainSettings/RStudioServerProDomainSettings/DefaultResourceSpec",
+            "KmsKeyId",
+          ],
           credentials,
         );
         const handle = await context.writeResource(

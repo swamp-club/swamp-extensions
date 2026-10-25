@@ -491,6 +491,11 @@ const HarnessAgentCoreMemoryRetrievalConfigSchema = z.object({
 });
 
 const HarnessAgentCoreMemoryConfigurationSchema = z.object({
+  Arn: z.string().regex(
+    new RegExp(
+      "^arn:aws(-[^:]+)?:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:memory/[a-zA-Z][a-zA-Z0-9-_]{0,99}-[a-zA-Z0-9]{10}$",
+    ),
+  ),
   ActorId: z.string().optional(),
   MessagesCount: z.number().int().optional(),
   RetrievalConfig: z.record(
@@ -779,7 +784,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Harness. Registered at `@swamp/aws/bedrockagentcore/harness`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/harness",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.05.27.1",
@@ -848,6 +853,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -958,7 +968,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["HarnessName", "EncryptionKeyArn"],
+          ["HarnessName", "Memory/ManagedMemoryConfiguration/EncryptionKeyArn"],
           credentials,
         );
         const handle = await context.writeResource(

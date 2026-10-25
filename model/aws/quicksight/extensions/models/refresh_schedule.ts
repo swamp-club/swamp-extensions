@@ -189,7 +189,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight RefreshSchedule. Registered at `@swamp/aws/quicksight/refresh-schedule`. */
 export const model = {
   type: "@swamp/aws/quicksight/refresh-schedule",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -248,6 +248,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -341,7 +346,8 @@ export const model = {
         const idParts = [
           existing.AwsAccountId?.toString(),
           existing.DataSetId?.toString(),
-          existing.ScheduleId?.toString(),
+          (existing.Schedule as Record<string, unknown> | undefined)?.ScheduleId
+            ?.toString(),
         ];
         if (idParts.some((p) => !p)) {
           throw new Error(
@@ -365,7 +371,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["AwsAccountId", "DataSetId", "ScheduleId"],
+          ["AwsAccountId", "DataSetId", "Schedule/ScheduleId"],
           credentials,
         );
         const handle = await context.writeResource(
@@ -426,7 +432,8 @@ export const model = {
         const idParts = [
           existing.AwsAccountId?.toString(),
           existing.DataSetId?.toString(),
-          existing.ScheduleId?.toString(),
+          (existing.Schedule as Record<string, unknown> | undefined)?.ScheduleId
+            ?.toString(),
         ];
         if (idParts.some((p) => !p)) {
           throw new Error(

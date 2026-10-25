@@ -84,6 +84,7 @@ const DashboardSourceTemplateSchema = z.object({
   DataSetReferences: z.array(DataSetReferenceSchema).describe(
     "Dataset references.",
   ),
+  Arn: z.string().describe("The Amazon Resource Name (ARN) of the resource."),
   TopicReferences: z.array(TopicReferenceSchema).optional(),
 });
 
@@ -4304,6 +4305,9 @@ const GlobalArgsSchema = z.object({
     Errors: z.array(DashboardErrorSchema).describe(
       "Errors associated with this dashboard version.",
     ).optional(),
+    CreatedTime: z.string().describe(
+      "The time that this dashboard version was created.",
+    ).optional(),
     Description: z.string().min(1).max(512).describe("Description.").optional(),
     DataSetArns: z.array(z.string()).describe(
       "The Amazon Resource Numbers (ARNs) for the datasets that are associated with this version of the dashboard.",
@@ -4311,6 +4315,8 @@ const GlobalArgsSchema = z.object({
     ThemeArn: z.string().describe(
       "The ARN of the theme associated with a version of the dashboard.",
     ).optional(),
+    Arn: z.string().describe("The Amazon Resource Name (ARN) of the resource.")
+      .optional(),
     SourceEntityArn: z.string().describe("Source entity ARN.").optional(),
     VersionNumber: z.number().min(1).describe(
       "Version number for this version of the dashboard.",
@@ -4513,6 +4519,9 @@ const InputsSchema = z.object({
     Errors: z.array(DashboardErrorSchema).describe(
       "Errors associated with this dashboard version.",
     ).optional(),
+    CreatedTime: z.string().describe(
+      "The time that this dashboard version was created.",
+    ).optional(),
     Description: z.string().min(1).max(512).describe("Description.").optional(),
     DataSetArns: z.array(z.string()).describe(
       "The Amazon Resource Numbers (ARNs) for the datasets that are associated with this version of the dashboard.",
@@ -4520,6 +4529,8 @@ const InputsSchema = z.object({
     ThemeArn: z.string().describe(
       "The ARN of the theme associated with a version of the dashboard.",
     ).optional(),
+    Arn: z.string().describe("The Amazon Resource Name (ARN) of the resource.")
+      .optional(),
     SourceEntityArn: z.string().describe("Source entity ARN.").optional(),
     VersionNumber: z.number().min(1).describe(
       "Version number for this version of the dashboard.",
@@ -4560,7 +4571,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight Dashboard. Registered at `@swamp/aws/quicksight/dashboard`. */
 export const model = {
   type: "@swamp/aws/quicksight/dashboard",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -4634,6 +4645,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

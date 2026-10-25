@@ -54,7 +54,7 @@ const TlsAuthConfigurationSchema = z.object({
 });
 
 const PublicNetworkConfigurationSchema = z.object({
-  IpType: z.unknown(),
+  IpType: z.enum(["IPV4", "DUAL_STACK"]),
 });
 
 const PrivateNetworkConfigurationSchema = z.object({
@@ -184,7 +184,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SES MailManagerIngressPoint. Registered at `@swamp/aws/ses/mail-manager-ingress-point`. */
 export const model = {
   type: "@swamp/aws/ses/mail-manager-ingress-point",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -258,6 +258,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

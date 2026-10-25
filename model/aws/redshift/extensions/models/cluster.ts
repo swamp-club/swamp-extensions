@@ -69,6 +69,9 @@ const GlobalArgsSchema = z.object({
   Encrypted: z.boolean().describe(
     "If true, the data in the cluster is encrypted at rest.",
   ).optional(),
+  Port: z.number().int().describe(
+    "The port number on which the cluster accepts incoming connections. The cluster is accessible only via the JDBC and ODBC connection strings",
+  ).optional(),
   NumberOfNodes: z.number().int().describe(
     "The number of compute nodes in the cluster. This parameter is required when the ClusterType parameter is specified as multi-node.",
   ).optional(),
@@ -295,6 +298,9 @@ const InputsSchema = z.object({
   Encrypted: z.boolean().describe(
     "If true, the data in the cluster is encrypted at rest.",
   ).optional(),
+  Port: z.number().int().describe(
+    "The port number on which the cluster accepts incoming connections. The cluster is accessible only via the JDBC and ODBC connection strings",
+  ).optional(),
   NumberOfNodes: z.number().int().describe(
     "The number of compute nodes in the cluster. This parameter is required when the ClusterType parameter is specified as multi-node.",
   ).optional(),
@@ -458,7 +464,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Redshift Cluster. Registered at `@swamp/aws/redshift/cluster`. */
 export const model = {
   type: "@swamp/aws/redshift/cluster",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -528,6 +534,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: Port",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

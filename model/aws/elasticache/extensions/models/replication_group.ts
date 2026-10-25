@@ -131,6 +131,9 @@ const GlobalArgsSchema = z.object({
   UserGroupIds: z.array(z.string()).describe(
     "The ID of user group to associate with the replication group.",
   ).optional(),
+  Port: z.number().int().describe(
+    "The port number on which each member of the replication group accepts connections.",
+  ).optional(),
   NumNodeGroups: z.number().int().describe(
     "An optional parameter that specifies the number of node groups (shards) for this Redis (cluster mode enabled) replication group. For Redis (cluster mode disabled) either omit this parameter or set it to 1.",
   ).optional(),
@@ -320,6 +323,9 @@ const InputsSchema = z.object({
   UserGroupIds: z.array(z.string()).describe(
     "The ID of user group to associate with the replication group.",
   ).optional(),
+  Port: z.number().int().describe(
+    "The port number on which each member of the replication group accepts connections.",
+  ).optional(),
   NumNodeGroups: z.number().int().describe(
     "An optional parameter that specifies the number of node groups (shards) for this Redis (cluster mode enabled) replication group. For Redis (cluster mode disabled) either omit this parameter or set it to 1.",
   ).optional(),
@@ -437,7 +443,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElastiCache ReplicationGroup. Registered at `@swamp/aws/elasticache/replication-group`. */
 export const model = {
   type: "@swamp/aws/elasticache/replication-group",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -512,6 +518,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: Port",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

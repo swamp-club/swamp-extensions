@@ -38,6 +38,172 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const DataValueSchema = z.object({
+  BooleanValue: z.boolean().describe("A Boolean value.").optional(),
+  DoubleValue: z.number().describe("A double value.").optional(),
+  Expression: z.string().min(1).max(316).regex(
+    new RegExp("(^\\$\\{Parameters\\.[a-zA-z]+([a-zA-z_0-9]*)}$)"),
+  ).describe("An expression that produces the value.").optional(),
+  IntegerValue: z.number().int().describe("An integer value.").optional(),
+  ListValue: z.array(z.record(z.string(), z.unknown())).describe(
+    "A list of multiple values.",
+  ).optional(),
+  LongValue: z.number().describe("A long value.").optional(),
+  StringValue: z.string().min(1).max(256).regex(new RegExp(".*")).describe(
+    "A string value.",
+  ).optional(),
+  MapValue: z.record(z.string(), z.record(z.string(), z.unknown())).describe(
+    "An object that maps strings to multiple DataValue objects.",
+  ).optional(),
+  RelationshipValue: z.object({
+    TargetComponentName: z.string().min(1).max(256).regex(
+      new RegExp("[a-zA-Z_\\-0-9]+"),
+    ).optional(),
+    TargetEntityId: z.string().min(1).max(128).regex(
+      new RegExp(
+        "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|^[a-zA-Z0-9][a-zA-Z_\\-0-9.:]*[a-zA-Z0-9]+",
+      ),
+    ).optional(),
+  }).describe("A value that relates a component to another component.")
+    .optional(),
+});
+
+const RelationshipSchema = z.object({
+  RelationshipType: z.string().min(1).max(256).regex(new RegExp(".*")).describe(
+    "The type of the relationship.",
+  ).optional(),
+  TargetComponentTypeId: z.string().min(1).max(256).regex(
+    new RegExp("[a-zA-Z_\\.\\-0-9:]+"),
+  ).describe(
+    "The ID of the target component type associated with this relationship.",
+  ).optional(),
+});
+
+const DataTypeSchema = z.object({
+  AllowedValues: z.array(DataValueSchema).describe(
+    "The allowed values for this data type.",
+  ).optional(),
+  NestedType: z.record(z.string(), z.unknown()).describe(
+    "The nested type in the data type.",
+  ).optional(),
+  Relationship: RelationshipSchema.describe(
+    "A relationship that associates a component with another component.",
+  ).optional(),
+  Type: z.enum([
+    "RELATIONSHIP",
+    "STRING",
+    "LONG",
+    "BOOLEAN",
+    "INTEGER",
+    "DOUBLE",
+    "LIST",
+    "MAP",
+  ]).describe("The underlying type of the data type.").optional(),
+  UnitOfMeasure: z.string().min(1).max(256).regex(new RegExp(".*")).describe(
+    "The unit of measure used in this data type.",
+  ).optional(),
+});
+
+const DefinitionSchema = z.object({
+  Configuration: z.record(
+    z.string(),
+    z.string().min(1).max(256).regex(new RegExp("[a-zA-Z_\\-0-9]+")),
+  ).describe(
+    "An object that specifies information about a property configuration.",
+  ).optional(),
+  DataType: DataTypeSchema.describe(
+    "An object that contains information about the data type.",
+  ).optional(),
+  DefaultValue: DataValueSchema.describe(
+    "An object that contains the default value.",
+  ).optional(),
+  IsExternalId: z.boolean().describe(
+    "A Boolean value that specifies whether the property ID comes from an external data store.",
+  ).optional(),
+  IsFinal: z.boolean().describe(
+    "A Boolean value that specifies whether the property definition can be updated.",
+  ).optional(),
+  IsImported: z.boolean().describe(
+    "A Boolean value that specifies whether the property definition is imported from an external data store.",
+  ).optional(),
+  IsInherited: z.boolean().describe(
+    "A Boolean value that specifies whether the property definition is inherited from a parent entity.",
+  ).optional(),
+  IsRequiredInEntity: z.boolean().describe(
+    "A Boolean value that specifies whether the property is required.",
+  ).optional(),
+  IsStoredExternally: z.boolean().describe(
+    "A Boolean value that specifies whether the property is stored externally.",
+  ).optional(),
+  IsTimeSeries: z.boolean().describe(
+    "A Boolean value that specifies whether the property consists of time series data.",
+  ).optional(),
+});
+
+const PropertySchema = z.object({
+  Definition: DefinitionSchema.describe("The definition of the property.")
+    .optional(),
+  Value: DataValueSchema.describe("The value of the property.").optional(),
+});
+
+const PropertyGroupSchema = z.object({
+  GroupType: z.enum(["TABULAR"]).describe("The type of property group.")
+    .optional(),
+  PropertyNames: z.array(z.string().regex(new RegExp("[a-zA-Z_\\-0-9]+")))
+    .describe("The list of property names in the property group.").optional(),
+});
+
+const StatusSchema = z.object({
+  State: z.enum(["CREATING", "UPDATING", "DELETING", "ACTIVE", "ERROR"])
+    .optional(),
+  Error: z.record(z.string(), z.unknown()).optional(),
+});
+
+const ComponentSchema = z.object({
+  ComponentName: z.string().min(1).max(256).regex(
+    new RegExp("[a-zA-Z_\\-0-9]+"),
+  ).describe("The name of the component.").optional(),
+  ComponentTypeId: z.string().min(1).max(256).regex(
+    new RegExp("[a-zA-Z_\\-0-9]+"),
+  ).describe("The ID of the component type.").optional(),
+  Description: z.string().min(0).max(512).describe(
+    "The description of the component.",
+  ).optional(),
+  DefinedIn: z.string().min(1).max(256).describe(
+    "The name of the property definition set in the component.",
+  ).optional(),
+  Properties: z.record(z.string(), PropertySchema).describe(
+    "An object that maps strings to the properties to set in the component type. Each string in the mapping must be unique to this object.",
+  ).optional(),
+  PropertyGroups: z.record(z.string(), PropertyGroupSchema).describe(
+    "An object that maps strings to the property groups to set in the component type. Each string in the mapping must be unique to this object.",
+  ).optional(),
+  Status: StatusSchema.describe("The current status of the entity.").optional(),
+});
+
+const CompositeComponentSchema = z.object({
+  ComponentName: z.string().min(1).max(256).regex(
+    new RegExp("[a-zA-Z_\\-0-9]+"),
+  ).describe("The name of the component.").optional(),
+  ComponentPath: z.string().min(1).max(256).regex(
+    new RegExp("[a-zA-Z_\\-0-9/]+"),
+  ).describe("The path of the component.").optional(),
+  ComponentTypeId: z.string().min(1).max(256).regex(
+    new RegExp("[a-zA-Z_\\-0-9]+"),
+  ).describe("The ID of the component type.").optional(),
+  Description: z.string().min(0).max(512).describe(
+    "The description of the component.",
+  ).optional(),
+  Properties: z.record(z.string(), PropertySchema).describe(
+    "An object that maps strings to the properties to set in the component type. Each string in the mapping must be unique to this object.",
+  ).optional(),
+  PropertyGroups: z.record(z.string(), PropertyGroupSchema).describe(
+    "An object that maps strings to the property groups to set in the component type. Each string in the mapping must be unique to this object.",
+  ).optional(),
+  Status: StatusSchema.describe("The current status of the component.")
+    .optional(),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -81,10 +247,10 @@ const GlobalArgsSchema = z.object({
   WorkspaceId: z.string().min(1).max(128).regex(
     new RegExp("[a-zA-Z_0-9][a-zA-Z_\\-0-9]*[a-zA-Z0-9]+"),
   ).describe("The ID of the workspace."),
-  Components: z.record(z.string(), z.string()).describe(
+  Components: z.record(z.string(), ComponentSchema).describe(
     "A map that sets information about a component type.",
   ).optional(),
-  CompositeComponents: z.record(z.string(), z.string()).describe(
+  CompositeComponents: z.record(z.string(), CompositeComponentSchema).describe(
     "A map that sets information about a composite component.",
   ).optional(),
 });
@@ -92,10 +258,7 @@ const GlobalArgsSchema = z.object({
 const StateSchema = z.object({
   EntityId: z.string(),
   EntityName: z.string().optional(),
-  Status: z.object({
-    State: z.string(),
-    Error: z.record(z.string(), z.unknown()),
-  }).optional(),
+  Status: StatusSchema.optional(),
   HasChildEntities: z.boolean().optional(),
   ParentEntityId: z.string().optional(),
   Arn: z.string().optional(),
@@ -143,10 +306,10 @@ const InputsSchema = z.object({
   WorkspaceId: z.string().min(1).max(128).regex(
     new RegExp("[a-zA-Z_0-9][a-zA-Z_\\-0-9]*[a-zA-Z0-9]+"),
   ).describe("The ID of the workspace.").optional(),
-  Components: z.record(z.string(), z.string()).describe(
+  Components: z.record(z.string(), ComponentSchema).describe(
     "A map that sets information about a component type.",
   ).optional(),
-  CompositeComponents: z.record(z.string(), z.string()).describe(
+  CompositeComponents: z.record(z.string(), CompositeComponentSchema).describe(
     "A map that sets information about a composite component.",
   ).optional(),
 });
@@ -170,7 +333,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTTwinMaker Entity. Registered at `@swamp/aws/iottwinmaker/entity`. */
 export const model = {
   type: "@swamp/aws/iottwinmaker/entity",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -234,6 +397,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -84,6 +84,9 @@ const AnalysisSourceTemplateSchema = z.object({
   DataSetReferences: z.array(DataSetReferenceSchema).describe(
     "The dataset references of the source template of an analysis.",
   ),
+  Arn: z.string().describe(
+    "The Amazon Resource Name (ARN) of the source template of an analysis.",
+  ),
   TopicReferences: z.array(TopicReferenceSchema).optional(),
 });
 
@@ -4357,7 +4360,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight Analysis. Registered at `@swamp/aws/quicksight/analysis`. */
 export const model = {
   type: "@swamp/aws/quicksight/analysis",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -4431,6 +4434,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

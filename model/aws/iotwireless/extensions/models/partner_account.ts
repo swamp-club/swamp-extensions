@@ -67,6 +67,9 @@ const GlobalArgsSchema = z.object({
   PartnerType: z.enum(["Sidewalk"]).describe("The partner type").optional(),
   SidewalkResponse: z.object({
     AmazonId: z.string().max(2048).optional(),
+    Fingerprint: z.string().min(64).max(64).regex(new RegExp("[a-fA-F0-9]{64}"))
+      .optional(),
+    Arn: z.string().optional(),
   }).describe("The Sidewalk account credentials.").optional(),
   AccountLinked: z.boolean().describe(
     "Whether the partner account is linked to the AWS account.",
@@ -119,6 +122,9 @@ const InputsSchema = z.object({
   PartnerType: z.enum(["Sidewalk"]).describe("The partner type").optional(),
   SidewalkResponse: z.object({
     AmazonId: z.string().max(2048).optional(),
+    Fingerprint: z.string().min(64).max(64).regex(new RegExp("[a-fA-F0-9]{64}"))
+      .optional(),
+    Arn: z.string().optional(),
   }).describe("The Sidewalk account credentials.").optional(),
   AccountLinked: z.boolean().describe(
     "Whether the partner account is linked to the AWS account.",
@@ -152,7 +158,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTWireless PartnerAccount. Registered at `@swamp/aws/iotwireless/partner-account`. */
 export const model = {
   type: "@swamp/aws/iotwireless/partner-account",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -211,6 +217,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

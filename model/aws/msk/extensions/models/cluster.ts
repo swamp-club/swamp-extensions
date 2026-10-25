@@ -214,6 +214,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ConfigurationInfo: z.object({
     Revision: z.number().int(),
+    Arn: z.string(),
   }).optional(),
   StorageMode: z.enum(["LOCAL", "TIERED"]).optional(),
   Rebalancing: z.object({
@@ -315,6 +316,7 @@ const InputsSchema = z.object({
   ).optional(),
   ConfigurationInfo: z.object({
     Revision: z.number().int().optional(),
+    Arn: z.string().optional(),
   }).optional(),
   StorageMode: z.enum(["LOCAL", "TIERED"]).optional(),
   Rebalancing: z.object({
@@ -344,7 +346,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MSK Cluster. Registered at `@swamp/aws/msk/cluster`. */
 export const model = {
   type: "@swamp/aws/msk/cluster",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -413,6 +415,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -524,11 +531,11 @@ export const model = {
           currentState,
           desiredState,
           [
-            "BrokerAZDistribution",
-            "ClientSubnets",
-            "SecurityGroups",
-            "EncryptionAtRest",
-            "InCluster",
+            "BrokerNodeGroupInfo/BrokerAZDistribution",
+            "BrokerNodeGroupInfo/ClientSubnets",
+            "BrokerNodeGroupInfo/SecurityGroups",
+            "EncryptionInfo/EncryptionAtRest",
+            "EncryptionInfo/EncryptionInTransit/InCluster",
             "ClusterName",
           ],
           credentials,

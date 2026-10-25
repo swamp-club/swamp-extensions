@@ -115,6 +115,10 @@ const GlobalArgsSchema = z.object({
     "The description of the quick connect.",
   ).optional(),
   QuickConnectConfig: z.object({
+    QuickConnectType: z.enum(["PHONE_NUMBER", "QUEUE", "USER", "FLOW"])
+      .describe(
+        "The type of quick connect. In the Amazon Connect console, when you create a quick connect, you are prompted to assign one of the following types: Agent (USER), External (PHONE_NUMBER), or Queue (QUEUE).",
+      ),
     PhoneConfig: PhoneNumberQuickConnectConfigSchema.describe(
       "The phone configuration. This is required only if QuickConnectType is PHONE_NUMBER.",
     ).optional(),
@@ -166,6 +170,10 @@ const InputsSchema = z.object({
     "The description of the quick connect.",
   ).optional(),
   QuickConnectConfig: z.object({
+    QuickConnectType: z.enum(["PHONE_NUMBER", "QUEUE", "USER", "FLOW"])
+      .describe(
+        "The type of quick connect. In the Amazon Connect console, when you create a quick connect, you are prompted to assign one of the following types: Agent (USER), External (PHONE_NUMBER), or Queue (QUEUE).",
+      ).optional(),
     PhoneConfig: PhoneNumberQuickConnectConfigSchema.describe(
       "The phone configuration. This is required only if QuickConnectType is PHONE_NUMBER.",
     ).optional(),
@@ -201,7 +209,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect QuickConnect. Registered at `@swamp/aws/connect/quick-connect`. */
 export const model = {
   type: "@swamp/aws/connect/quick-connect",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -265,6 +273,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

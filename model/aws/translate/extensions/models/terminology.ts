@@ -66,6 +66,12 @@ const GlobalArgsSchema = z.object({
     File: z.string().describe(
       "The file containing the custom terminology data, base64-encoded.",
     ),
+    Format: z.enum(["CSV", "TMX", "TSV"]).describe(
+      "The data format of the custom terminology.",
+    ),
+    Directionality: z.enum(["UNI", "MULTI"]).describe(
+      "The directionality of the terminology resource.",
+    ).optional(),
   }).describe("The terminology data for the custom terminology being imported.")
     .optional(),
   EncryptionKey: z.object({
@@ -130,6 +136,12 @@ const InputsSchema = z.object({
     File: z.string().describe(
       "The file containing the custom terminology data, base64-encoded.",
     ).optional(),
+    Format: z.enum(["CSV", "TMX", "TSV"]).describe(
+      "The data format of the custom terminology.",
+    ).optional(),
+    Directionality: z.enum(["UNI", "MULTI"]).describe(
+      "The directionality of the terminology resource.",
+    ).optional(),
   }).describe("The terminology data for the custom terminology being imported.")
     .optional(),
   EncryptionKey: z.object({
@@ -167,7 +179,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Translate Terminology. Registered at `@swamp/aws/translate/terminology`. */
 export const model = {
   type: "@swamp/aws/translate/terminology",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -176,6 +188,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

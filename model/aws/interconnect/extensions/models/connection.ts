@@ -74,6 +74,8 @@ const GlobalArgsSchema = z.object({
         "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
       ),
     ).describe("The ID of the Direct Connect Gateway to attach to.").optional(),
+    Arn: z.string().describe("The ARN of the resource to attach to.")
+      .optional(),
   }).describe(
     "The logical attachment point in your AWS network where the managed connection will be connected.",
   ),
@@ -153,6 +155,8 @@ const InputsSchema = z.object({
         "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
       ),
     ).describe("The ID of the Direct Connect Gateway to attach to.").optional(),
+    Arn: z.string().describe("The ARN of the resource to attach to.")
+      .optional(),
   }).describe(
     "The logical attachment point in your AWS network where the managed connection will be connected.",
   ).optional(),
@@ -205,7 +209,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Interconnect Connection. Registered at `@swamp/aws/interconnect/connection`. */
 export const model = {
   type: "@swamp/aws/interconnect/connection",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -269,6 +273,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -131,6 +131,13 @@ const GlobalArgsSchema = z.object({
   BypassPolicyLockoutSafetyCheck: z.boolean().describe(
     "(Optional) A boolean that specifies whether or not to bypass the FileSystemPolicy lockout safety check. The lockout safety check determines whether the policy in the request will lock out, or prevent, the IAM principal that is making the request from making future PutFileSystemPolicy requests on this file system. Set BypassPolicyLockoutSafetyCheck to True only when you intend to prevent the IAM principal that is making the request from making subsequent PutFileSystemPolicy requests on this file system. The default value is False.",
   ).optional(),
+  BackupPolicy: z.object({
+    Status: z.enum(["DISABLED", "ENABLED"]).describe(
+      "Set the backup policy status for the file system. *ENABLED* - Turns automatic backups on for the file system. *DISABLED* - Turns automatic backups off for the file system.",
+    ),
+  }).describe(
+    "Use the BackupPolicy to turn automatic backups on or off for the file system.",
+  ).optional(),
   AvailabilityZoneName: z.string().describe(
     "For One Zone file systems, specify the AWS Availability Zone in which to create the file system. Use the format us-east-1a to specify the Availability Zone. For more information about One Zone file systems, see [EFS file system types](https://docs.aws.amazon.com/efs/latest/ug/availability-durability.html#file-system-type) in the *Amazon EFS User Guide*. One Zone file systems are not available in all Availability Zones in AWS-Regions where Amazon EFS is available.",
   ).optional(),
@@ -207,6 +214,13 @@ const InputsSchema = z.object({
   BypassPolicyLockoutSafetyCheck: z.boolean().describe(
     "(Optional) A boolean that specifies whether or not to bypass the FileSystemPolicy lockout safety check. The lockout safety check determines whether the policy in the request will lock out, or prevent, the IAM principal that is making the request from making future PutFileSystemPolicy requests on this file system. Set BypassPolicyLockoutSafetyCheck to True only when you intend to prevent the IAM principal that is making the request from making subsequent PutFileSystemPolicy requests on this file system. The default value is False.",
   ).optional(),
+  BackupPolicy: z.object({
+    Status: z.enum(["DISABLED", "ENABLED"]).describe(
+      "Set the backup policy status for the file system. *ENABLED* - Turns automatic backups on for the file system. *DISABLED* - Turns automatic backups off for the file system.",
+    ).optional(),
+  }).describe(
+    "Use the BackupPolicy to turn automatic backups on or off for the file system.",
+  ).optional(),
   AvailabilityZoneName: z.string().describe(
     "For One Zone file systems, specify the AWS Availability Zone in which to create the file system. Use the format us-east-1a to specify the Availability Zone. For more information about One Zone file systems, see [EFS file system types](https://docs.aws.amazon.com/efs/latest/ug/availability-durability.html#file-system-type) in the *Amazon EFS User Guide*. One Zone file systems are not available in all Availability Zones in AWS-Regions where Amazon EFS is available.",
   ).optional(),
@@ -238,7 +252,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EFS FileSystem. Registered at `@swamp/aws/efs/file-system`. */
 export const model = {
   type: "@swamp/aws/efs/file-system",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -303,6 +317,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: BackupPolicy",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

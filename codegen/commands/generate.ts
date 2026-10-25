@@ -583,6 +583,9 @@ async function generateAwsProvider(options: {
     for (const err of errors) {
       console.log(`    ${err}`);
     }
+    // Exit 2 tells the nightly regeneration the run finished with errors, as
+    // for GCP: the output is complete, but the job must not pass silently.
+    Deno.exitCode = 2;
   }
   console.log(`  Date prefix: ${datePrefix}`);
   console.log(`  Output directory: ${options.outputDir}`);

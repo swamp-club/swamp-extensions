@@ -923,7 +923,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock KnowledgeBase. Registered at `@swamp/aws/bedrock/knowledge-base`. */
 export const model = {
   type: "@swamp/aws/bedrock/knowledge-base",
-  version: "2026.10.24.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1060,6 +1060,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1176,13 +1181,13 @@ export const model = {
           desiredState,
           [
             "StorageConfiguration",
-            "Type",
-            "VectorKnowledgeBaseConfiguration",
-            "KendraKnowledgeBaseConfiguration",
-            "ManagedKnowledgeBaseConfiguration",
-            "Type",
-            "StorageConfigurations",
-            "QueryEngineConfiguration",
+            "KnowledgeBaseConfiguration/Type",
+            "KnowledgeBaseConfiguration/VectorKnowledgeBaseConfiguration",
+            "KnowledgeBaseConfiguration/KendraKnowledgeBaseConfiguration",
+            "KnowledgeBaseConfiguration/ManagedKnowledgeBaseConfiguration",
+            "KnowledgeBaseConfiguration/SqlKnowledgeBaseConfiguration/Type",
+            "KnowledgeBaseConfiguration/SqlKnowledgeBaseConfiguration/RedshiftConfiguration/StorageConfigurations",
+            "KnowledgeBaseConfiguration/SqlKnowledgeBaseConfiguration/RedshiftConfiguration/QueryEngineConfiguration",
           ],
           credentials,
         );

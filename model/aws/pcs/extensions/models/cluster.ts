@@ -161,6 +161,9 @@ const GlobalArgsSchema = z.object({
       "Additional slurmdbd-specific configuration that directly maps to slurmdbd.conf settings.",
     ).optional(),
   }).describe("Additional options related to the Slurm scheduler.").optional(),
+  Tags: z.record(z.string(), z.string()).describe(
+    "1 or more tags added to the resource. Each tag consists of a tag key and tag value. The tag value is optional and can be an empty string.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -199,6 +202,7 @@ const StateSchema = z.object({
     SlurmdbdCustomSettings: z.array(SlurmdbdCustomSettingSchema),
   }).optional(),
   Status: z.string().optional(),
+  Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -261,6 +265,9 @@ const InputsSchema = z.object({
       "Additional slurmdbd-specific configuration that directly maps to slurmdbd.conf settings.",
     ).optional(),
   }).describe("Additional options related to the Slurm scheduler.").optional(),
+  Tags: z.record(z.string(), z.string()).describe(
+    "1 or more tags added to the resource. Each tag consists of a tag key and tag value. The tag value is optional and can be an empty string.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -282,7 +289,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for PCS Cluster. Registered at `@swamp/aws/pcs/cluster`. */
 export const model = {
   type: "@swamp/aws/pcs/cluster",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -347,6 +354,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: Tags",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

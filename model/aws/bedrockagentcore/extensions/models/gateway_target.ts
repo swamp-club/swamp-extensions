@@ -45,7 +45,11 @@ const OAuthCredentialProviderSchema = z.object({
   Scopes: z.array(z.string().min(1).max(128)),
   CustomParameters: z.record(z.string(), z.string().min(1).max(2048))
     .optional(),
-  GrantType: z.unknown().optional(),
+  GrantType: z.enum([
+    "CLIENT_CREDENTIALS",
+    "AUTHORIZATION_CODE",
+    "TOKEN_EXCHANGE",
+  ]).optional(),
   DefaultReturnUrl: z.string().min(1).max(2048).regex(
     new RegExp("^\\w+:(\\/?\\/?)[^\\s]+$"),
   ).optional(),
@@ -101,6 +105,178 @@ const ManagedVpcResourceSchema = z.object({
   ).optional(),
 });
 
+const S3ConfigurationSchema = z.object({
+  Uri: z.string().regex(new RegExp("^s3://.{1,2043}$")).optional(),
+  BucketOwnerAccountId: z.string().regex(new RegExp("^[0-9]{12}$")).optional(),
+});
+
+const SchemaDefinitionSchema = z.object({
+  Type: z.enum(["string", "number", "object", "array", "boolean", "integer"]),
+  Properties: z.record(z.string(), z.record(z.string(), z.unknown()))
+    .optional(),
+  Required: z.array(z.string()).optional(),
+  Items: z.record(z.string(), z.unknown()).optional(),
+  Description: z.string().optional(),
+});
+
+const ToolDefinitionSchema = z.object({
+  Name: z.string(),
+  Description: z.string(),
+  InputSchema: SchemaDefinitionSchema,
+  OutputSchema: SchemaDefinitionSchema.optional(),
+});
+
+const McpLambdaTargetConfigurationSchema = z.object({
+  LambdaArn: z.string().min(1).max(170).regex(
+    new RegExp(
+      "^arn:(aws[a-zA-Z-]*)?:lambda:([a-z]{2}(-gov)?-[a-z]+-\\d{1}):(\\d{12}):function:([a-zA-Z0-9-_.]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?$",
+    ),
+  ),
+  ToolSchema: z.object({
+    S3: S3ConfigurationSchema.optional(),
+    InlinePayload: z.array(ToolDefinitionSchema).optional(),
+  }),
+});
+
+const McpServerTargetConfigurationSchema = z.object({
+  Endpoint: z.string().regex(new RegExp("^https://.*")),
+  McpToolSchema: z.object({
+    S3: S3ConfigurationSchema.optional(),
+    InlinePayload: z.string().optional(),
+  }).optional(),
+  ListingMode: z.enum(["DEFAULT", "DYNAMIC"]).optional(),
+  ResourcePriority: z.number().min(0).max(1000).optional(),
+});
+
+const ApiGatewayToolOverrideSchema = z.object({
+  Name: z.string(),
+  Description: z.string().optional(),
+  Path: z.string(),
+  Method: z.enum(["GET", "DELETE", "HEAD", "OPTIONS", "PATCH", "PUT", "POST"]),
+});
+
+const ApiGatewayToolFilterSchema = z.object({
+  FilterPath: z.string(),
+  Methods: z.array(
+    z.enum(["GET", "DELETE", "HEAD", "OPTIONS", "PATCH", "PUT", "POST"]),
+  ),
+});
+
+const ApiGatewayToolConfigurationSchema = z.object({
+  ToolOverrides: z.array(ApiGatewayToolOverrideSchema).optional(),
+  ToolFilters: z.array(ApiGatewayToolFilterSchema),
+});
+
+const ApiGatewayTargetConfigurationSchema = z.object({
+  RestApiId: z.string(),
+  Stage: z.string(),
+  ApiGatewayToolConfiguration: ApiGatewayToolConfigurationSchema,
+});
+
+const ConnectorSourceSchema = z.object({
+  ConnectorId: z.string().min(1).max(256),
+});
+
+const ConnectorParameterOverrideSchema = z.object({
+  Path: z.string(),
+  Description: z.string().optional(),
+  Visible: z.boolean().optional(),
+});
+
+const ConnectorConfigurationSchema = z.object({
+  Name: z.string().max(64).regex(new RegExp("^[a-zA-Z][a-zA-Z0-9_-]*$")),
+  Description: z.string().max(2000).optional(),
+  ParameterValues: z.unknown().optional(),
+  ParameterOverrides: z.array(ConnectorParameterOverrideSchema).optional(),
+});
+
+const ConnectorTargetConfigurationSchema = z.object({
+  Source: ConnectorSourceSchema,
+  Enabled: z.array(z.string()).optional(),
+  Configurations: z.array(ConnectorConfigurationSchema).optional(),
+});
+
+const HttpApiSchemaConfigurationSchema = z.object({
+  Source: z.object({
+    S3: S3ConfigurationSchema.optional(),
+    InlinePayload: z.string().optional(),
+  }),
+});
+
+const RuntimeTargetConfigurationSchema = z.object({
+  Arn: z.string().regex(
+    new RegExp(
+      "^arn:aws(-[^:]+)?:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:runtime/[a-zA-Z][a-zA-Z0-9_]{0,47}-[a-zA-Z0-9]{10}$",
+    ),
+  ),
+  Qualifier: z.string().regex(
+    new RegExp("([1-9][0-9]{0,4})|([a-zA-Z][a-zA-Z0-9_]{0,47})"),
+  ).optional(),
+  Schema: HttpApiSchemaConfigurationSchema.optional(),
+});
+
+const StickinessConfigurationSchema = z.object({
+  Identifier: z.string().min(1).max(256),
+  Timeout: z.number().min(1).max(86400).optional(),
+});
+
+const PassthroughTargetConfigurationSchema = z.object({
+  Endpoint: z.string().min(1).max(2048).regex(
+    new RegExp("^https://[a-zA-Z0-9\\-\\.]+(:[0-9]{1,5})?(/.*)?$"),
+  ),
+  ProtocolType: z.enum(["MCP", "A2A", "INFERENCE", "CUSTOM"]),
+  Schema: HttpApiSchemaConfigurationSchema.optional(),
+  StickinessConfiguration: StickinessConfigurationSchema.optional(),
+});
+
+const HttpConnectorSourceSchema = z.object({
+  ConnectorId: z.string().min(1).max(256),
+});
+
+const HttpConnectorTargetConfigurationSchema = z.object({
+  Source: HttpConnectorSourceSchema,
+  Parameters: z.record(z.string(), z.string().min(1).max(1024)).optional(),
+});
+
+const InferenceConnectorSourceSchema = z.object({
+  ConnectorId: z.string().min(1).max(256),
+});
+
+const InferenceConnectorTargetConfigurationSchema = z.object({
+  Source: InferenceConnectorSourceSchema,
+});
+
+const ProviderPrefixSchema = z.object({
+  Strip: z.boolean().optional(),
+  Separator: z.string().min(1).max(1).optional(),
+});
+
+const ModelMappingSchema = z.object({
+  ProviderPrefix: ProviderPrefixSchema.optional(),
+});
+
+const ModelEntrySchema = z.object({
+  Model: z.string().min(1).max(256).regex(
+    new RegExp("^[a-zA-Z0-9\\-\\._\\*\\?@]+(/[a-zA-Z0-9\\-\\._\\*\\?@]+)*$"),
+  ),
+});
+
+const InferenceOperationConfigurationSchema = z.object({
+  Path: z.string().min(1).max(256).regex(new RegExp("^/[a-zA-Z0-9\\-\\._/]+$")),
+  ProviderPath: z.string().min(1).max(256).regex(
+    new RegExp("^/[a-zA-Z0-9\\-\\._/]+$"),
+  ).optional(),
+  Models: z.array(ModelEntrySchema).optional(),
+});
+
+const InferenceProviderTargetConfigurationSchema = z.object({
+  Endpoint: z.string().min(1).max(2048).regex(
+    new RegExp("^https://[a-zA-Z0-9\\-\\.]+(:[0-9]{1,5})?(/.*)?$"),
+  ),
+  ModelMapping: ModelMappingSchema.optional(),
+  Operations: z.array(InferenceOperationConfigurationSchema).optional(),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -140,6 +316,31 @@ const GlobalArgsSchema = z.object({
     }).optional(),
     ManagedVpcResource: ManagedVpcResourceSchema.optional(),
   }).optional(),
+  TargetConfiguration: z.object({
+    Mcp: z.object({
+      OpenApiSchema: z.object({
+        S3: S3ConfigurationSchema.optional(),
+        InlinePayload: z.string().optional(),
+      }).optional(),
+      SmithyModel: z.object({
+        S3: S3ConfigurationSchema.optional(),
+        InlinePayload: z.string().optional(),
+      }).optional(),
+      Lambda: McpLambdaTargetConfigurationSchema.optional(),
+      McpServer: McpServerTargetConfigurationSchema.optional(),
+      ApiGateway: ApiGatewayTargetConfigurationSchema.optional(),
+      Connector: ConnectorTargetConfigurationSchema.optional(),
+    }).optional(),
+    Http: z.object({
+      AgentcoreRuntime: RuntimeTargetConfigurationSchema.optional(),
+      Passthrough: PassthroughTargetConfigurationSchema.optional(),
+      Connector: HttpConnectorTargetConfigurationSchema.optional(),
+    }).optional(),
+    Inference: z.object({
+      Connector: InferenceConnectorTargetConfigurationSchema.optional(),
+      Provider: InferenceProviderTargetConfigurationSchema.optional(),
+    }).optional(),
+  }),
 });
 
 const StateSchema = z.object({
@@ -177,6 +378,31 @@ const StateSchema = z.object({
   ProtocolType: z.string().optional(),
   Status: z.string().optional(),
   StatusReasons: z.array(z.string()).optional(),
+  TargetConfiguration: z.object({
+    Mcp: z.object({
+      OpenApiSchema: z.object({
+        S3: S3ConfigurationSchema,
+        InlinePayload: z.string(),
+      }),
+      SmithyModel: z.object({
+        S3: S3ConfigurationSchema,
+        InlinePayload: z.string(),
+      }),
+      Lambda: McpLambdaTargetConfigurationSchema,
+      McpServer: McpServerTargetConfigurationSchema,
+      ApiGateway: ApiGatewayTargetConfigurationSchema,
+      Connector: ConnectorTargetConfigurationSchema,
+    }),
+    Http: z.object({
+      AgentcoreRuntime: RuntimeTargetConfigurationSchema,
+      Passthrough: PassthroughTargetConfigurationSchema,
+      Connector: HttpConnectorTargetConfigurationSchema,
+    }),
+    Inference: z.object({
+      Connector: InferenceConnectorTargetConfigurationSchema,
+      Provider: InferenceProviderTargetConfigurationSchema,
+    }),
+  }).optional(),
   TargetId: z.string(),
   UpdatedAt: z.string().optional(),
 }).passthrough();
@@ -212,6 +438,31 @@ const InputsSchema = z.object({
     }).optional(),
     ManagedVpcResource: ManagedVpcResourceSchema.optional(),
   }).optional(),
+  TargetConfiguration: z.object({
+    Mcp: z.object({
+      OpenApiSchema: z.object({
+        S3: S3ConfigurationSchema.optional(),
+        InlinePayload: z.string().optional(),
+      }).optional(),
+      SmithyModel: z.object({
+        S3: S3ConfigurationSchema.optional(),
+        InlinePayload: z.string().optional(),
+      }).optional(),
+      Lambda: McpLambdaTargetConfigurationSchema.optional(),
+      McpServer: McpServerTargetConfigurationSchema.optional(),
+      ApiGateway: ApiGatewayTargetConfigurationSchema.optional(),
+      Connector: ConnectorTargetConfigurationSchema.optional(),
+    }).optional(),
+    Http: z.object({
+      AgentcoreRuntime: RuntimeTargetConfigurationSchema.optional(),
+      Passthrough: PassthroughTargetConfigurationSchema.optional(),
+      Connector: HttpConnectorTargetConfigurationSchema.optional(),
+    }).optional(),
+    Inference: z.object({
+      Connector: InferenceConnectorTargetConfigurationSchema.optional(),
+      Provider: InferenceProviderTargetConfigurationSchema.optional(),
+    }).optional(),
+  }).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -233,7 +484,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore GatewayTarget. Registered at `@swamp/aws/bedrockagentcore/gateway-target`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/gateway-target",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -318,6 +569,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: TargetConfiguration",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

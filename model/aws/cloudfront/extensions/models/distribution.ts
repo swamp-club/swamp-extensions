@@ -155,6 +155,10 @@ const CacheBehaviorSchema = z.object({
   ),
 });
 
+const ConnectionFunctionAssociationSchema = z.object({
+  Id: z.string().describe("The association's ID."),
+});
+
 const CustomErrorResponseSchema = z.object({
   ErrorCachingMinTTL: z.number().describe(
     "The minimum amount of time, in seconds, that you want CloudFront to cache the HTTP status code specified in ErrorCode. When this time period has elapsed, CloudFront queries your origin to see whether the problem that caused the error has been resolved and the requested object is now available. For more information, see [Customizing Error Responses](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/custom-error-pages.html) in the *Amazon CloudFront Developer Guide*.",
@@ -543,6 +547,9 @@ const GlobalArgsSchema = z.object({
     ConnectionMode: z.enum(["direct", "tenant-only"]).describe(
       "This field specifies whether the connection mode is through a standard distribution (direct) or a multi-tenant distribution with distribution tenants (tenant-only).",
     ).optional(),
+    ConnectionFunctionAssociation: ConnectionFunctionAssociationSchema.describe(
+      "The distribution's connection function association.",
+    ).optional(),
     ContinuousDeploymentPolicyId: z.string().describe(
       "This field only supports standard distributions. You can't specify this field for multi-tenant distributions. For more information, see [Unsupported features for SaaS Manager for Amazon CloudFront](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-config-options.html#unsupported-saas) in the *Amazon CloudFront Developer Guide*. The identifier of a continuous deployment policy. For more information, see CreateContinuousDeploymentPolicy.",
     ).optional(),
@@ -619,9 +626,7 @@ const StateSchema = z.object({
     CacheBehaviors: z.array(CacheBehaviorSchema),
     Comment: z.string(),
     ConnectionMode: z.string(),
-    ConnectionFunctionAssociation: z.object({
-      Id: z.string(),
-    }),
+    ConnectionFunctionAssociation: ConnectionFunctionAssociationSchema,
     ContinuousDeploymentPolicyId: z.string(),
     CustomErrorResponses: z.array(CustomErrorResponseSchema),
     CustomOrigin: LegacyCustomOriginSchema,
@@ -676,6 +681,9 @@ const InputsSchema = z.object({
     ).optional(),
     ConnectionMode: z.enum(["direct", "tenant-only"]).describe(
       "This field specifies whether the connection mode is through a standard distribution (direct) or a multi-tenant distribution with distribution tenants (tenant-only).",
+    ).optional(),
+    ConnectionFunctionAssociation: ConnectionFunctionAssociationSchema.describe(
+      "The distribution's connection function association.",
     ).optional(),
     ContinuousDeploymentPolicyId: z.string().describe(
       "This field only supports standard distributions. You can't specify this field for multi-tenant distributions. For more information, see [Unsupported features for SaaS Manager for Amazon CloudFront](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/distribution-config-options.html#unsupported-saas) in the *Amazon CloudFront Developer Guide*. The identifier of a continuous deployment policy. For more information, see CreateContinuousDeploymentPolicy.",
@@ -764,7 +772,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFront Distribution. Registered at `@swamp/aws/cloudfront/distribution`. */
 export const model = {
   type: "@swamp/aws/cloudfront/distribution",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -848,6 +856,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

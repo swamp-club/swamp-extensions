@@ -67,6 +67,13 @@ const CmkSecretConfigSchema = z.object({
 });
 
 const CustomSecretConfigSchema = z.object({
+  SecretArn: z.string().max(2048).regex(
+    new RegExp(
+      "^(arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):secretsmanager:[a-z-0-9]+:[0-9]{12}:secret:.*|)$",
+    ),
+  ).describe(
+    "Specifies the ARN for a customer created AWS Secrets Manager secret.",
+  ),
   SecretAccessRoleArn: z.string().max(2048).regex(
     new RegExp(
       "^(arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):iam::[0-9]{12}:role/.*|)$",
@@ -74,6 +81,14 @@ const CustomSecretConfigSchema = z.object({
   ).describe(
     "Specifies the ARN for the AWS Identity and Access Management role that DataSync uses to access the secret specified for SecretArn.",
   ),
+});
+
+const ManagedSecretConfigSchema = z.object({
+  SecretArn: z.string().max(2048).regex(
+    new RegExp(
+      "^(arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):secretsmanager:[a-z-0-9]+:[0-9]{12}:secret:.*|)$",
+    ),
+  ).describe("Specifies the ARN for an AWS Secrets Manager secret."),
 });
 
 const SMBSchema = z.object({
@@ -97,6 +112,9 @@ const SMBSchema = z.object({
   ).optional(),
   CustomSecretConfig: CustomSecretConfigSchema.describe(
     "Specifies configuration information for a customer-managed secret, such as an authentication token or set of credentials that DataSync uses to access a specific transfer location, and an IAM role that DataSync can assume and access the customer-managed secret.",
+  ).optional(),
+  ManagedSecretConfig: ManagedSecretConfigSchema.describe(
+    "Specifies configuration information for a DataSync-managed secret, such as an authentication token or set of credentials that DataSync uses to access a specific transfer location. DataSync uses the default AWS-managed KMS key to encrypt this secret in AWS Secrets Manager.",
   ).optional(),
 });
 
@@ -226,7 +244,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataSync LocationFSxONTAP. Registered at `@swamp/aws/datasync/location-fsx-ontap`. */
 export const model = {
   type: "@swamp/aws/datasync/location-fsx-ontap",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -235,6 +253,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

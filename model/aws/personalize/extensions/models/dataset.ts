@@ -84,6 +84,10 @@ const GlobalArgsSchema = z.object({
     DatasetImportJobArn: z.string().max(256).regex(
       new RegExp("arn:([a-z\\d-]+):personalize:.*:.*:.+"),
     ).describe("The ARN of the dataset import job").optional(),
+    DatasetArn: z.string().max(256).regex(
+      new RegExp("arn:([a-z\\d-]+):personalize:.*:.*:.+"),
+    ).describe("The ARN of the dataset that receives the imported data")
+      .optional(),
     DataSource: z.object({
       DataLocation: z.string().max(256).regex(
         new RegExp("(s3|http|https)://.+"),
@@ -153,6 +157,10 @@ const InputsSchema = z.object({
     DatasetImportJobArn: z.string().max(256).regex(
       new RegExp("arn:([a-z\\d-]+):personalize:.*:.*:.+"),
     ).describe("The ARN of the dataset import job").optional(),
+    DatasetArn: z.string().max(256).regex(
+      new RegExp("arn:([a-z\\d-]+):personalize:.*:.*:.+"),
+    ).describe("The ARN of the dataset that receives the imported data")
+      .optional(),
     DataSource: z.object({
       DataLocation: z.string().max(256).regex(
         new RegExp("(s3|http|https)://.+"),
@@ -192,7 +200,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Personalize Dataset. Registered at `@swamp/aws/personalize/dataset`. */
 export const model = {
   type: "@swamp/aws/personalize/dataset",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -256,6 +264,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

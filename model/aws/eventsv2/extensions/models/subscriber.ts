@@ -734,7 +734,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EventsV2 Subscriber. Registered at `@swamp/aws/eventsv2/subscriber`. */
 export const model = {
   type: "@swamp/aws/eventsv2/subscriber",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -743,6 +743,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -856,7 +861,7 @@ export const model = {
           [
             "Name",
             "EventBusArn",
-            "TargetArn",
+            "InvokeConfiguration/TargetArn",
             "Type",
             "StartingPosition",
             "PointInTimeConfiguration",

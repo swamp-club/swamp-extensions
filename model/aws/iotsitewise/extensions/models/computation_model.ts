@@ -47,6 +47,44 @@ const AnomalyDetectionComputationModelConfigurationSchema = z.object({
   ).describe("Result property for anomaly detection."),
 });
 
+const AssetModelPropertyBindingValueSchema = z.object({
+  AssetModelId: z.string().min(36).max(36).regex(
+    new RegExp(
+      "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    ),
+  ).describe("The ID of the asset model."),
+  PropertyId: z.string().min(36).max(36).regex(
+    new RegExp(
+      "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    ),
+  ).describe("The ID of the asset model property."),
+});
+
+const AssetPropertyBindingValueSchema = z.object({
+  AssetId: z.string().min(36).max(36).regex(
+    new RegExp(
+      "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    ),
+  ).describe("The ID of the asset."),
+  PropertyId: z.string().min(36).max(36).regex(
+    new RegExp(
+      "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    ),
+  ).describe("The ID of the asset property."),
+});
+
+const ComputationModelDataBindingValueSchema = z.object({
+  AssetModelProperty: AssetModelPropertyBindingValueSchema.describe(
+    "Defines an asset model property binding.",
+  ).optional(),
+  AssetProperty: AssetPropertyBindingValueSchema.describe(
+    "Defines an asset property binding.",
+  ).optional(),
+  List: z.array(z.record(z.string(), z.unknown())).describe(
+    "Defines a list of computation model binding values.",
+  ).optional(),
+});
+
 const TagSchema = z.object({
   Key: z.string().min(1).max(128),
   Value: z.string().min(0).max(256),
@@ -80,6 +118,10 @@ const GlobalArgsSchema = z.object({
         "Contains configuration for anomaly detection computation model.",
       ).optional(),
   }).describe("The configuration for the computation model."),
+  ComputationModelDataBinding: z.record(
+    z.string(),
+    ComputationModelDataBindingValueSchema,
+  ).describe("The data binding for the computation model."),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -93,6 +135,7 @@ const StateSchema = z.object({
   ComputationModelConfiguration: z.object({
     AnomalyDetection: AnomalyDetectionComputationModelConfigurationSchema,
   }).optional(),
+  ComputationModelDataBinding: z.record(z.string(), z.unknown()).optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -116,6 +159,10 @@ const InputsSchema = z.object({
         "Contains configuration for anomaly detection computation model.",
       ).optional(),
   }).describe("The configuration for the computation model.").optional(),
+  ComputationModelDataBinding: z.record(
+    z.string(),
+    ComputationModelDataBindingValueSchema,
+  ).describe("The data binding for the computation model.").optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -140,7 +187,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTSiteWise ComputationModel. Registered at `@swamp/aws/iotsitewise/computation-model`. */
 export const model = {
   type: "@swamp/aws/iotsitewise/computation-model",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -200,6 +247,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: ComputationModelDataBinding",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

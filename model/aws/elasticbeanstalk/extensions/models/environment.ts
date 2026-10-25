@@ -198,7 +198,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElasticBeanstalk Environment. Registered at `@swamp/aws/elasticbeanstalk/environment`. */
 export const model = {
   type: "@swamp/aws/elasticbeanstalk/environment",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -257,6 +257,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -371,8 +376,8 @@ export const model = {
             "EnvironmentName",
             "ApplicationName",
             "SolutionStackName",
-            "Name",
-            "Type",
+            "Tier/Name",
+            "Tier/Type",
           ],
           credentials,
         );

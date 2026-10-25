@@ -70,6 +70,11 @@ const GlobalArgsSchema = z.object({
     Tags: z.array(TagSchema).describe(
       "The key-value tags that changed for the segment.",
     ).optional(),
+    AttachmentPolicyRuleNumber: z.number().int().describe(
+      "The rule number in the policy document that applies to this change.",
+    ).optional(),
+    SegmentName: z.string().describe("The name of the segment to change.")
+      .optional(),
   }).describe("The attachment to move from one segment to another.").optional(),
   NetworkFunctionGroupName: z.string().describe(
     "The name of the network function group attachment.",
@@ -77,6 +82,9 @@ const GlobalArgsSchema = z.object({
   ProposedNetworkFunctionGroupChange: z.object({
     Tags: z.array(TagSchema).describe(
       "The key-value tags that changed for the network function group.",
+    ).optional(),
+    AttachmentPolicyRuleNumber: z.number().int().describe(
+      "The rule number in the policy document that applies to this change.",
     ).optional(),
     NetworkFunctionGroupName: z.string().describe(
       "The name of the network function group to change.",
@@ -136,6 +144,11 @@ const InputsSchema = z.object({
     Tags: z.array(TagSchema).describe(
       "The key-value tags that changed for the segment.",
     ).optional(),
+    AttachmentPolicyRuleNumber: z.number().int().describe(
+      "The rule number in the policy document that applies to this change.",
+    ).optional(),
+    SegmentName: z.string().describe("The name of the segment to change.")
+      .optional(),
   }).describe("The attachment to move from one segment to another.").optional(),
   NetworkFunctionGroupName: z.string().describe(
     "The name of the network function group attachment.",
@@ -143,6 +156,9 @@ const InputsSchema = z.object({
   ProposedNetworkFunctionGroupChange: z.object({
     Tags: z.array(TagSchema).describe(
       "The key-value tags that changed for the network function group.",
+    ).optional(),
+    AttachmentPolicyRuleNumber: z.number().int().describe(
+      "The rule number in the policy document that applies to this change.",
     ).optional(),
     NetworkFunctionGroupName: z.string().describe(
       "The name of the network function group to change.",
@@ -176,7 +192,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkManager SiteToSiteVpnAttachment. Registered at `@swamp/aws/networkmanager/site-to-site-vpn-attachment`. */
 export const model = {
   type: "@swamp/aws/networkmanager/site-to-site-vpn-attachment",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -240,6 +256,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

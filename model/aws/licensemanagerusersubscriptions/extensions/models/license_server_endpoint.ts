@@ -90,6 +90,7 @@ const GlobalArgsSchema = z.object({
     "The Amazon Resource Name (ARN) that identifies the registered identity provider the license server endpoint is created for. For Active Directory, that can be a self-managed Active Directory or an AWS Managed Microsoft AD.",
   ),
   LicenseServerSettings: z.object({
+    ServerType: z.enum(["RDS_SAL"]).describe("The type of license server."),
     ServerSettings: ServerSettingsSchema.describe(
       "The settings of a license server, by server type.",
     ),
@@ -144,6 +145,8 @@ const InputsSchema = z.object({
     "The Amazon Resource Name (ARN) that identifies the registered identity provider the license server endpoint is created for. For Active Directory, that can be a self-managed Active Directory or an AWS Managed Microsoft AD.",
   ).optional(),
   LicenseServerSettings: z.object({
+    ServerType: z.enum(["RDS_SAL"]).describe("The type of license server.")
+      .optional(),
     ServerSettings: ServerSettingsSchema.describe(
       "The settings of a license server, by server type.",
     ).optional(),
@@ -178,10 +181,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for LicenseManagerUserSubscriptions LicenseServerEndpoint. Registered at `@swamp/aws/licensemanagerusersubscriptions/license-server-endpoint`. */
 export const model = {
   type: "@swamp/aws/licensemanagerusersubscriptions/license-server-endpoint",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

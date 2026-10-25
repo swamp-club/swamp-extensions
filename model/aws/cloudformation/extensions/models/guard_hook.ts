@@ -112,6 +112,7 @@ const GlobalArgsSchema = z.object({
   ).describe(
     "The execution role ARN assumed by hooks to read Guard rules from S3 and write Guard outputs to S3.",
   ),
+  Options: z.object({}).optional(),
 });
 
 const StateSchema = z.object({
@@ -138,6 +139,7 @@ const StateSchema = z.object({
   Alias: z.string().optional(),
   HookArn: z.string(),
   ExecutionRole: z.string().optional(),
+  Options: z.object({}).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -206,6 +208,7 @@ const InputsSchema = z.object({
   ).describe(
     "The execution role ARN assumed by hooks to read Guard rules from S3 and write Guard outputs to S3.",
   ).optional(),
+  Options: z.object({}).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -227,7 +230,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFormation GuardHook. Registered at `@swamp/aws/cloudformation/guard-hook`. */
 export const model = {
   type: "@swamp/aws/cloudformation/guard-hook",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -237,6 +240,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: Options",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

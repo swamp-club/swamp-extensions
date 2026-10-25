@@ -275,7 +275,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SES ReceiptRule. Registered at `@swamp/aws/ses/receipt-rule`. */
 export const model = {
   type: "@swamp/aws/ses/receipt-rule",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -294,6 +294,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -410,7 +415,7 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["Name", "RuleSetName"],
+          ["Rule/Name", "RuleSetName"],
           credentials,
         );
         const handle = await context.writeResource(

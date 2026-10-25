@@ -936,6 +936,9 @@ const GlobalArgsSchema = z.object({
   RowLevelPermissionDataSet: z.object({
     Status: z.enum(["ENABLED", "DISABLED"]).optional(),
     FormatVersion: z.enum(["VERSION_1", "VERSION_2"]).optional(),
+    Arn: z.string().describe(
+      "The Amazon Resource Name (ARN) of the dataset that contains permissions for RLS.",
+    ),
     Namespace: z.string().min(0).max(64).regex(new RegExp("^[a-zA-Z0-9._-]*$"))
       .describe(
         "The namespace associated with the dataset that contains permissions for RLS.",
@@ -1091,6 +1094,9 @@ const InputsSchema = z.object({
   RowLevelPermissionDataSet: z.object({
     Status: z.enum(["ENABLED", "DISABLED"]).optional(),
     FormatVersion: z.enum(["VERSION_1", "VERSION_2"]).optional(),
+    Arn: z.string().describe(
+      "The Amazon Resource Name (ARN) of the dataset that contains permissions for RLS.",
+    ).optional(),
     Namespace: z.string().min(0).max(64).regex(new RegExp("^[a-zA-Z0-9._-]*$"))
       .describe(
         "The namespace associated with the dataset that contains permissions for RLS.",
@@ -1196,7 +1202,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight DataSet. Registered at `@swamp/aws/quicksight/data-set`. */
 export const model = {
   type: "@swamp/aws/quicksight/data-set",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1270,6 +1276,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

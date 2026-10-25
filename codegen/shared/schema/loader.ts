@@ -79,6 +79,139 @@ export async function loadCfDatabase(options?: {
   return db;
 }
 
+/**
+ * Inlines the `$ref`s that `circular: "ignore"` leaves in place. The parser
+ * leaves every ref whose target leads into a cycle unresolved — not only the
+ * self-reference itself — so a property like AWS::Budgets::Budget's `Budget`
+ * (→ BudgetData → FilterExpression → recursive Expression) stays a bare
+ * `$ref` that later stages either drop or type as a string.
+ *
+ * Each ref is replaced with a copy of its definition. A ref back to a
+ * definition already being expanded on the current path is a true cycle and
+ * becomes a free-form terminal: an untyped object for object-shaped
+ * definitions, an empty schema otherwise. Returns a new schema; the input's
+ * properties are not mutated. Throws on a non-local or missing ref; the AWS
+ * pipeline calls it per type, so the error fails only that type.
+ */
+export function resolveResidualRefs(schema: CfSchema): CfSchema {
+  const definitions = (schema.definitions ?? {}) as Record<
+    string,
+    RawCfProperty
+  >;
+  const properties: Record<string, CfProperty> = {};
+  for (const [name, prop] of Object.entries(schema.properties ?? {})) {
+    properties[name] = resolveNode(
+      prop as RawCfProperty,
+      definitions,
+      [],
+      schema.typeName,
+    ) as CfProperty;
+  }
+  return { ...schema, properties };
+}
+
+function resolveNode(
+  node: RawCfProperty,
+  definitions: Record<string, RawCfProperty>,
+  expanding: string[],
+  typeName: string,
+): RawCfProperty {
+  if (typeof node !== "object" || node === null) return node;
+
+  if (typeof node.$ref === "string") {
+    const { $ref, ...siblings } = node;
+    const match = /^#\/definitions\/(.+)$/.exec($ref);
+    if (!match) {
+      throw new Error(`${typeName}: unsupported $ref ${$ref}`);
+    }
+    const defName = match[1].replaceAll("~1", "/").replaceAll("~0", "~");
+    const definition = definitions[defName];
+    if (!definition) {
+      throw new Error(`${typeName}: $ref to missing definition ${defName}`);
+    }
+    if (expanding.includes(defName)) {
+      const objectShaped = definition.type === "object" ||
+        definition.properties !== undefined ||
+        definition.patternProperties !== undefined;
+      return objectShaped
+        ? {
+          type: "object",
+          title: defName,
+          ...(siblings.description !== undefined
+            ? { description: siblings.description }
+            : definition.description !== undefined
+            ? { description: definition.description }
+            : {}),
+        }
+        : {
+          ...(siblings.description !== undefined
+            ? { description: siblings.description }
+            : {}),
+        };
+    }
+    return resolveNode(
+      { ...definition, title: definition.title ?? defName, ...siblings },
+      definitions,
+      [...expanding, defName],
+      typeName,
+    );
+  }
+
+  const result: RawCfProperty = { ...node };
+  if (node.properties) {
+    result.properties = resolveRecord(
+      node.properties,
+      definitions,
+      expanding,
+      typeName,
+    );
+  }
+  if (node.patternProperties) {
+    result.patternProperties = resolveRecord(
+      node.patternProperties,
+      definitions,
+      expanding,
+      typeName,
+    );
+  }
+  if (node.items) {
+    result.items = resolveNode(node.items, definitions, expanding, typeName);
+  }
+  if (
+    typeof node.additionalProperties === "object" &&
+    node.additionalProperties !== null
+  ) {
+    result.additionalProperties = resolveNode(
+      node.additionalProperties,
+      definitions,
+      expanding,
+      typeName,
+    );
+  }
+  for (const key of ["oneOf", "anyOf", "allOf"] as const) {
+    const variants = node[key];
+    if (variants) {
+      result[key] = variants.map((v) =>
+        resolveNode(v, definitions, expanding, typeName)
+      );
+    }
+  }
+  return result;
+}
+
+function resolveRecord(
+  record: Record<string, RawCfProperty>,
+  definitions: Record<string, RawCfProperty>,
+  expanding: string[],
+  typeName: string,
+): Record<string, RawCfProperty> {
+  const resolved: Record<string, RawCfProperty> = {};
+  for (const [name, prop] of Object.entries(record)) {
+    resolved[name] = resolveNode(prop, definitions, expanding, typeName);
+  }
+  return resolved;
+}
+
 interface RawCfSchemaShape {
   typeName: string;
   definitions?: Record<string, unknown>;
