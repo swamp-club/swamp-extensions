@@ -14,7 +14,11 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import { assert, assertEquals, assertRejects } from "@std/assert";
-import { serveStudio, type StudioContext } from "./studio_serve.ts";
+import {
+  nextPollDelay,
+  serveStudio,
+  type StudioContext,
+} from "./studio_serve.ts";
 import type { SwampRunner } from "./studio_remote.ts";
 import { FACTORY_TYPE } from "./work_item_ops.ts";
 
@@ -190,4 +194,131 @@ Deno.test("studio serve: reading a remote serve, the routes answer from swamp's 
   } finally {
     abort.abort();
   }
+});
+
+/** A fake serve holding one factory, `team`, recording each command. */
+function countingRun(calls: string[], names: () => string[] = () => ["team"]) {
+  const run: SwampRunner = (args) => {
+    calls.push(args.slice(0, 2).join(" "));
+    if (args[1] === "search") {
+      return Promise.resolve({
+        results: names().map((name) => ({ name, type: FACTORY_TYPE })),
+      });
+    }
+    if (args[1] === "get") {
+      return Promise.resolve({ name: args[2], type: FACTORY_TYPE });
+    }
+    return Promise.resolve({ results: [] });
+  };
+  return run;
+}
+
+/** Resolves once `done` holds, checking every few milliseconds. */
+async function until(done: () => boolean, what: string): Promise<void> {
+  const deadline = Date.now() + 2000;
+  while (!done()) {
+    if (Date.now() > deadline) throw new Error(`timed out waiting: ${what}`);
+    await new Promise((r) => setTimeout(r, 5));
+  }
+}
+
+const pause = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// swamp-club #3658: every poll starts swamp processes, so a studio with no
+// page open must read nothing, however long it runs.
+Deno.test("studio serve: a remote studio with no page listening reads nothing after startup", async () => {
+  const abort = new AbortController();
+  const { ctx, listened } = remoteContext(abort.signal);
+  const calls: string[] = [];
+  try {
+    const served = serveStudio(ctx, 0, PAGE, undefined, {
+      server: "wss://swamp.example.com",
+      run: countingRun(calls),
+      pollSeconds: 0.02,
+    });
+    const url = await listened;
+    // A definition the page opened is read again by every poll.
+    await (await fetch(url + "api/factories/team")).body?.cancel();
+    const before = calls.length;
+    // Many poll intervals, with no event stream open.
+    await pause(300);
+    assertEquals(calls.slice(before), []);
+    abort.abort();
+    await served;
+  } finally {
+    abort.abort();
+  }
+});
+
+Deno.test("studio serve: a remote studio polls while a page listens and stops when it leaves", async () => {
+  const abort = new AbortController();
+  const { ctx, listened } = remoteContext(abort.signal);
+  const calls: string[] = [];
+  try {
+    const served = serveStudio(ctx, 0, PAGE, undefined, {
+      server: "wss://swamp.example.com",
+      run: countingRun(calls),
+      pollSeconds: 0.02,
+    });
+    const url = await listened;
+    const before = calls.length;
+    const stream = await fetch(url + "api/events");
+    const reader = stream.body!.getReader();
+    await until(
+      () => calls.slice(before).includes("model search"),
+      "a poll while the page listens",
+    );
+    await reader.cancel();
+    // The server hears of the closed stream a moment later.
+    await pause(100);
+    const left = calls.length;
+    await pause(300);
+    assertEquals(calls.slice(left), []);
+    abort.abort();
+    await served;
+  } finally {
+    abort.abort();
+  }
+});
+
+Deno.test("studio serve: a factory added on the remote serve reaches the open page", async () => {
+  const abort = new AbortController();
+  const { ctx, listened } = remoteContext(abort.signal);
+  const calls: string[] = [];
+  let names = ["team"];
+  try {
+    const served = serveStudio(ctx, 0, PAGE, undefined, {
+      server: "wss://swamp.example.com",
+      run: countingRun(calls, () => names),
+      pollSeconds: 0.02,
+    });
+    const url = await listened;
+    const stream = await fetch(url + "api/events");
+    const reader = stream.body!.getReader();
+    names = ["ops", "team"];
+    const decoder = new TextDecoder();
+    let heard = "";
+    while (!heard.includes(`"kind":"factories"`)) {
+      const { value, done } = await reader.read();
+      if (done) throw new Error("the event stream ended");
+      heard += decoder.decode(value);
+    }
+    await reader.cancel();
+    const list = await (await fetch(url + "api/factories")).json();
+    assertEquals(
+      list.factories.map((f: { name: string }) => f.name),
+      ["ops", "team"],
+    );
+    abort.abort();
+    await served;
+  } finally {
+    abort.abort();
+  }
+});
+
+Deno.test("studio serve: the remote poll backs off while nothing changes", () => {
+  assertEquals(nextPollDelay(15, false, 15, 60), 30);
+  assertEquals(nextPollDelay(30, false, 15, 60), 60);
+  assertEquals(nextPollDelay(60, false, 15, 60), 60);
+  assertEquals(nextPollDelay(60, true, 15, 60), 15);
 });

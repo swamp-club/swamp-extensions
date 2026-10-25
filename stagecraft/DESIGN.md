@@ -1700,8 +1700,12 @@ with `-` is never passed to `model get`, which would read it as an option; it is
 listed with an error.
 
 Nobody iterates on a deployed factory's definition, so a remote studio watches
-no files and polls slowly (every 15 seconds): the factory list, the definitions
-the page opened, and the work items it watches, one poll at a time. The factory
+no files and polls slowly: the factory list, the definitions the page opened,
+and the work items it watches, one poll at a time. Each read starts swamp, so it
+polls only while a page holds the event stream (swamp-club #3658): the first
+page after a quiet spell gets a poll at once, and the last to leave stops it.
+Polls run every 15 seconds, doubling to 60 while a poll tells the page nothing,
+and back to 15 on a change. The factory
 routes answer from the last poll's reads, so a page load starts no swamp command
 once a factory has been read. A failed poll keeps the last reads and is logged
 once. The first read happens before the server binds, so a wrong URL, no login

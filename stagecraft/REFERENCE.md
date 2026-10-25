@@ -556,8 +556,10 @@ the first read fails (a wrong URL, no login, no grant), `serve` stops before it
 listens and says why.
 
 It only reads: it runs no method on the serve, writes nothing there and takes
-no factory's lock. It reads again every 15 seconds, each read a swamp command,
-so a change on the serve shows within that, not at once. A failed read keeps
+no factory's lock. It reads only while a studio page is open, each read a
+swamp command: every 15 seconds, slowing to every 60 seconds while nothing
+changes, so a change on the serve shows within that, not at once. With no page
+open it reads nothing; opening one reads at once. A failed read keeps
 what was read last and is logged. The definition comes from `swamp model get`
 as data, so the page shows YAML written from it: the server file's comments and
 layout are not shown, and the source is named `<factory> on <server>`.

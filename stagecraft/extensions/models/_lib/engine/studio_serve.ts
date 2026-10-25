@@ -49,10 +49,14 @@ const WORK_ITEM_POLL_SECONDS = 3;
 
 /**
  * How often a studio reading a remote serve reads its factories and work
- * items again. Each read is a swamp command (about 0.7s, mostly starting
- * swamp), and nobody iterates on a deployed factory's definition, so slowly.
+ * items again while a page is open. Each read is a swamp command (about 0.7s,
+ * mostly starting swamp), and nobody iterates on a deployed factory's
+ * definition, so slowly.
  */
 const REMOTE_POLL_SECONDS = 15;
+
+/** The longest wait between remote polls, reached while nothing changes. */
+const REMOTE_POLL_MAX_SECONDS = 60;
 
 /** The part of swamp's method context serve uses. */
 export interface StudioContext {
@@ -64,10 +68,28 @@ export interface StudioContext {
   signal?: AbortSignal;
 }
 
-/** The remote serve a studio reads, and how it runs swamp (tests fake it). */
+/**
+ * The remote serve a studio reads, and how it runs swamp and how often it
+ * polls (tests fake both).
+ */
 export interface StudioRemote {
   server: string;
   run?: SwampRunner;
+  /** The poll interval while things change; four times it is the longest. */
+  pollSeconds?: number;
+}
+
+/**
+ * The wait before the next remote poll: the base after a poll that told the
+ * page of a change, otherwise twice the last wait, up to max.
+ */
+export function nextPollDelay(
+  last: number,
+  changed: boolean,
+  base: number,
+  max: number,
+): number {
+  return changed ? base : Math.min(last * 2, max);
 }
 
 export async function serveStudio(
@@ -247,7 +269,8 @@ async function listen(
 /**
  * serve on a remote swamp serve's factories and work items, read with
  * swamp's read commands. No file is watched: one slow poll reads the factory
- * list, the definitions the page opened and the work items it watches.
+ * list, the definitions the page opened and the work items it watches, and
+ * only while a page holds the event stream, since each read starts swamp.
  */
 async function serveRemote(
   ctx: StudioContext,
@@ -258,7 +281,13 @@ async function serveRemote(
   const { server } = remote;
   const run = remote.run ?? swampRunner(server, ctx.signal);
   const listeners = new Set<(event: StudioEvent) => void>();
-  const emit = (event: StudioEvent) => listeners.forEach((l) => l(event));
+  // Whether the poll told the page anything. One that did not, a failed one
+  // included, backs off; the failure is logged and the next poll tries again.
+  let changed = false;
+  const emit = (event: StudioEvent) => {
+    changed = true;
+    listeners.forEach((l) => l(event));
+  };
   // A failed read is told once, not on every poll, until another differs or
   // a good poll ends the outage. A read the shutdown killed is not told.
   let told: string | null = null;
@@ -280,21 +309,52 @@ async function serveRemote(
   }
   const query = remoteQuery(run);
   const workItems = watchWorkItems(query, emit);
-  const events: StudioEvents = {
-    subscribe(listener) {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-  };
+  // Polled only while a page listens: with none, nothing is read. One poll
+  // at a time, each scheduled when the last ends, so a slow serve delays the
+  // next rather than piling them up.
+  const base = (remote.pollSeconds ?? REMOTE_POLL_SECONDS) * 1000;
+  const max = base * (REMOTE_POLL_MAX_SECONDS / REMOTE_POLL_SECONDS);
+  let delay = base;
+  let timer: ReturnType<typeof setTimeout> | undefined;
   let polling = false;
-  const poll = setInterval(() => {
-    if (polling) return;
+  let stopped = false;
+  // The first read, above, counts as a poll.
+  let polledAt = Date.now();
+  const schedule = (ms: number) => (timer = setTimeout(poll, ms));
+  function poll() {
+    timer = undefined;
     polling = true;
+    changed = false;
     factories.poll().then((ok) => {
       if (ok) told = null;
       return workItems.tick();
-    }).finally(() => polling = false);
-  }, REMOTE_POLL_SECONDS * 1000);
+    }).finally(() => {
+      polling = false;
+      polledAt = Date.now();
+      delay = nextPollDelay(delay, changed, base, max);
+      if (!stopped && listeners.size > 0) schedule(delay);
+    });
+  }
+  const events: StudioEvents = {
+    subscribe(listener) {
+      listeners.add(listener);
+      if (listeners.size === 1) {
+        // The first page after a quiet spell: read at once if the last read
+        // is a poll old, so the page is told of what changed meanwhile.
+        delay = base;
+        if (timer === undefined && !polling) {
+          schedule(Math.max(0, polledAt + base - Date.now()));
+        }
+      }
+      return () => {
+        listeners.delete(listener);
+        if (listeners.size === 0 && timer !== undefined) {
+          clearTimeout(timer);
+          timer = undefined;
+        }
+      };
+    },
+  };
   try {
     const deps: StudioDeps = {
       repoDir: ctx.repoDir ?? "",
@@ -310,11 +370,13 @@ async function serveRemote(
     };
     await listen(ctx, port, deps, () =>
       ctx.logger.info(
-        `studio: reading ${server} with your swamp login, every ` +
-          `${REMOTE_POLL_SECONDS}s; it only reads`,
+        `studio: reading ${server} with your swamp login while a page is ` +
+          `open, every ${base / 1000}s, slowing to ${max / 1000}s while ` +
+          `nothing changes; it only reads`,
       ));
   } finally {
-    clearInterval(poll);
+    stopped = true;
+    clearTimeout(timer);
   }
   return { dataHandles: [] };
 }

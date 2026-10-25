@@ -145,11 +145,12 @@ swamp model method run studio serve --input server=wss://swamp.example.com
 `server` is a ws, wss, http or https URL with no credentials in it. The studio
 reads with the person's own swamp login and grants on that serve, as any
 `--server` command does, and only reads: it runs no method there, writes nothing
-and takes no lock. It reads again every 15 seconds, so a change usually shows
-within that; a slow serve can delay it. If the first read fails (a wrong URL, no
-login, no grant), `serve` stops before it listens and says why. The page shows
-the definition as YAML written from the serve's data, so the file's comments and
-layout are not there.
+and takes no lock. It reads only while a studio page is open, every 15 seconds,
+slowing to 60 while nothing changes, so a change usually shows within that; a
+slow serve can delay it. With no page open it reads nothing. If the first read
+fails (a wrong URL, no login, no grant), `serve` stops before it listens and
+says why. The page shows the definition as YAML written from the serve's data,
+so the file's comments and layout are not there.
 
 `server` cannot be combined with `publicOrigin`: the studio reads with the
 person's identity, so it answers on 127.0.0.1 only.
