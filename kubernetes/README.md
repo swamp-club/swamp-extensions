@@ -1,8 +1,8 @@
 # @swamp/kubernetes
 
-Kubernetes operational toolkit — 16 model types covering pods, deployments,
-statefulsets, services, RBAC, storage, networking, autoscaling, batch jobs, and
-more. Includes
+Kubernetes operational toolkit — 17 model types covering pods, deployments,
+statefulsets, services, RBAC, storage, networking, autoscaling, batch jobs,
+External Secrets, and more. Includes
 14 ready-to-run workflows for namespace debugging, security audits, RBAC
 analysis, cluster health, and operational diagnostics.
 
@@ -49,6 +49,7 @@ Cluster-scoped models (`namespace`, `node`) omit the `namespace` field.
 | `pod` | `@swamp/kubernetes/pod` | Pod lifecycle, logs, metrics, and exec |
 | `pod_summary` | `@swamp/kubernetes/pod-summary` | Aggregated pod statistics from stored data |
 | `deployment` | `@swamp/kubernetes/deployment` | Deployment CRUD, scaling, rolling restart, pause/resume, rollout status |
+| `statefulset` | `@swamp/kubernetes/statefulset` | StatefulSet listing, scaling, rolling restart, and delete |
 | `service` | `@swamp/kubernetes/service` | Service CRUD, endpoint inspection, and selector diagnosis |
 | `namespace` | `@swamp/kubernetes/namespace` | Namespace CRUD, resource quotas, limit ranges, resource counts, health |
 | `node` | `@swamp/kubernetes/node` | Node conditions, capacity, taints, cordon/uncordon, drain, metrics. `list` syncs: upserts live nodes and prunes departed ones. |
@@ -61,6 +62,30 @@ Cluster-scoped models (`namespace`, `node`) omit the `namespace` field.
 | `netpol` | `@swamp/kubernetes/netpol` | NetworkPolicy listing, analysis, and connectivity testing |
 | `rbac` | `@swamp/kubernetes/rbac` | Roles, ClusterRoles, bindings, and ServiceAccounts |
 | `event` | `@swamp/kubernetes/event` | Cluster events with filtering by type and involved object |
+| `externalsecret` | `@swamp/kubernetes/externalsecret` | External Secrets Operator ExternalSecrets: list, get, and `forceSync` to request an immediate resync |
+
+### Rotating a credential synced by External Secrets
+
+After rotating a value in the external store, ask External Secrets Operator to
+resync, then restart the workload so its pods read the new Secret:
+
+```bash
+swamp model method run my-externalsecret forceSync --input externalSecretName=worker-creds
+swamp model method run my-externalsecret get --input externalSecretName=worker-creds
+swamp model method run my-statefulset restart --input statefulSetName=worker
+```
+
+`forceSync` sets the `force-sync` annotation to the current time with a merge
+patch and returns at once; it does not wait for the controller. Check
+`refreshTime` and `ready` from `get` before restarting. `restart` on
+`statefulset` and `deployment` does what `kubectl rollout restart` does: it sets
+`kubectl.kubernetes.io/restartedAt` on the pod template.
+
+`externalsecret` needs the External Secrets Operator CRDs installed and, for
+`forceSync`, permission to `patch` `externalsecrets.external-secrets.io`. It
+uses `external-secrets.io/v1` and falls back to `v1beta1` when `v1` is not
+served; pass `apiVersion` to pin one. It never reads secret values, and it does
+not store the `data` entries or their remote keys.
 
 ### Secrets without stored values
 
@@ -81,6 +106,14 @@ the `secretMeta` resource — name, type, data key names, labels and
   so a different `type` fails; delete and recreate the Secret instead.
 - A later `list` or `getMeta` overwrites the stored `secretMeta`, so read
   `action` from the `ensure` step's own output.
+
+Every model drops the `kubectl.kubernetes.io/last-applied-configuration`
+annotation before storing an object. `kubectl apply` copies the whole object
+into it, so for a Secret it holds the values in plain text. Versions before
+2026.10.25.1 stored it: if you ran `secret` `list` or `getMeta` against Secrets
+created with `kubectl apply`, delete the old `secretMeta` data with
+`swamp data gc` or `swamp data delete`. Other tools that copy a spec into an
+annotation (such as Helm or Argo CD) are not filtered.
 
 ## Workflows
 

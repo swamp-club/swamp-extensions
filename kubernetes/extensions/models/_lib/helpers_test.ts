@@ -3,7 +3,7 @@ import {
   assertRejects,
   assertStringIncludes,
 } from "jsr:@std/assert@1";
-import { buildClient, isNotFound } from "./helpers.ts";
+import { buildClient, isNotFound, normalizeMeta } from "./helpers.ts";
 import { startFakeApiServer } from "./fake_api_server.ts";
 
 async function generateSelfSignedCert(): Promise<
@@ -171,4 +171,21 @@ Deno.test("isNotFound rejects non-404 errors and non-errors", () => {
   assertEquals(isNotFound(new Error("boom")), false);
   assertEquals(isNotFound(undefined), false);
   assertEquals(isNotFound("404"), false);
+});
+
+Deno.test("normalizeMeta drops kubectl last-applied-configuration only", () => {
+  const meta = normalizeMeta({
+    metadata: {
+      name: "app",
+      annotations: {
+        "kubectl.kubernetes.io/last-applied-configuration": "{}",
+        "kubectl.kubernetes.io/restartedAt": "2026-10-25T00:00:00Z",
+        owner: "team-a",
+      },
+    },
+  });
+  assertEquals(meta.annotations, {
+    "kubectl.kubernetes.io/restartedAt": "2026-10-25T00:00:00Z",
+    owner: "team-a",
+  });
 });

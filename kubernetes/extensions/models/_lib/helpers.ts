@@ -3,7 +3,7 @@ import * as k8s from "npm:@kubernetes/client-node@1.4.0";
 import process from "node:process";
 
 // Suppress MaxListeners warning — @kubernetes/client-node registers multiple
-// listeners per API client, which is expected across 16 model types.
+// listeners per API client, which is expected across 17 model types.
 process.setMaxListeners(32);
 
 // Shared global arguments for all @swamp/kubernetes/* models
@@ -162,6 +162,10 @@ export function buildClient(globalArgs: K8sGlobalArgs) {
     kc.makeApiClient(k8s.RbacAuthorizationV1Api),
     clusterInfo,
   );
+  const customApi = wrapApiClient(
+    kc.makeApiClient(k8s.CustomObjectsApi),
+    clusterInfo,
+  );
   const metricsClient = wrapApiClient(
     new k8s.Metrics(kc),
     clusterInfo,
@@ -175,18 +179,26 @@ export function buildClient(globalArgs: K8sGlobalArgs) {
     networkingApi,
     autoscalingApi,
     rbacApi,
+    customApi,
     metricsClient,
   };
 }
 
+// kubectl apply copies the whole object into this annotation, so for a Secret
+// it holds the values in plain text. It is never written to swamp data.
+const LAST_APPLIED_ANNOTATION =
+  "kubectl.kubernetes.io/last-applied-configuration";
+
 export function normalizeMeta(raw: { metadata?: k8s.V1ObjectMeta }) {
   const meta = raw.metadata ?? {};
+  const { [LAST_APPLIED_ANNOTATION]: _lastApplied, ...annotations } =
+    meta.annotations ?? {};
   return {
     name: meta.name ?? "",
     namespace: meta.namespace ?? "",
     uid: meta.uid ?? "",
     labels: meta.labels ?? {},
-    annotations: meta.annotations ?? {},
+    annotations,
     createdAt: meta.creationTimestamp
       ? new Date(meta.creationTimestamp).toISOString()
       : "",

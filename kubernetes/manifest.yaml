@@ -1,8 +1,8 @@
 manifestVersion: 1
 name: "@swamp/kubernetes"
-version: "2026.10.23.1"
+version: "2026.10.25.1"
 license: "AGPL-3.0-or-later"
-description: "Kubernetes operational toolkit — 16 model types covering pods, deployments, statefulsets, services, RBAC, storage, networking, autoscaling, batch jobs, and more. Includes 14 ready-to-run workflows for namespace debugging, security audits, RBAC analysis, cluster health, and operational diagnostics."
+description: "Kubernetes operational toolkit — 17 model types covering pods, deployments, statefulsets, services, RBAC, storage, networking, autoscaling, batch jobs, External Secrets, and more. Includes 14 ready-to-run workflows for namespace debugging, security audits, RBAC analysis, cluster health, and operational diagnostics."
 repository: https://github.com/swamp-club/swamp-extensions
 additionalFiles:
   - README.md
@@ -19,6 +19,7 @@ labels:
   - rbac
   - networking
   - autoscaling
+  - external-secrets
 models:
   - pod.ts
   - pod_summary.ts
@@ -36,6 +37,7 @@ models:
   - netpol.ts
   - rbac.ts
   - statefulset.ts
+  - externalsecret.ts
 workflows:
   - "debug-namespace-deep/workflow.yaml"
   - "namespace-debug/workflow.yaml"

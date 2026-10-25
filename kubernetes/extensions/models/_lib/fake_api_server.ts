@@ -1,7 +1,10 @@
-// Test-only in-memory fake of the core/v1 namespaced object endpoints
-// (GET/POST/PUT /api/v1/namespaces/{ns}/{plural}[/{name}]). It mirrors the
-// API server's Status responses: 404 on a missing object, 409 on create of an
-// existing object or on a stale resourceVersion, 422 on a Secret type change.
+// Test-only in-memory fake of the namespaced object endpoints, for both the
+// core group (/api/v1/namespaces/{ns}/{plural}[/{name}]) and named groups
+// (/apis/{group}/{version}/namespaces/{ns}/{plural}[/{name}]). It mirrors the
+// API server's Status responses: 404 on a missing object or an unserved
+// group/version, 409 on create of an existing object or on a stale
+// resourceVersion, 422 on a Secret type change. PATCH applies an RFC 7386
+// JSON merge patch.
 
 interface StoredObject {
   metadata: Record<string, unknown> & { resourceVersion: string };
@@ -11,17 +14,23 @@ interface StoredObject {
 export interface RecordedRequest {
   method: string;
   path: string;
+  contentType?: string;
   body?: Record<string, unknown>;
 }
 
 export interface FakeApiServer {
   kubeconfig: string;
   requests: RecordedRequest[];
+  /** Keyed by `${plural}/${namespace}/${name}`, whatever the group/version. */
   objects: Map<string, StoredObject>;
   /** Seed an object; returns the stored copy. */
   put(plural: string, obj: Record<string, unknown>): StoredObject;
   /** Simulate a concurrent writer bumping resourceVersion after each GET. */
   bumpAfterRead: boolean;
+  /** `group/version` pairs that answer 404, as if the CRD did not serve them. */
+  unserved: Set<string>;
+  /** HTTP methods that answer 403, as if RBAC denied the verb. */
+  forbidden: Set<string>;
   close(): Promise<void>;
 }
 
@@ -39,6 +48,23 @@ function status(code: number, reason: string, message: string): Response {
     { status: code },
   );
 }
+
+function isObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null && !Array.isArray(v);
+}
+
+function mergePatch(target: unknown, patch: unknown): unknown {
+  if (!isObject(patch)) return patch;
+  const out: Record<string, unknown> = isObject(target) ? { ...target } : {};
+  for (const [k, v] of Object.entries(patch)) {
+    if (v === null) delete out[k];
+    else out[k] = mergePatch(out[k], v);
+  }
+  return out;
+}
+
+const ROUTE =
+  /^\/(?:api\/v1|apis\/([^/]+)\/([^/]+))\/namespaces\/([^/]+)\/([^/]+)(?:\/([^/]+))?$/;
 
 export async function startFakeApiServer(): Promise<FakeApiServer> {
   const objects = new Map<string, StoredObject>();
@@ -67,6 +93,8 @@ export async function startFakeApiServer(): Promise<FakeApiServer> {
     requests,
     objects,
     bumpAfterRead: false,
+    unserved: new Set(),
+    forbidden: new Set(),
     put(plural, obj) {
       const meta = obj.metadata as { name: string; namespace: string };
       return store(`${plural}/${meta.namespace}/${meta.name}`, obj);
@@ -78,16 +106,38 @@ export async function startFakeApiServer(): Promise<FakeApiServer> {
     { hostname: "127.0.0.1", port: 0, onListen() {} },
     async (req) => {
       const url = new URL(req.url);
-      const body = req.method === "POST" || req.method === "PUT"
+      const body = ["POST", "PUT", "PATCH"].includes(req.method)
         ? await req.json() as Record<string, unknown>
         : undefined;
-      requests.push({ method: req.method, path: url.pathname, body });
+      requests.push({
+        method: req.method,
+        path: url.pathname,
+        contentType: req.headers.get("content-type") ?? undefined,
+        body,
+      });
 
-      const m = url.pathname.match(
-        /^\/api\/v1\/namespaces\/([^/]+)\/([^/]+)(?:\/([^/]+))?$/,
-      );
+      const m = url.pathname.match(ROUTE);
       if (!m) return status(404, "NotFound", `no route ${url.pathname}`);
-      const [, ns, plural, pathName] = m;
+      const [, group, version, ns, plural, pathName] = m;
+
+      if (group && fake.unserved.has(`${group}/${version}`)) {
+        return status(
+          404,
+          "NotFound",
+          "the server could not find the requested resource",
+        );
+      }
+      if (fake.forbidden.has(req.method)) {
+        return status(403, "Forbidden", `${plural} is forbidden`);
+      }
+
+      if (req.method === "GET" && !pathName) {
+        const prefix = `${plural}/${ns}/`;
+        const items = [...objects.entries()]
+          .filter(([k]) => k.startsWith(prefix))
+          .map(([, v]) => structuredClone(v));
+        return Response.json({ kind: "List", metadata: {}, items });
+      }
 
       if (req.method === "POST" && !pathName) {
         const name = (body?.metadata as { name: string }).name;
@@ -130,6 +180,22 @@ export async function startFakeApiServer(): Promise<FakeApiServer> {
           return status(422, "Invalid", "type: field is immutable");
         }
         return Response.json(store(key, body!));
+      }
+
+      if (req.method === "PATCH") {
+        if (
+          req.headers.get("content-type") !== "application/merge-patch+json"
+        ) {
+          return status(
+            415,
+            "UnsupportedMediaType",
+            `fake only supports merge patch, got ${
+              req.headers.get("content-type")
+            }`,
+          );
+        }
+        const patched = mergePatch(existing, body) as Record<string, unknown>;
+        return Response.json(store(key, patched));
       }
 
       return status(405, "MethodNotAllowed", req.method);

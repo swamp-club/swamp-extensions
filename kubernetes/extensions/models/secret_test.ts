@@ -361,3 +361,48 @@ Deno.test({
       assertEquals(getWrittenResources()[0].data.action, "updated");
     }),
 });
+
+// kubectl apply copies the whole object, values included, into this
+// annotation, so it must never reach stored data.
+function seedAppliedSecret(fake: FakeApiServer) {
+  return fake.put("secrets", {
+    metadata: {
+      name: "app",
+      namespace: "default",
+      annotations: {
+        "kubectl.kubernetes.io/last-applied-configuration": JSON.stringify({
+          apiVersion: "v1",
+          kind: "Secret",
+          metadata: { name: "app", namespace: "default" },
+          stringData: { password: "hunter2" },
+        }),
+        owner: "team-a",
+      },
+    },
+    type: "Opaque",
+    data: { password: toBase64("hunter2") },
+  });
+}
+
+for (const method of ["getMeta", "list"] as const) {
+  Deno.test({
+    name:
+      `${method} drops last-applied-configuration from a kubectl-applied secret`,
+    ...opts,
+    fn: () =>
+      withFake(async (fake) => {
+        seedAppliedSecret(fake);
+        const { context, getWrittenResources } = makeContext(fake, method);
+        if (method === "getMeta") {
+          await model.methods.getMeta.execute({ secretName: "app" }, context);
+        } else {
+          await model.methods.list.execute({}, context);
+        }
+
+        const written = getWrittenResources();
+        assertEquals(written.length, 1);
+        assertEquals(written[0].data.annotations, { owner: "team-a" });
+        assertEquals(JSON.stringify(written).includes("hunter2"), false);
+      }),
+  });
+}

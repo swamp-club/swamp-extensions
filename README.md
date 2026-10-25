@@ -55,7 +55,7 @@ end-to-end with a single `swamp workflow run`.
 
 | Extension                                    | Description                                                                                                   | Dependencies              |
 | -------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | ------------------------- |
-| [`@swamp/kubernetes`](kubernetes/) | Kubernetes operational toolkit — 15 model types covering pods, deployments, services, RBAC, storage, networking, autoscaling, batch jobs, and more. Includes 14 ready-to-run workflows for namespace debugging, security audits, RBAC analysis, cluster health, and operational diagnostics. | `@kubernetes/client-node` |
+| [`@swamp/kubernetes`](kubernetes/) | Kubernetes operational toolkit — 17 model types covering pods, deployments, statefulsets, services, RBAC, storage, networking, autoscaling, batch jobs, External Secrets, and more. Includes 14 ready-to-run workflows for namespace debugging, security audits, RBAC analysis, cluster health, and operational diagnostics. | `@kubernetes/client-node` |
 
 ## AI Extensions
 
