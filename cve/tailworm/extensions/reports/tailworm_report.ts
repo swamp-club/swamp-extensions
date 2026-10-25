@@ -82,6 +82,8 @@ type Status = {
     appConnector: boolean;
     selfHostedControl: boolean;
     tcpForwards: { localapi: boolean }[];
+    /** Absent from statuses written before 2026.10.25.1. */
+    localapiProxies?: unknown[];
     sshPolicy?: {
       readable: boolean;
       acceptRules: number;
@@ -264,7 +266,12 @@ function scanReport(results: Status[], name: string) {
     md += `| ${r.target} | ${ts.installed ? ts.version ?? "?" : "—"} | ${
       ts.installed ? sshCell(ts) : "—"
     } | ${
-      ts.installed ? yesNo(ts.tcpForwards.some((f) => f.localapi)) : "—"
+      ts.installed
+        ? yesNo(
+          ts.tcpForwards.some((f) => f.localapi) ||
+            (ts.localapiProxies ?? []).length > 0,
+        )
+        : "—"
     } | ${ts.installed ? yesNo(ts.appConnector) : "—"} | ${
       r.headscale.installed ? r.headscale.version ?? "yes" : "—"
     } | ${iocCell(r)} | ${r.riskLevel.toUpperCase()} |\n`;

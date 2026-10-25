@@ -256,6 +256,24 @@ const ForwardSchema = z.object({
   localapi: z.boolean(),
 });
 
+const WebProxySchema = z.object({
+  /** The host of its Web key, as the serve config stores it. */
+  host: z.string(),
+  /**
+   * The host is the one tailscale serve off acts on: the node's DNS name, or
+   * the service's name under the tailnet's MagicDNS suffix.
+   */
+  current: z.boolean(),
+  port: z.number(),
+  mount: z.string(),
+  /** From the port's TCP entry; null when it says neither HTTPS nor HTTP. */
+  scheme: z.enum(["https", "http"]).nullable(),
+  target: z.string(),
+  resolved: z.string(),
+  service: z.string().nullable(),
+  foreground: z.boolean(),
+});
+
 const MitigationOptionsSchema = z.object({
   removeLocalapiForwards: z.boolean(),
   applyEgressRules: z.boolean(),
@@ -337,6 +355,8 @@ const StatusSchema = z.object({
     keyExpiryDisabled: z.boolean(),
     tcpForwards: z.array(ForwardSchema),
     unixProxies: z.array(z.string()),
+    // Absent from statuses written before 2026.10.25.1.
+    localapiProxies: z.array(WebProxySchema).default([]),
     missingBulletins: z.array(z.string()),
     sshPolicy: SshPolicySchema,
   }),
@@ -375,6 +395,7 @@ export type Status = z.infer<typeof StatusSchema>;
 export type Exposure = z.infer<typeof ExposureSchema>;
 export type Indicator = z.infer<typeof IndicatorSchema>;
 export type Forward = z.infer<typeof ForwardSchema>;
+export type WebProxy = z.infer<typeof WebProxySchema>;
 export type SshPolicy = z.infer<typeof SshPolicySchema>;
 type Mitigation = z.infer<typeof MitigationSchema>;
 type RiskLevelT = z.infer<typeof RiskLevel>;
@@ -404,6 +425,30 @@ export function compareVersions(a: string, b: string): number {
 // --- Probe -------------------------------------------------------------------
 
 /**
+ * Passes when /proc/PID runs as root: real and effective uid 0 from its status
+ * file. The owner of /proc/PID is not enough, since the kernel reports it as
+ * root for any process that made itself non-dumpable.
+ */
+export const ROOTPROC_SH =
+  `rootproc() { [ "$(awk '/^Uid:/ {print $2 "|" $3; exit}' "/proc/$1/status")" = "0|0" ]; }`;
+
+/**
+ * Tags for mitigate's own table, listed into $t: only that table, so an
+ * unrelated rule naming tailscaled elsewhere cannot stand in for the metadata
+ * block. NFTCGROUP is the cgroup each socket cgroupv2 match is bound to: a
+ * quoted path, or a bare id once that cgroup is gone.
+ */
+export const NFT_TAGS_SH =
+  `echo "NFT|$(printf '%s\\n' "$t" | grep -c 'tailscaled')"; printf '%s\\n' "$t" | sed -n 's/.*socket cgroupv2 level [0-9]* \\([^ ]*\\).*/NFTCGROUP|\\1/p'`;
+
+/**
+ * Tags for mitigate's own audit rules (key tailworm), listed into $a: an
+ * unrelated rule that names tailscaled must not stand in for them.
+ */
+const AUDIT_TAGS_SH =
+  `echo "AUDIT|$(printf '%s\\n' "$a" | grep -cE 'key=tailworm|-k tailworm')"`;
+
+/**
  * Prints tagged facts about Tailscale and headscale on a POSIX host. Nothing
  * here needs root; the listener, nftables and audit checks are skipped
  * without it. Only the TS_ variables the findings concern are read from the
@@ -415,6 +460,7 @@ exec 2>/dev/null
 # tailscaled live.
 PATH="$PATH:/usr/local/sbin:/usr/sbin:/sbin"; export PATH
 names='(TS_SERVE_ALLOW_ALL_INTERFACES|TS_[A-Z0-9_]*CONN25[A-Z0-9_]*)'
+${ROOTPROC_SH}
 echo "HOSTNAME|$(hostname || cat /etc/hostname)"
 echo "UID|$(id -u)"
 echo "KERNEL|$(uname -s)"
@@ -441,10 +487,13 @@ pids=$( (pidof tailscaled || pgrep -x tailscaled) | tr ' ' '\\n' | grep -E '^[0-
 # tailscaled, and its sockets must not read as the daemon's or as signatures.
 rootpids=""
 for p in $pids; do
-  [ "$(stat -c %u "/proc/$p")" = 0 ] && { rootpids="$rootpids $p"; echo "TSROOTPID|$p"; }
+  rootproc "$p" && { rootpids="$rootpids $p"; echo "TSROOTPID|$p"; }
 done
-# Each instance started with --socket (Synology, custom units) listens there.
+# Each instance started with --socket (Synology, custom units) listens there,
+# and one started with --tun names its own interface.
 for p in $rootpids; do
+  n=$(tr '\\0' '\\n' < "/proc/$p/cmdline" | awk 'f {print; exit} /^--?tun=/ {sub(/^--?tun=/, ""); print; exit} /^--?tun$/ {f=1}')
+  [ -n "$n" ] && [ "$n" != userspace-networking ] && [ -e "/sys/class/net/$n" ] && echo "TUNIF|$n"
   s=$(tr '\\0' '\\n' < "/proc/$p/cmdline" | awk 'f {print; exit} /^--?socket=/ {sub(/^--?socket=/, ""); print; exit} /^--?socket$/ {f=1}')
   [ -n "$s" ] || continue
   echo "TSDSOCKET|$s"
@@ -454,9 +503,9 @@ done
 # merely named tailscaled (its environment and cgroup would be trusted).
 pid=""
 for p in $pids; do
-  [ "$(stat -c %u "/proc/$p")" = 0 ] && grep -q '^0::/.*system[.]slice/' "/proc/$p/cgroup" && { pid=$p; break; }
+  rootproc "$p" && grep -q '^0::/.*system[.]slice/' "/proc/$p/cgroup" && { pid=$p; break; }
 done
-[ -n "$pid" ] || for p in $pids; do [ "$(stat -c %u "/proc/$p")" = 0 ] && { pid=$p; break; }; done
+[ -n "$pid" ] || for p in $pids; do rootproc "$p" && { pid=$p; break; }; done
 # No root tailscaled: nothing is trusted from a user's process of that name.
 if [ -n "$pid" ]; then
   echo "TSDPID|$pid"
@@ -492,20 +541,17 @@ elif find "/lib/modules/$k" -name 'nft_socket.ko*' | grep -q .; then echo "NFTSO
 elif [ -r "/boot/config-$k" ]; then grep -qE '^CONFIG_NFT_SOCKET=[ym]' "/boot/config-$k" && echo "NFTSOCKET|config" || echo "NFTSOCKET|absent"
 elif [ -r /proc/config.gz ] && command -v zcat >/dev/null; then zcat /proc/config.gz | grep -qE '^CONFIG_NFT_SOCKET=[ym]' && echo "NFTSOCKET|config" || echo "NFTSOCKET|absent"
 fi
+# A restart leaves a cgroup rule listed but matching nothing unless it is
+# reloaded after every start. The drop-in path is world-readable.
+for f in /etc/systemd/system/tailscaled*.service.d/50-tailworm.conf; do [ -f "$f" ] && echo "NFTDROPIN|$f"; done
 if [ "$(id -u)" = 0 ]; then
   if command -v nft >/dev/null && out=$(nft list ruleset); then
-    # Only mitigate's own table: an unrelated rule naming tailscaled elsewhere
-    # must not stand in for the metadata block.
-    echo "NFT|$(nft list table inet tailworm 2>/dev/null | grep -c 'tailscaled')"
     printf '%s\\n' "$out" | grep -q '^table inet tailworm' && echo "NFTTABLE|1"
-    # A restart leaves a cgroup rule listed but matching nothing unless it is
-    # reloaded after every start.
-    for f in /etc/systemd/system/tailscaled*.service.d/50-tailworm.conf; do [ -f "$f" ] && echo "NFTDROPIN|$f"; done
+    t=$(nft list table inet tailworm 2>/dev/null)
+    ${NFT_TAGS_SH}
   fi
-  if command -v auditctl >/dev/null && out=$(auditctl -l); then
-    # Only mitigate's own rules (key tailworm): an unrelated rule that names
-    # tailscaled must not stand in for them.
-    echo "AUDIT|$(printf '%s\\n' "$out" | grep -cE 'key=tailworm|-k tailworm')"
+  if command -v auditctl >/dev/null && a=$(auditctl -l); then
+    ${AUDIT_TAGS_SH}
   fi
 fi
 echo "END|1"
@@ -545,6 +591,11 @@ export type ProbeFacts = {
   hsListen: string[];
   nftCount: number | null;
   nftTable: boolean;
+  /**
+   * The cgroup each socket cgroupv2 rule in mitigate's table is bound to,
+   * without quotes: a path, or a bare id once that cgroup is gone.
+   */
+  nftCgroups: string[];
   /** mitigate's reload drop-in for tailscaled's unit is installed. */
   nftDropIn: boolean;
   /** Whether the kernel has nft_socket (socket cgroupv2); null when unknown. */
@@ -555,6 +606,9 @@ export type ProbeFacts = {
   resolved: Record<string, string>;
   complete: boolean;
 };
+
+/** A Linux interface name (not "." or ".."), at most 15 bytes. */
+const IFNAME = /^(?!\.\.?$)[A-Za-z0-9_.-]{1,15}$/;
 
 function parseJson(text: string): Record<string, unknown> | null {
   try {
@@ -621,6 +675,7 @@ export function parseProbe(text: string): ProbeFacts {
     hsListen: [],
     nftCount: null,
     nftTable: false,
+    nftCgroups: [],
     nftDropIn: false,
     nftSocket: null,
     auditCount: null,
@@ -705,9 +760,14 @@ export function parseProbe(text: string): ProbeFacts {
         }
         break;
       }
-      case "TUNIF":
-        facts.tunInterfaces.push(rest.trim());
+      case "TUNIF": {
+        // Linux interface names only: these go into the nftables file.
+        const v = rest.trim();
+        if (IFNAME.test(v) && !facts.tunInterfaces.includes(v)) {
+          facts.tunInterfaces.push(v);
+        }
         break;
+      }
       case "TSSOCK": {
         const path = fields.slice(2).join("|");
         if (!facts.tsSockets.some((s) => s.path === path)) {
@@ -758,6 +818,11 @@ export function parseProbe(text: string): ProbeFacts {
       case "NFTTABLE":
         facts.nftTable = true;
         break;
+      case "NFTCGROUP": {
+        const v = rest.trim().replace(/^"|"$/g, "");
+        if (v && !facts.nftCgroups.includes(v)) facts.nftCgroups.push(v);
+        break;
+      }
       case "NFTDROPIN":
         facts.nftDropIn = true;
         break;
@@ -837,29 +902,62 @@ export function serveForwards(
   return out;
 }
 
-/** Every web handler that proxies to a unix socket ("unix:/path"). */
-export function serveUnixProxies(serve: Obj | null): string[] {
-  const out: string[] = [];
-  const fromWeb = (web: unknown) => {
-    for (const site of Object.values(obj(web))) {
-      for (const h of Object.values(obj(obj(site).Handlers))) {
-        const proxy = obj(h).Proxy;
-        if (typeof proxy === "string" && proxy.startsWith("unix:")) {
-          out.push(proxy);
+/**
+ * Every web handler that proxies to a unix socket ("unix:/path"), with the
+ * port and mount that remove it: node, Services and foreground.
+ */
+export function serveWebProxies(
+  serve: Obj | null,
+): Omit<WebProxy, "resolved" | "current">[] {
+  const out: Omit<WebProxy, "resolved" | "current">[] = [];
+  const fromWeb = (
+    conf: Obj,
+    service: string | null,
+    foreground: boolean,
+  ) => {
+    for (const [hostPort, site] of Object.entries(obj(conf.Web))) {
+      const m = hostPort.match(/^(.*):(\d+)$/);
+      if (!m) continue;
+      const [, host, port] = m;
+      const tcp = obj(obj(conf.TCP)[port]);
+      const scheme = tcp.HTTPS === true
+        ? "https"
+        : tcp.HTTP === true
+        ? "http"
+        : null;
+      for (const [mount, h] of Object.entries(obj(obj(site).Handlers))) {
+        const target = obj(h).Proxy;
+        if (typeof target === "string" && target.startsWith("unix:")) {
+          out.push({
+            host,
+            port: Number(port),
+            mount,
+            scheme,
+            target,
+            service,
+            foreground,
+          });
         }
       }
     }
   };
   if (!serve) return out;
-  fromWeb(serve.Web);
-  for (const svc of Object.values(obj(serve.Services))) fromWeb(obj(svc).Web);
+  fromWeb(serve, null, false);
+  for (const [name, svc] of Object.entries(obj(serve.Services))) {
+    fromWeb(obj(svc), name, false);
+  }
   for (const fg of Object.values(obj(serve.Foreground))) {
-    fromWeb(obj(fg).Web);
-    for (const svc of Object.values(obj(obj(fg).Services))) {
-      fromWeb(obj(svc).Web);
+    fromWeb(obj(fg), null, true);
+    for (const [name, svc] of Object.entries(obj(obj(fg).Services))) {
+      fromWeb(obj(svc), name, true);
     }
   }
-  return [...new Set(out)];
+  return out;
+}
+
+/** Every web handler that proxies to a unix socket ("unix:/path"). */
+export function serveUnixProxies(serve: Obj | null): string[] {
+  return [...new Set(serveWebProxies(serve).map((p) => p.target))];
 }
 
 function funnelEnabled(serve: Obj | null): boolean {
@@ -1091,6 +1189,34 @@ export function analyze(
     };
   });
   const unixProxies = serveUnixProxies(facts.serve);
+  // tailscale serve off finds a handler under the node's own DNS name, or
+  // under the service's name with the tailnet's MagicDNS suffix; an entry
+  // stored under another host (an old name) is out of its reach.
+  const nodeHost = typeof self.DNSName === "string"
+    ? self.DNSName.replace(/\.$/, "").toLowerCase()
+    : "";
+  const statusObj = obj(facts.status);
+  const suffix = String(
+    statusObj.MagicDNSSuffix ??
+      obj(statusObj.CurrentTailnet).MagicDNSSuffix ??
+      nodeHost.slice(nodeHost.indexOf(".") + 1),
+  ).replace(/\.$/, "").toLowerCase();
+  const webProxies: (WebProxy & { localapi: boolean })[] = serveWebProxies(
+    facts.serve,
+  ).map((p) => {
+    const path = p.target.slice(5);
+    const want = p.service
+      ? `${p.service.replace(/^svc:/, "")}.${suffix}`
+      : nodeHost;
+    return {
+      ...p,
+      current: nodeHost !== "" && p.host.toLowerCase() === want,
+      resolved: facts.resolved[path] || path,
+      localapi: isLocalapiSocket(path, facts),
+    };
+  });
+  const localapiProxies: WebProxy[] = webProxies.filter((p) => p.localapi)
+    .map(({ localapi: _, ...p }) => p);
   const missingBulletins = version
     ? BULLETINS.filter((b) => compareVersions(version, b.fixed) < 0)
     : [];
@@ -1118,10 +1244,24 @@ export function analyze(
         } forwards to ${f.target}; tailscaled dials it as root, so any peer the ACLs let reach the port has read/write localapi access (node takeover).`,
       });
     }
+    for (const p of localapiProxies) {
+      exposures.push({
+        id: "serve-localapi-proxy",
+        findings: ["7"],
+        severity: "critical",
+        title: "serve proxies HTTP to the tailscaled localapi socket",
+        detail: `Port ${p.port}${p.mount}${
+          p.service ? ` (${p.service})` : ""
+        } proxies to ${p.target}; tailscaled dials it as root, so any peer the ACLs let reach the port can send localapi requests.`,
+      });
+    }
     const otherUnix = tcpForwards.filter((f) =>
       f.target.startsWith("unix:") && !f.localapi
     );
-    if (otherUnix.length > 0 || unixProxies.length > 0) {
+    const otherProxies = [
+      ...new Set(webProxies.filter((p) => !p.localapi).map((p) => p.target)),
+    ];
+    if (otherUnix.length > 0 || otherProxies.length > 0) {
       exposures.push({
         id: "serve-unix-forward",
         findings: ["8"],
@@ -1130,7 +1270,7 @@ export function analyze(
         detail: `Unix targets: ${
           [
             ...otherUnix.map((f) => `${f.target} (tcp ${f.port})`),
-            ...unixProxies,
+            ...otherProxies,
           ]
             .join(", ")
         }. The target is checked once at config time; swapping it for a symlink later makes tailscaled dial any root-only socket.`,
@@ -1287,18 +1427,24 @@ export function analyze(
   // Only the forward chain applies when the cgroup rule cannot.
   const cgroupRuleApplies = facts.nftSocket !== "absent" &&
     ownServiceUnit(facts.cgroup);
+  // A failed reload after a restart leaves the old rules listed: they count
+  // only while every one is bound to the cgroup tailscaled has now.
+  const current = facts.cgroup?.replace(/^\//, "");
+  const boundNow = !!current && facts.nftCgroups.length > 0 &&
+    facts.nftCgroups.every((c) => c === current);
   const loaded = facts.nftCount !== null &&
-    (facts.nftCount > 0 || (facts.nftTable && !cgroupRuleApplies));
+    (cgroupRuleApplies
+      ? facts.nftCount > 0 && boundNow
+      : facts.nftCount > 0 || facts.nftTable);
   // The drop-in is expected only where mitigate writes one: tailscaled in its
   // own system unit, with systemd.
   const dropInApplies = ownServiceUnit(facts.cgroup) &&
     !!facts.tools["systemctl"];
-  const egressRule = runAsRoot && facts.nftCount !== null
+  // Read as root, or by mitigate through sudo; unknown otherwise.
+  const egressRule = facts.nftCount !== null
     ? loaded && (facts.nftDropIn || !dropInApplies)
     : null;
-  const auditRules = runAsRoot && facts.auditCount !== null
-    ? facts.auditCount > 0
-    : null;
+  const auditRules = facts.auditCount !== null ? facts.auditCount > 0 : null;
 
   const status: Status = {
     scanTimestamp: new Date().toISOString(),
@@ -1336,6 +1482,7 @@ export function analyze(
       keyExpiryDisabled,
       tcpForwards,
       unixProxies,
+      localapiProxies,
       missingBulletins: missingBulletins.map((b) => b.id),
       sshPolicy,
     },
@@ -1420,6 +1567,11 @@ function buildRecommendations(s: Status): string[] {
       "Remove serve forwards to tailscaled.sock now: tailscale serve --tcp=<port> off (mitigate does this).",
     );
   }
+  if (has("serve-localapi-proxy")) {
+    recs.push(
+      "Remove serve proxies to tailscaled.sock now: tailscale serve --https=<port> --set-path=<mount> off (mitigate does this).",
+    );
+  }
   const p = s.tailscale.sshPolicy;
   if (has("ssh-forwarding") && p.readable && p.rootAllowed) {
     recs.push(
@@ -1477,8 +1629,11 @@ function buildRecommendations(s: Status): string[] {
     );
   }
   if (has("headscale-dos")) {
+    // Once the unit is capped, only the exposure advice is left to do.
     recs.push(
-      "headscale: set MemoryMax and Restart=always (mitigate does this), put a rate-limiting reverse proxy in front of the registration endpoints, and keep it reachable only from an admin network or VPN.",
+      s.headscale.unitLoaded && headscaleCapped(s.headscale)
+        ? "headscale: put a rate-limiting reverse proxy in front of the registration endpoints, and keep it reachable only from an admin network or VPN."
+        : "headscale: set MemoryMax and Restart=always (mitigate does this), put a rate-limiting reverse proxy in front of the registration endpoints, and keep it reachable only from an admin network or VPN.",
     );
   }
   const exposedToPivots = has("ssh-forwarding") || has("app-connector");
@@ -1726,7 +1881,12 @@ export function resolveScript(paths: string[]): string {
 export async function scanTarget(
   run: Runner,
   target: string,
-  opts: { inContainer: boolean; fixedVersion?: string },
+  opts: {
+    inContainer: boolean;
+    fixedVersion?: string;
+    /** Read existing defenses through sudo when it allows (mitigate only). */
+    sudoDefenses?: boolean;
+  },
 ): Promise<{ status: Status; facts: ProbeFacts }> {
   const r = await run(PROBE_SCRIPT);
   if (!r.stdout.includes("HOSTNAME|")) {
@@ -1758,7 +1918,74 @@ export async function scanTarget(
       }
     }
   }
+  if (
+    opts.sudoDefenses && facts.uid !== 0 && facts.tools["sudo"] &&
+    facts.kernel === "Linux"
+  ) {
+    await readDefensesWithSudo(run, facts);
+  }
   return { status: analyze(facts, target, opts), facts };
+}
+
+/** The read-only commands that show the defenses mitigate installs. */
+export function defenseReads(tools: Record<string, string>): MitigationStep[] {
+  const reads: MitigationStep[] = [];
+  if (tools["nft"]) {
+    reads.push({
+      phase: "egress",
+      argv: ["nft", "list", "table", "inet", "tailworm"],
+      privileged: true,
+      purpose: "Read mitigate's nftables table",
+    });
+  }
+  if (tools["auditctl"]) {
+    reads.push({
+      phase: "audit",
+      argv: ["auditctl", "-l"],
+      privileged: true,
+      purpose: "Read the loaded audit rules",
+    });
+  }
+  return reads;
+}
+
+/**
+ * Runs the allowed reads through non-interactive sudo and prints the root
+ * probe's tags for them. Only a table that does not exist reads as NFT|0; any
+ * other failure prints nothing, so the defense stays unknown.
+ */
+export function defensesScript(
+  reads: MitigationStep[],
+  tools: Record<string, string>,
+): string {
+  return reads.map((r) => {
+    const cmd = renderStep(r, tools, false);
+    return r.argv[0] === "nft"
+      ? `if t=$(${cmd} 2>&1); then echo "NFTTABLE|1"; ${NFT_TAGS_SH}; elif printf '%s\\n' "$t" | grep -qx 'Error: No such file or directory'; then echo "NFT|0"; fi`
+      : `if a=$(${cmd}); then ${AUDIT_TAGS_SH}; fi`;
+  }).join("\n");
+}
+
+/**
+ * Fills in the nftables and audit facts a non-root probe cannot read, using
+ * only the reads sudo allows without a password. These are not mitigation
+ * steps: a host that refuses them keeps the facts unknown, as before.
+ */
+async function readDefensesWithSudo(run: Runner, facts: ProbeFacts) {
+  const reads = defenseReads(facts.tools);
+  if (reads.length === 0) return;
+  const pf = await run(preflightScript(reads, facts.tools));
+  const ok = allowedSteps(reads, facts.tools, pf.stdout);
+  const allowed = reads.filter((_, i) => ok.has(i));
+  if (allowed.length === 0) return;
+  const r = await run(defensesScript(allowed, facts.tools));
+  const read = parseProbe(r.stdout);
+  if (read.nftCount !== null) {
+    facts.nftCount = read.nftCount;
+    facts.nftTable = read.nftTable;
+    facts.nftCgroups = read.nftCgroups;
+  }
+  if (read.auditCount !== null) facts.auditCount = read.auditCount;
 }
 
 async function writeScanLog(log: FileWriter, status: Status) {
@@ -1782,6 +2009,13 @@ async function writeScanLog(log: FileWriter, status: Status) {
         `  serve tcp ${f.port} -> ${f.target}${
           f.localapi ? " (LOCALAPI)" : ""
         }\n`,
+      );
+    }
+    for (const p of ts.localapiProxies) {
+      await log.writeLine(
+        `  serve ${
+          p.scheme ?? "web"
+        } ${p.port}${p.mount} -> ${p.target} (LOCALAPI)\n`,
       );
     }
   }
@@ -1848,6 +2082,7 @@ function errorStatus(
       keyExpiryDisabled: false,
       tcpForwards: [],
       unixProxies: [],
+      localapiProxies: [],
       missingBulletins: [],
       sshPolicy: summarizeSshPolicy(undefined),
     },
@@ -2067,6 +2302,14 @@ export function auditRules(exe: string, arch: string): string | null {
   ].join("\n") + "\n";
 }
 
+/** headscale's unit has a memory limit and restarts on failure. */
+export function headscaleCapped(
+  hs: { memoryMax: string | null; restart: string | null },
+): boolean {
+  return !!hs.memoryMax && hs.memoryMax !== "infinity" &&
+    hs.restart === "always";
+}
+
 export function headscaleDropIn(memoryMax: string): string {
   return [
     "# Written by @swamp/cve/tailworm (tailworm.com finding 6).",
@@ -2078,6 +2321,8 @@ export function headscaleDropIn(memoryMax: string): string {
 }
 
 const SERVICE_NAME = /^svc:[a-z0-9][a-z0-9-]*$/;
+/** A clean serve mount: tailscale serve refuses ".." and "//" anyway. */
+const MOUNT = /^(?=\/)(\/(?!\.\.?(\/|$))[A-Za-z0-9._~-]+)*\/?$/;
 
 /** Plans the mitigation commands for one scanned host, without running them. */
 export function planMitigation(
@@ -2123,6 +2368,41 @@ export function planMitigation(
         argv,
         privileged: true,
         purpose: `Remove the serve forward from tcp ${f.port} to ${f.target}`,
+      });
+    }
+    // One handler each: --set-path picks the mount, so other handlers on the
+    // port stay. Without it, off would remove every handler on the port.
+    for (const p of ts.localapiProxies) {
+      const where = `${p.scheme ?? "port"} ${p.port}${p.mount}${
+        p.service ? ` (${p.service})` : ""
+      }`;
+      if (p.foreground) {
+        notes.push(
+          `${where} proxies to ${p.target} from a foreground tailscale serve session: stop that process.`,
+        );
+        continue;
+      }
+      if (
+        !p.current || !p.scheme || !MOUNT.test(p.mount) ||
+        (p.service !== null && !SERVICE_NAME.test(p.service))
+      ) {
+        notes.push(
+          `${where} proxies to ${p.target}${
+            p.current
+              ? ""
+              : ` under ${p.host}, not this node's current name, so tailscale serve off would act on another handler`
+          }: remove that handler by hand.`,
+        );
+        continue;
+      }
+      const argv = ["tailscale", "serve"];
+      if (p.service) argv.push(`--service=${p.service}`);
+      argv.push(`--${p.scheme}=${p.port}`, `--set-path=${p.mount}`, "off");
+      steps.push({
+        phase: "serve",
+        argv,
+        privileged: true,
+        purpose: `Remove the serve proxy from ${where} to ${p.target}`,
       });
     }
   }
@@ -2298,8 +2578,7 @@ export function planMitigation(
 
   if (opts.hardenHeadscale && status.headscale.unitLoaded) {
     const hs = status.headscale;
-    const needed = !hs.memoryMax || hs.memoryMax === "infinity" ||
-      hs.restart !== "always";
+    const needed = !headscaleCapped(hs);
     if (status.inContainer) {
       notes.push(
         "Container target: set memory limits and restarts on the container instead.",
@@ -2567,6 +2846,7 @@ export async function mitigateTarget(
   const scanOpts = {
     inContainer: opts.inContainer,
     fixedVersion: opts.fixedVersion,
+    sudoDefenses: true,
   };
   const first = await scanTarget(run, target, scanOpts);
   await writeScanLog(log, first.status);

@@ -370,3 +370,28 @@ Deno.test("suggested commands keep each host's user@host", async () => {
   // Rows still show the bare host.
   assertStringIncludes(out.markdown, "| 192.0.2.10 | 1.104.2 |");
 });
+
+Deno.test("the localapi column counts web proxies, and older statuses without them", async () => {
+  const proxied = status("10.0.0.3", {
+    serve: {
+      TCP: { "443": { HTTPS: true } },
+      Web: {
+        "node.example.ts.net:443": {
+          Handlers: { "/": { Proxy: "unix:/run/tailscale/tailscaled.sock" } },
+        },
+      },
+    },
+  });
+  // Written by 2026.10.24.1, before localapiProxies existed.
+  const { localapiProxies: _, ...oldTs } = status("10.0.0.4").tailscale;
+  const old = { ...status("10.0.0.4"), tailscale: oldTs };
+  const out = await report.execute(makeContext("scanFleet", [proxied, old]));
+  assertStringIncludes(
+    out.markdown,
+    "| 10.0.0.3 | 1.104.2 | no | yes | no | — | none | CRITICAL |",
+  );
+  assertStringIncludes(
+    out.markdown,
+    "| 10.0.0.4 | 1.104.2 | no | no | no | — | none | LOW |",
+  );
+});

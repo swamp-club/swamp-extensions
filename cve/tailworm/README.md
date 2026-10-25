@@ -50,16 +50,21 @@ nothing else.
 | The SSH rules this node enforces | The `SSHPolicy` of `tailscale debug netmap`: how many devices are admitted, whether root is allowed, and whether forwarding is granted. Only that key is read; peers, keys and packet filters stay on the host. **Needs root or the operator user** | 1–3, 5 |
 | Self-hosted control (headscale) | `ControlURL` is not Tailscale's | 1–3 |
 | Serve forward to the localapi socket | `TCPForward: "unix:…"` in `tailscale serve status --json` (node, Services and foreground), with each path resolved by `readlink -f` | 7 |
-| Other unix serve targets | The same config: TCP forwards and HTTP proxies to `unix:` paths | 8 |
+| Serve HTTP proxy to the localapi socket | A web handler's `Proxy: "unix:…"` in the same config that resolves to `tailscaled.sock`: critical, like the TCP forward | 7 |
+| Other unix serve targets | The same config: TCP forwards and HTTP proxies to other `unix:` paths | 8 |
 | App connector, conn25 | `AppConnector.Advertise` in prefs; conn25 capabilities or environment | 4 |
 | Funnel | `AllowFunnel` in the serve config | 9 |
 | `TS_SERVE_ALLOW_ALL_INTERFACES` | `tailscaled`'s process environment, its systemd unit, and `/etc/default` | 10 |
 | Node key expiry | `KeyExpiry` missing from `Self` while logged in | containment |
 | headscale | Version, `listen_addr` from the config, the unit's `MemoryMax` and `Restart` | 6 |
-| Existing defenses | An nftables rule for `tailscaled`; auditd rules for it (root only) | — |
+| Existing defenses | mitigate's nftables rule for `tailscaled`, counted only while it is bound to `tailscaled`'s current cgroup, and its auditd rules. Read as root, or by mitigate through passwordless sudo (see Privileges) | — |
 
 Only the `TS_` variables above are read from `tailscaled`'s environment, so
-an auth key in it never leaves the host.
+an auth key in it never leaves the host. A process counts as the `tailscaled`
+daemon only when the `Uid:` line of its `/proc/<pid>/status` shows a real and
+effective uid of 0; any user can run a process with that name. Its `--socket`
+and `--tun` arguments name its localapi socket and its tunnel interface
+(`tailscale*` otherwise).
 
 ### How the SSH rules change the grade
 
@@ -165,7 +170,8 @@ changed.
 | Step | Command | When |
 | --- | --- | --- |
 | Remove serve forwards to the localapi socket (finding 7) | `tailscale serve [--service=svc:x] --tcp=<port> off` | A forward points at `tailscaled.sock`. Foreground serve sessions are reported instead, because they belong to a running process |
-| Block the cloud-metadata pivot for forwarded tailnet traffic | `tee /etc/tailworm-egress.nft`, then `nft -f /etc/tailworm-egress.nft`: table `inet tailworm`, forward chain dropping `tailscale*` → `169.254.0.0/16` and `fd00:ec2::254`, except DNS (port 53) | SSH or app-connector exposure, nft installed |
+| Remove serve HTTP proxies to the localapi socket (finding 7) | `tailscale serve [--service=svc:x] --https=<port> --set-path=<mount> off` (`--http` for an HTTP port) | A web handler proxies to `tailscaled.sock`. Only that mount is removed; other handlers on the port stay. `serve off` acts on the node's current DNS name (or the service's name), so a proxy stored under another host name, such as a name from before a rename, is reported instead: removing it there would hit a different handler. Foreground sessions, ports whose config says neither HTTPS nor HTTP, and mounts with characters other than letters, digits and `._~-/` (or a `.` or `..` segment) are reported instead |
+| Block the cloud-metadata pivot for forwarded tailnet traffic | `tee /etc/tailworm-egress.nft`, then `nft -f /etc/tailworm-egress.nft`: table `inet tailworm`, forward chain dropping `tailscale*` (or the `--tun` interface) → `169.254.0.0/16` and `fd00:ec2::254`, except DNS (port 53) | SSH or app-connector exposure, nft installed |
 | Block `tailscaled`'s own TCP to metadata (`ssh -L` dials, userspace conn25) | `tee /etc/tailworm-egress-cgroup.nft`, then `nft -f` it: `socket cgroupv2` rule on `tailscaled`'s service cgroup | As above, when the kernel has `nft_socket` and `tailscaled` runs in its own system unit, `system.slice/tailscaled*.service` (in a shared cgroup the rule would cut other processes off from metadata, and only root can create system units). It loads after the reload drop-in is written, so a kernel that refuses it still keeps the forward chain across restarts |
 | Audit socket operations (findings 1–3) | `tee /etc/audit/rules.d/tailworm.rules`, then `augenrules --load` (or `auditctl -R`) | SSH exposure, auditd installed. Rules are scoped to the `tailscaled` binary; search with `ausearch -k tailworm` |
 | Cap headscale (finding 6) | drop-in `/etc/systemd/system/headscale.service.d/50-tailworm.conf` (`MemoryMax`, `Restart=always`), `systemctl daemon-reload`, `systemctl set-property --runtime headscale.service MemoryMax=…` | `headscale.service` is loaded without a memory limit or with `Restart` not `always` |
@@ -189,7 +195,8 @@ restart (every package upgrade) replaces that cgroup. So mitigate also adds a
 drop-in to `tailscaled`'s unit (`/etc/systemd/system/tailscaled.service.d/50-tailworm.conf`)
 that reloads both nftables files after every start, which also restores them
 after a reboot. `tailscaled` is not restarted, and a failed reload does not
-fail its start. Without systemd, reload both files yourself after restarts and
+fail its start. A rule left bound to the old cgroup by a failed reload no
+longer counts as loaded, so the next mitigate loads it again. Without systemd, reload both files yourself after restarts and
 at boot. Loopback and RFC1918
 destinations are not blocked, because a node's legitimate destinations vary.
 Put your own allowlist or extra blocks in a separate nftables table: `inet
@@ -206,7 +213,8 @@ grants, with forwarding denied and no root targets, is the main control.
 ## Privileges
 
 Scanning needs no root, but without it the SSH rules, socket listeners and
-existing defenses are unknown. mitigate needs root, or passwordless sudo for
+existing defenses are unknown. mitigate reads the defenses through sudo when
+it may: see the read-only entry below. mitigate needs root, or passwordless sudo for
 the exact commands it runs. Each command runs as `LC_ALL=C sudo -n -- <binary>
 …`, with no shell wrapper, so sudoers rules scoped to those binaries match and
 a missing password fails at once.
@@ -237,10 +245,24 @@ ops ALL=(root) NOPASSWD: /usr/bin/tee /etc/tailworm-egress.nft, \
 ```
 
 Some commands depend on the host, so take them from its dry run: `tailscale
-serve --tcp=<port> off` for each forward to the localapi, the headscale steps,
+serve --tcp=<port> off` for each forward to the localapi, `tailscale serve
+--https=<port> --set-path=<mount> off` for each HTTP proxy to it, the headscale steps,
 and the opt-in `tailscale set` steps. sudoers needs `=` escaped inside
 arguments, for example `/usr/bin/tailscale serve --tcp\=8443 off` and
 `/usr/bin/systemctl set-property --runtime headscale.service MemoryMax\=2G`.
+
+Without root, mitigate also asks sudo, the same way, whether it may read the
+defenses it installs, and reads them only if so. These two commands change
+nothing, so keep them apart from the rights above:
+
+```
+ops ALL=(root) NOPASSWD: /usr/sbin/nft list table inet tailworm, \
+  /usr/sbin/auditctl -l
+```
+
+Without them the defenses stay unknown, and mitigate plans the (idempotent)
+egress and audit steps again on every run. They are never reported as
+missing privileges.
 
 ## Inputs
 

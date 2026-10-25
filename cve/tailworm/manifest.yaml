@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/cve/tailworm"
-version: "2026.10.24.1"
+version: "2026.10.25.1"
 license: "AGPL-3.0-or-later"
 description: |
   Finds and mitigates hosts exposed to Tailworm, the security assessment of
