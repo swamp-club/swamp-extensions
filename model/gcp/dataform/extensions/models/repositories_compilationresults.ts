@@ -367,7 +367,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataform Repositories.CompilationResults. Registered at `@swamp/gcp/dataform/repositories-compilationresults`. */
 export const model = {
   type: "@swamp/gcp/dataform/repositories-compilationresults",
-  version: "2026.10.24.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -543,6 +543,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -763,6 +768,92 @@ export const model = {
           dataHandles.push(handle);
         }
         return { dataHandles, result: { count: items.length, nextPageToken } };
+      },
+    },
+    create_long_running: {
+      description: "create long running",
+      arguments: z.object({
+        codeCompilationConfig: z.any().optional(),
+        compilationErrors: z.any().optional(),
+        createTime: z.any().optional(),
+        dataEncryptionState: z.any().optional(),
+        dataformCoreVersion: z.any().optional(),
+        gcsRepositorySnapshotMetadata: z.any().optional(),
+        gitCommitish: z.any().optional(),
+        internalMetadata: z.any().optional(),
+        name: z.any().optional(),
+        privateResourceMetadata: z.any().optional(),
+        releaseConfig: z.any().optional(),
+        resolvedGitCommitSha: z.any().optional(),
+        workspace: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
+        const body: Record<string, unknown> = {};
+        if (args["codeCompilationConfig"] !== undefined) {
+          body["codeCompilationConfig"] = args["codeCompilationConfig"];
+        }
+        if (args["compilationErrors"] !== undefined) {
+          body["compilationErrors"] = args["compilationErrors"];
+        }
+        if (args["createTime"] !== undefined) {
+          body["createTime"] = args["createTime"];
+        }
+        if (args["dataEncryptionState"] !== undefined) {
+          body["dataEncryptionState"] = args["dataEncryptionState"];
+        }
+        if (args["dataformCoreVersion"] !== undefined) {
+          body["dataformCoreVersion"] = args["dataformCoreVersion"];
+        }
+        if (args["gcsRepositorySnapshotMetadata"] !== undefined) {
+          body["gcsRepositorySnapshotMetadata"] =
+            args["gcsRepositorySnapshotMetadata"];
+        }
+        if (args["gitCommitish"] !== undefined) {
+          body["gitCommitish"] = args["gitCommitish"];
+        }
+        if (args["internalMetadata"] !== undefined) {
+          body["internalMetadata"] = args["internalMetadata"];
+        }
+        if (args["name"] !== undefined) body["name"] = args["name"];
+        if (args["privateResourceMetadata"] !== undefined) {
+          body["privateResourceMetadata"] = args["privateResourceMetadata"];
+        }
+        if (args["releaseConfig"] !== undefined) {
+          body["releaseConfig"] = args["releaseConfig"];
+        }
+        if (args["resolvedGitCommitSha"] !== undefined) {
+          body["resolvedGitCommitSha"] = args["resolvedGitCommitSha"];
+        }
+        if (args["workspace"] !== undefined) {
+          body["workspace"] = args["workspace"];
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "dataform.projects.locations.repositories.compilationResults.createLongRunning",
+            "path": "v1/{+parent}/compilationResults:createLongRunning",
+            "httpMethod": "POST",
+            "parameterOrder": ["parent"],
+            "parameters": {
+              "parent": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
       },
     },
     query: {

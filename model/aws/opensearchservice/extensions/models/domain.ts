@@ -199,6 +199,9 @@ const GlobalArgsSchema = z.object({
   EncryptionAtRestOptions: z.object({
     KmsKeyId: z.string().optional(),
     Enabled: z.boolean().optional(),
+    EncryptionMode: z.enum(["DISK", "NATIVE"]).describe(
+      "The type of encryption at rest applied to the domain's data. Valid values are DISK and NATIVE. DISK is the default and uses volume-level encryption. NATIVE uses engine-native, index-level encryption and requires encryption at rest to be enabled and OpenSearch version 3.3 or later. After the mode is set to NATIVE, it can't be changed back to DISK.",
+    ).optional(),
   }).optional(),
   Tags: z.array(TagSchema).describe(
     "An arbitrary set of tags (key-value pairs) for this Domain.",
@@ -253,6 +256,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   UseCase: z.enum(["SEARCH", "VECTOR", "OBSERVABILITY", "MIXED"]).describe(
     "The primary use case of the domain. Determines the default configuration tuned for the workload. For GENERAL engine-mode domains, this value can be changed after creation. For OPTIMIZED engine-mode domains, this value cannot be changed after creation.",
+  ).optional(),
+  AcceptedWarnings: z.array(z.string()).describe(
+    "Warning codes to accept for this domain configuration update. Accepting a warning lets the update proceed past a validation that would otherwise block it. This property applies only to the current update and is not persisted on the domain. You can find warning codes in the ValidationFailures returned by DescribeDomainChangeProgress or DescribeDryRunProgress.",
   ).optional(),
 });
 
@@ -328,6 +334,7 @@ const StateSchema = z.object({
   EncryptionAtRestOptions: z.object({
     KmsKeyId: z.string(),
     Enabled: z.boolean(),
+    EncryptionMode: z.string(),
   }).optional(),
   Tags: z.array(TagSchema).optional(),
   ServiceSoftwareOptions: z.object({
@@ -371,6 +378,7 @@ const StateSchema = z.object({
   }).optional(),
   EngineMode: z.string().optional(),
   UseCase: z.string().optional(),
+  AcceptedWarnings: z.array(z.string()).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -447,6 +455,9 @@ const InputsSchema = z.object({
   EncryptionAtRestOptions: z.object({
     KmsKeyId: z.string().optional(),
     Enabled: z.boolean().optional(),
+    EncryptionMode: z.enum(["DISK", "NATIVE"]).describe(
+      "The type of encryption at rest applied to the domain's data. Valid values are DISK and NATIVE. DISK is the default and uses volume-level encryption. NATIVE uses engine-native, index-level encryption and requires encryption at rest to be enabled and OpenSearch version 3.3 or later. After the mode is set to NATIVE, it can't be changed back to DISK.",
+    ).optional(),
   }).optional(),
   Tags: z.array(TagSchema).describe(
     "An arbitrary set of tags (key-value pairs) for this Domain.",
@@ -502,6 +513,9 @@ const InputsSchema = z.object({
   UseCase: z.enum(["SEARCH", "VECTOR", "OBSERVABILITY", "MIXED"]).describe(
     "The primary use case of the domain. Determines the default configuration tuned for the workload. For GENERAL engine-mode domains, this value can be changed after creation. For OPTIMIZED engine-mode domains, this value cannot be changed after creation.",
   ).optional(),
+  AcceptedWarnings: z.array(z.string()).describe(
+    "Warning codes to accept for this domain configuration update. Accepting a warning lets the update proceed past a validation that would otherwise block it. This property applies only to the current update and is not persisted on the domain. You can find warning codes in the ValidationFailures returned by DescribeDomainChangeProgress or DescribeDryRunProgress.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -523,7 +537,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for OpenSearchService Domain. Registered at `@swamp/aws/opensearchservice/domain`. */
 export const model = {
   type: "@swamp/aws/opensearchservice/domain",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -593,6 +607,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description: "Added: AcceptedWarnings",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

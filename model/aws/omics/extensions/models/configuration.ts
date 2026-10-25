@@ -42,6 +42,10 @@ const VpcConfigSchema = z.object({
     .optional(),
   SubnetIds: z.array(z.string().regex(new RegExp("^subnet-[0-9a-f]+$")))
     .optional(),
+  VpcOwnerAccountId: z.string().min(12).max(12).regex(new RegExp("^[0-9]+$"))
+    .describe(
+      "The Amazon Web Services account ID of the cross-account VPC owner for RAM-shared VPC configurations.",
+    ).optional(),
 });
 
 const GlobalArgsSchema = z.object({
@@ -124,7 +128,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Omics Configuration. Registered at `@swamp/aws/omics/configuration`. */
 export const model = {
   type: "@swamp/aws/omics/configuration",
-  version: "2026.10.23.1",
+  version: "2026.10.25.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -183,6 +187,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
