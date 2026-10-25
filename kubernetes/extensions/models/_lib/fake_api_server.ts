@@ -34,7 +34,12 @@ export interface FakeApiServer {
   close(): Promise<void>;
 }
 
-function status(code: number, reason: string, message: string): Response {
+function status(
+  code: number,
+  reason: string,
+  message: string,
+  details?: Record<string, string>,
+): Response {
   return Response.json(
     {
       kind: "Status",
@@ -43,6 +48,7 @@ function status(code: number, reason: string, message: string): Response {
       status: "Failure",
       message,
       reason,
+      ...(details && { details }),
       code,
     },
     { status: code },
@@ -151,7 +157,12 @@ export async function startFakeApiServer(): Promise<FakeApiServer> {
       const key = `${plural}/${ns}/${pathName}`;
       const existing = objects.get(key);
       if (!existing) {
-        return status(404, "NotFound", `${plural} "${pathName}" not found`);
+        // Like the real API server, only a missing object names itself in
+        // details; an unserved group/version 404 carries no details.
+        return status(404, "NotFound", `${plural} "${pathName}" not found`, {
+          name: pathName,
+          kind: plural,
+        });
       }
 
       if (req.method === "GET") {
@@ -183,6 +194,9 @@ export async function startFakeApiServer(): Promise<FakeApiServer> {
       }
 
       if (req.method === "PATCH") {
+        // Only merge patch is emulated. A model that sends JSON Patch or
+        // strategic merge patch needs this extended first; the 415 also
+        // catches a regression to client-node's JSON Patch default.
         if (
           req.headers.get("content-type") !== "application/merge-patch+json"
         ) {

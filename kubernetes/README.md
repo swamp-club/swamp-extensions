@@ -75,8 +75,9 @@ swamp model method run my-externalsecret get --input externalSecretName=worker-c
 swamp model method run my-statefulset restart --input statefulSetName=worker
 ```
 
-`forceSync` sets the `force-sync` annotation to the current time with a merge
-patch and returns at once; it does not wait for the controller. Check
+`forceSync` sets the `force-sync` annotation to the current time plus a random
+suffix, so every call changes it, with a merge patch. It returns at once and
+does not wait for the controller. Check
 `refreshTime` and `ready` from `get` before restarting. `restart` on
 `statefulset` and `deployment` does what `kubectl rollout restart` does: it sets
 `kubectl.kubernetes.io/restartedAt` on the pod template.

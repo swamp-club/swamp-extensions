@@ -106,26 +106,42 @@ function normalizeExternalSecret(raw: RawExternalSecret) {
 }
 
 /**
+ * True when a 404 names the object, as the API server does for a missing
+ * object. A 404 for an unserved group/version carries no details.name.
+ */
+function namesObject(err: unknown): boolean {
+  let body = (err as { body?: unknown }).body;
+  if (typeof body === "string") {
+    try {
+      body = JSON.parse(body);
+    } catch {
+      return false;
+    }
+  }
+  return Boolean((body as { details?: { name?: string } })?.details?.name);
+}
+
+/**
  * Run call against the requested version, or, when none is given, against
- * v1 and then v1beta1 on a 404. The API server answers 404 both for an
- * unserved version and for a missing object, so the two are not told apart:
- * if every version 404s, the v1 error is rethrown.
+ * v1 and then v1beta1 on a 404. If every version 404s, the error that names
+ * the object wins, so a missing object is not reported as an unserved
+ * version; with neither naming it, the v1 error is rethrown.
  */
 async function withVersion<T>(
   pinned: typeof VERSIONS[number] | undefined,
   call: (version: string) => Promise<T>,
 ): Promise<T> {
   if (pinned) return await call(pinned);
-  let firstErr: unknown;
+  const errors: unknown[] = [];
   for (const version of VERSIONS) {
     try {
       return await call(version);
     } catch (err) {
       if (!isNotFound(err)) throw err;
-      firstErr ??= err;
+      errors.push(err);
     }
   }
-  throw firstErr;
+  throw errors.find(namesObject) ?? errors[0];
 }
 
 // --- Model ---
@@ -224,7 +240,7 @@ export const model = {
 
     forceSync: {
       description:
-        "Ask External Secrets Operator to resync now by setting the force-sync annotation to the current time. Does not wait for the sync; use get to check refreshTime and Ready.",
+        "Ask External Secrets Operator to resync now by setting the force-sync annotation to the current time plus a random suffix. Does not wait for the sync; use get to check refreshTime and Ready.",
       arguments: ForceSyncArgsSchema,
       execute: async (
         args: z.infer<typeof ForceSyncArgsSchema>,
@@ -232,7 +248,11 @@ export const model = {
       ): Promise<{ dataHandles: DataHandle[] }> => {
         const { customApi } = buildClient(context.globalArgs);
         const ns = args.namespace ?? context.globalArgs.namespace;
-        const value = new Date().toISOString();
+        // The suffix keeps two calls in the same millisecond from sending
+        // the same value, which ESO would not see as a change.
+        const value = `${new Date().toISOString()}-${
+          crypto.randomUUID().slice(0, 8)
+        }`;
 
         // A merge patch touches only this annotation, so there is no
         // read-modify-write race with the controller's status updates.

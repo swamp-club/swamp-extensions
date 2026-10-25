@@ -1,4 +1,10 @@
-import { assert, assertEquals, assertRejects } from "jsr:@std/assert@1";
+import {
+  assert,
+  assertEquals,
+  assertMatch,
+  assertNotEquals,
+  assertRejects,
+} from "jsr:@std/assert@1";
 import { createModelTestContext } from "@systeminit/swamp-testing";
 import { model } from "./externalsecret.ts";
 import type { K8sContext } from "./_lib/helpers.ts";
@@ -58,6 +64,11 @@ async function withFake(fn: (fake: FakeApiServer) => Promise<void>) {
     await fake.close();
   }
 }
+
+// An ISO timestamp plus a random suffix, so two calls in one millisecond
+// still change the annotation.
+const FORCE_SYNC_VALUE =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z-[0-9a-f]{8}$/;
 
 // @kubernetes/client-node keeps an HTTP agent connection pool alive
 const opts = { sanitizeResources: false };
@@ -134,7 +145,7 @@ Deno.test({
       assertEquals(sent[0].body, {
         metadata: { annotations: { "force-sync": value } },
       });
-      assert(!Number.isNaN(Date.parse(value)));
+      assertMatch(value, FORCE_SYNC_VALUE);
 
       const stored = fake.objects.get("externalsecrets/default/worker-creds")!;
       assertEquals(stored.metadata.annotations, {
@@ -268,5 +279,50 @@ Deno.test({
       const data = getWrittenResources()[0].data;
       assertEquals(data.annotations, { owner: "team-a" });
       assertEquals(JSON.stringify(data).includes("worker/token"), false);
+    }),
+});
+
+Deno.test({
+  name: "two back-to-back forceSync calls send different values",
+  ...opts,
+  fn: () =>
+    withFake(async (fake) => {
+      seedExternalSecret(fake);
+      const { context } = makeContext(fake, "forceSync");
+      for (let i = 0; i < 2; i++) {
+        await model.methods.forceSync.execute(
+          { externalSecretName: "worker-creds" },
+          context,
+        );
+      }
+
+      const [first, second] = patches(fake).map((p) =>
+        (p.body as { metadata: { annotations: Record<string, string> } })
+          .metadata.annotations["force-sync"]
+      );
+      assertMatch(second, FORCE_SYNC_VALUE);
+      assertNotEquals(first, second);
+    }),
+});
+
+Deno.test({
+  name:
+    "on a v1beta1-only cluster a missing ExternalSecret reports the object, not the unserved v1",
+  ...opts,
+  fn: () =>
+    withFake(async (fake) => {
+      fake.unserved.add("external-secrets.io/v1");
+      const { context } = makeContext(fake, "forceSync");
+      const err = await assertRejects(() =>
+        model.methods.forceSync.execute(
+          { externalSecretName: "nope" },
+          context,
+        )
+      );
+      assertEquals((err as { code?: number }).code, 404);
+      const message = String((err as Error).message);
+      assert(message.includes("nope"));
+      assert(!message.includes("could not find the requested resource"));
+      assertEquals(fake.requests.length, 2);
     }),
 });
