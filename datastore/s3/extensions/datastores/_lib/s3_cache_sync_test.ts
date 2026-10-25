@@ -2590,19 +2590,25 @@ Deno.test("pushChanged writeback: does NOT mark sidecar clean when local is miss
       "writeback must rewrite the remote index with the new entry",
     );
 
-    // Regression pin: the sidecar must remain dirty. `pushFile` writes a
-    // dirty sidecar (via `markDirty()`) before each upload, so the file
-    // does exist — but the writeback branch must NOT flip it to clean
-    // because local is missing `data/@m/remote-only.yaml`. Marking clean
-    // here would let the next pullChanged fast-path past that file.
-    const sidecarText = await Deno.readTextFile(
-      join(cachePath, ".datastore-sync-state.json"),
-    );
-    const sidecar = JSON.parse(sidecarText);
-    assertEquals(
-      sidecar.localDirty,
-      true,
-      "writeback must not flip localDirty to false when local is missing remote-only entries",
+    // Regression pin: the writeback branch must NOT record a clean,
+    // verified sidecar, because local is missing
+    // `data/@m/remote-only.yaml`. Marking clean here would let the next
+    // pullChanged fast-path past that file. A push's own uploads no longer
+    // mark the cache dirty (swamp-club #3860), so this fresh cache, which
+    // had no marks, writes no sidecar at all — which fast-paths nothing.
+    let sidecar: { localDirty?: boolean; remoteIndexETag?: string } | null =
+      null;
+    try {
+      sidecar = JSON.parse(
+        await Deno.readTextFile(join(cachePath, ".datastore-sync-state.json")),
+      );
+    } catch (err) {
+      if (!(err instanceof Deno.errors.NotFound)) throw err;
+    }
+    assert(
+      sidecar === null || sidecar.localDirty === true ||
+        !sidecar.remoteIndexETag,
+      "writeback must not record a clean verified sidecar when local is missing remote-only entries",
     );
 
     // Symmetric positive: a subsequent pullChanged must do real work
@@ -13193,4 +13199,791 @@ Deno.test("swamp-club#3549: a push let in after a failed read commits even when 
     console.debug = debug;
     await Deno.remove(cachePath, { recursive: true });
   }
+});
+
+// -- swamp-club #3860: a push clears only the marks it handled --------------
+//
+// The parallel steps of one run share one sync service, so a sibling's push
+// can finish while this step's marks are newer than its walk. A push takes a
+// snapshot of the marks before it reads anything and clears only snapshot
+// entries nobody re-marked since. A file that vanishes mid-walk is skipped
+// with its mark kept: never a failed push, never a delete of its siblings.
+
+const DIR_3860 = "data/@t/m/id1";
+const A_3860 = `${DIR_3860}/a/1/raw`;
+const B_3860 = `${DIR_3860}/b/1/raw`;
+const TEMP_3860 = ".0b0c6f5e-8a1d-4c39-9f0e-2d7b5c4a1e3f.tmp";
+
+async function withCache3860(
+  fn: (
+    cachePath: string,
+    mock: ReturnType<typeof createMockS3Client>,
+  ) => Promise<void>,
+): Promise<void> {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3860-" });
+  try {
+    const mock = createMockS3Client();
+    seedV2Repo(mock, {}, 1);
+    await fn(cachePath, mock);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+}
+
+function text3860(bytes: Uint8Array | undefined): string | undefined {
+  return bytes ? new TextDecoder().decode(bytes) : undefined;
+}
+
+/** Runs `hook` once, before the first upload of `key`. */
+function beforePut3860(
+  mock: ReturnType<typeof createMockS3Client>,
+  key: string,
+  hook: () => Promise<void>,
+): void {
+  const put = mock.putObject.bind(mock);
+  let fired = false;
+  mock.putObject = async (k, body, signal) => {
+    if (k === key && !fired) {
+      fired = true;
+      await hook();
+    }
+    return await put(k, body, signal);
+  };
+}
+
+Deno.test("isInternalCacheFile: excludes atomic-write temp files at any depth (swamp-club #3860)", () => {
+  assert(isInternalCacheFile(TEMP_3860));
+  assert(isInternalCacheFile(`${DIR_3860}/${TEMP_3860}`));
+  assert(isInternalCacheFile(`ns/${DIR_3860}/a/${TEMP_3860}`));
+  // Only the exact `.<lowercase uuid>.tmp` basename.
+  assert(!isInternalCacheFile(`${DIR_3860}/report.tmp`));
+  assert(!isInternalCacheFile(`${DIR_3860}/.notauuid.tmp`));
+  assert(!isInternalCacheFile(`${DIR_3860}/${TEMP_3860.slice(1)}`));
+  assert(!isInternalCacheFile(`${DIR_3860}/${TEMP_3860.toUpperCase()}`));
+  assert(!isInternalCacheFile(`${DIR_3860}/x${TEMP_3860}`));
+  assert(!isInternalCacheFile(`${DIR_3860}/${TEMP_3860}.yaml`));
+});
+
+Deno.test("swamp-club#3860: a mark made after preparePush survives commitPush", async () => {
+  await withCache3860(async (cachePath, mock) => {
+    const service = new S3CacheSyncService(mock, cachePath);
+    await seedFile(cachePath, A_3860, "a1");
+    await service.markDirty({ relPath: A_3860 });
+    const manifest = await service.preparePush();
+
+    await seedFile(cachePath, B_3860, "b1");
+    await service.markDirty({ relPath: B_3860 });
+    await service.commitPush(manifest);
+
+    const sidecar = await requireSidecar(cachePath);
+    assertEquals(sidecar.dirtyPaths, [B_3860]);
+    assertEquals(sidecar.localDirty, true);
+    assertEquals(text3860(mock.storage.get(B_3860)), undefined);
+
+    await service.pushChanged();
+    assertEquals(text3860(mock.storage.get(B_3860)), "b1");
+    const after = await requireSidecar(cachePath);
+    assertEquals(after.dirtyPaths, []);
+    assertEquals(after.localDirty, false);
+  });
+});
+
+Deno.test("swamp-club#3860: a re-mark of a path the push handled survives commitPush", async () => {
+  await withCache3860(async (cachePath, mock) => {
+    const service = new S3CacheSyncService(mock, cachePath);
+    await seedFile(cachePath, A_3860, "a1");
+    await service.markDirty({ relPath: A_3860 });
+    const manifest = await service.preparePush();
+    assertEquals(text3860(mock.storage.get(A_3860)), "a1");
+
+    await seedFile(cachePath, A_3860, "a2-longer");
+    await service.markDirty({ relPath: A_3860 });
+    await service.commitPush(manifest);
+
+    const sidecar = await requireSidecar(cachePath);
+    assertEquals(sidecar.dirtyPaths, [A_3860]);
+    assertEquals(sidecar.localDirty, true);
+
+    await service.pushChanged();
+    assertEquals(text3860(mock.storage.get(A_3860)), "a2-longer");
+    assertEquals((await requireSidecar(cachePath)).localDirty, false);
+  });
+});
+
+Deno.test("swamp-club#3860: a bulk mark made while a push runs survives its commit", async () => {
+  await withCache3860(async (cachePath, mock) => {
+    const service = new S3CacheSyncService(mock, cachePath);
+    await seedFile(cachePath, A_3860, "a1");
+    await service.markDirty({ relPath: A_3860 });
+    const manifest = await service.preparePush();
+    await service.markDirty();
+    await service.commitPush(manifest);
+
+    const sidecar = await requireSidecar(cachePath);
+    assertEquals(sidecar.bulkInvalidated, true);
+    assertEquals(sidecar.localDirty, true);
+  });
+});
+
+Deno.test("swamp-club#3860: a path mark made while a bulk push runs keeps the bulk flag", async () => {
+  await withCache3860(async (cachePath, mock) => {
+    const service = new S3CacheSyncService(mock, cachePath);
+    await seedFile(cachePath, A_3860, "a1");
+    await service.markDirty();
+    const manifest = await service.preparePush();
+
+    // Not listed while the bulk flag stands, so only the flag carries it.
+    await seedFile(cachePath, B_3860, "b1");
+    await service.markDirty({ relPath: B_3860 });
+    await service.commitPush(manifest);
+
+    const sidecar = await requireSidecar(cachePath);
+    assertEquals(sidecar.bulkInvalidated, true);
+    assertEquals(sidecar.localDirty, true);
+    await service.pushChanged();
+    assertEquals(text3860(mock.storage.get(B_3860)), "b1");
+    const after = await requireSidecar(cachePath);
+    assertEquals(after.bulkInvalidated, false);
+    assertEquals(after.localDirty, false);
+  });
+});
+
+Deno.test("swamp-club#3860: a mark made while pushChanged uploads survives it", async () => {
+  await withCache3860(async (cachePath, mock) => {
+    const service = new S3CacheSyncService(mock, cachePath);
+    await seedFile(cachePath, A_3860, "a1");
+    await service.markDirty({ relPath: A_3860 });
+    beforePut3860(mock, A_3860, async () => {
+      // A re-mark of the path being uploaded, and a new one.
+      await service.markDirty({ relPath: A_3860 });
+      await seedFile(cachePath, B_3860, "b1");
+      await service.markDirty({ relPath: B_3860 });
+    });
+    await service.pushChanged();
+
+    const sidecar = await requireSidecar(cachePath);
+    assertEquals([...(sidecar.dirtyPaths ?? [])].sort(), [A_3860, B_3860]);
+    assertEquals(sidecar.bulkInvalidated, false);
+    assertEquals(sidecar.localDirty, true);
+  });
+});
+
+Deno.test("swamp-club#3860: pushChanged's own uploads do not bulk-mark the cache", async () => {
+  await withCache3860(async (cachePath, mock) => {
+    const service = new S3CacheSyncService(mock, cachePath);
+    await seedFile(cachePath, A_3860, "a1");
+    await service.markDirty({ relPath: A_3860 });
+    let bulkDuringUpload: boolean | undefined;
+    beforePut3860(mock, A_3860, () => {
+      bulkDuringUpload =
+        (service as unknown as { bulkInvalidated: boolean }).bulkInvalidated;
+      return Promise.resolve();
+    });
+    await service.pushChanged();
+    assertEquals(bulkDuringUpload, false);
+    const sidecar = await requireSidecar(cachePath);
+    assertEquals(sidecar.bulkInvalidated, false);
+    assertEquals(sidecar.localDirty, false);
+  });
+});
+
+Deno.test("swamp-club#3860: a failed push keeps its marks and does not turn them into a bulk mark", async () => {
+  for (const phase of ["pushChanged", "preparePush"] as const) {
+    await withCache3860(async (cachePath, mock) => {
+      const service = new S3CacheSyncService(mock, cachePath);
+      await seedFile(cachePath, A_3860, "a1");
+      await service.markDirty({ relPath: A_3860 });
+      const put = mock.putObject.bind(mock);
+      mock.putObject = (key, body, signal) =>
+        key === A_3860 ? Promise.reject(opError(403)) : put(key, body, signal);
+      await assertRejects(() =>
+        phase === "pushChanged" ? service.pushChanged() : service.preparePush()
+      );
+      mock.putObject = put;
+
+      const sidecar = await requireSidecar(cachePath);
+      assertEquals(sidecar.dirtyPaths, [A_3860], phase);
+      assertEquals(sidecar.bulkInvalidated, false, phase);
+      assertEquals(sidecar.localDirty, true, phase);
+
+      await service.pushChanged();
+      assertEquals(text3860(mock.storage.get(A_3860)), "a1", phase);
+    });
+  }
+});
+
+Deno.test("swamp-club#3860: a failed whole-cache push with no marks leaves the cache bulk-dirty", async () => {
+  await withCache3860(async (cachePath, mock) => {
+    await seedFile(cachePath, A_3860, "a1");
+    const service = new S3CacheSyncService(mock, cachePath);
+    const put = mock.putObject.bind(mock);
+    mock.putObject = (key, body, signal) =>
+      key === A_3860 ? Promise.reject(opError(403)) : put(key, body, signal);
+    await assertRejects(() => service.pushChanged());
+    mock.putObject = put;
+
+    const sidecar = await requireSidecar(cachePath);
+    assertEquals(sidecar.bulkInvalidated, true);
+    assertEquals(sidecar.localDirty, true);
+  });
+});
+
+Deno.test({
+  name:
+    "swamp-club#3860: a dangling symlink inside a marked directory is skipped, its siblings are pushed and kept, and the mark clears",
+  // Windows needs a privilege to create a symlink.
+  ignore: Deno.build.os === "windows",
+  fn: async () => {
+    await withCache3860(async (cachePath, mock) => {
+      const service = new S3CacheSyncService(mock, cachePath);
+      await seedFile(cachePath, A_3860, "a1");
+      await seedFile(cachePath, B_3860, "b1");
+      await service.markDirty({ relPath: DIR_3860 });
+      await service.pushChanged();
+      assertEquals(text3860(mock.storage.get(B_3860)), "b1");
+
+      await seedFile(cachePath, B_3860, "b2-longer");
+      await Deno.symlink(
+        join(cachePath, "nowhere"),
+        join(cachePath, DIR_3860, "ghost"),
+        { type: "file" },
+      );
+      await service.markDirty({ relPath: DIR_3860 });
+      mock.deletes.length = 0;
+      await service.pushChanged();
+
+      assertEquals(mock.deletes, [], "no sibling may be deleted");
+      assertEquals(text3860(mock.storage.get(A_3860)), "a1");
+      assertEquals(text3860(mock.storage.get(B_3860)), "b2-longer");
+      assert(
+        !mock.puts.some((p) => p.key.endsWith("/ghost")),
+        "a dangling symlink is never uploaded",
+      );
+      const sidecar = await requireSidecar(cachePath);
+      assertEquals(sidecar.dirtyPaths, [], "the mark clears");
+      assertEquals(sidecar.localDirty, false);
+
+      const puts = mock.puts.length;
+      assertEquals(await service.pushChanged(), 0, "the next push is a no-op");
+      assertEquals(mock.puts.length, puts);
+      assertEquals(mock.deletes, []);
+    });
+  },
+});
+
+Deno.test({
+  name:
+    "swamp-club#3860: a dangling symlink in a whole-cache walk is skipped and the bulk mark clears",
+  ignore: Deno.build.os === "windows",
+  fn: async () => {
+    await withCache3860(async (cachePath, mock) => {
+      const service = new S3CacheSyncService(mock, cachePath);
+      await seedFile(cachePath, A_3860, "a1");
+      await Deno.symlink(
+        join(cachePath, "nowhere"),
+        join(cachePath, DIR_3860, "ghost"),
+        { type: "file" },
+      );
+      await service.markDirty();
+      await service.pushChanged();
+
+      assertEquals(text3860(mock.storage.get(A_3860)), "a1");
+      assert(!mock.puts.some((p) => p.key.endsWith("/ghost")));
+      const sidecar = await requireSidecar(cachePath);
+      assertEquals(sidecar.bulkInvalidated, false);
+      assertEquals(sidecar.localDirty, false);
+    });
+  },
+});
+
+/**
+ * Removes `rel` from the cache the first time the push walk checks it,
+ * after the directory listing named it and before its stat: a file that
+ * really vanishes mid-walk.
+ */
+function vanishAtWalk3860(
+  service: S3CacheSyncService,
+  cachePath: string,
+  rel: string,
+): void {
+  const internals = service as unknown as {
+    fileChanged: (absPath: string, rel: string) => Promise<boolean>;
+  };
+  const original = internals.fileChanged.bind(service);
+  let fired = false;
+  internals.fileChanged = async (absPath, fileRel) => {
+    if (!fired && fileRel === rel) {
+      fired = true;
+      await Deno.remove(join(cachePath, rel));
+    }
+    return await original(absPath, fileRel);
+  };
+}
+
+Deno.test("swamp-club#3860: a file that vanishes during the walk of a marked directory neither fails the push nor deletes its siblings, and keeps the mark", async () => {
+  await withCache3860(async (cachePath, mock) => {
+    const service = new S3CacheSyncService(mock, cachePath);
+    await seedFile(cachePath, A_3860, "a1");
+    await seedFile(cachePath, B_3860, "b1");
+    await service.markDirty({ relPath: DIR_3860 });
+    await service.pushChanged();
+
+    await seedFile(cachePath, A_3860, "a2-longer");
+    await seedFile(cachePath, B_3860, "b2-longer");
+    await service.markDirty({ relPath: DIR_3860 });
+    vanishAtWalk3860(service, cachePath, B_3860);
+    mock.deletes.length = 0;
+    await service.pushChanged();
+
+    assertEquals(mock.deletes, [], "no sibling may be deleted");
+    assertEquals(text3860(mock.storage.get(A_3860)), "a2-longer");
+    assertEquals(text3860(mock.storage.get(B_3860)), "b1");
+    const sidecar = await requireSidecar(cachePath);
+    assertEquals(sidecar.dirtyPaths, [DIR_3860], "the mark stays");
+    assertEquals(sidecar.localDirty, true);
+
+    // The next push sees the file gone and reconciles it.
+    await service.pushChanged();
+    assertEquals(mock.deletes, [B_3860]);
+    const after = await requireSidecar(cachePath);
+    assertEquals(after.dirtyPaths, []);
+    assertEquals(after.localDirty, false);
+  });
+});
+
+Deno.test("swamp-club#3860: a file that vanishes during a whole-cache walk keeps the bulk mark", async () => {
+  await withCache3860(async (cachePath, mock) => {
+    const service = new S3CacheSyncService(mock, cachePath);
+    await seedFile(cachePath, A_3860, "a1");
+    await seedFile(cachePath, B_3860, "b1");
+    await service.markDirty();
+    vanishAtWalk3860(service, cachePath, B_3860);
+    await service.pushChanged();
+
+    assertEquals(text3860(mock.storage.get(A_3860)), "a1");
+    assertEquals(mock.storage.has(B_3860), false);
+    const sidecar = await requireSidecar(cachePath);
+    assertEquals(sidecar.bulkInvalidated, true);
+    assertEquals(sidecar.localDirty, true);
+  });
+});
+
+Deno.test("swamp-club#3860: a file removed between the walk and its upload is skipped and keeps its mark", async () => {
+  for (const phase of ["pushChanged", "preparePush"] as const) {
+    await withCache3860(async (cachePath, mock) => {
+      const service = new S3CacheSyncService(mock, cachePath, {
+        pushConcurrency: 1,
+      });
+      await seedFile(cachePath, A_3860, "a1");
+      await seedFile(cachePath, B_3860, "b1");
+      await service.markDirty({ relPath: DIR_3860 });
+      // Whichever file uploads first removes the other.
+      const put = mock.putObject.bind(mock);
+      let removed: string | undefined;
+      mock.putObject = async (key, body, signal) => {
+        if (!removed && (key === A_3860 || key === B_3860)) {
+          removed = key === A_3860 ? B_3860 : A_3860;
+          await Deno.remove(join(cachePath, removed));
+        }
+        return await put(key, body, signal);
+      };
+      if (phase === "pushChanged") {
+        await service.pushChanged();
+      } else {
+        await service.commitPush(await service.preparePush());
+      }
+      mock.putObject = put;
+
+      assertExists(removed);
+      assertEquals(mock.storage.has(removed), false, phase);
+      const sidecar = await requireSidecar(cachePath);
+      assertEquals(sidecar.dirtyPaths, [DIR_3860], phase);
+      assertEquals(sidecar.localDirty, true, phase);
+    });
+  }
+});
+
+Deno.test("swamp-club#3860: an atomic-write temp file is never uploaded", async () => {
+  for (const scoped of [true, false]) {
+    await withCache3860(async (cachePath, mock) => {
+      const service = new S3CacheSyncService(mock, cachePath);
+      await seedFile(cachePath, A_3860, "a1");
+      await seedFile(cachePath, `${DIR_3860}/a/${TEMP_3860}`, "half");
+      if (scoped) await service.markDirty({ relPath: DIR_3860 });
+      else await service.markDirty();
+      await service.pushChanged();
+
+      assertEquals(text3860(mock.storage.get(A_3860)), "a1");
+      assert(
+        !mock.puts.some((p) => p.key.endsWith(TEMP_3860)),
+        `temp file uploaded (scoped=${scoped})`,
+      );
+      assertEquals((await requireSidecar(cachePath)).localDirty, false);
+    });
+  }
+});
+
+Deno.test({
+  name:
+    "swamp-club#3860: a whole-cache walk that cannot read a directory fails the push instead of truncating",
+  // chmod has no effect on Windows.
+  ignore: Deno.build.os === "windows",
+  fn: async () => {
+    await withCache3860(async (cachePath, mock) => {
+      const service = new S3CacheSyncService(mock, cachePath);
+      await seedFile(cachePath, A_3860, "a1");
+      await seedFile(cachePath, "data/@t/locked/x", "x");
+      const locked = join(cachePath, "data/@t/locked");
+      await service.markDirty();
+      await Deno.chmod(locked, 0o000);
+      try {
+        await assertRejects(() => service.pushChanged());
+      } finally {
+        await Deno.chmod(locked, 0o755);
+      }
+      const sidecar = await requireSidecar(cachePath);
+      assertEquals(sidecar.bulkInvalidated, true);
+      assertEquals(sidecar.localDirty, true);
+    });
+  },
+});
+
+Deno.test("swamp-club#3860: a whole-cache push of a cache directory that does not exist is a no-op", async () => {
+  const parent = await Deno.makeTempDir({ prefix: "s3sync-3860-missing-" });
+  try {
+    const mock = createMockS3Client();
+    seedV2Repo(mock, {}, 1);
+    const service = new S3CacheSyncService(mock, join(parent, "absent"));
+    assertEquals(await service.pushChanged(), 0);
+  } finally {
+    await Deno.remove(parent, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3860: a mark made while a monolithic-index pull records its ETag survives the pull", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3860-pull-" });
+  try {
+    const mock = createMockS3Client();
+    mock.etagOverrides.set(".datastore-index.json", '"pull3860"');
+    mock.storage.set(".datastore-index.json", encodeIndex({}));
+    const service = new S3CacheSyncService(mock, cachePath);
+    // The window between the pull's verdict and its sidecar write.
+    const internals = service as unknown as {
+      localIndexMtimeMs: () => Promise<number | null>;
+    };
+    const original = internals.localIndexMtimeMs.bind(service);
+    internals.localIndexMtimeMs = async () => {
+      await seedFile(cachePath, A_3860, "a1");
+      await service.markDirty({ relPath: A_3860 });
+      return await original();
+    };
+    await service.pullChanged();
+
+    const sidecar = await requireSidecar(cachePath);
+    assertEquals(sidecar.remoteIndexETag, "pull3860");
+    assertEquals(sidecar.dirtyPaths, [A_3860]);
+    assertEquals(sidecar.localDirty, true);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3860: a push that migrates root data first leaves its marks dirty", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-3860-migr-" });
+  try {
+    const mock = createMockS3Client();
+    const entry = {
+      key: "data/@my-model/payload.yaml",
+      size: 7,
+      lastModified: new Date().toISOString(),
+    };
+    mock.storage.set(
+      "my-ns/.datastore-index.json",
+      encodeIndex({ [entry.key]: entry }),
+    );
+    mock.storage.set(entry.key, new TextEncoder().encode("my data"));
+    mock.storage.set(
+      ".datastore-index.json",
+      encodeIndex({ [entry.key]: entry }),
+    );
+    const rel = "my-ns/data/@my-model/fresh.yaml";
+    await seedFile(cachePath, rel, "fresh");
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.markDirty({ relPath: rel });
+
+    const migrated = await service.pushChanged({ namespace: "my-ns" });
+    assert((migrated ?? 0) > 0, "the push must migrate the root data");
+    assertEquals(mock.storage.has("my-ns/data/@my-model/fresh.yaml"), false);
+    const sidecar = await requireSidecar(cachePath);
+    assertEquals(sidecar.localDirty, true);
+    assertEquals(sidecar.dirtyPaths, [rel]);
+
+    await service.pushChanged({ namespace: "my-ns" });
+    assertEquals(
+      text3860(mock.storage.get("my-ns/data/@my-model/fresh.yaml")),
+      "fresh",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#3860: the sidecar still lists dirty paths as strings, once each", async () => {
+  await withCache3860(async (cachePath, mock) => {
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.markDirty({ relPath: A_3860 });
+    await service.markDirty({ relPath: A_3860 });
+    await service.markDirty({ relPath: B_3860 });
+    const raw = JSON.parse(
+      await Deno.readTextFile(join(cachePath, ".datastore-sync-state.json")),
+    );
+    assertEquals(raw.version, 2);
+    assertEquals(raw.dirtyPaths, [A_3860, B_3860]);
+
+    // A fresh process (or the released version) reads the same file, and
+    // a push clears the loaded marks.
+    const fresh = new S3CacheSyncService(mock, cachePath);
+    await seedFile(cachePath, A_3860, "a1");
+    await seedFile(cachePath, B_3860, "b1");
+    await fresh.pushChanged();
+    const after = await requireSidecar(cachePath);
+    assertEquals(after.dirtyPaths, []);
+    assertEquals(after.localDirty, false);
+    assertEquals(text3860(mock.storage.get(B_3860)), "b1");
+  });
+});
+
+// -- swamp-club #3860: the persisted sidecar keeps every live mark ----------
+
+/** Runs `hook` once, when a commit site checks the cache is complete. */
+function beforeCompletenessCheck3860(
+  service: S3CacheSyncService,
+  hook: () => Promise<void>,
+): void {
+  const internals = service as unknown as {
+    localHasAllRemoteEntries: () => Promise<boolean>;
+  };
+  const original = internals.localHasAllRemoteEntries.bind(service);
+  let fired = false;
+  internals.localHasAllRemoteEntries = async () => {
+    if (!fired) {
+      fired = true;
+      await hook();
+    }
+    return await original();
+  };
+}
+
+Deno.test("swamp-club#3860: a mark made while a commit checks the cache is complete survives in the persisted sidecar", async () => {
+  for (const phase of ["pushChanged", "commitPush"] as const) {
+    await withCache3860(async (cachePath, mock) => {
+      const service = new S3CacheSyncService(mock, cachePath);
+      await seedFile(cachePath, A_3860, "a1");
+      // A bulk mark walks the whole cache, so the commit checks it is
+      // complete before it decides whether to arm commitSeq.
+      await service.markDirty();
+      beforeCompletenessCheck3860(service, async () => {
+        await seedFile(cachePath, B_3860, "b1");
+        await service.markDirty({ relPath: B_3860 });
+      });
+      if (phase === "pushChanged") {
+        await service.pushChanged();
+      } else {
+        await service.commitPush(await service.preparePush());
+      }
+      assertEquals(text3860(mock.storage.get(A_3860)), "a1", phase);
+
+      // The new mark arrived under the push's bulk mark, which therefore
+      // stays set and carries it.
+      const sidecar = await requireSidecar(cachePath);
+      assertEquals(sidecar.bulkInvalidated, true, phase);
+      assertEquals(sidecar.localDirty, true, phase);
+
+      // A fresh process reads only the persisted sidecar.
+      await new S3CacheSyncService(mock, cachePath).pushChanged();
+      assertEquals(text3860(mock.storage.get(B_3860)), "b1", phase);
+    });
+  }
+});
+
+Deno.test("swamp-club#3860: overlapping sidecar writes land in order, with the newest marks", async () => {
+  await withCache3860(async (cachePath, mock) => {
+    const service = new S3CacheSyncService(mock, cachePath);
+    await service.markDirty({ relPath: A_3860 });
+    const internals = service as unknown as {
+      syncStateWrites: Promise<void>;
+      syncState: unknown;
+      writeSyncState: (state: unknown) => Promise<void>;
+      buildV2State: (o?: { localDirty?: boolean }) => unknown;
+    };
+    // Hold the write queue, so both writes below are pending together.
+    let release!: () => void;
+    internals.syncStateWrites = new Promise<void>((r) => release = r);
+    // A clean view built before the mark below, as a push's commit is.
+    const stale = internals.writeSyncState(
+      internals.buildV2State({ localDirty: false }),
+    );
+    const mark = service.markDirty({ relPath: B_3860 });
+    release();
+    await Promise.all([stale, mark]);
+
+    const raw = JSON.parse(
+      await Deno.readTextFile(join(cachePath, ".datastore-sync-state.json")),
+    );
+    assertEquals(raw.dirtyPaths, [A_3860, B_3860]);
+    assertEquals(raw.localDirty, true);
+    assertEquals(JSON.parse(JSON.stringify(internals.syncState)), raw);
+  });
+});
+
+Deno.test("swamp-club#3860: a push never uploads a path outside the cache", async () => {
+  await withCache3860(async (cachePath, mock) => {
+    const outside = await Deno.makeTempFile({ prefix: "sync-3860-out-" });
+    try {
+      const service = new S3CacheSyncService(mock, cachePath);
+      const internals = service as unknown as {
+        uploadWalkedFile: (rel: string, localPath: string) => Promise<unknown>;
+      };
+      await assertRejects(
+        () => internals.uploadWalkedFile("data/x", outside),
+        Error,
+        "Path traversal detected",
+      );
+      assertEquals(mock.puts.length, 0);
+    } finally {
+      await Deno.remove(outside);
+    }
+  });
+});
+
+Deno.test("swamp-club#3860: a sidecar dirty path that escapes the cache is dropped on load", async () => {
+  await withCache3860(async (cachePath, mock) => {
+    await Deno.writeTextFile(
+      join(cachePath, ".datastore-sync-state.json"),
+      JSON.stringify({
+        version: 2,
+        remoteIndexETag: "",
+        remoteIndexGeneration: "",
+        lastVerifiedAt: new Date().toISOString(),
+        localDirty: true,
+        dirtyPaths: ["../outside", A_3860, "data/../../escape", 7],
+        bulkInvalidated: false,
+        lazyPullActive: false,
+      }),
+    );
+    const service = new S3CacheSyncService(mock, cachePath);
+    const internals = service as unknown as {
+      loadSyncState: () => Promise<unknown>;
+      dirtyPaths: Map<string, number>;
+    };
+    await internals.loadSyncState();
+    assertEquals([...internals.dirtyPaths.keys()], [A_3860]);
+  });
+});
+
+// -- swamp-club #3860: a directory removed mid-walk is skipped --------------
+
+const DIR_A_3860 = `${DIR_3860}/a`;
+const DIR_B_3860 = `${DIR_3860}/b`;
+
+/**
+ * The first time the push walk checks a file under one of `dirs`, removes
+ * the other one, which the walk has listed but not yet read: a directory a
+ * peer step's GC prunes while this push walks. Returns the removed one.
+ */
+function vanishDirAtWalk3860(
+  service: S3CacheSyncService,
+  cachePath: string,
+  dirs: [string, string],
+): { removed?: string } {
+  const internals = service as unknown as {
+    fileChanged: (absPath: string, rel: string) => Promise<boolean>;
+  };
+  const original = internals.fileChanged.bind(service);
+  const state: { removed?: string } = {};
+  internals.fileChanged = async (absPath, fileRel) => {
+    if (state.removed === undefined) {
+      const other = fileRel.startsWith(`${dirs[0]}/`) ? dirs[1] : dirs[0];
+      state.removed = other;
+      await Deno.remove(join(cachePath, other), { recursive: true });
+    }
+    return await original(absPath, fileRel);
+  };
+  return state;
+}
+
+Deno.test("swamp-club#3860: a directory removed during a whole-cache walk is skipped, and the cache stays bulk-dirty", async () => {
+  await withCache3860(async (cachePath, mock) => {
+    const service = new S3CacheSyncService(mock, cachePath);
+    await seedFile(cachePath, A_3860, "a1");
+    await seedFile(cachePath, B_3860, "b1");
+    await service.markDirty();
+    await service.pushChanged();
+
+    await seedFile(cachePath, A_3860, "a2-longer");
+    await seedFile(cachePath, B_3860, "b2-longer");
+    await service.markDirty();
+    const vanished = vanishDirAtWalk3860(service, cachePath, [
+      DIR_A_3860,
+      DIR_B_3860,
+    ]);
+    mock.deletes.length = 0;
+    await service.pushChanged();
+
+    assertExists(vanished.removed);
+    const kept = vanished.removed === DIR_A_3860 ? B_3860 : A_3860;
+    const gone = vanished.removed === DIR_A_3860 ? A_3860 : B_3860;
+    assertEquals(
+      text3860(mock.storage.get(kept)),
+      kept === A_3860 ? "a2-longer" : "b2-longer",
+    );
+    assertEquals(mock.deletes, [], "nothing is deleted remotely");
+    assertEquals(
+      text3860(mock.storage.get(gone)),
+      gone === A_3860 ? "a1" : "b1",
+    );
+    const sidecar = await requireSidecar(cachePath);
+    assertEquals(sidecar.bulkInvalidated, true);
+    assertEquals(sidecar.localDirty, true);
+
+    // The next push still walks: a change written without a mark is sent.
+    await Deno.writeTextFile(join(cachePath, kept), "third-version");
+    await service.pushChanged();
+    assertEquals(text3860(mock.storage.get(kept)), "third-version");
+  });
+});
+
+Deno.test("swamp-club#3860: a directory removed during the walk of a marked directory keeps the mark and deletes nothing", async () => {
+  await withCache3860(async (cachePath, mock) => {
+    const service = new S3CacheSyncService(mock, cachePath);
+    await seedFile(cachePath, A_3860, "a1");
+    await seedFile(cachePath, B_3860, "b1");
+    await service.markDirty({ relPath: DIR_3860 });
+    await service.pushChanged();
+
+    await seedFile(cachePath, A_3860, "a2-longer");
+    await seedFile(cachePath, B_3860, "b2-longer");
+    await service.markDirty({ relPath: DIR_3860 });
+    const vanished = vanishDirAtWalk3860(service, cachePath, [
+      DIR_A_3860,
+      DIR_B_3860,
+    ]);
+    mock.deletes.length = 0;
+    await service.pushChanged();
+
+    assertExists(vanished.removed);
+    const kept = vanished.removed === DIR_A_3860 ? B_3860 : A_3860;
+    assertEquals(
+      text3860(mock.storage.get(kept)),
+      kept === A_3860 ? "a2-longer" : "b2-longer",
+    );
+    assertEquals(
+      mock.deletes,
+      [],
+      "nothing under the marked directory is deleted",
+    );
+    const sidecar = await requireSidecar(cachePath);
+    assertEquals(sidecar.dirtyPaths, [DIR_3860], "the mark stays");
+    assertEquals(sidecar.localDirty, true);
+  });
 });

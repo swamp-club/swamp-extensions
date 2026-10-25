@@ -93,6 +93,10 @@ Deno.test({
           "fetch-content",
           "fetch-content-error",
           "fetch-content-namespace",
+          "mark-between-prepare-and-commit",
+          "remark-between-prepare-and-commit",
+          "bulk-between-prepare-and-commit",
+          "vanish-during-walk",
         ]
       ) {
         assert(result.passed.includes(name), `${name} did not run`);

@@ -8,7 +8,7 @@
     "jsr:@std/path@1": "1.1.6",
     "jsr:@std/path@^1.1.4": "1.1.6",
     "jsr:@std/path@^1.1.5": "1.1.6",
-    "jsr:@swamp-club/swamp-testing@0.20261015.57": "0.20261015.57",
+    "jsr:@swamp-club/swamp-testing@0.20261024.62": "0.20261024.62",
     "jsr:@systeminit/swamp-testing@0.20260331.5": "0.20260331.5",
     "npm:@aws-sdk/client-s3@3.1156.0": "3.1156.0",
     "npm:@marcbachmann/cel-js@7.6.1": "7.6.1",
@@ -39,8 +39,8 @@
         "jsr:@std/internal@^1.0.14"
       ]
     },
-    "@swamp-club/swamp-testing@0.20261015.57": {
-      "integrity": "72059b4ecbcbc6677a946d8cf0aed6012a0398ef7c92d5b6ba0785d6f156b60e",
+    "@swamp-club/swamp-testing@0.20261024.62": {
+      "integrity": "4455c499cefa2ded774bc3f29448efa86ca1272ed5ceefb59689f2c8e04c84e9",
       "dependencies": [
         "jsr:@std/assert",
         "jsr:@std/path@^1.1.4",
@@ -322,7 +322,7 @@
     "dependencies": [
       "jsr:@std/fs@1",
       "jsr:@std/path@1",
-      "jsr:@swamp-club/swamp-testing@0.20261015.57",
+      "jsr:@swamp-club/swamp-testing@0.20261024.62",
       "jsr:@systeminit/swamp-testing@0.20260331.5",
       "npm:@aws-sdk/client-s3@3.1156.0",
       "npm:@opentelemetry/api@1.9.0",

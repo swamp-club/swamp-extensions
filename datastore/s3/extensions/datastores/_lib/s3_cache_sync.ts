@@ -24,7 +24,7 @@
  */
 
 import { dirname, join, normalize, relative } from "jsr:@std/path@1";
-import { ensureDir, walk } from "jsr:@std/fs@1";
+import { ensureDir } from "jsr:@std/fs@1";
 import { SpanStatusCode, trace } from "npm:@opentelemetry/api@1.9.0";
 import type {
   CatalogExportEntry,
@@ -129,9 +129,15 @@ interface OwnMtimeRecord {
  *   datastore type: filesystem" because setup fails to persist the
  *   datastore config to `.swamp.yaml`.
  *
- * Uses basename matching for the catalog and `.lock` patterns so the
- * filter is robust to any future change in the data tier subdirectory
- * name.
+ * - basename `.<uuid>.tmp` at any depth — the temp file an atomic write
+ *   (swamp core's, and this extension's `atomicWriteTextFile`) creates
+ *   beside its target and renames over it. It exists only for the length
+ *   of one write, so a push that walks it uploads half-written bytes or
+ *   fails when the rename takes it away (swamp-club #3860).
+ *
+ * Uses basename matching for the catalog, `.lock` and temp-file patterns
+ * so the filter is robust to any future change in the data tier
+ * subdirectory name.
  *
  * Exported for unit tests; not part of the public extension API.
  */
@@ -152,8 +158,17 @@ export function isInternalCacheFile(rel: string): boolean {
   if (rel === "_litestream" || rel.startsWith("_litestream/")) return true;
   const base = rel.split("/").pop() ?? "";
   if (base === ".lock" || base === ".namespace.json") return true;
+  if (ATOMIC_WRITE_TEMP_FILE.test(base)) return true;
   return base === "_catalog.db" || base.startsWith("_catalog.db-");
 }
+
+/**
+ * Basename of an atomic write's temp file: `.<uuid>.tmp`. The same pattern
+ * as swamp core's `TEMP_FILE` in
+ * `src/infrastructure/persistence/fs_datastore_storage.ts`.
+ */
+const ATOMIC_WRITE_TEMP_FILE =
+  /^\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.tmp$/;
 
 /**
  * Returns true for the bucket-relative control-plane keys that belong to
@@ -471,6 +486,47 @@ interface InternalPushManifest {
    * commit must not arm commitSeq from it (swamp-club #3193).
    */
   indexUnread?: boolean;
+  /**
+   * The dirty marks preparePush walked. commitPush clears only these, and
+   * only the ones nobody re-marked since (swamp-club #3860). Absent on a
+   * manifest from an older caller: then commitPush clears nothing.
+   */
+  dirtySnapshot?: DirtySnapshot;
+}
+
+/**
+ * The dirty marks one push walked, taken before the push reads anything.
+ * Each mark carries the generation it had then; a push clears a mark only
+ * when its generation is unchanged, so a mark made — or made again — while
+ * the push ran survives it (swamp-club #3860).
+ */
+interface DirtySnapshot {
+  /** Each dirty path's generation when the push began. */
+  paths: Map<string, number>;
+  bulkInvalidated: boolean;
+  bulkGen: number;
+  overflowed: boolean;
+  overflowGen: number;
+  /**
+   * Snapshot paths the push did not finish (a file under one vanished, or
+   * it could not be read): their marks stay for the next push.
+   */
+  unhandled: Set<string>;
+  /**
+   * Set when a whole-cache walk skipped a file that vanished: the bulk and
+   * overflow marks stay, so the next push walks again.
+   */
+  incomplete: boolean;
+}
+
+/**
+ * One file a push walk found to upload. `mark` is the snapshot dirty path
+ * the file was found under, or null for a whole-cache walk.
+ */
+interface PushCandidate {
+  rel: string;
+  path: string;
+  mark: string | null;
 }
 
 /** Push queue entry for files pending upload to S3. */
@@ -683,6 +739,9 @@ export class S3CacheSyncService implements DatastoreSyncService {
   private indexIsPartial = false;
   private syncState: DatastoreSyncState | null = null;
   private syncStateLoaded = false;
+  // Sidecar writes run one at a time through this chain (swamp-club #3860).
+  private syncStateWrites: Promise<void> = Promise.resolve();
+  private syncStateWriteSeq = 0;
   private readonly ownMtimesPath: string;
   private ownMtimes: Map<string, OwnMtimeRecord> | null = null;
   private ownMtimesLoad: Promise<Map<string, OwnMtimeRecord>> | null = null;
@@ -690,9 +749,17 @@ export class S3CacheSyncService implements DatastoreSyncService {
   private ownMtimesSeeding: Promise<void> | null = null;
   private ownMtimesDirty = false;
   private indexMutated = false;
-  private dirtyPaths: Set<string> = new Set();
+  // Each dirty path's generation, bumped on every mark, even of a path
+  // already listed. Generations live in memory only: paths loaded from the
+  // sidecar start at 0 (swamp-club #3860).
+  private dirtyPaths: Map<string, number> = new Map();
+  private markGen = 0;
   private bulkInvalidated = false;
+  // Bumped on every bulk mark and every overflow, including the ones that
+  // find the flag already set.
+  private bulkGen = 0;
   private dirtyPathsOverflowed = false;
+  private overflowGen = 0;
   private lazyPullActive = false;
   private lastCatalogHash: string | null = null;
   private namespace: string | undefined = undefined;
@@ -1658,7 +1725,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
    * path's segments, or the dirty path's segments are a prefix of its.
    */
   private async assembleDirtyShardsOnly(
-    dirtyPaths: ReadonlySet<string>,
+    dirtyPaths: Iterable<string>,
     signal?: AbortSignal,
   ): Promise<
     {
@@ -1809,7 +1876,18 @@ export class S3CacheSyncService implements DatastoreSyncService {
           const v2 = parsed as DatastoreSyncStateV2;
           this.syncState = v2;
           if (Array.isArray(v2.dirtyPaths)) {
-            this.dirtyPaths = new Set(v2.dirtyPaths);
+            // A listed path that escapes the cache is dropped, as markDirty
+            // would refuse it, so a tampered sidecar cannot point a walk
+            // outside the cache.
+            this.dirtyPaths = new Map();
+            for (const p of v2.dirtyPaths) {
+              if (typeof p !== "string") continue;
+              const key = cacheRelativeKey(
+                this.cachePath,
+                normalize(join(this.cachePath, p)),
+              );
+              if (key !== undefined && key !== "") this.dirtyPaths.set(key, 0);
+            }
           }
           this.bulkInvalidated = !!v2.bulkInvalidated;
           this.dirtyPathsOverflowed = !!v2.dirtyPathsOverflowed;
@@ -1825,15 +1903,51 @@ export class S3CacheSyncService implements DatastoreSyncService {
     return this.syncState;
   }
 
-  /** Persist the sidecar atomically. */
-  private async writeSyncState(state: DatastoreSyncState): Promise<void> {
-    this.syncState = state;
+  /**
+   * Persist the sidecar atomically. Writes run one at a time, in call order,
+   * so an older write can never land over a newer one; a failed write does
+   * not stop the ones queued after it. Each write takes its dirty fields
+   * from the live marks when it runs, not from when `state` was built, so a
+   * mark made while a push awaited is never overwritten by the push's
+   * older view (swamp-club #3860). `this.syncState` is updated at once, for
+   * readers in this process, and again to exactly what the latest write
+   * persisted.
+   */
+  private writeSyncState(state: DatastoreSyncState): Promise<void> {
+    const seq = ++this.syncStateWriteSeq;
+    this.syncState = this.withLiveDirtyState(state);
     this.syncStateLoaded = true;
-    await ensureDir(this.cachePath);
-    await atomicWriteTextFile(
-      this.syncStatePath,
-      JSON.stringify(state, null, 2),
-    );
+    const run = this.syncStateWrites.then(async () => {
+      const live = this.withLiveDirtyState(state);
+      if (seq === this.syncStateWriteSeq) this.syncState = live;
+      await ensureDir(this.cachePath);
+      await atomicWriteTextFile(
+        this.syncStatePath,
+        JSON.stringify(live, null, 2),
+      );
+    });
+    this.syncStateWrites = run.catch(() => {});
+    return run;
+  }
+
+  /**
+   * `state` with its dirty fields replaced by the live marks: a sidecar
+   * says dirty while any mark remains, whatever its writer last saw.
+   */
+  private withLiveDirtyState(state: DatastoreSyncState): DatastoreSyncState {
+    if (state.version !== 2) return state;
+    return {
+      ...state,
+      localDirty: state.localDirty || this.hasDirtyMarks(),
+      dirtyPaths: [...this.dirtyPaths.keys()],
+      bulkInvalidated: this.bulkInvalidated,
+      dirtyPathsOverflowed: this.dirtyPathsOverflowed,
+    };
+  }
+
+  private hasDirtyMarks(): boolean {
+    return this.dirtyPaths.size > 0 || this.bulkInvalidated ||
+      this.dirtyPathsOverflowed;
   }
 
   /**
@@ -2016,7 +2130,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
       remoteIndexETag: current?.remoteIndexETag ?? "",
       lastVerifiedAt: current?.lastVerifiedAt ?? "",
       localDirty: overrides?.localDirty ?? current?.localDirty ?? false,
-      dirtyPaths: [...this.dirtyPaths],
+      dirtyPaths: [...this.dirtyPaths.keys()],
       bulkInvalidated: overrides?.bulkInvalidated ?? this.bulkInvalidated,
       lazyPullActive: overrides?.lazyPullActive ?? this.lazyPullActive,
       dirtyPathsOverflowed: this.dirtyPathsOverflowed,
@@ -2038,6 +2152,12 @@ export class S3CacheSyncService implements DatastoreSyncService {
       // fast path and drops the change.
       const alreadyDirty = current?.localDirty === true;
       if (this.bulkInvalidated) {
+        // The path is not listed while the bulk flag stands, so the bulk
+        // mark carries it: a push already walking must not clear the flag
+        // (swamp-club #3860). Under overflow it may be a deletion, which
+        // only the overflow walk reconciles.
+        this.bulkGen++;
+        if (this.dirtyPathsOverflowed) this.overflowGen++;
         if (alreadyDirty) return;
         await this.writeSyncState(
           this.buildV2State({ localDirty: true, bulkInvalidated: true }),
@@ -2054,35 +2174,116 @@ export class S3CacheSyncService implements DatastoreSyncService {
         // Path escapes cache dir — can't scope the walk to it, so
         // fall back to bulk invalidation.
         this.bulkInvalidated = true;
+        this.bulkGen++;
         await this.writeSyncState(
           this.buildV2State({ localDirty: true, bulkInvalidated: true }),
         );
         return;
       }
       if (this.dirtyPaths.has(normalizedRel)) {
+        // A re-mark: a push that walked this path before the new write
+        // must not clear it (swamp-club #3860).
+        this.dirtyPaths.set(normalizedRel, ++this.markGen);
         if (alreadyDirty) return;
         await this.writeSyncState(this.buildV2State({ localDirty: true }));
         return;
       }
       if (this.dirtyPaths.size >= DIRTY_PATHS_CAP) {
         this.bulkInvalidated = true;
+        this.bulkGen++;
         this.dirtyPathsOverflowed = true;
+        this.overflowGen++;
         await this.writeSyncState(
           this.buildV2State({ localDirty: true, bulkInvalidated: true }),
         );
         return;
       }
-      this.dirtyPaths.add(normalizedRel);
+      this.dirtyPaths.set(normalizedRel, ++this.markGen);
       await this.writeSyncState(this.buildV2State({ localDirty: true }));
       return;
     }
 
     // No relPath — bulk invalidation (legacy path or pushFile)
+    this.bulkGen++;
     if (current?.localDirty === true && this.bulkInvalidated) return;
     this.bulkInvalidated = true;
     await this.writeSyncState(
       this.buildV2State({ localDirty: true, bulkInvalidated: true }),
     );
+  }
+
+  /**
+   * The dirty marks as they stand, for a push about to walk them. Taken
+   * before the push reads anything, so every mark made after it is newer
+   * than the walk (swamp-club #3860).
+   */
+  private takeDirtySnapshot(): DirtySnapshot {
+    return {
+      paths: new Map(this.dirtyPaths),
+      bulkInvalidated: this.bulkInvalidated,
+      bulkGen: this.bulkGen,
+      overflowed: this.dirtyPathsOverflowed,
+      overflowGen: this.overflowGen,
+      unhandled: new Set(),
+      incomplete: false,
+    };
+  }
+
+  /** A snapshot for a push that walked nothing: it clears no mark. */
+  private emptyDirtySnapshot(): DirtySnapshot {
+    return {
+      paths: new Map(),
+      bulkInvalidated: false,
+      bulkGen: this.bulkGen,
+      overflowed: false,
+      overflowGen: this.overflowGen,
+      unhandled: new Set(),
+      incomplete: false,
+    };
+  }
+
+  /** True when the snapshot's walk turned every local absence into a delete. */
+  private static snapshotReconcilesDeletions(snap: DirtySnapshot): boolean {
+    if (snap.incomplete || snap.unhandled.size > 0) return false;
+    return snap.overflowed || (!snap.bulkInvalidated && snap.paths.size > 0);
+  }
+
+  /**
+   * Clears the marks a push handled: each snapshot path whose generation is
+   * unchanged and that the push finished, the bulk flag when no bulk mark
+   * came since the snapshot, and the overflow flag likewise. A whole-cache
+   * walk that skipped a vanished file clears nothing. Returns whether
+   * any mark remains, which is what `localDirty` must say (swamp-club
+   * #3860).
+   */
+  private clearHandledMarks(snap: DirtySnapshot): boolean {
+    // An incomplete whole-cache walk handled none of its marks.
+    if (!snap.incomplete) {
+      for (const [path, gen] of snap.paths) {
+        if (snap.unhandled.has(path)) continue;
+        if (this.dirtyPaths.get(path) === gen) this.dirtyPaths.delete(path);
+      }
+      if (snap.bulkInvalidated && this.bulkGen === snap.bulkGen) {
+        this.bulkInvalidated = false;
+      }
+      if (snap.overflowed && this.overflowGen === snap.overflowGen) {
+        this.dirtyPathsOverflowed = false;
+      }
+    }
+    return this.hasDirtyMarks();
+  }
+
+  /**
+   * The local index file's mtime in ms, or null with no local index yet
+   * (e.g. first push against an empty cache).
+   */
+  private async localIndexMtimeMs(): Promise<number | null> {
+    try {
+      const stat = await Deno.stat(this.indexPath);
+      return stat.mtime?.getTime() ?? 0;
+    } catch {
+      return null;
+    }
   }
 
   /**
@@ -2110,33 +2311,34 @@ export class S3CacheSyncService implements DatastoreSyncService {
    */
   private async markSynced(
     remoteIndexETag: string,
-    options?: { keepLocalDirty?: boolean },
+    handled: DirtySnapshot | "pull",
   ): Promise<void> {
     const normalized = normalizeETag(remoteIndexETag);
     if (!normalized || isMultipartETag(remoteIndexETag)) return;
     let baselineMs = Date.now();
-    try {
-      const stat = await Deno.stat(this.indexPath);
-      const mtimeMs = stat.mtime?.getTime() ?? 0;
-      if (mtimeMs >= baselineMs) baselineMs = mtimeMs + 1;
-    } catch {
-      // No local index yet (e.g. first push against an empty cache);
-      // wall-clock baseline is fine.
-    }
+    const mtimeMs = await this.localIndexMtimeMs();
+    if (mtimeMs !== null && mtimeMs >= baselineMs) baselineMs = mtimeMs + 1;
     // A pull records the remote it verified against but keeps a cache
-    // with unpushed changes dirty, so the next push still sends them.
-    const keepLocalDirty = options?.keepLocalDirty === true;
-    if (!keepLocalDirty) {
-      this.dirtyPaths.clear();
-      this.bulkInvalidated = false;
-      this.dirtyPathsOverflowed = false;
+    // with unpushed changes dirty, so the next push still sends them. Read
+    // after the stat above: a mark made while it ran is a change too
+    // (swamp-club #3860). A push clears only the marks it handled.
+    let localDirty: boolean;
+    if (handled === "pull") {
+      localDirty = this.syncState?.localDirty === true;
+      if (!localDirty) {
+        this.dirtyPaths.clear();
+        this.bulkInvalidated = false;
+        this.dirtyPathsOverflowed = false;
+      }
+    } else {
+      localDirty = this.clearHandledMarks(handled);
     }
     await this.writeSyncState({
       version: 2,
       remoteIndexETag: normalized,
       lastVerifiedAt: new Date(baselineMs).toISOString(),
-      localDirty: keepLocalDirty,
-      dirtyPaths: [...this.dirtyPaths],
+      localDirty,
+      dirtyPaths: [...this.dirtyPaths.keys()],
       bulkInvalidated: this.bulkInvalidated,
       lazyPullActive: this.lazyPullActive,
       dirtyPathsOverflowed: this.dirtyPathsOverflowed,
@@ -3079,9 +3281,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
                 }
               }
               if (!scoped) {
-                await this.markSynced(indexETag, {
-                  keepLocalDirty: this.syncState?.localDirty === true,
-                });
+                await this.markSynced(indexETag, "pull");
               }
             } catch {
               // Non-fatal: sidecar update is opportunistic. Disk-full /
@@ -3314,14 +3514,17 @@ export class S3CacheSyncService implements DatastoreSyncService {
             return fastResult;
           }
 
+          // The marks this push walks, taken before it reads anything: it
+          // clears only these, so a mark made while it runs survives it
+          // (swamp-club #3860).
+          const snap = this.takeDirtySnapshot();
           const indexStart = Date.now();
           let indexETag: string | null = null;
           let v2CommitSeq: number | null = null;
           const lastSynced = await this.readLastSyncedEntries();
-          const willScopeWalk = !this.bulkInvalidated &&
-            this.dirtyPaths.size > 0;
+          const willScopeWalk = !snap.bulkInvalidated && snap.paths.size > 0;
           const assembled = willScopeWalk
-            ? await this.assembleDirtyShardsOnly(this.dirtyPaths, signal)
+            ? await this.assembleDirtyShardsOnly(snap.paths.keys(), signal)
             : await this.assembleIndexFromShards(signal);
           let indexFromRemote = assembled !== null;
           if (assembled) {
@@ -3336,7 +3539,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
             tracePhase(
               "pushChanged.shardAssembly",
               indexStart,
-              willScopeWalk ? `scoped=${this.dirtyPaths.size}` : `full`,
+              willScopeWalk ? `scoped=${snap.paths.size}` : `full`,
             );
           } else {
             const report = { fromRemote: false };
@@ -3360,7 +3563,8 @@ export class S3CacheSyncService implements DatastoreSyncService {
               // v2 shard-first index is in place — data is already
               // namespaced, skip root migration (swamp-club #2091).
               try {
-                const sidecar = this.buildV2State({ localDirty: false });
+                // Leaves localDirty as it is: nothing is pushed yet.
+                const sidecar = this.buildV2State();
                 sidecar.dataKeyMigrated = true;
                 await this.writeSyncState(sidecar);
               } catch { /* non-fatal */ }
@@ -3370,7 +3574,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
               );
               const allMigrated = total === 0 || copied === total;
               try {
-                const sidecar = this.buildV2State({ localDirty: false });
+                const sidecar = this.buildV2State();
                 if (allMigrated) sidecar.dataKeyMigrated = true;
                 await this.writeSyncState(sidecar);
               } catch { /* non-fatal */ }
@@ -3382,7 +3586,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
             const { copied, total } = await this
               .migrateRootControlPlaneToNamespace(signal);
             try {
-              const sidecar = this.buildV2State({ localDirty: false });
+              const sidecar = this.buildV2State();
               if (total === 0 || copied === total) {
                 sidecar.controlPlaneKeysMigrated = true;
               }
@@ -3404,169 +3608,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
           if (assembled === null && indexFromRemote) await this.saveIndex();
 
           const walkStart = Date.now();
-          const nsPrefix = this.namespace ? `${this.namespace}/` : "";
-          const toPush: Array<{ rel: string; path: string }> = [];
-          const toDelete: string[] = [];
-          const useScopedWalk = !this.bulkInvalidated &&
-            this.dirtyPaths.size > 0;
-          // Doubled-path strays (swamp-club#2404) are never pushed; the ones
-          // the index can vouch for are removed from disk.
-          let straysRemoved = 0;
-          let straysKept = 0;
-          const skipStray = async (bareRel: string, absPath: string) => {
-            if (!isStrayNamespacePath(bareRel, this.namespace)) return false;
-            if (await this.removeVerifiedStray(absPath, bareRel)) {
-              straysRemoved++;
-            } else {
-              straysKept++;
-            }
-            return true;
-          };
-
-          if (useScopedWalk) {
-            for (const dirtyPath of this.dirtyPaths) {
-              const absPath = join(this.cachePath, dirtyPath);
-              const bareDirtyPath = nsPrefix && dirtyPath.startsWith(nsPrefix)
-                ? dirtyPath.substring(nsPrefix.length)
-                : dirtyPath;
-              try {
-                const stat = await Deno.stat(absPath);
-                if (stat.isFile) {
-                  if (
-                    !isInternalCacheFile(dirtyPath) &&
-                    !(await skipStray(bareDirtyPath, absPath)) &&
-                    await this.fileNeedsPush(absPath, bareDirtyPath)
-                  ) {
-                    toPush.push({ rel: bareDirtyPath, path: absPath });
-                  }
-                } else if (stat.isDirectory) {
-                  const localFilesInDir = new Set<string>();
-                  for await (
-                    const entry of walk(absPath, { includeDirs: false })
-                  ) {
-                    const rel = toKeyPath(relative(this.cachePath, entry.path));
-                    if (isInternalCacheFile(rel)) continue;
-                    const bareRel = nsPrefix && rel.startsWith(nsPrefix)
-                      ? rel.substring(nsPrefix.length)
-                      : rel;
-                    if (await skipStray(bareRel, entry.path)) continue;
-                    localFilesInDir.add(bareRel);
-                    if (await this.fileNeedsPush(entry.path, bareRel)) {
-                      toPush.push({ rel: bareRel, path: entry.path });
-                    }
-                  }
-                  // Check for index entries under this directory that no
-                  // longer have local files (file deleted but dir remains).
-                  if (!this.lazyPullActive && this.index) {
-                    const prefix = bareDirtyPath.endsWith("/")
-                      ? bareDirtyPath
-                      : bareDirtyPath + "/";
-                    for (const rel of Object.keys(this.index.entries)) {
-                      if (isInternalCacheFile(rel)) continue;
-                      if (isStrayNamespacePath(rel, this.namespace)) continue;
-                      if (rel.startsWith(prefix) && !localFilesInDir.has(rel)) {
-                        toDelete.push(rel);
-                      }
-                    }
-                  }
-                }
-              } catch (err) {
-                if (!(err instanceof Deno.errors.NotFound)) {
-                  // Non-absence error (permission, I/O, NFS timeout) — do not
-                  // assume deletion intent. Skip this dirty path silently;
-                  // the next pushChanged will retry.
-                  continue;
-                }
-                // Path is genuinely absent — collect matching index entries
-                // for S3 deletion (markDirty contract rule #2). Skip when
-                // lazy pull is active: absent files are un-hydrated, not
-                // deleted.
-                if (!this.lazyPullActive && this.index) {
-                  const prefix = bareDirtyPath.endsWith("/")
-                    ? bareDirtyPath
-                    : bareDirtyPath + "/";
-                  for (const rel of Object.keys(this.index.entries)) {
-                    if (isInternalCacheFile(rel)) continue;
-                    if (isStrayNamespacePath(rel, this.namespace)) continue;
-                    if (rel === bareDirtyPath || rel.startsWith(prefix)) {
-                      toDelete.push(rel);
-                    }
-                  }
-                }
-              }
-            }
-          } else {
-            // Detect foreign namespace directories to exclude from the walk.
-            // The bound namespace is exempt — its files are pushed with the
-            // namespace prefix stripped from rel so dataKey() produces the
-            // correct remote key (swamp-club#1280).
-            const namespaceDirs = this.namespace
-              ? await detectNamespaceDirs(this.cachePath, this.namespace)
-              : new Set<string>();
-            let namespaceDirSkips = 0;
-            let soloLayoutSkips = 0;
-            const localFiles = new Set<string>();
-            try {
-              for await (
-                const entry of walk(this.cachePath, { includeDirs: false })
-              ) {
-                const rel = toKeyPath(relative(this.cachePath, entry.path));
-                if (isInternalCacheFile(rel)) continue;
-                if (nsPrefix && !rel.startsWith(nsPrefix)) {
-                  soloLayoutSkips++;
-                  continue;
-                }
-                if (isInsideNamespaceDir(rel, namespaceDirs)) {
-                  namespaceDirSkips++;
-                  continue;
-                }
-                const bareRel = nsPrefix && rel.startsWith(nsPrefix)
-                  ? rel.substring(nsPrefix.length)
-                  : rel;
-                if (await skipStray(bareRel, entry.path)) continue;
-                localFiles.add(bareRel);
-                if (await this.fileNeedsPush(entry.path, bareRel)) {
-                  toPush.push({ rel: bareRel, path: entry.path });
-                }
-              }
-            } catch {
-              // Cache directory may not exist yet
-            }
-            if (soloLayoutSkips > 0) {
-              console.warn(
-                `[s3-sync] Skipped ${soloLayoutSkips} solo-layout file(s) outside the bound ` +
-                  `namespace "${this.namespace}". These are stale leftovers — ` +
-                  `investigate and remove them.`,
-              );
-            }
-            if (namespaceDirSkips > 0) {
-              console.warn(
-                `[s3-sync] Skipped ${namespaceDirSkips} file(s) inside namespace directories ` +
-                  `found under the cache root (${
-                    [...namespaceDirs].join(", ")
-                  }). ` +
-                  `These directories should not be inside this cache — investigate and remove them.`,
-              );
-            }
-            // Compare index against local files to find deletions (rule #2).
-            // Only when per-path dirty tracking overflowed — a no-path
-            // markDirty() is a modification signal, not a deletion signal.
-            // Also skip when lazy pull is active to avoid deleting un-hydrated
-            // content.
-            if (
-              this.dirtyPathsOverflowed && !this.lazyPullActive && this.index
-            ) {
-              for (const rel of Object.keys(this.index.entries)) {
-                if (isInternalCacheFile(rel)) continue;
-                if (isInsideNamespaceDir(rel, namespaceDirs)) continue;
-                if (isStrayNamespacePath(rel, this.namespace)) continue;
-                if (!localFiles.has(rel)) {
-                  toDelete.push(rel);
-                }
-              }
-            }
-          }
-          this.warnStrays(straysRemoved, straysKept);
+          const { toPush, toDelete } = await this.collectPushWork(snap, true);
           tracePhase(
             "pushChanged.walk",
             walkStart,
@@ -3575,23 +3617,20 @@ export class S3CacheSyncService implements DatastoreSyncService {
 
           // Upload concurrently in batches
           const uploadStart = Date.now();
-          let pushed = 0;
-          const failures: Array<{ file: string; error: unknown }> = [];
-          for (let i = 0; i < toPush.length; i += this.pushConcurrency) {
-            throwIfAborted(signal);
-            const batch = toPush.slice(i, i + this.pushConcurrency);
-            const results = await Promise.allSettled(
-              batch.map(({ rel, path }) => this.pushFile(rel, signal, path)),
-            );
-            for (let j = 0; j < results.length; j++) {
-              const result = results[j];
-              if (result.status === "fulfilled") {
-                pushed++;
-              } else {
-                failures.push({ file: batch[j].rel, error: result.reason });
-              }
-            }
+          if (toPush.length > 0) {
+            await this.formatGate.ensureWithinOperation(signal);
           }
+          const uploaded: string[] = [];
+          const failures = await this.uploadPushCandidates(
+            toPush,
+            snap,
+            signal,
+            (rel, entry) => {
+              uploaded.push(rel);
+              if (this.index) this.index.entries[rel] = entry;
+            },
+          );
+          const pushed = uploaded.length;
           tracePhase("pushChanged.upload", uploadStart, `pushed=${pushed}`);
 
           if (failures.length > 0) {
@@ -3642,7 +3681,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
             }
 
             const dirtyPartitionKeys = new Set<string>();
-            for (const { rel } of toPush) {
+            for (const rel of uploaded) {
               const key = S3CacheSyncService.partitionKeyFromPath(rel);
               if (key) dirtyPartitionKeys.add(key);
             }
@@ -3657,7 +3696,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
               // monolith PUT — shards are the source of truth. Failures
               // propagate so the push stays dirty.
               const upserts: Record<string, IndexEntry> = {};
-              for (const { rel } of toPush) {
+              for (const rel of uploaded) {
                 const entry = this.index.entries[rel];
                 if (entry) upserts[rel] = entry;
               }
@@ -3669,7 +3708,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
               );
 
               const indexComplete = await this.writeLocalIndexAfterPush(
-                toPush.map(({ rel }) => rel),
+                uploaded,
                 toDelete,
               );
               this.indexMutated = false;
@@ -3685,13 +3724,11 @@ export class S3CacheSyncService implements DatastoreSyncService {
               // complete than when it was armed, and only
               // `localHasAllRemoteEntries()` can see it (swamp-club #2242).
               const deletionsReconciled = !this.lazyPullActive &&
-                (useScopedWalk || this.dirtyPathsOverflowed);
+                S3CacheSyncService.snapshotReconcilesDeletions(snap);
 
               try {
-                this.dirtyPaths.clear();
-                this.bulkInvalidated = false;
-                this.dirtyPathsOverflowed = false;
-                const sidecar = this.buildV2State({ localDirty: false });
+                // Clears only the marks this push handled; one made while
+                // it ran keeps the cache dirty (swamp-club #3860).
                 // Two windows have to be clean for the merged-index arm.
                 // `committed.upToDate` is the compare-and-swap's verdict that
                 // nothing landed between the base commitSeq and this commit
@@ -3703,15 +3740,16 @@ export class S3CacheSyncService implements DatastoreSyncService {
                 // failed index write leaves disk missing this push's entries,
                 // and an armed commitSeq would stop the next pull from ever
                 // rebuilding it.
-                if (
-                  committed.upToDate && indexComplete &&
+                const armCommitSeq = committed.upToDate && indexComplete &&
                   ((deletionsReconciled &&
                     priorCommitSeq === v2CommitSeq) ||
                     (!this.indexIsPartial &&
-                      await this.localHasAllRemoteEntries()))
-                ) {
-                  sidecar.commitSeq = committed.commitSeq;
-                }
+                      await this.localHasAllRemoteEntries()));
+                // Cleared after the await above, next to the write, so the
+                // marks it clears are exactly the ones it persists.
+                const localDirty = this.clearHandledMarks(snap);
+                const sidecar = this.buildV2State({ localDirty });
+                if (armCommitSeq) sidecar.commitSeq = committed.commitSeq;
                 sidecar.remoteIndexETag = "";
                 await this.writeSyncState(sidecar);
               } catch {
@@ -3747,7 +3785,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
                 await this.localHasAllRemoteEntries()
               ) {
                 try {
-                  await this.markSynced(etag);
+                  await this.markSynced(etag, snap);
                 } catch {
                   // Non-fatal: sidecar update is opportunistic.
                 }
@@ -3757,16 +3795,13 @@ export class S3CacheSyncService implements DatastoreSyncService {
           } else if (v2CommitSeq !== null && this.index) {
             // v2 no-writeback: update sidecar with current commitSeq.
             try {
-              this.dirtyPaths.clear();
-              this.bulkInvalidated = false;
-              this.dirtyPathsOverflowed = false;
-              const sidecar = this.buildV2State({ localDirty: false });
-              if (
-                !this.indexIsPartial &&
-                await this.localHasAllRemoteEntries()
-              ) {
-                sidecar.commitSeq = v2CommitSeq;
-              }
+              const armCommitSeq = !this.indexIsPartial &&
+                await this.localHasAllRemoteEntries();
+              // Cleared after the await above, next to the write, so the
+              // marks it clears are exactly the ones it persists.
+              const localDirty = this.clearHandledMarks(snap);
+              const sidecar = this.buildV2State({ localDirty });
+              if (armCommitSeq) sidecar.commitSeq = v2CommitSeq;
               sidecar.remoteIndexETag = "";
               await this.writeSyncState(sidecar);
             } catch {
@@ -3780,7 +3815,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
               await this.localHasAllRemoteEntries()
             ) {
               try {
-                await this.markSynced(indexETag);
+                await this.markSynced(indexETag, snap);
               } catch {
                 // Non-fatal: sidecar update is opportunistic.
               }
@@ -3830,12 +3865,15 @@ export class S3CacheSyncService implements DatastoreSyncService {
           const needsControlPlaneMigration = this.namespace != null &&
             !prepSyncState?.controlPlaneKeysMigrated;
 
+          // Returned when the push walks nothing, so its commit clears no
+          // mark (swamp-club #3860).
           const emptyManifest: InternalPushManifest = {
             newEntries: {},
             deletedKeys: [],
             pushed: 0,
             deleted: 0,
             dirtyPartitionKeys: [],
+            dirtySnapshot: this.emptyDirtySnapshot(),
           };
 
           const fastStart = Date.now();
@@ -3858,12 +3896,15 @@ export class S3CacheSyncService implements DatastoreSyncService {
             } as unknown as PushManifest;
           }
 
+          // The marks this push walks, taken before it reads anything; the
+          // manifest carries them to commitPush, which clears only these
+          // (swamp-club #3860).
+          const snap = this.takeDirtySnapshot();
           const indexStart = Date.now();
           const lastSynced = await this.readLastSyncedEntries();
-          const prepWillScope = !this.bulkInvalidated &&
-            this.dirtyPaths.size > 0;
+          const prepWillScope = !snap.bulkInvalidated && snap.paths.size > 0;
           const prepAssembled = prepWillScope
-            ? await this.assembleDirtyShardsOnly(this.dirtyPaths, signal)
+            ? await this.assembleDirtyShardsOnly(snap.paths.keys(), signal)
             : await this.assembleIndexFromShards(signal);
           let indexFromRemote = prepAssembled !== null;
           if (prepAssembled) {
@@ -3877,7 +3918,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
             tracePhase(
               "preparePush.shardAssembly",
               indexStart,
-              prepWillScope ? `scoped=${this.dirtyPaths.size}` : `full`,
+              prepWillScope ? `scoped=${snap.paths.size}` : `full`,
             );
           } else {
             const report = { fromRemote: false };
@@ -3897,7 +3938,8 @@ export class S3CacheSyncService implements DatastoreSyncService {
               // v2 shard-first index is in place — data is already
               // namespaced, skip root migration (swamp-club #2091).
               try {
-                const sidecar = this.buildV2State({ localDirty: false });
+                // Leaves localDirty as it is: nothing is pushed yet.
+                const sidecar = this.buildV2State();
                 sidecar.dataKeyMigrated = true;
                 await this.writeSyncState(sidecar);
               } catch { /* non-fatal */ }
@@ -3907,7 +3949,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
               );
               const allMigrated = total === 0 || copied === total;
               try {
-                const sidecar = this.buildV2State({ localDirty: false });
+                const sidecar = this.buildV2State();
                 if (allMigrated) sidecar.dataKeyMigrated = true;
                 await this.writeSyncState(sidecar);
               } catch { /* non-fatal */ }
@@ -3919,7 +3961,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
             const { copied, total } = await this
               .migrateRootControlPlaneToNamespace(signal);
             try {
-              const sidecar = this.buildV2State({ localDirty: false });
+              const sidecar = this.buildV2State();
               if (total === 0 || copied === total) {
                 sidecar.controlPlaneKeysMigrated = true;
               }
@@ -3940,126 +3982,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
           // could run against the last-synced index first (swamp-club #2999).
           if (prepAssembled === null && indexFromRemote) await this.saveIndex();
 
-          const nsPrefix = this.namespace ? `${this.namespace}/` : "";
-          const toPush: Array<{ rel: string; path: string }> = [];
-          const toDelete: string[] = [];
-          const useScopedWalk = !this.bulkInvalidated &&
-            this.dirtyPaths.size > 0;
-          // Doubled-path strays (swamp-club#2404): see pushChanged.
-          let straysRemoved = 0;
-          let straysKept = 0;
-          const skipStray = async (bareRel: string, absPath: string) => {
-            if (!isStrayNamespacePath(bareRel, this.namespace)) return false;
-            if (await this.removeVerifiedStray(absPath, bareRel)) {
-              straysRemoved++;
-            } else {
-              straysKept++;
-            }
-            return true;
-          };
-
-          if (useScopedWalk) {
-            for (const dirtyPath of this.dirtyPaths) {
-              const absPath = join(this.cachePath, dirtyPath);
-              const bareDirtyPath = nsPrefix && dirtyPath.startsWith(nsPrefix)
-                ? dirtyPath.substring(nsPrefix.length)
-                : dirtyPath;
-              try {
-                const stat = await Deno.stat(absPath);
-                if (stat.isFile) {
-                  if (
-                    !isInternalCacheFile(dirtyPath) &&
-                    !(await skipStray(bareDirtyPath, absPath)) &&
-                    await this.fileNeedsPush(absPath, bareDirtyPath)
-                  ) {
-                    toPush.push({ rel: bareDirtyPath, path: absPath });
-                  }
-                } else if (stat.isDirectory) {
-                  const localFilesInDir = new Set<string>();
-                  for await (
-                    const entry of walk(absPath, { includeDirs: false })
-                  ) {
-                    const rel = toKeyPath(relative(this.cachePath, entry.path));
-                    if (isInternalCacheFile(rel)) continue;
-                    const bareRel = nsPrefix && rel.startsWith(nsPrefix)
-                      ? rel.substring(nsPrefix.length)
-                      : rel;
-                    if (await skipStray(bareRel, entry.path)) continue;
-                    localFilesInDir.add(bareRel);
-                    if (await this.fileNeedsPush(entry.path, bareRel)) {
-                      toPush.push({ rel: bareRel, path: entry.path });
-                    }
-                  }
-                  if (!this.lazyPullActive && this.index) {
-                    const prefix = bareDirtyPath.endsWith("/")
-                      ? bareDirtyPath
-                      : bareDirtyPath + "/";
-                    for (const rel of Object.keys(this.index.entries)) {
-                      if (isInternalCacheFile(rel)) continue;
-                      if (isStrayNamespacePath(rel, this.namespace)) continue;
-                      if (rel.startsWith(prefix) && !localFilesInDir.has(rel)) {
-                        toDelete.push(rel);
-                      }
-                    }
-                  }
-                }
-              } catch (err) {
-                if (!(err instanceof Deno.errors.NotFound)) {
-                  continue;
-                }
-                if (!this.lazyPullActive && this.index) {
-                  const prefix = bareDirtyPath.endsWith("/")
-                    ? bareDirtyPath
-                    : bareDirtyPath + "/";
-                  for (const rel of Object.keys(this.index.entries)) {
-                    if (isInternalCacheFile(rel)) continue;
-                    if (isStrayNamespacePath(rel, this.namespace)) continue;
-                    if (rel === bareDirtyPath || rel.startsWith(prefix)) {
-                      toDelete.push(rel);
-                    }
-                  }
-                }
-              }
-            }
-          } else {
-            const namespaceDirs = this.namespace
-              ? await detectNamespaceDirs(this.cachePath, this.namespace)
-              : new Set<string>();
-            const localFiles = new Set<string>();
-            try {
-              for await (
-                const entry of walk(this.cachePath, { includeDirs: false })
-              ) {
-                const rel = toKeyPath(relative(this.cachePath, entry.path));
-                if (isInternalCacheFile(rel)) continue;
-                if (nsPrefix && !rel.startsWith(nsPrefix)) continue;
-                if (isInsideNamespaceDir(rel, namespaceDirs)) continue;
-                const bareRel = nsPrefix && rel.startsWith(nsPrefix)
-                  ? rel.substring(nsPrefix.length)
-                  : rel;
-                if (await skipStray(bareRel, entry.path)) continue;
-                localFiles.add(bareRel);
-                if (await this.fileNeedsPush(entry.path, bareRel)) {
-                  toPush.push({ rel: bareRel, path: entry.path });
-                }
-              }
-            } catch {
-              // Cache directory may not exist yet
-            }
-            if (
-              this.dirtyPathsOverflowed && !this.lazyPullActive && this.index
-            ) {
-              for (const rel of Object.keys(this.index.entries)) {
-                if (isInternalCacheFile(rel)) continue;
-                if (isInsideNamespaceDir(rel, namespaceDirs)) continue;
-                if (isStrayNamespacePath(rel, this.namespace)) continue;
-                if (!localFiles.has(rel)) {
-                  toDelete.push(rel);
-                }
-              }
-            }
-          }
-          this.warnStrays(straysRemoved, straysKept);
+          const { toPush, toDelete } = await this.collectPushWork(snap, false);
           tracePhase(
             "preparePush.walk",
             prepareStart,
@@ -4068,46 +3991,15 @@ export class S3CacheSyncService implements DatastoreSyncService {
 
           const uploadStart = Date.now();
           const newEntries: Record<string, IndexEntry> = {};
-          let pushed = 0;
-          const failures: Array<{ file: string; error: unknown }> = [];
-          for (let i = 0; i < toPush.length; i += this.pushConcurrency) {
-            throwIfAborted(signal);
-            const batch = toPush.slice(i, i + this.pushConcurrency);
-            const results = await Promise.allSettled(
-              batch.map(async ({ rel, path: localPath }) => {
-                // Stat before the read, as in pushFile.
-                const preReadStat = await Deno.stat(localPath);
-                const data = await Deno.readFile(localPath);
-                const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-                const sha256 = Array.from(new Uint8Array(hashBuffer))
-                  .map((b) => b.toString(16).padStart(2, "0"))
-                  .join("");
-                await retryWithBackoff(
-                  () => this.s3.putObject(this.dataKey(rel), data, signal),
-                  { signal },
-                );
-                await this.recordOwnMtime(rel, preReadStat, sha256);
-                const stat = await Deno.stat(localPath);
-                newEntries[rel] = {
-                  key: rel,
-                  size: data.length,
-                  lastModified: new Date().toISOString(),
-                  localMtime: stat.mtime?.toISOString(),
-                  sha256,
-                };
-              }),
-            );
-            for (let j = 0; j < results.length; j++) {
-              if (results[j].status === "fulfilled") {
-                pushed++;
-              } else {
-                failures.push({
-                  file: batch[j].rel,
-                  error: (results[j] as PromiseRejectedResult).reason,
-                });
-              }
-            }
-          }
+          const failures = await this.uploadPushCandidates(
+            toPush,
+            snap,
+            signal,
+            (rel, entry) => {
+              newEntries[rel] = entry;
+            },
+          );
+          const pushed = Object.keys(newEntries).length;
 
           tracePhase("preparePush.upload", uploadStart, `pushed=${pushed}`);
 
@@ -4149,7 +4041,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
           }
 
           const dirtyPartitionKeys: string[] = [];
-          for (const { rel } of toPush) {
+          for (const rel of Object.keys(newEntries)) {
             const key = S3CacheSyncService.partitionKeyFromPath(rel);
             if (key && !dirtyPartitionKeys.includes(key)) {
               dirtyPartitionKeys.push(key);
@@ -4168,6 +4060,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
             pushed,
             deleted,
             dirtyPartitionKeys,
+            dirtySnapshot: snap,
           };
           return manifest as unknown as PushManifest;
         } catch (err) {
@@ -4198,6 +4091,9 @@ export class S3CacheSyncService implements DatastoreSyncService {
           span.setAttribute(Attr.DATASTORE_NAMESPACE, options?.namespace ?? "");
           const commitStart = Date.now();
           const data = manifest as unknown as InternalPushManifest;
+          // The marks preparePush walked. A manifest without them clears
+          // nothing (swamp-club #3860).
+          const snap = data.dirtySnapshot ?? this.emptyDirtySnapshot();
           const signal = options?.signal;
           // The second half of preparePush's operation: it reuses the outcome
           // preparePush saw, so a push never stops between its two phases.
@@ -4211,17 +4107,17 @@ export class S3CacheSyncService implements DatastoreSyncService {
               // the local cache is complete — pull fast path uses the same
               // commitSeq and must not skip unfetched shards (#1225).
               try {
-                this.dirtyPaths.clear();
-                this.bulkInvalidated = false;
-                this.dirtyPathsOverflowed = false;
-                const sidecar = this.buildV2State({ localDirty: false });
                 // A fast-path manifest read no index, so the existing
                 // commitSeq stays: arming here would vouch for commits
                 // this cache never read (swamp-club #3193).
-                if (
-                  !data.indexUnread && !this.indexIsPartial && this.index &&
-                  await this.localHasAllRemoteEntries()
-                ) {
+                const armCommitSeq = !data.indexUnread &&
+                  !this.indexIsPartial && this.index &&
+                  await this.localHasAllRemoteEntries();
+                // Cleared after the await above, next to the write, so the
+                // marks it clears are exactly the ones it persists.
+                const localDirty = this.clearHandledMarks(snap);
+                const sidecar = this.buildV2State({ localDirty });
+                if (armCommitSeq) {
                   sidecar.commitSeq = (noopMeta as PartitionMetaV2).commitSeq;
                 }
                 sidecar.remoteIndexETag = "";
@@ -4244,7 +4140,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
               await this.localHasAllRemoteEntries()
             ) {
               try {
-                await this.markSynced(indexFingerprint);
+                await this.markSynced(indexFingerprint, snap);
               } catch {
                 // Non-fatal: sidecar update is opportunistic.
               }
@@ -4262,6 +4158,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
           if (meta && meta.version === 2) {
             const result = await this.commitPushShardFirst(
               data,
+              snap,
               meta as PartitionMetaV2,
               signal,
             );
@@ -4276,7 +4173,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
           console.info(
             "[s3-sync] Index is using monolithic format. Run 'swamp datastore migrate-index' to enable shard-first commits for improved concurrency.",
           );
-          const result = await this.commitPushMonolith(data, signal);
+          const result = await this.commitPushMonolith(data, snap, signal);
           tracePhase("commitPush", commitStart, `monolith changes=${result}`);
           return result;
         } catch (err) {
@@ -4297,6 +4194,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
 
   private async commitPushShardFirst(
     data: InternalPushManifest,
+    snap: DirtySnapshot,
     v2Meta: PartitionMetaV2,
     signal?: AbortSignal,
   ): Promise<number> {
@@ -4307,14 +4205,13 @@ export class S3CacheSyncService implements DatastoreSyncService {
     const priorCommitSeq = this.syncState?.version === 2
       ? (this.syncState as DatastoreSyncStateV2).commitSeq
       : undefined;
-    // Mirrors `preparePush`'s `useScopedWalk`: only a scoped walk (or a
-    // bulk walk that overflowed) turns local absences into remote deletes,
-    // and lazy pull leaves entries un-hydrated on purpose. Captured here
-    // because the dirty state is cleared below, before the arm is decided
-    // (swamp-club #2242).
+    // Mirrors `preparePush`'s walk: only a scoped walk (or a bulk walk that
+    // overflowed) turns local absences into remote deletes, and lazy pull
+    // leaves entries un-hydrated on purpose (swamp-club #2242). Read from
+    // the snapshot preparePush walked, not the live marks, which may have
+    // changed since (swamp-club #3860).
     const deletionsReconciled = !this.lazyPullActive &&
-      (this.dirtyPathsOverflowed ||
-        (!this.bulkInvalidated && this.dirtyPaths.size > 0));
+      S3CacheSyncService.snapshotReconcilesDeletions(snap);
     const committed = await this.commitShardChanges(
       data.newEntries,
       data.deletedKeys,
@@ -4355,10 +4252,6 @@ export class S3CacheSyncService implements DatastoreSyncService {
     tracePhase("commitPush.localIndex", localStart);
 
     try {
-      this.dirtyPaths.clear();
-      this.bulkInvalidated = false;
-      this.dirtyPathsOverflowed = false;
-      const sidecar = this.buildV2State({ localDirty: false });
       // Record commitSeq when the index is complete (not a scoped
       // assembly) AND local cache has all remote entries — pull fast
       // path uses commitSeq and must not skip unfetched shards (#1225).
@@ -4375,15 +4268,16 @@ export class S3CacheSyncService implements DatastoreSyncService {
       // entries, and an armed commitSeq would stop the next pull from ever
       // rebuilding it. Cheap checks first — the other arm is an O(index)
       // stat walk.
-      if (
-        committed.upToDate && indexComplete &&
+      const armCommitSeq = committed.upToDate && indexComplete &&
         ((deletionsReconciled &&
           priorCommitSeq === v2Meta.commitSeq) ||
           (!this.indexIsPartial &&
-            await this.localHasAllRemoteEntries()))
-      ) {
-        sidecar.commitSeq = committed.commitSeq;
-      }
+            await this.localHasAllRemoteEntries()));
+      // Cleared after the await above, next to the write, so the
+      // marks it clears are exactly the ones it persists.
+      const localDirty = this.clearHandledMarks(snap);
+      const sidecar = this.buildV2State({ localDirty });
+      if (armCommitSeq) sidecar.commitSeq = committed.commitSeq;
       sidecar.remoteIndexETag = "";
       await this.writeSyncState(sidecar);
     } catch {
@@ -4395,6 +4289,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
 
   private async commitPushMonolith(
     data: InternalPushManifest,
+    snap: DirtySnapshot,
     signal?: AbortSignal,
   ): Promise<number> {
     const monolithStart = Date.now();
@@ -4433,7 +4328,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
         await this.localHasAllRemoteEntries()
       ) {
         try {
-          await this.markSynced(etag);
+          await this.markSynced(etag, snap);
         } catch {
           // Non-fatal: sidecar update is opportunistic.
         }
@@ -4673,6 +4568,372 @@ export class S3CacheSyncService implements DatastoreSyncService {
   }
 
   /**
+   * Walks what a push must send: the snapshot's dirty paths when it lists
+   * any and no bulk mark stands, otherwise the whole cache. Returns the
+   * files to upload and the index entries to delete remotely.
+   *
+   * Only a dirty path's own stat reporting it absent turns its entries into
+   * remote deletes (markDirty contract rule #2). A file that vanishes later
+   * in the walk is skipped and its mark kept, recorded on `snap`, never a
+   * delete and never a failure (swamp-club #3860, swamp-club #2421). A
+   * whole-cache walk that throws after the cache root was found aborts the
+   * push: what it did not visit would otherwise read as deleted.
+   */
+  private async collectPushWork(
+    snap: DirtySnapshot,
+    warnSkips: boolean,
+  ): Promise<{ toPush: PushCandidate[]; toDelete: string[] }> {
+    const nsPrefix = this.namespace ? `${this.namespace}/` : "";
+    const toPush: PushCandidate[] = [];
+    const toDelete: string[] = [];
+    const useScopedWalk = !snap.bulkInvalidated && snap.paths.size > 0;
+    // Doubled-path strays (swamp-club#2404) are never pushed; the ones
+    // the index can vouch for are removed from disk.
+    let straysRemoved = 0;
+    let straysKept = 0;
+    const skipStray = async (bareRel: string, absPath: string) => {
+      if (!isStrayNamespacePath(bareRel, this.namespace)) return false;
+      if (await this.removeVerifiedStray(absPath, bareRel)) {
+        straysRemoved++;
+      } else {
+        straysKept++;
+      }
+      return true;
+    };
+
+    if (useScopedWalk) {
+      for (const dirtyPath of snap.paths.keys()) {
+        const absPath = join(this.cachePath, dirtyPath);
+        const bareDirtyPath = nsPrefix && dirtyPath.startsWith(nsPrefix)
+          ? dirtyPath.substring(nsPrefix.length)
+          : dirtyPath;
+        let stat: Deno.FileInfo;
+        try {
+          stat = await Deno.stat(absPath);
+        } catch (err) {
+          if (!(err instanceof Deno.errors.NotFound)) {
+            // Non-absence error (permission, I/O, NFS timeout) — do not
+            // assume deletion intent. Skip this dirty path and keep its
+            // mark; the next push retries it.
+            snap.unhandled.add(dirtyPath);
+            continue;
+          }
+          // Path is genuinely absent — collect matching index entries
+          // for S3 deletion (markDirty contract rule #2). Skip when
+          // lazy pull is active: absent files are un-hydrated, not
+          // deleted.
+          if (!this.lazyPullActive && this.index) {
+            const prefix = bareDirtyPath.endsWith("/")
+              ? bareDirtyPath
+              : bareDirtyPath + "/";
+            for (const rel of Object.keys(this.index.entries)) {
+              if (isInternalCacheFile(rel)) continue;
+              if (isStrayNamespacePath(rel, this.namespace)) continue;
+              if (rel === bareDirtyPath || rel.startsWith(prefix)) {
+                toDelete.push(rel);
+              }
+            }
+          }
+          continue;
+        }
+        if (stat.isFile) {
+          if (
+            isInternalCacheFile(dirtyPath) ||
+            await skipStray(bareDirtyPath, absPath)
+          ) {
+            continue;
+          }
+          let verdict: "push" | "skip" | "vanished";
+          try {
+            verdict = await this.fileNeedsPush(absPath, bareDirtyPath);
+          } catch {
+            // Unreadable (permission, I/O): keep the mark, as above.
+            snap.unhandled.add(dirtyPath);
+            continue;
+          }
+          if (verdict === "vanished") {
+            snap.unhandled.add(dirtyPath);
+          } else if (verdict === "push") {
+            toPush.push({ rel: bareDirtyPath, path: absPath, mark: dirtyPath });
+          }
+        } else if (stat.isDirectory) {
+          const localFilesInDir = new Set<string>();
+          // A subdirectory removed mid-walk is skipped; what it held is
+          // unknown, so the mark stays and nothing under it is deleted.
+          let subtreeVanished = false;
+          try {
+            for await (
+              const entry of this.walkCacheFiles(absPath, () => {
+                subtreeVanished = true;
+              })
+            ) {
+              const rel = toKeyPath(relative(this.cachePath, entry.path));
+              if (isInternalCacheFile(rel)) continue;
+              const bareRel = nsPrefix && rel.startsWith(nsPrefix)
+                ? rel.substring(nsPrefix.length)
+                : rel;
+              if (await skipStray(bareRel, entry.path)) continue;
+              // Listed even when it vanishes below: a file seen in the walk
+              // is never a delete in the same push.
+              localFilesInDir.add(bareRel);
+              const verdict = await this.fileNeedsPush(entry.path, bareRel);
+              if (verdict === "vanished") {
+                snap.unhandled.add(dirtyPath);
+              } else if (verdict === "push") {
+                toPush.push({
+                  rel: bareRel,
+                  path: entry.path,
+                  mark: dirtyPath,
+                });
+              }
+            }
+          } catch {
+            // A directory under it could not be read. What was not visited
+            // is unknown, so queue no deletes under it and keep its mark.
+            snap.unhandled.add(dirtyPath);
+            continue;
+          }
+          if (subtreeVanished) {
+            snap.unhandled.add(dirtyPath);
+            continue;
+          }
+          // Check for index entries under this directory that no
+          // longer have local files (file deleted but dir remains).
+          if (!this.lazyPullActive && this.index) {
+            const prefix = bareDirtyPath.endsWith("/")
+              ? bareDirtyPath
+              : bareDirtyPath + "/";
+            for (const rel of Object.keys(this.index.entries)) {
+              if (isInternalCacheFile(rel)) continue;
+              if (isStrayNamespacePath(rel, this.namespace)) continue;
+              if (rel.startsWith(prefix) && !localFilesInDir.has(rel)) {
+                toDelete.push(rel);
+              }
+            }
+          }
+        }
+      }
+    } else {
+      // Detect foreign namespace directories to exclude from the walk.
+      // The bound namespace is exempt — its files are pushed with the
+      // namespace prefix stripped from rel so dataKey() produces the
+      // correct remote key (swamp-club#1280).
+      const namespaceDirs = this.namespace
+        ? await detectNamespaceDirs(this.cachePath, this.namespace)
+        : new Set<string>();
+      let namespaceDirSkips = 0;
+      let soloLayoutSkips = 0;
+      const localFiles = new Set<string>();
+      // A cache directory that does not exist yet holds nothing to push.
+      // Once it exists, a walk that cannot read a directory aborts the
+      // push: a truncated walk would read every file it never reached as
+      // deleted. A directory that vanished is skipped instead.
+      let cacheExists = true;
+      try {
+        await Deno.stat(this.cachePath);
+      } catch (err) {
+        if (!(err instanceof Deno.errors.NotFound)) throw err;
+        cacheExists = false;
+      }
+      if (cacheExists) {
+        // A directory removed mid-walk (a peer step's GC) is skipped and
+        // the walk goes on; the marks stay, as for a vanished file.
+        for await (
+          const entry of this.walkCacheFiles(this.cachePath, () => {
+            snap.incomplete = true;
+          })
+        ) {
+          const rel = toKeyPath(relative(this.cachePath, entry.path));
+          if (isInternalCacheFile(rel)) continue;
+          if (nsPrefix && !rel.startsWith(nsPrefix)) {
+            soloLayoutSkips++;
+            continue;
+          }
+          if (isInsideNamespaceDir(rel, namespaceDirs)) {
+            namespaceDirSkips++;
+            continue;
+          }
+          const bareRel = nsPrefix && rel.startsWith(nsPrefix)
+            ? rel.substring(nsPrefix.length)
+            : rel;
+          if (await skipStray(bareRel, entry.path)) continue;
+          localFiles.add(bareRel);
+          const verdict = await this.fileNeedsPush(entry.path, bareRel);
+          if (verdict === "vanished") {
+            snap.incomplete = true;
+          } else if (verdict === "push") {
+            toPush.push({ rel: bareRel, path: entry.path, mark: null });
+          }
+        }
+      }
+      if (warnSkips && soloLayoutSkips > 0) {
+        console.warn(
+          `[s3-sync] Skipped ${soloLayoutSkips} solo-layout file(s) outside the bound ` +
+            `namespace "${this.namespace}". These are stale leftovers — ` +
+            `investigate and remove them.`,
+        );
+      }
+      if (warnSkips && namespaceDirSkips > 0) {
+        console.warn(
+          `[s3-sync] Skipped ${namespaceDirSkips} file(s) inside namespace directories ` +
+            `found under the cache root (${[...namespaceDirs].join(", ")}). ` +
+            `These directories should not be inside this cache — investigate and remove them.`,
+        );
+      }
+      // Compare index against local files to find deletions (rule #2).
+      // Only when per-path dirty tracking overflowed — a no-path
+      // markDirty() is a modification signal, not a deletion signal.
+      // Also skip when lazy pull is active to avoid deleting un-hydrated
+      // content.
+      if (snap.overflowed && !this.lazyPullActive && this.index) {
+        for (const rel of Object.keys(this.index.entries)) {
+          if (isInternalCacheFile(rel)) continue;
+          if (isInsideNamespaceDir(rel, namespaceDirs)) continue;
+          if (isStrayNamespacePath(rel, this.namespace)) continue;
+          if (!localFiles.has(rel)) {
+            toDelete.push(rel);
+          }
+        }
+      }
+    }
+    this.warnStrays(straysRemoved, straysKept);
+    return { toPush, toDelete };
+  }
+
+  /**
+   * Yields every non-directory entry under `dir` (files and symlinks, which
+   * are not followed), as `@std/fs` `walk` with `includeDirs: false` does.
+   * Unlike `walk`, a directory that vanishes before it is listed does not
+   * end the iteration: it calls `onVanished` and the walk goes on. Any other
+   * read error is thrown. Each listing is read in full before recursing, as
+   * a lazy listing can skip entries while others are removed.
+   */
+  private async *walkCacheFiles(
+    dir: string,
+    onVanished: () => void,
+  ): AsyncGenerator<{ path: string }> {
+    let entries: Deno.DirEntry[];
+    try {
+      entries = await this.listCacheDir(dir);
+    } catch (err) {
+      if (!(err instanceof Deno.errors.NotFound)) throw err;
+      onVanished();
+      return;
+    }
+    for (const entry of entries) {
+      const path = join(dir, entry.name);
+      if (entry.isDirectory) {
+        yield* this.walkCacheFiles(path, onVanished);
+      } else {
+        yield { path };
+      }
+    }
+  }
+
+  /** One directory's entries, read in full. */
+  private async listCacheDir(dir: string): Promise<Deno.DirEntry[]> {
+    const entries: Deno.DirEntry[] = [];
+    for await (const entry of Deno.readDir(dir)) entries.push(entry);
+    return entries;
+  }
+
+  /**
+   * Uploads a push walk's files in batches of `pushConcurrency`, calling
+   * `onUploaded` for each one sent. A file that vanished before it could
+   * be read is skipped and its mark kept on `snap`. Returns the failures.
+   *
+   * A failed push leaves its marks as they were, so the retry sends what
+   * did not go. A file a whole-cache walk found under no mark at all gets a
+   * bulk mark, or the next push could take the clean fast path past it.
+   */
+  private async uploadPushCandidates(
+    toPush: PushCandidate[],
+    snap: DirtySnapshot,
+    signal: AbortSignal | undefined,
+    onUploaded: (rel: string, entry: IndexEntry) => void,
+  ): Promise<Array<{ file: string; error: unknown }>> {
+    const failures: Array<{ file: string; error: unknown }> = [];
+    let unmarkedFailure = false;
+    for (let i = 0; i < toPush.length; i += this.pushConcurrency) {
+      if (signal?.aborted) {
+        if (unmarkedFailure || toPush.slice(i).some((c) => c.mark === null)) {
+          await this.markDirty();
+        }
+        throwIfAborted(signal);
+      }
+      const batch = toPush.slice(i, i + this.pushConcurrency);
+      const results = await Promise.allSettled(
+        batch.map(({ rel, path }) => this.uploadWalkedFile(rel, path, signal)),
+      );
+      for (let j = 0; j < results.length; j++) {
+        const result = results[j];
+        const candidate = batch[j];
+        if (result.status === "rejected") {
+          failures.push({ file: candidate.rel, error: result.reason });
+          if (candidate.mark === null) unmarkedFailure = true;
+        } else if (result.value === null) {
+          if (candidate.mark === null) snap.incomplete = true;
+          else snap.unhandled.add(candidate.mark);
+        } else {
+          onUploaded(candidate.rel, result.value);
+        }
+      }
+    }
+    if (unmarkedFailure) await this.markDirty();
+    return failures;
+  }
+
+  /**
+   * Uploads one file a push walk found, without marking the cache dirty:
+   * the push's own snapshot already covers it, and a mark here would be
+   * newer than the snapshot, so no push could ever clear it (swamp-club
+   * #3860). Returns the file's new index entry, or null when the file
+   * vanished before it could be read — the caller keeps its mark.
+   */
+  private async uploadWalkedFile(
+    rel: string,
+    localPath: string,
+    signal?: AbortSignal,
+  ): Promise<IndexEntry | null> {
+    if (!isWithinDir(this.cachePath, normalize(localPath))) {
+      throw new Error(`Path traversal detected: ${localPath}`);
+    }
+    let preReadStat: Deno.FileInfo;
+    let data: Uint8Array<ArrayBuffer>;
+    try {
+      // Stat before the read, as in pushFile.
+      preReadStat = await Deno.stat(localPath);
+      data = await Deno.readFile(localPath);
+    } catch (err) {
+      if (err instanceof Deno.errors.NotFound) return null;
+      throw err;
+    }
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const sha256 = Array.from(new Uint8Array(hashBuffer))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    await retryWithBackoff(
+      () => this.s3.putObject(this.dataKey(rel), data, signal),
+      { signal },
+    );
+    await this.recordOwnMtime(rel, preReadStat, sha256);
+    let mtime = preReadStat.mtime;
+    try {
+      mtime = (await Deno.stat(localPath)).mtime;
+    } catch (err) {
+      // Removed after the upload: the bytes sent are still the entry.
+      if (!(err instanceof Deno.errors.NotFound)) throw err;
+    }
+    return {
+      key: rel,
+      size: data.length,
+      lastModified: new Date().toISOString(),
+      localMtime: mtime?.toISOString(),
+      sha256,
+    };
+  }
+
+  /**
    * Change detection for a single file during push walk. Only this copy's
    * own mtime record may skip the hash: the index's localMtime is the
    * pusher's (swamp-club#3546).
@@ -4682,11 +4943,30 @@ export class S3CacheSyncService implements DatastoreSyncService {
    * 3. No matching own record, index has sha256 → SHA-256 comparison
    * 4. Index has no sha256 → skip with a matching own record, else push
    *    (the upload records a sha256, so the entry migrates)
+   *
+   * Returns "vanished" when the file is gone by the time it is read: the
+   * walk listed it, then a rename or a delete took it away (swamp-club
+   * #3860). A dangling symlink is "skip": it is not data, and it would
+   * read as vanished on every walk, so its mark could never clear.
    */
   private async fileNeedsPush(
     absPath: string,
     rel: string,
-  ): Promise<boolean> {
+  ): Promise<"push" | "skip" | "vanished"> {
+    try {
+      return await this.fileChanged(absPath, rel) ? "push" : "skip";
+    } catch (err) {
+      if (!(err instanceof Deno.errors.NotFound)) throw err;
+      try {
+        if ((await Deno.lstat(absPath)).isSymlink) return "skip";
+      } catch (lstatErr) {
+        if (!(lstatErr instanceof Deno.errors.NotFound)) throw lstatErr;
+      }
+      return "vanished";
+    }
+  }
+
+  private async fileChanged(absPath: string, rel: string): Promise<boolean> {
     const stat = await Deno.stat(absPath);
     const existing = this.index?.entries[rel];
     if (!existing) return true;

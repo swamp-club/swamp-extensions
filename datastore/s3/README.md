@@ -458,6 +458,18 @@ re-marks a path still listed from the failed push) therefore pushes it instead
 of taking the zero-diff fast path. The cost is one slow-path push after such a
 pull, even when nothing is left to send.
 
+A push clears only the marks it handled. It takes a snapshot of the dirty marks
+before it reads anything, and clears a mark only when nobody marked that path
+(or the whole cache) again while it ran, so a write that lands during a push,
+from a parallel workflow step sharing the service, stays dirty for the next one.
+A push's own uploads do not mark the cache dirty, and a failed push leaves its
+marks as they were. A file that vanishes while a push walks or uploads it is
+skipped and its mark kept: it never fails the push, and it is never read as a
+deletion of the files beside it. Only a marked path that is itself absent is
+deleted from the bucket. A whole-cache walk that cannot finish fails the push
+instead of reading what it did not visit as deleted. Atomic-write temp files
+(`.<uuid>.tmp`) are never synced.
+
 A file a peer deletes stays deleted. When a pull or push reads the bucket's
 index, a local file whose entry was in the last-synced index but is gone from
 the bucket's is removed from the cache, with any directories that leaves empty.
