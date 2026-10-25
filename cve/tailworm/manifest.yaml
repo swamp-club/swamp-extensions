@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/cve/tailworm"
-version: "2026.10.25.1"
+version: "2026.10.25.2"
 license: "AGPL-3.0-or-later"
 description: |
   Finds and mitigates hosts exposed to Tailworm, the security assessment of
@@ -23,6 +23,9 @@ description: |
 
   - `scan` scans one host (local, SSH, or Docker container or image).
   - `scanFleet` scans many hosts in parallel over SSH.
+  - `grade` grades probe output a caller collected through another exec
+    channel (the KubeVirt guest agent, kubectl exec) into the same status and
+    report; `probeScript` stores the probe, compressed, for that transport.
   - `mitigate` scans first, then applies the report's interim mitigations on
     exposed hosts: removes serve forwards to tailscaled.sock, blocks
     tailscaled egress to cloud metadata with nftables, installs auditd rules

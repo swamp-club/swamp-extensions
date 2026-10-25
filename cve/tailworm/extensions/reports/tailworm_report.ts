@@ -70,6 +70,8 @@ type Status = {
   hostname: string;
   inContainer?: boolean;
   viaDocker?: boolean;
+  /** Graded from output the caller collected; the model cannot reach it. */
+  externalProbe?: boolean;
   riskLevel: string;
   vulnerable: boolean;
   summary: string;
@@ -155,15 +157,17 @@ function hostsEntry(r: Status): string {
 /**
  * The mitigate command for these results. A docker exec target is the model's
  * own and takes no hosts input; passing it as a host would make mitigate SSH
- * to "docker-<id>". SSH hosts in the same set are listed as usual.
+ * to "docker-<id>". SSH hosts in the same set are listed as usual. A host
+ * graded from supplied output is left out: the model cannot reach it.
  */
 function mitigateCommand(
   name: string,
   results: Status[],
   extra = "",
 ): string {
-  const ssh = results.filter((r) => !r.viaDocker).map(hostsEntry);
-  const docker = results.some((r) => r.viaDocker);
+  const reachable = results.filter((r) => !r.externalProbe);
+  const ssh = reachable.filter((r) => !r.viaDocker).map(hostsEntry);
+  const docker = reachable.some((r) => r.viaDocker);
   let md = "";
   if (docker) md += command(name, "mitigate", [], extra);
   if (ssh.length > 0) md += command(name, "mitigate", ssh, extra);
@@ -310,8 +314,18 @@ function scanReport(results: Status[], name: string) {
   const actionable = results.filter((r) => !r.error && r.vulnerable);
   if (actionable.length > 0) {
     md += `\n## Next Step\n\n`;
-    md += "Run mitigate as a dry run first on the exposed hosts:\n\n";
-    md += mitigateCommand(name, actionable);
+    if (actionable.some((r) => !r.externalProbe)) {
+      md += "Run mitigate as a dry run first on the exposed hosts:\n\n";
+      md += mitigateCommand(name, actionable);
+    }
+    const external = actionable.filter((r) => r.externalProbe);
+    if (external.length > 0) {
+      md += `${external.map((r) => r.target).join(", ")} ${
+        external.length === 1 ? "was" : "were"
+      } graded from probe output, so mitigate cannot reach ${
+        external.length === 1 ? "it" : "them"
+      }. Apply the recommendations through the same exec channel, then run the probe again and grade its output.\n`;
+    }
   }
 
   const fixed = results.find((r) => !r.error)?.advisory.fixedVersion;

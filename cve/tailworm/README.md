@@ -103,6 +103,8 @@ check needs root (`ss -xlp`). On macOS the signatures are not checked.
 | --- | --- |
 | `scan` | Scan one target: the local machine, an SSH host, or a Docker container or image |
 | `scanFleet` | Scan a comma-separated list of hosts in parallel over SSH |
+| `grade` | Grade probe output collected through another exec channel (KubeVirt guest agent, `kubectl exec`) |
+| `probeScript` | Store the probe script, compressed, and as one `sh` command line, for another transport to run |
 | `mitigate` | Scan, then apply the interim mitigations on exposed hosts. `dryRun` defaults to `true` |
 
 ## Usage
@@ -151,6 +153,52 @@ node's SSH rules, the socket listeners and the existing defenses.
 swamp behavior create @swamp/cve/tailworm tw-container --global-arg dockerContainer=my-app
 swamp behavior create @swamp/cve/tailworm tw-image --global-arg dockerImage=tailscale/tailscale:v1.104.2
 ```
+
+### Scan hosts the model cannot reach
+
+Some hosts are reachable only through another exec channel, such as the QEMU
+guest agent on KubeVirt or Harvester VMs, or `kubectl exec`. For those, the
+caller runs the probe and the model grades its output:
+
+1. `probeScript` stores the probe as a `probe` resource with `script`,
+   `gzipBase64`, `command` (one `sh` command line that decodes and runs it,
+   about 3.6 KB, for exec paths that carry the command in a URL) and
+   `sha256`. `command` needs `base64` and `gzip` on the host (coreutils or
+   busybox).
+2. Run `command` (or `script`) on the host as root through your transport.
+3. Pass its stdout to `grade` with the host's name. It writes the same status,
+   log and report as `scan`, named by `target`.
+
+```bash
+swamp behavior run tailworm probeScript
+swamp data get tailworm probe --json        # .content.command
+# ... run the command on ci-vm-1 through the guest agent, save stdout ...
+cat > grade.yaml <<'YAML'
+target: ci-vm-1
+encoding: base64          # guest-exec out-data as returned; plain by default
+output: |
+  <the probe's stdout>
+YAML
+swamp behavior run tailworm grade --input-file grade.yaml
+```
+
+Pass the output in an input file: it spans many lines, and an `--input` value
+that starts with `@` is read as a file path. In a workflow, read the command
+with `${{ data.latest("tailworm", "probe").attributes.command }}` and give
+each host's stdout to a `grade` step; values passed between steps are not
+evaluated again.
+
+- The status carries `externalProbe: true`. `grade` trusts the output it is
+  given: anyone who can run it can write a clean grade for a host.
+- `grade` runs nothing on the host, so it never reads defenses through sudo.
+  Unix serve targets are resolved by the probe itself.
+- Output that cannot be graded (not probe output, cut off before its `END`
+  line, invalid base64) writes an error status instead of failing the run, so
+  one bad host in a loop shows as an `ERROR` row. Like a host `scanFleet`
+  cannot reach, it replaces that host's previous status.
+- `mitigate` cannot reach these hosts, and the report suggests no mitigate
+  command for them. Apply the commands in [What mitigate does](#what-mitigate-does)
+  through the same channel, then probe and grade again.
 
 ### Mitigate
 
@@ -282,6 +330,9 @@ missing privileges.
 | Method | Input | Default | Description |
 | --- | --- | --- | --- |
 | `scanFleet` | `hosts` | required | Comma-separated hosts; `user@host` logs in as `user` |
+| `grade` | `target` | required | Host the output came from (letters, digits, `.`, `_`, `:`, `-`); names the status and log |
+| `grade` | `output` | required | The probe's stdout from that host |
+| `grade` | `encoding` | `plain` | `base64` for output still encoded, such as QEMU guest-exec out-data |
 | `mitigate` | `hosts` | `targetHost` | Comma-separated hosts; `user@host` logs in as `user` |
 | `mitigate` | `dryRun` | `true` | Print the plan without running it |
 | `mitigate` | `removeLocalapiForwards` | `true` | Remove serve forwards to `tailscaled.sock` |
@@ -296,7 +347,7 @@ missing privileges.
 
 `@swamp/cve/tailworm-report` runs after each method:
 
-- After `scan` and `scanFleet`, it shows one row per host. The SSH column
+- After `scan`, `scanFleet` and `grade`, it shows one row per host. The SSH column
   summarises the node's rules when they were read, for example
   `yes (3 src, root, fwd)`. It also shows forensic signatures, errors,
   deduplicated recommendations, and the mitigate command for the exposed

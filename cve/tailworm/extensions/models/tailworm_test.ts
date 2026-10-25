@@ -12,9 +12,11 @@ import {
   AUDIT_FILE,
   auditRules,
   compareVersions,
+  decodeProbeOutput,
   defenseReads,
   defensesScript,
   failedMitigation,
+  gradeOutput,
   HEADSCALE_DROP_IN,
   hostList,
   isPublicListen,
@@ -35,6 +37,7 @@ import {
   planMitigation,
   preflightScript,
   PROBE_SCRIPT,
+  probeBundle,
   renderStep,
   resolveScript,
   ROOTPROC_SH,
@@ -44,6 +47,7 @@ import {
   serveUnixProxies,
   serveWebProxies,
   shQuote,
+  type Status,
   summarizeSshPolicy,
 } from "./tailworm.ts";
 
@@ -152,9 +156,9 @@ Deno.test("model export has expected shape", () => {
   assertEquals(typeof model.version, "string");
   assertEquals(
     new Set(Object.keys(model.methods)),
-    new Set(["scan", "scanFleet", "mitigate"]),
+    new Set(["scan", "scanFleet", "grade", "probeScript", "mitigate"]),
   );
-  assertEquals(Object.keys(model.resources), ["status"]);
+  assertEquals(Object.keys(model.resources), ["status", "probe"]);
   assertEquals(model.reports, ["@swamp/cve/tailworm-report"]);
 });
 
@@ -2339,4 +2343,240 @@ Deno.test("a capped headscale is not told to set MemoryMax again (swamp-club #39
       "set MemoryMax and Restart=always",
     );
   }
+});
+
+// --- Hosts reached through another exec channel (swamp-club #3908) ----------
+
+/** Runs grade or probeScript with an in-memory context. */
+async function runMethod(
+  method: "grade" | "probeScript",
+  args: Record<string, unknown>,
+) {
+  const resources: Record<string, unknown> = {};
+  const logs: string[] = [];
+  const context = {
+    globalArgs: model.globalArguments.parse({}),
+    logger: { info: () => {}, debug: () => {} },
+    createFileWriter: () => ({
+      writeLine: (l: string) => {
+        logs.push(l);
+        return Promise.resolve();
+      },
+      finalize: () => Promise.resolve(),
+    }),
+    writeResource: (spec: string, name: string, data: unknown) => {
+      resources[`${spec}/${name}`] = data;
+      return Promise.resolve({ name });
+    },
+  } as unknown as Parameters<typeof model.methods.grade.execute>[1];
+  if (method === "grade") {
+    const parsed = model.methods.grade.arguments.parse(args);
+    await model.methods.grade.execute(parsed, context);
+  } else {
+    await model.methods.probeScript.execute({}, context);
+  }
+  return { resources, logs };
+}
+
+/** The status a scan or grade wrote, without its timestamp. */
+function stable(s: Status) {
+  const { scanTimestamp: _t, externalProbe: _e, ...rest } = s;
+  return rest;
+}
+
+const SYMLINK_SERVE = {
+  TCP: { "9000": { TCPForward: "unix:/srv/api.sock" } },
+};
+
+Deno.test("PROBE_SCRIPT resolves unix serve targets itself, reading paths as data", async () => {
+  const dir = await Deno.realPath(await Deno.makeTempDir());
+  try {
+    const sock = `${dir}/tailscaled.sock`;
+    await Deno.writeTextFile(sock, "");
+    // A space and a command substitution: read as data, never run.
+    const odd = `${dir}/a b;$(echo pwned).sock`;
+    const web = `${dir}/web.sock`;
+    await Deno.symlink(sock, odd);
+    await Deno.symlink(sock, web);
+    const serve = {
+      TCP: {
+        "9000": { TCPForward: `unix:${odd}` },
+        "443": { HTTPS: true },
+      },
+      Web: {
+        "node.example.ts.net:443": {
+          Handlers: { "/": { Proxy: `unix:${web}` } },
+        },
+      },
+      // A unix: string outside any handler is resolved but never graded.
+      Note: `unix:${dir}/elsewhere`,
+    };
+    await Deno.writeTextFile(`${dir}/serve.json`, JSON.stringify(serve));
+    await Deno.mkdir(`${dir}/bin`);
+    await Deno.writeTextFile(
+      `${dir}/bin/tailscale`,
+      `#!/bin/sh\ncase "$1 $2" in\n  "serve status") cat '${dir}/serve.json' ;;\n  version*) echo 1.104.2 ;;\nesac\n`,
+    );
+    await Deno.chmod(`${dir}/bin/tailscale`, 0o755);
+    const out = await new Deno.Command("sh", {
+      args: ["-c", PROBE_SCRIPT],
+      env: { PATH: `${dir}/bin:${Deno.env.get("PATH") ?? "/usr/bin:/bin"}` },
+    }).output();
+    const stdout = new TextDecoder().decode(out.stdout);
+    assertStringIncludes(stdout, `RESOLVE|${odd}|${sock}`);
+    assertStringIncludes(stdout, `RESOLVE|${web}|${sock}`);
+    assertFalse(stdout.includes("a b;pwned"), "a serve path was run");
+    const facts = parseProbe(stdout);
+    assertEquals(facts.resolved[odd], sock);
+    assertEquals(facts.resolved[web], sock);
+    assertEquals(facts.resolved[`${dir}/elsewhere`], undefined);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("scanTarget skips the resolve command for paths the probe resolved", async () => {
+  const text = probe({
+    serve: SYMLINK_SERVE,
+    lines: ["RESOLVE|/srv/api.sock|/run/tailscale/tailscaled.sock"],
+  });
+  const { run, calls } = fakeRunner([text]);
+  const { status } = await scanTarget(run, "h", { inContainer: false });
+  assertEquals(calls.length, 1);
+  assertEquals(ids(status), ["serve-localapi-forward"]);
+
+  // One the probe missed is still resolved with a second command.
+  const both = probe({
+    serve: {
+      TCP: {
+        "9000": { TCPForward: "unix:/srv/api.sock" },
+        "9001": { TCPForward: "unix:/srv/other.sock" },
+      },
+    },
+    lines: ["RESOLVE|/srv/api.sock|/srv/api.sock"],
+  });
+  const second = fakeRunner([both], (cmd) => ({
+    stdout: cmd.startsWith("printf 'RESOLVE")
+      ? "RESOLVE|/srv/other.sock|/run/tailscale/tailscaled.sock"
+      : "",
+    stderr: "",
+    exitCode: 0,
+  }));
+  const r = await scanTarget(second.run, "h", { inContainer: false });
+  assertEquals(second.calls.length, 2);
+  assertFalse(second.calls[1].command.includes("/srv/api.sock"));
+  // api.sock is an ordinary socket; other.sock leads to the localapi.
+  assertEquals(ids(r.status).sort(), [
+    "serve-localapi-forward",
+    "serve-unix-forward",
+  ]);
+});
+
+Deno.test("grade writes the status scan would, marked as an external probe", async () => {
+  const text = probe({
+    serve: SYMLINK_SERVE,
+    lines: ["RESOLVE|/srv/api.sock|/run/tailscale/tailscaled.sock"],
+  });
+  const { resources, logs } = await runMethod("grade", {
+    target: "ci-vm-1",
+    output: text,
+  });
+  const graded = resources["status/ci-vm-1"] as Status;
+  assert(model.resources.status.schema.safeParse(graded).success);
+  assertEquals(graded.externalProbe, true);
+  assertEquals(graded.target, "ci-vm-1");
+  // A symlink to the localapi is caught from the output alone.
+  assertEquals(ids(graded), ["serve-localapi-forward"]);
+  assertEquals(graded.riskLevel, "critical");
+  const { run } = fakeRunner([text]);
+  const scanned = await scanTarget(run, "ci-vm-1", { inContainer: false });
+  assertEquals(stable(graded), stable(scanned.status));
+  assert(logs.some((l) => l.includes("nothing was run on the host")));
+});
+
+Deno.test("grade takes base64 output, wrapped or not, as plain", () => {
+  const text = probe({ serve: LOCALAPI_SERVE });
+  const b64 = btoa(text);
+  const wrapped = b64.replace(/(.{76})/g, "$1\n");
+  const plain = gradeOutput(text, "vm", { encoding: "plain" }).status;
+  for (const output of [b64, wrapped]) {
+    const s = gradeOutput(output, "vm", { encoding: "base64" }).status;
+    assertEquals(stable(s), stable(plain));
+  }
+  // The decoded bytes are UTF-8, so a non-ASCII hostname survives.
+  assertEquals(
+    decodeProbeOutput(
+      btoa(String.fromCharCode(...new TextEncoder().encode("é"))),
+      "base64",
+    ),
+    "é",
+  );
+});
+
+Deno.test("grade writes an error status, not a failure, for output it cannot grade", async () => {
+  const cases: [Record<string, unknown>, string][] = [
+    [{ output: "" }, "not probe output"],
+    [{ output: "Permission denied" }, "not probe output"],
+    [{ output: probe({ end: false }) }, "stops before the END line"],
+    [{ output: "not*base64", encoding: "base64" }, "not valid base64"],
+  ];
+  for (const [args, error] of cases) {
+    const { resources } = await runMethod("grade", { target: "vm", ...args });
+    const s = resources["status/vm"] as Status;
+    assert(model.resources.status.schema.safeParse(s).success);
+    assertStringIncludes(s.error ?? "", error);
+    assertEquals(s.riskLevel, "unknown");
+    assertEquals(s.externalProbe, true);
+    assertEquals(s.recommendations, [
+      "Run the probe on vm again and grade its output.",
+    ]);
+  }
+});
+
+Deno.test("grade accepts host labels only", () => {
+  const parse = (target: string) =>
+    model.methods.grade.arguments.safeParse({ target, output: "x" }).success;
+  for (const ok of ["ci-vm-1", "10.0.0.5", "fd00::1", "vm_2.example.com"]) {
+    assert(parse(ok), ok);
+  }
+  for (const bad of ["", "a|b", "a\nb", "a/b", "a\0b", "../x", "-x"]) {
+    assertFalse(parse(bad), JSON.stringify(bad));
+  }
+  assertEquals(
+    model.methods.grade.arguments.parse({ target: "vm", output: "x" })
+      .encoding,
+    "plain",
+  );
+});
+
+Deno.test("probeScript stores the probe, compressed, and one command that runs it", async () => {
+  const { resources } = await runMethod("probeScript", {});
+  const p = resources["probe/probe"] as Awaited<ReturnType<typeof probeBundle>>;
+  assert(model.resources.probe.schema.safeParse(p).success);
+  assertEquals(p.script, PROBE_SCRIPT);
+  assertEquals(p.scriptBytes, new TextEncoder().encode(PROBE_SCRIPT).length);
+  assertEquals(p.commandBytes, p.command.length);
+  const gz = Uint8Array.from(atob(p.gzipBase64), (c) => c.charCodeAt(0));
+  const unzipped = await new Response(
+    new Blob([gz]).stream().pipeThrough(new DecompressionStream("gzip")),
+  ).text();
+  assertEquals(unzipped, PROBE_SCRIPT);
+  const digest = new Uint8Array(
+    await crypto.subtle.digest(
+      "SHA-256",
+      new TextEncoder().encode(PROBE_SCRIPT),
+    ),
+  );
+  assertEquals(
+    p.sha256,
+    [...digest].map((b) => b.toString(16).padStart(2, "0")).join(""),
+  );
+  assertEquals(await probeBundle(), p);
+  // The command decodes to the script; with sh at the end it runs it.
+  assert(p.command.endsWith(" | sh"));
+  const decoded = await new Deno.Command("sh", {
+    args: ["-c", p.command.slice(0, -" | sh".length)],
+  }).output();
+  assertEquals(new TextDecoder().decode(decoded.stdout), PROBE_SCRIPT);
+  assert(p.commandBytes < p.scriptBytes);
 });

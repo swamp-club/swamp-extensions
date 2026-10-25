@@ -395,3 +395,28 @@ Deno.test("the localapi column counts web proxies, and older statuses without th
     "| 10.0.0.4 | 1.104.2 | no | no | no | — | none | LOW |",
   );
 });
+
+Deno.test("hosts graded from probe output get no mitigate command (swamp-club #3908)", async () => {
+  const serve = {
+    TCP: { "8443": { TCPForward: "unix:/run/tailscale/tailscaled.sock" } },
+  };
+  const vm = { ...status("ci-vm-1", { serve }), externalProbe: true };
+  const ssh = status("10.0.0.1", { serve });
+  const out = await report.execute(makeContext("grade", [vm, ssh]));
+  assertStringIncludes(
+    out.markdown,
+    "swamp behavior run tw mitigate --input hosts=10.0.0.1\n",
+  );
+  assertFalse(out.markdown.includes("ci-vm-1,"));
+  assertFalse(out.markdown.includes("hosts=ci-vm-1"));
+  assertStringIncludes(
+    out.markdown,
+    "ci-vm-1 was graded from probe output, so mitigate cannot reach it.",
+  );
+
+  // Only externally probed hosts: no mitigate line at all.
+  const only = await report.execute(makeContext("grade", [vm]));
+  assertFalse(only.markdown.includes("swamp behavior run"));
+  assertFalse(only.markdown.includes("Run mitigate as a dry run"));
+  assertStringIncludes(only.markdown, "run the probe again and grade");
+});

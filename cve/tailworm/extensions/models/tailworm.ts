@@ -389,9 +389,26 @@ const StatusSchema = z.object({
   sshUser: z.string().optional().describe(
     "SSH user given with this host as user@host; absent when the model's sshUser was used",
   ),
+  externalProbe: z.boolean().optional().describe(
+    "Graded from probe output the caller collected (grade); the model cannot reach this host",
+  ),
+});
+
+const ProbeSchema = z.object({
+  script: z.string().describe(
+    "PROBE_SCRIPT, for a transport that takes a script",
+  ),
+  gzipBase64: z.string().describe("The script gzipped, then base64 encoded"),
+  command: z.string().describe(
+    "One sh command line that decodes and runs the script; needs base64 and gzip on the host",
+  ),
+  scriptBytes: z.number(),
+  commandBytes: z.number(),
+  sha256: z.string().describe("SHA-256 of the script"),
 });
 
 export type Status = z.infer<typeof StatusSchema>;
+export type Probe = z.infer<typeof ProbeSchema>;
 export type Exposure = z.infer<typeof ExposureSchema>;
 export type Indicator = z.infer<typeof IndicatorSchema>;
 export type Forward = z.infer<typeof ForwardSchema>;
@@ -475,10 +492,15 @@ if command -v tailscale >/dev/null; then
   if nm=$(tailscale debug netmap); then echo "NETMAPOK|1"; else nm=""; fi
   # The JSON may not end in a newline, so each marker starts a fresh line.
   echo "@@ prefs"; tailscale debug prefs
-  echo; echo "@@ serve"; tailscale serve status --json
+  echo; echo "@@ serve"; sv=$(tailscale serve status --json); printf '%s\\n' "$sv"
   echo; echo "@@ status"; tailscale status --json --peers=false
   echo; echo "@@ sshpolicy"; printf '%s\\n' "$nm" | awk 'p && (/^\t"/ || /^}/) {exit} /^\t"SSHPolicy": / {p=1} p {print}'
   echo; echo "@@ end"
+  # Where each unix socket in the serve config really points, so a symlink to
+  # tailscaled.sock is caught from this output alone. Read as data, never run.
+  printf '%s\\n' "$sv" | grep -o '"unix:[^"]*"' | sed -e 's/^"unix://' -e 's/"$//' | sort -u | head -n 50 | while IFS= read -r u; do
+    r=$(readlink -f -- "$u") && [ -n "$r" ] && printf 'RESOLVE|%s|%s\\n' "$u" "$r"
+  done
 elif command -v tailscaled >/dev/null; then
   echo "TSVERSION|$(tailscaled --version | head -n 1)"
 fi
@@ -602,7 +624,10 @@ export type ProbeFacts = {
   nftSocket: "builtin" | "module" | "config" | "absent" | null;
   auditCount: number | null;
   unreadable: string[];
-  /** readlink -f of each unix serve target, filled in by scanTarget. */
+  /**
+   * readlink -f of each unix serve target: from the probe's RESOLVE lines,
+   * and by scanTarget for any the probe could not resolve.
+   */
   resolved: Record<string, string>;
   complete: boolean;
 };
@@ -685,6 +710,7 @@ export function parseProbe(text: string): ProbeFacts {
   };
   let section: "prefs" | "serve" | "status" | "sshpolicy" | null = null;
   const listeners: { path: string; pid: number | null }[] = [];
+  const resolves: string[] = [];
   const json: Record<string, string[]> = {
     prefs: [],
     serve: [],
@@ -843,6 +869,9 @@ export function parseProbe(text: string): ProbeFacts {
       case "UNREADABLE":
         facts.unreadable.push(rest);
         break;
+      case "RESOLVE":
+        resolves.push(rest);
+        break;
       case "END":
         facts.complete = true;
         break;
@@ -852,6 +881,15 @@ export function parseProbe(text: string): ProbeFacts {
   facts.serve = parseJson(json.serve.join("\n"));
   facts.status = parseJson(json.status.join("\n"));
   facts.sshPolicy = parseSshPolicy(json.sshpolicy.join("\n"));
+  // Matched by the path asked about, so a "|" in a path cannot shift it.
+  for (const p of unixTargets(facts)) {
+    const prefix = `${p}|`;
+    for (const r of resolves) {
+      if (r.startsWith(prefix) && r.length > prefix.length) {
+        facts.resolved[p] = r.slice(prefix.length);
+      }
+    }
+  }
   // Only a root tailscaled's listeners: a user's process named tailscaled
   // must not raise a signature. ss names the pid; without one, keep it.
   for (const l of listeners) {
@@ -1877,6 +1915,38 @@ export function resolveScript(paths: string[]): string {
   ).join("\n");
 }
 
+/**
+ * Parses a probe's result, refusing one that cannot be graded: no output (the
+ * command never ran) or a probe cut short (dropped connection, timeout), which
+ * must not read as clean. supplied names output a caller collected.
+ */
+export function gradeProbe(
+  r: RunResult,
+  target: string,
+  supplied = false,
+): ProbeFacts {
+  if (!r.stdout.includes("HOSTNAME|")) {
+    throw new Error(
+      supplied
+        ? `The output given for ${target} is not probe output (no HOSTNAME line)`
+        : `Cannot execute commands on ${target}: ${
+          r.stderr || `probe produced no output (exit ${r.exitCode})`
+        }`,
+    );
+  }
+  const facts = parseProbe(r.stdout);
+  if (!facts.complete) {
+    throw new Error(
+      supplied
+        ? `Incomplete probe output for ${target}: it stops before the END line`
+        : `Incomplete scan of ${target}: the probe stopped before finishing (exit ${r.exitCode}${
+          r.stderr ? `, ${r.stderr}` : ""
+        })`,
+    );
+  }
+  return facts;
+}
+
 /** Runs the probe through a runner and analyzes the result. */
 export async function scanTarget(
   run: Runner,
@@ -1888,24 +1958,9 @@ export async function scanTarget(
     sudoDefenses?: boolean;
   },
 ): Promise<{ status: Status; facts: ProbeFacts }> {
-  const r = await run(PROBE_SCRIPT);
-  if (!r.stdout.includes("HOSTNAME|")) {
-    throw new Error(
-      `Cannot execute commands on ${target}: ${
-        r.stderr || `probe produced no output (exit ${r.exitCode})`
-      }`,
-    );
-  }
-  const facts = parseProbe(r.stdout);
-  // A probe cut short (dropped connection, timeout) must not read as clean.
-  if (!facts.complete) {
-    throw new Error(
-      `Incomplete scan of ${target}: the probe stopped before finishing (exit ${r.exitCode}${
-        r.stderr ? `, ${r.stderr}` : ""
-      })`,
-    );
-  }
-  const paths = unixTargets(facts);
+  const facts = gradeProbe(await run(PROBE_SCRIPT), target);
+  // Only the paths the probe could not resolve itself.
+  const paths = unixTargets(facts).filter((p) => !(p in facts.resolved));
   if (paths.length > 0) {
     const res = await run(resolveScript(paths));
     // Matched by the path asked about, so a "|" in a path cannot shift it.
@@ -1925,6 +1980,95 @@ export async function scanTarget(
     await readDefensesWithSudo(run, facts);
   }
   return { status: analyze(facts, target, opts), facts };
+}
+
+/** How probe output given to grade is encoded. */
+export type ProbeEncoding = "plain" | "base64";
+
+/**
+ * Decodes probe output given to grade. base64 is what a QEMU guest-exec status
+ * returns as out-data; whitespace from line wrapping is ignored.
+ */
+export function decodeProbeOutput(
+  output: string,
+  encoding: ProbeEncoding,
+): string {
+  if (encoding === "plain") return output;
+  const b64 = output.replace(/[\t\n\r ]/g, "");
+  if (b64.length % 4 !== 0 || !/^[A-Za-z0-9+/]*={0,2}$/.test(b64)) {
+    throw new Error("the output is not valid base64");
+  }
+  return new TextDecoder().decode(
+    Uint8Array.from(atob(b64), (c) => c.charCodeAt(0)),
+  );
+}
+
+/**
+ * Grades probe output a caller collected through its own exec channel. Nothing
+ * runs on the host: unix serve targets are only as resolved as the probe left
+ * them, and defenses are not read through sudo.
+ */
+export function gradeOutput(
+  output: string,
+  target: string,
+  opts: { encoding: ProbeEncoding; fixedVersion?: string },
+): { status: Status; facts: ProbeFacts } {
+  const stdout = decodeProbeOutput(output, opts.encoding).trim();
+  const facts = gradeProbe({ stdout, stderr: "", exitCode: 0 }, target, true);
+  const status = analyze(facts, target, {
+    inContainer: false,
+    fixedVersion: opts.fixedVersion,
+  });
+  return { status: { ...status, externalProbe: true }, facts };
+}
+
+/** A host label grade names its data by: safe as a data name and table cell. */
+export const HOST_LABEL = /^[A-Za-z0-9_:][A-Za-z0-9._:-]{0,252}$/;
+
+function base64(bytes: Uint8Array): string {
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin);
+}
+
+/**
+ * The probe in the forms another transport can carry: the script, and one
+ * command line that decodes and runs it, for exec paths that take a single
+ * command (kubectl exec carries it in the URL).
+ */
+export async function probeBundle(): Promise<Probe> {
+  const script = new TextEncoder().encode(PROBE_SCRIPT);
+  const gzipped = new Uint8Array(
+    await new Response(
+      new Blob([script]).stream().pipeThrough(new CompressionStream("gzip")),
+    ).arrayBuffer(),
+  );
+  const gzipBase64 = base64(gzipped);
+  const command = `printf '%s' '${gzipBase64}' | base64 -d | gzip -dc | sh`;
+  const digest = new Uint8Array(
+    await crypto.subtle.digest("SHA-256", script),
+  );
+  return {
+    script: PROBE_SCRIPT,
+    gzipBase64,
+    command,
+    scriptBytes: script.length,
+    commandBytes: command.length,
+    sha256: [...digest].map((b) => b.toString(16).padStart(2, "0")).join(""),
+  };
+}
+
+/** The status grade writes when the output it was given cannot be graded. */
+export function gradeErrorStatus(target: string, err: unknown): Status {
+  return {
+    ...errorStatus(target, err),
+    externalProbe: true,
+    recommendations: [
+      `Run the probe on ${target} again and grade its output.`,
+    ],
+  };
 }
 
 /** The read-only commands that show the defenses mitigate installs. */
@@ -2985,6 +3129,13 @@ export const model = {
       lifetime: "infinite",
       garbageCollection: 20,
     },
+    probe: {
+      description:
+        "The probe script, compressed, and as one command line, for transports the model cannot drive",
+      schema: ProbeSchema,
+      lifetime: "infinite",
+      garbageCollection: 5,
+    },
   },
   files: {
     log: {
@@ -3123,6 +3274,78 @@ export const model = {
         );
         await summaryLog.finalize();
         return { dataHandles: handles };
+      },
+    },
+
+    grade: {
+      description:
+        "Grade probe output collected through another exec channel (KubeVirt guest agent, kubectl exec). Run probeScript's command on the host as root, then pass its stdout here; writes the same status and log as scan. Output that cannot be graded writes an error status.",
+      arguments: z.object({
+        target: z
+          .string()
+          .regex(HOST_LABEL)
+          .describe(
+            "Name of the host the output came from; the status and log are named by it",
+          ),
+        output: z
+          .string()
+          .describe("The probe's stdout from that host"),
+        encoding: z
+          .enum(["plain", "base64"])
+          .default("plain")
+          .describe(
+            "base64 for output still encoded, such as a QEMU guest-exec out-data",
+          ),
+      }),
+      execute: async (
+        args: { target: string; output: string; encoding: ProbeEncoding },
+        context: MethodContext,
+      ) => {
+        const log = context.createFileWriter("log", instanceName(args.target));
+        let status: Status;
+        try {
+          await log.writeLine(
+            `[${
+              new Date().toISOString()
+            }] Grading probe output given for ${args.target}\n`,
+          );
+          await log.writeLine(
+            "The caller ran the probe; nothing was run on the host.\n\n",
+          );
+          try {
+            status = gradeOutput(args.output, args.target, {
+              encoding: args.encoding,
+              fixedVersion: context.globalArgs.fixedVersion,
+            }).status;
+            await writeScanLog(log, status);
+          } catch (err) {
+            // One bad host in a workflow loop is an error row, not a failed run.
+            status = gradeErrorStatus(args.target, err);
+            await log.writeLine(`Cannot grade: ${status.error}\n`);
+          }
+        } finally {
+          await log.finalize();
+        }
+        const handle = await context.writeResource(
+          "status",
+          instanceName(args.target),
+          status,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+
+    probeScript: {
+      description:
+        "Store the probe script, gzip+base64 encoded, and as one sh command line, for a workflow to run through a transport the model cannot drive",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, never>, context: MethodContext) => {
+        const handle = await context.writeResource(
+          "probe",
+          "probe",
+          await probeBundle(),
+        );
+        return { dataHandles: [handle] };
       },
     },
 
