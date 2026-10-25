@@ -47,7 +47,7 @@ nothing else.
 | --- | --- | --- |
 | Tailscale version | The running daemon's version from `tailscale status --json` (the CLI's when the daemon does not answer), compared with `fixedVersion` and the 2026 bulletins | all |
 | Tailscale SSH enabled | `RunSSH` in `tailscale debug prefs` | 1–3, 5 |
-| The SSH rules this node enforces | The `SSHPolicy` of `tailscale debug netmap`: how many devices are admitted, whether root is allowed, and whether forwarding is granted. Only that key is read; peers, keys and packet filters stay on the host. **Needs root or the operator user** | 1–3, 5 |
+| The SSH rules this node enforces | The `SSHPolicy` of `tailscale debug netmap`: how many devices are admitted, whether root is allowed, and whether forwarding is granted. Only that key is read; peers, keys and packet filters stay on the host (the packet filter is read only with `includeReachability`). **Needs root or the operator user** | 1–3, 5 |
 | Self-hosted control (headscale) | `ControlURL` is not Tailscale's | 1–3 |
 | Serve forward to the localapi socket | `TCPForward: "unix:…"` in `tailscale serve status --json` (node, Services and foreground), with each path resolved by `readlink -f` | 7 |
 | Serve HTTP proxy to the localapi socket | A web handler's `Proxy: "unix:…"` in the same config that resolves to `tailscaled.sock`: critical, like the TCP forward | 7 |
@@ -57,6 +57,7 @@ nothing else.
 | `TS_SERVE_ALLOW_ALL_INTERFACES` | `tailscaled`'s process environment, its systemd unit, and `/etc/default` | 10 |
 | Node key expiry | `KeyExpiry` missing from `Self` while logged in | containment |
 | headscale | Version, `listen_addr` from the config, the unit's `MemoryMax` and `Restart` | 6 |
+| Who can reach the node (opt-in) | With `includeReachability=true` on `scan` or `scanFleet`, a second command prints the `PacketFilter` of `tailscale debug netmap`: the inbound rules control compiled for this node. Only rules to the node's own addresses are kept. **Needs root or the operator user** | containment |
 | Existing defenses | mitigate's nftables rule for `tailscaled`, counted only while it is bound to `tailscaled`'s current cgroup, and its auditd rules. Read as root, or by mitigate through passwordless sudo (see Privileges) | — |
 
 Only the `TS_` variables above are read from `tailscaled`'s environment, so
@@ -148,6 +149,63 @@ keys on first connection.
 A host that cannot be reached is reported as an error, and the other hosts are
 still scanned. Scan as root, or as the Tailscale operator user, to read each
 node's SSH rules, the socket listeners and the existing defenses.
+
+#### Who can reach what
+
+To check a policy rewrite (for example, per-pair grants or role tags) did
+what you meant, add `includeReachability=true`:
+
+```bash
+swamp behavior run tailworm-fleet scanFleet \
+  --input hosts=10.0.1.10,10.0.1.11,10.0.1.12 \
+  --input includeReachability=true
+```
+
+Each host's packet filter says which tailnet sources may reach it on which
+ports. The report adds a matrix between the scanned hosts, naming them by
+their Tailscale addresses, and who each host's Tailscale SSH policy lets in:
+
+```
+| From \ To | laptop | nas                                                  | cloud                                 |
+| ---------- | ------ | ---------------------------------------------------- | ------------------------------------- |
+| laptop     | —      | ✅ all ports (incl. 22 Tailscale SSH, 8443 localapi) | ✅ all ports (incl. 22 Tailscale SSH) |
+| nas        | 🚫     | —                                                    | 🚫                                    |
+| cloud      | 🚫     | ✅ 8096                                              | —                                     |
+
+Tailscale SSH policy, who may log in:
+
+- laptop ← nobody
+- nas ← laptop
+- cloud ← nobody
+```
+
+Port 22 is marked when Tailscale SSH is on, and the node's own serve ports
+that reach the localapi are marked too: those are the paths the Tailworm
+findings use. A Service's forwards listen on the Service's address, so they
+are not marked on the node.
+
+Below the matrix, a host is listed only when something the matrix cannot
+show reaches it: a rule that admits the whole tailnet range (the default `*`
+policy) reads as `any tailnet device`, and sources that are not scanned hosts
+are shown by address, the first three per rule, with the rest counted. When
+a rule names as many IPv4 as IPv6 hosts, each device is shown once, by its
+IPv4 address. A rule that admits peers by capability rather than address
+shows as `cap:<name>`, and as ❔ in the matrix: whether a scanned host holds
+the capability is not visible from the node. A host that is not listed
+admits nobody outside the scanned set. A single `scan` has no matrix, so it
+lists every inbound rule for its host, and above 8 hosts lists replace the
+matrix.
+
+A host whose rules cannot be read is reported as unknown, with the reason:
+no access to the netmap, no Tailscale addresses for the node, a netmap
+layout the extension does not recognise, or a read that timed out or lost
+its connection. It is never reported as unreachable.
+
+This is off by default. It stores each host's Tailscale addresses, the
+source prefixes and ports of its inbound rules, and the principals of its
+Tailscale SSH rules: node addresses, and `user:<login>` (often an email
+address) or `node:<id>` where a rule names those. The report prints them.
+Peers, keys and the rest of the netmap are not read.
 
 ### Scan a Docker container or image
 
@@ -391,7 +449,9 @@ missing privileges.
 
 | Method | Input | Default | Description |
 | --- | --- | --- | --- |
+| `scan` | `includeReachability` | `false` | Also read the node's packet filter for the report's reachability section |
 | `scanFleet` | `hosts` | required | Comma-separated hosts; `user@host` logs in as `user` |
+| `scanFleet` | `includeReachability` | `false` | As for `scan`; the report adds a matrix between the scanned hosts |
 | `grade` | `target` | required | Host the output came from (letters, digits, `.`, `_`, `:`, `-`); names the status and log |
 | `grade` | `output` | required | The probe's stdout from that host |
 | `grade` | `encoding` | `plain` | `base64` for output still encoded, such as QEMU guest-exec out-data |
@@ -416,6 +476,10 @@ missing privileges.
   `yes (3 src, root, fwd)`. It also shows forensic signatures, errors,
   deduplicated recommendations, and the mitigate command for the exposed
   hosts.
+- When the scan ran with `includeReachability=true`, it adds a Reachability
+  section: a source-by-destination matrix between the scanned hosts, who
+  each host's Tailscale SSH policy lets in, and any sources the matrix cannot
+  show. The JSON output carries each host's rules under `reachability`.
 - After `mitigate`, it shows each host's outcome and commands, and the apply
   or verify command.
 
@@ -442,6 +506,11 @@ fixed release by default, pull it and drop the argument.
   publishes its own assessment.
 - The SSH rules are this node's view: they show who can reach this node, not
   the whole policy. Scan every SSH-enabled node to cover the tailnet.
+- Reachability is the compiled policy as each node received it, not a live
+  connection test: a service that is not listening still shows as reachable.
+  Rules to subnet routes or exit-node traffic a node forwards, and app
+  capability grants (which carry no ports), are not shown. `grade` and
+  `gradeFleet` do not collect it.
 - conn25 detection is a heuristic (capabilities or environment naming conn25).
   In Kubernetes, check the operator's connector deployments directly.
 - Firewalls cannot see the unix-socket attacks (findings 1–3). The audit

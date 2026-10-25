@@ -25,6 +25,12 @@
  */
 
 import { z } from "npm:zod@4.6.7";
+import {
+  coversTailnet,
+  parsePrefix,
+  type Prefix,
+  prefixContains,
+} from "./_lib/prefix.ts";
 
 type FileWriter = {
   writeLine: (line: string) => Promise<void>;
@@ -247,6 +253,55 @@ const SshPolicySchema = z.object({
   remoteForwarding: z.boolean(),
 });
 
+/** One inbound packet filter rule, cut down to this node's own addresses. */
+const ReachRuleSchema = z.object({
+  /**
+   * Source prefixes as control sent them (a.b.c.d/32, fd7a:.../128, ...), and
+   * cap:<name> for peers admitted by a capability rather than an address.
+   */
+  sources: z.array(z.string()),
+  ports: z.array(z.object({ first: z.number(), last: z.number() })),
+  /**
+   * IP protocol numbers, or a name control sent that has no known number;
+   * empty means tailscaled's default (TCP, UDP, ICMP).
+   */
+  protocols: z.array(z.union([z.number(), z.string()])),
+  /** The sources cover the tailnet's whole range; absent before 2026.10.25.5. */
+  anyTailnet: z.boolean().optional(),
+});
+
+/** Why a node's inbound rules are unknown. */
+const ReachUnknownSchema = z.enum([
+  // tailscale debug netmap refused: not root or the operator user.
+  "no-access",
+  // tailscale status gave no addresses to match the rules against.
+  "no-addresses",
+  // The netmap had no PacketFilter this extension could read.
+  "unrecognised",
+  // The second command timed out or its connection dropped.
+  "read-failed",
+]);
+
+/**
+ * Who control lets reach this node: its compiled packet filter, not a live
+ * test. Only collected when scan or scanFleet ran with includeReachability.
+ */
+const ReachabilitySchema = z.object({
+  // false when the rules could not be read; reason says why.
+  readable: z.boolean(),
+  reason: ReachUnknownSchema.optional(),
+  /** The node's own Tailscale addresses, which other hosts' rules name. */
+  selfIps: z.array(z.string()),
+  rules: z.array(ReachRuleSchema),
+  /** A rule admits every address in the tailnet's range. */
+  anyTailnet: z.boolean(),
+  /**
+   * Tailscale SSH principals: node IPs, "*" for any, user:<login> or
+   * node:<id> for the rest.
+   */
+  sshSources: z.array(z.string()),
+});
+
 const ForwardSchema = z.object({
   port: z.number(),
   target: z.string(),
@@ -362,6 +417,8 @@ const StatusSchema = z.object({
     unresolvedTargets: z.array(z.string()).default([]),
     missingBulletins: z.array(z.string()),
     sshPolicy: SshPolicySchema,
+    // Only when the scan asked for it (includeReachability).
+    reachability: ReachabilitySchema.optional(),
   }),
   headscale: z.object({
     installed: z.boolean(),
@@ -417,6 +474,9 @@ export type Indicator = z.infer<typeof IndicatorSchema>;
 export type Forward = z.infer<typeof ForwardSchema>;
 export type WebProxy = z.infer<typeof WebProxySchema>;
 export type SshPolicy = z.infer<typeof SshPolicySchema>;
+export type Reachability = z.infer<typeof ReachabilitySchema>;
+export type ReachRule = z.infer<typeof ReachRuleSchema>;
+export type ReachUnknown = z.infer<typeof ReachUnknownSchema>;
 type Mitigation = z.infer<typeof MitigationSchema>;
 type RiskLevelT = z.infer<typeof RiskLevel>;
 type SeverityT = z.infer<typeof Severity>;
@@ -595,6 +655,21 @@ if [ "$(id -u)" = 0 ]; then
     ${AUDIT_TAGS_SH}
   fi
 fi
+echo "END|1"
+`;
+
+/**
+ * Prints the PacketFilter key of the netmap: the inbound rules control
+ * compiled for this node. Run only when the caller opts in
+ * (includeReachability); peers, keys and the rest of the netmap stay on the
+ * host. Kept out of PROBE_SCRIPT so the probe grade runs is unchanged.
+ */
+export const REACH_SCRIPT = `
+exec 2>/dev/null
+PATH="$PATH:/usr/local/sbin:/usr/sbin:/sbin"; export PATH
+if nm=$(tailscale debug netmap); then echo "NETMAPOK|1"; else nm=""; fi
+echo "@@ packetfilter"; printf '%s\\n' "$nm" | awk 'p && (/^\t"/ || /^}/) {exit} /^\t"PacketFilter": / {p=1} p {print}'
+echo; echo "@@ end"
 echo "END|1"
 `;
 
@@ -1134,6 +1209,183 @@ export function summarizeSshPolicy(
   }
   out.sources = Math.max(v4.size, v6.size) + others.size;
   return out;
+}
+
+/**
+ * The packet filter from REACH_SCRIPT's output: the rules ([] when control
+ * sent none), or why they cannot be read. Output cut short is a failed read,
+ * not missing access.
+ */
+export function parsePacketFilter(text: string): unknown[] | ReachUnknown {
+  const lines = text.split(/\r?\n/);
+  if (!lines.includes("END|1")) return "read-failed";
+  if (!lines.includes("NETMAPOK|1")) return "no-access";
+  const start = lines.indexOf("@@ packetfilter");
+  const end = lines.indexOf("@@ end");
+  if (start === -1 || end < start) return "read-failed";
+  const block = lines.slice(start + 1, end).join("\n").trim().replace(
+    /,$/,
+    "",
+  );
+  if (!block.startsWith('"PacketFilter"')) return "unrecognised";
+  try {
+    const v = JSON.parse(`{${block}}`).PacketFilter;
+    if (v === null) return [];
+    return Array.isArray(v) ? v : "unrecognised";
+  } catch {
+    return "unrecognised";
+  }
+}
+
+/** Sorts port ranges and joins the ones that touch or overlap. */
+function mergePorts(
+  ports: { first: number; last: number }[],
+): { first: number; last: number }[] {
+  const sorted = [...ports].sort((a, b) => a.first - b.first);
+  const out: { first: number; last: number }[] = [];
+  for (const p of sorted) {
+    const prev = out[out.length - 1];
+    if (prev && p.first <= prev.last + 1) {
+      prev.last = Math.max(prev.last, p.last);
+    } else {
+      out.push({ ...p });
+    }
+  }
+  return out;
+}
+
+/** IP protocol numbers by the names a packet filter may carry. */
+const PROTOCOL_NUMBERS: Record<string, number> = {
+  icmp: 1,
+  igmp: 2,
+  tcp: 6,
+  udp: 17,
+  gre: 47,
+  esp: 50,
+  ah: 51,
+  icmpv6: 58,
+  "ipv6-icmp": 58,
+  sctp: 132,
+};
+
+/** Numbers as they are, known names as numbers, unknown names kept. */
+function protocolList(v: unknown): (number | string)[] {
+  if (!Array.isArray(v)) return [];
+  const out = new Set<number | string>();
+  for (const p of v) {
+    if (typeof p === "number") out.add(p);
+    else if (typeof p === "string" && p !== "") {
+      out.add(PROTOCOL_NUMBERS[p.toLowerCase()] ?? p);
+    }
+  }
+  return [...out].sort((a, b) =>
+    typeof a === "number" && typeof b === "number"
+      ? a - b
+      : String(a).localeCompare(String(b))
+  );
+}
+
+function strings(v: unknown): string[] {
+  return Array.isArray(v)
+    ? v.filter((s): s is string => typeof s === "string" && s !== "")
+    : [];
+}
+
+/** The Tailscale SSH principals of the accept and check rules. */
+function sshSources(policy: Record<string, unknown> | null | undefined) {
+  const out = new Set<string>();
+  const rules = Array.isArray(policy?.rules) ? policy.rules : [];
+  for (const raw of rules) {
+    const rule = obj(raw);
+    const action = obj(rule.action);
+    const check = typeof action.holdAndDelegate === "string" &&
+      action.holdAndDelegate !== "";
+    if (action.reject === true || (!check && action.accept !== true)) continue;
+    for (const pr of Array.isArray(rule.principals) ? rule.principals : []) {
+      const p = obj(pr);
+      if (p.any === true) out.add("*");
+      else if (typeof p.nodeIP === "string" && p.nodeIP) out.add(p.nodeIP);
+      else if (typeof p.userLogin === "string" && p.userLogin) {
+        out.add(`user:${p.userLogin}`);
+      } else if (typeof p.node === "string" && p.node) {
+        out.add(`node:${p.node}`);
+      }
+    }
+  }
+  return [...out];
+}
+
+/**
+ * The rules of a packet filter that admit traffic to this node: each rule's
+ * destinations are cut to the ones containing one of the node's addresses
+ * (a filter also carries rules for routes it forwards), and rules with the
+ * same sources and protocols are merged.
+ */
+export function inboundReachability(
+  filter: unknown[] | ReachUnknown,
+  selfIps: string[],
+  sshPolicy: Record<string, unknown> | null | undefined,
+): Reachability {
+  const self = selfIps.map(parsePrefix).filter((p): p is Prefix => !!p);
+  // Without the node's own addresses no rule can be matched to it: unknown,
+  // never "nothing can reach it".
+  if (typeof filter === "string" || self.length === 0) {
+    return {
+      readable: false,
+      reason: typeof filter === "string" ? filter : "no-addresses",
+      selfIps,
+      rules: [],
+      anyTailnet: false,
+      sshSources: [],
+    };
+  }
+  const merged = new Map<string, ReachRule>();
+  for (const raw of filter) {
+    const rule = obj(raw);
+    // A capability-only rule admits peers by what they hold, not where they
+    // are: kept as cap:<name>, so the host never reads as closed to them.
+    const sources = [
+      ...new Set([
+        ...strings(rule.Srcs),
+        ...strings(rule.SrcCaps).map((c) => `cap:${c}`),
+      ]),
+    ].sort();
+    const protocols = protocolList(rule.IPProto);
+    const ports: { first: number; last: number }[] = [];
+    for (const d of Array.isArray(rule.Dsts) ? rule.Dsts : []) {
+      const dst = obj(d);
+      const net = typeof dst.Net === "string" ? parsePrefix(dst.Net) : null;
+      if (!net || !self.some((s) => prefixContains(net, s))) continue;
+      const range = obj(dst.Ports);
+      if (typeof range.First === "number" && typeof range.Last === "number") {
+        ports.push({ first: range.First, last: range.Last });
+      }
+    }
+    if (sources.length === 0 || ports.length === 0) continue;
+    const key = `${sources.join(",")}|${protocols.join(",")}`;
+    const prev = merged.get(key);
+    if (prev) prev.ports.push(...ports);
+    else merged.set(key, { sources, ports, protocols });
+  }
+  const rules = [...merged.values()].map((r) => ({
+    ...r,
+    ports: mergePorts(r.ports),
+    anyTailnet: coversTailnet(r.sources),
+  }));
+  return {
+    readable: true,
+    selfIps,
+    rules,
+    anyTailnet: rules.some((r) => r.anyTailnet),
+    sshSources: sshSources(sshPolicy),
+  };
+}
+
+/** The node's own Tailscale addresses from tailscale status --json. */
+export function selfAddresses(
+  status: Record<string, unknown> | null,
+): string[] {
+  return strings(obj(status?.Self).TailscaleIPs);
 }
 
 const ORDER: RiskLevelT[] = ["none", "low", "medium", "high", "critical"];
@@ -2054,6 +2306,8 @@ export async function scanTarget(
     fixedVersion?: string;
     /** Read existing defenses through sudo when it allows (mitigate only). */
     sudoDefenses?: boolean;
+    /** Also read the node's packet filter (includeReachability). */
+    reachability?: boolean;
   },
 ): Promise<{ status: Status; facts: ProbeFacts }> {
   const facts = gradeProbe(await run(PROBE_SCRIPT), target);
@@ -2074,7 +2328,20 @@ export async function scanTarget(
   ) {
     await readDefensesWithSudo(run, facts);
   }
-  return { status: analyze(facts, target, opts), facts };
+  const status = analyze(facts, target, opts);
+  if (opts.reachability && facts.tools["tailscale"]) {
+    // Optional data: a failed read leaves it unknown, not the scan failed.
+    const filter = await run(REACH_SCRIPT).then(
+      (res) => parsePacketFilter(res.stdout),
+      () => "read-failed" as const,
+    );
+    status.tailscale.reachability = inboundReachability(
+      filter,
+      selfAddresses(facts.status),
+      facts.sshPolicy,
+    );
+  }
+  return { status, facts };
 }
 
 /** How probe output given to grade is encoded. */
@@ -2255,6 +2522,27 @@ async function writeScanLog(log: FileWriter, status: Status) {
         `  serve ${
           p.scheme ?? "web"
         } ${p.port}${p.mount} -> ${p.target} (LOCALAPI)\n`,
+      );
+    }
+  }
+  const reach = ts.reachability;
+  if (reach) {
+    await log.writeLine(
+      reach.readable
+        ? `  inbound rules (packet filter, ${
+          reach.selfIps.join(" ")
+        }): ${reach.rules.length}${
+          reach.anyTailnet ? ", any tailnet address" : ""
+        }\n`
+        : `  inbound rules: unknown (${reach.reason ?? "not readable"})\n`,
+    );
+    for (const r of reach.rules) {
+      await log.writeLine(
+        `    ${r.sources.join(" ")} -> ${
+          r.ports.map((p) =>
+            p.first === p.last ? `${p.first}` : `${p.first}-${p.last}`
+          ).join(",")
+        }${r.protocols.length > 0 ? ` proto ${r.protocols.join(",")}` : ""}\n`,
       );
     }
   }
@@ -3336,8 +3624,18 @@ export const model = {
     scan: {
       description:
         "Scan a single host or container for Tailscale and headscale exposure to the Tailworm findings",
-      arguments: z.object({}),
-      execute: async (_args: Record<string, never>, context: MethodContext) => {
+      arguments: z.object({
+        includeReachability: z
+          .boolean()
+          .default(false)
+          .describe(
+            "Also read the node's packet filter (who control lets reach it, on which ports) for the report's reachability section. Stores tailnet addresses and ports; needs root or the operator user.",
+          ),
+      }),
+      execute: async (
+        args: { includeReachability?: boolean },
+        context: MethodContext,
+      ) => {
         const g = context.globalArgs;
         const logger = context.logger;
 
@@ -3365,6 +3663,7 @@ export const model = {
             {
               inContainer: transport.kind === "docker",
               fixedVersion: g.fixedVersion,
+              reachability: args.includeReachability,
             },
           );
           await writeScanLog(log, status);
@@ -3390,8 +3689,17 @@ export const model = {
           .describe(
             "Comma-separated list of host IPs or hostnames to scan; user@host logs in to that host as user instead of sshUser",
           ),
+        includeReachability: z
+          .boolean()
+          .default(false)
+          .describe(
+            "Also read the node's packet filter (who control lets reach it, on which ports) for the report's reachability section. Stores tailnet addresses and ports; needs root or the operator user.",
+          ),
       }),
-      execute: async (args: { hosts: string }, context: MethodContext) => {
+      execute: async (
+        args: { hosts: string; includeReachability?: boolean },
+        context: MethodContext,
+      ) => {
         const g = context.globalArgs;
         const logger = context.logger;
         const entries = hostList(args.hosts, g.sshUser);
@@ -3423,7 +3731,11 @@ export const model = {
             const { status } = await scanTarget(
               makeRunner(transport, logger),
               host,
-              { inContainer: false, fixedVersion: g.fixedVersion },
+              {
+                inContainer: false,
+                fixedVersion: g.fixedVersion,
+                reachability: args.includeReachability,
+              },
             );
             await writeScanLog(hostLog, status);
             return status;

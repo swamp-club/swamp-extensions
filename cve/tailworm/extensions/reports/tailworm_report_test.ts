@@ -457,3 +457,282 @@ Deno.test("a gradeFleet run renders one fleet report with no mitigate command (s
   assertFalse(out.markdown.includes("swamp behavior run"));
   assertStringIncludes(out.markdown, "run the probe again and grade");
 });
+
+/** A status with the inbound rules a scan with includeReachability stores. */
+function reachable(
+  target: string,
+  ips: string[],
+  rules: Reach["rules"],
+  opts: { prefs?: unknown; serve?: unknown; sshSources?: string[] } = {},
+): Status {
+  const s = status(target, opts);
+  s.tailscale.reachability = {
+    readable: true,
+    selfIps: ips,
+    rules,
+    anyTailnet: false,
+    sshSources: opts.sshSources ?? [],
+  };
+  return s;
+}
+
+type Reach = NonNullable<Status["tailscale"]["reachability"]>;
+
+const ALL = [{ first: 0, last: 65535 }];
+const TCP_UDP = [1, 6, 17, 58];
+const LAPTOP = ["100.64.0.1/32", "fd7a:115c:a1e0::1/128"];
+const CLOUD = ["100.64.0.3/32", "fd7a:115c:a1e0::3/128"];
+
+Deno.test("scan report has no reachability section unless a scan asked", async () => {
+  const out = await report.execute(makeContext("scan", [status("a")]));
+  assertFalse(out.markdown.includes("## Reachability"));
+  assertFalse("reachability" in (out.json as Record<string, unknown>[])[0]);
+});
+
+Deno.test("reachability: per-host tree and a matrix between scanned hosts", async () => {
+  const laptop = reachable("laptop", ["100.64.0.1", "fd7a:115c:a1e0::1"], [
+    { sources: LAPTOP, ports: ALL, protocols: TCP_UDP },
+  ]);
+  const nas = reachable(
+    "nas",
+    ["100.64.0.2", "fd7a:115c:a1e0::2"],
+    [
+      { sources: LAPTOP, ports: ALL, protocols: TCP_UDP },
+      {
+        sources: [
+          ...CLOUD,
+          "100.64.0.9/32",
+          "100.64.0.10/32",
+          "100.64.0.11/32",
+          "100.64.0.12/32",
+        ],
+        ports: [{ first: 8096, last: 8096 }, { first: 8443, last: 8443 }],
+        protocols: TCP_UDP,
+      },
+      { sources: ["100.64.0.20/32"], ports: ALL, protocols: [1] },
+    ],
+    {
+      prefs: { RunSSH: true },
+      serve: {
+        TCP: { "8443": { TCPForward: "unix:/run/tailscale/tailscaled.sock" } },
+      },
+      sshSources: ["100.64.0.1", "fd7a:115c:a1e0::1", "user:admin@"],
+    },
+  );
+  const cloud = reachable("cloud", ["100.64.0.3", "fd7a:115c:a1e0::3"], [
+    { sources: LAPTOP, ports: ALL, protocols: TCP_UDP },
+  ]);
+  const out = await report.execute(
+    makeContext("scanFleet", [laptop, nas, cloud]),
+  );
+  const md = out.markdown;
+  assertStringIncludes(md, "## Reachability");
+  assertStringIncludes(md, "not a live test");
+  assertStringIncludes(md, "| From \\ To | laptop | nas | cloud |");
+  assertStringIncludes(
+    md,
+    "| laptop | — | ✅ all ports (incl. 22 Tailscale SSH, 8443 localapi) | ✅ all ports |",
+  );
+  assertStringIncludes(md, "| nas | 🚫 | — | 🚫 |");
+  assertStringIncludes(md, "| cloud | 🚫 | ✅ 8096, 8443 (localapi) | — |");
+  // The matrix covers laptop and cloud: nas lists only the rest.
+  assertStringIncludes(md, "Sources outside the scanned hosts");
+  assertStringIncludes(md, "→ nas\n├ 100.64.0.9/32");
+  // laptop and cloud add nothing to the matrix: no list, no "itself" row.
+  assertFalse(md.includes("→ laptop"));
+  assertFalse(md.includes("→ cloud"));
+  assertFalse(md.includes("itself"));
+  assertStringIncludes(
+    md,
+    "├ 100.64.0.9/32, 100.64.0.10/32, 100.64.0.11/32, +1 more  8096, 8443 (localapi)",
+  );
+  assertStringIncludes(md, "└ 100.64.0.20/32");
+  assertStringIncludes(md, "icmp\n");
+  assertStringIncludes(md, "Tailscale SSH policy, who may log in:");
+  assertStringIncludes(md, "- nas ← laptop, user:admin@");
+  const json = out.json as { target: string; reachability?: Reach }[];
+  assertEquals(json[1].reachability?.rules.length, 3);
+});
+
+Deno.test("reachability: allow-all, no rules, and an unreadable netmap", async () => {
+  const open = reachable("open", ["100.64.0.5"], [
+    { sources: ["0.0.0.0/0", "::/0"], ports: ALL, protocols: [] },
+  ]);
+  const closed = reachable("closed", ["100.64.0.6"], []);
+  const blind = status("blind");
+  blind.tailscale.reachability = {
+    readable: false,
+    selfIps: [],
+    rules: [],
+    anyTailnet: false,
+    sshSources: [],
+  };
+  const md = (await report.execute(
+    makeContext("scanFleet", [open, closed, blind]),
+  )).markdown;
+  // The whole tailnet is more than the matrix shows: still listed.
+  assertStringIncludes(md, "→ open\n└ any tailnet device  all ports");
+  // No rules: the matrix column says it all.
+  assertFalse(md.includes("→ closed"));
+  assertStringIncludes(
+    md,
+    "**blind**: inbound rules unknown: the netmap was not readable (needs root or the operator user), or tailscale status gave no addresses for the node.",
+  );
+  // The unreadable host is left out of the matrix.
+  assertStringIncludes(md, "| From \\ To | open | closed |");
+  assertStringIncludes(md, "| closed | ✅ all ports | — |");
+});
+
+Deno.test("reachability: one host keeps its full inbound list", async () => {
+  const nas = reachable(
+    "nas",
+    ["100.64.0.2", "fd7a:115c:a1e0::2"],
+    [
+      { sources: ["100.64.0.2/32"], ports: ALL, protocols: TCP_UDP },
+      { sources: LAPTOP, ports: [{ first: 22, last: 22 }], protocols: TCP_UDP },
+    ],
+    { prefs: { RunSSH: true }, sshSources: ["*"] },
+  );
+  const md = (await report.execute(makeContext("scan", [nas]))).markdown;
+  assertFalse(md.includes("From \\ To"));
+  assertFalse(md.includes("Sources outside"));
+  assertStringIncludes(md, "→ nas (100.64.0.2, fd7a:115c:a1e0::2)");
+  assertStringIncludes(md, "├ itself");
+  assertStringIncludes(
+    md,
+    "└ 100.64.0.1  22 (Tailscale SSH)",
+  );
+  assertStringIncludes(md, "- nas ← any");
+  const closed = reachable("closed", ["100.64.0.6"], []);
+  assertStringIncludes(
+    (await report.execute(makeContext("scan", [closed]))).markdown,
+    "└ no inbound rules: nothing can reach it",
+  );
+});
+
+Deno.test("reachability: capability sources show as ❔, never as closed (#3923)", async () => {
+  const laptop = reachable("laptop", ["100.64.0.1"], []);
+  const nas = reachable("nas", ["100.64.0.2"], [
+    {
+      sources: ["cap:example.com/cap/ops"],
+      ports: [{ first: 443, last: 443 }],
+      protocols: [6],
+    },
+  ]);
+  const md = (await report.execute(makeContext("scanFleet", [laptop, nas])))
+    .markdown;
+  assertStringIncludes(
+    md,
+    "| laptop | — | ❔ 443 with cap:example.com/cap/ops |",
+  );
+  assertStringIncludes(md, "→ nas\n└ cap:example.com/cap/ops  443");
+});
+
+Deno.test("reachability: a Service's localapi forward is not marked on the node (#3923)", async () => {
+  const s = reachable(
+    "nas",
+    ["100.64.0.2"],
+    [{
+      sources: ["100.64.0.9/32"],
+      ports: [{ first: 8443, last: 8443 }, { first: 9443, last: 9443 }],
+      protocols: [6],
+    }],
+  );
+  s.tailscale.tcpForwards = [
+    { port: 8443, localapi: true, service: null },
+    { port: 9443, localapi: true, service: "svc:api" },
+  ] as typeof s.tailscale.tcpForwards;
+  const md = (await report.execute(makeContext("scan", [s]))).markdown;
+  assertStringIncludes(md, "8443 (localapi), 9443\n");
+});
+
+Deno.test("reachability: unknown hosts say why (#3923)", async () => {
+  const unknown = (target: string, reason: Reach["reason"]) => {
+    const s = status(target);
+    s.tailscale.reachability = {
+      readable: false,
+      reason,
+      selfIps: [],
+      rules: [],
+      anyTailnet: false,
+      sshSources: [],
+    };
+    return s;
+  };
+  const md = (await report.execute(
+    makeContext("scanFleet", [
+      unknown("a", "no-access"),
+      unknown("b", "read-failed"),
+      unknown("c", "unrecognised"),
+      unknown("d", "no-addresses"),
+    ]),
+  )).markdown;
+  assertStringIncludes(
+    md,
+    "**a**: inbound rules unknown: the netmap was not readable",
+  );
+  assertStringIncludes(
+    md,
+    "**b**: inbound rules unknown: reading the packet filter failed",
+  );
+  assertStringIncludes(
+    md,
+    "**c**: inbound rules unknown: the netmap had no packet filter",
+  );
+  assertStringIncludes(
+    md,
+    "**d**: inbound rules unknown: tailscale status gave no",
+  );
+});
+
+Deno.test("reachability: large fleets get lists, not a matrix (#3923)", async () => {
+  const fleet = Array.from(
+    { length: 9 },
+    (_, i) =>
+      reachable(`h${i}`, [`100.64.1.${i}`], [
+        { sources: ["100.64.1.0/32"], ports: ALL, protocols: TCP_UDP },
+      ]),
+  );
+  const md = (await report.execute(makeContext("scanFleet", fleet))).markdown;
+  assertFalse(md.includes("From \\ To"));
+  assertStringIncludes(md, "9 hosts are too many for a matrix");
+  // Lists name scanned sources when there is no matrix to show them.
+  assertStringIncludes(md, "→ h5 (100.64.1.5)\n└ h0  all ports");
+});
+
+Deno.test("reachability: a pipe in a host name does not break the matrix (#3923)", async () => {
+  const a = reachable("a|b", ["100.64.0.1"], []);
+  const c = reachable("c", ["100.64.0.3"], [
+    { sources: ["100.64.0.1/32"], ports: ALL, protocols: TCP_UDP },
+  ]);
+  const md = (await report.execute(makeContext("scanFleet", [a, c])))
+    .markdown;
+  assertStringIncludes(md, "| From \\ To | a\\|b | c |");
+  assertStringIncludes(md, "| a\\|b | — | ✅ all ports |");
+});
+
+Deno.test("reachability: unscanned devices are shown once (#3923)", async () => {
+  const a = reachable("a", ["100.64.0.1"], []);
+  const b = reachable("b", ["100.64.0.2"], [{
+    sources: [
+      "100.64.0.7/32",
+      "100.64.0.8/32",
+      "fd7a:115c:a1e0::7/128",
+      "fd7a:115c:a1e0::8/128",
+    ],
+    ports: [{ first: 22, last: 22 }],
+    protocols: [6],
+  }]);
+  const md = (await report.execute(makeContext("scanFleet", [a, b])))
+    .markdown;
+  assertStringIncludes(md, "└ 100.64.0.7, 100.64.0.8  22\n");
+});
+
+Deno.test("reachability: an unscanned SSH principal is shown once (#3923)", async () => {
+  const nas = reachable("nas", ["100.64.0.2"], [], {
+    prefs: { RunSSH: true },
+    sshSources: ["100.64.0.1", "fd7a:115c:a1e0::1", "user:admin@"],
+  });
+  const md = (await report.execute(makeContext("scan", [nas]))).markdown;
+  assertStringIncludes(md, "- nas ← 100.64.0.1, user:admin@");
+});

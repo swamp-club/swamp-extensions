@@ -19,6 +19,7 @@ import {
   gradeOutput,
   HEADSCALE_DROP_IN,
   hostList,
+  inboundReachability,
   isPublicListen,
   listenerPath,
   listenHost,
@@ -31,6 +32,7 @@ import {
   nftCgroupRules,
   nftTableRules,
   ownServiceUnit,
+  parsePacketFilter,
   parseProbe,
   parseResolves,
   parseSshPolicy,
@@ -40,6 +42,7 @@ import {
   PROBE_FORMAT,
   PROBE_SCRIPT,
   probeBundle,
+  REACH_SCRIPT,
   renderStep,
   resolveScript,
   ROOTPROC_SH,
@@ -53,6 +56,7 @@ import {
   type Status,
   summarizeSshPolicy,
 } from "./tailworm.ts";
+import { admits, coversTailnet, parsePrefix } from "./_lib/prefix.ts";
 
 // --- Fixtures ----------------------------------------------------------------
 
@@ -3023,4 +3027,319 @@ Deno.test("fleet methods refuse a host whose log would overwrite the fleet summa
     "fleet would write its log over the fleet summary log",
   );
   assertEquals(opened, []);
+});
+
+// --- Reachability --------------------------------------------------------------
+
+/** PacketFilter rules as control compiled them for "nas" on the rig. */
+const NAS_FILTER = [
+  {
+    Caps: [],
+    Dsts: [
+      { Net: "0.0.0.0/0", Ports: { First: 0, Last: 65535 } },
+      { Net: "::/0", Ports: { First: 0, Last: 65535 } },
+      { Net: "100.64.0.2/32", Ports: { First: 22, Last: 22 } },
+      { Net: "fd7a:115c:a1e0::2/128", Ports: { First: 22, Last: 22 } },
+    ],
+    IPProto: [6, 17, 1, 58],
+    SrcCaps: null,
+    Srcs: ["100.64.0.1/32", "fd7a:115c:a1e0::1/128"],
+  },
+  {
+    Caps: [],
+    Dsts: [
+      { Net: "100.64.0.2/32", Ports: { First: 8096, Last: 8096 } },
+      { Net: "fd7a:115c:a1e0::2/128", Ports: { First: 8096, Last: 8096 } },
+      // A route this node forwards, not an address of its own.
+      { Net: "10.0.0.0/24", Ports: { First: 443, Last: 443 } },
+    ],
+    IPProto: [6, 17, 1, 58],
+    SrcCaps: null,
+    Srcs: ["100.64.0.3/32", "fd7a:115c:a1e0::3/128"],
+  },
+];
+
+/** headscale's compiled form of a "*" source. */
+const HEADSCALE_STAR = [
+  "100.64.0.0/11",
+  "100.96.0.0/12",
+  "100.112.0.0/15",
+  "100.114.0.0/16",
+  "100.115.0.0/18",
+  "100.115.64.0/20",
+  "100.115.80.0/21",
+  "100.115.88.0/22",
+  "100.115.94.0/23",
+  "100.115.96.0/19",
+  "100.115.128.0/17",
+  "100.116.0.0/14",
+  "100.120.0.0/13",
+  "fd7a:115c:a1e0::/48",
+];
+
+const NAS_IPS = ["100.64.0.2", "fd7a:115c:a1e0::2"];
+
+/** REACH_SCRIPT output, with the key indented as tailscale debug netmap does. */
+function reachOutput(filter: unknown, opts: { netmapOk?: boolean } = {}) {
+  const block = `\t"PacketFilter": ${
+    JSON.stringify(filter, null, "\t").replace(/\n/g, "\n\t")
+  },`;
+  return [
+    ...(opts.netmapOk === false ? [] : ["NETMAPOK|1"]),
+    "@@ packetfilter",
+    ...(opts.netmapOk === false ? [] : [block]),
+    "",
+    "@@ end",
+    "END|1",
+  ].join("\n");
+}
+
+Deno.test("parsePacketFilter reads the netmap block, null, or why not", () => {
+  assertEquals(parsePacketFilter(reachOutput(NAS_FILTER)), NAS_FILTER);
+  assertEquals(parsePacketFilter(reachOutput(null)), []);
+  assertEquals(
+    parsePacketFilter(reachOutput(null, { netmapOk: false })),
+    "no-access",
+  );
+  // Cut short (timeout, dropped connection): not a privilege problem.
+  assertEquals(
+    parsePacketFilter(reachOutput(NAS_FILTER).replace("END|1", "")),
+    "read-failed",
+  );
+  assertEquals(parsePacketFilter(""), "read-failed");
+  assertEquals(
+    parsePacketFilter("NETMAPOK|1\n@@ packetfilter\n{bad\n@@ end\nEND|1"),
+    "unrecognised",
+  );
+  // A netmap layout the awk cut does not match prints an empty block.
+  assertEquals(
+    parsePacketFilter("NETMAPOK|1\n@@ packetfilter\n\n@@ end\nEND|1"),
+    "unrecognised",
+  );
+  // CR LF from a kubectl exec -t style channel.
+  assertEquals(
+    parsePacketFilter(reachOutput(NAS_FILTER).replace(/\n/g, "\r\n")),
+    NAS_FILTER,
+  );
+});
+
+Deno.test("prefix containment for IPv4 and IPv6", () => {
+  assert(admits(["100.64.0.1/32"], "100.64.0.1"));
+  assertFalse(admits(["100.64.0.1/32"], "100.64.0.2"));
+  assert(admits(["100.64.0.0/10"], "100.127.255.255"));
+  assertFalse(admits(["100.64.0.0/10"], "100.128.0.0"));
+  assert(admits(["fd7a:115c:a1e0::/48"], "fd7a:115c:a1e0::2"));
+  assertFalse(admits(["fd7a:115c:a1e0::/48"], "fd7a:115c:a1e1::2"));
+  assert(admits(["::/0"], "fd7a:115c:a1e0::2"));
+  assertFalse(admits(["::/0"], "100.64.0.2"));
+  assertFalse(admits(["garbage", "1.2.3.4/33"], "1.2.3.4"));
+  assertEquals(parsePrefix("1:2:3::4:5:6:7:8"), null);
+  assertEquals(parsePrefix("::1")?.addr, 1n);
+});
+
+Deno.test("coversTailnet: Tailscale's star, headscale's split, not one host", () => {
+  assert(coversTailnet(["0.0.0.0/0", "::/0"]));
+  assert(coversTailnet(HEADSCALE_STAR));
+  // headscale v4-only: the CGNAT split alone still covers the range.
+  assert(coversTailnet(HEADSCALE_STAR.slice(0, -1)));
+  assertFalse(coversTailnet(["100.64.0.0/11"]));
+  assertFalse(coversTailnet(["100.64.0.1/32", "fd7a:115c:a1e0::1/128"]));
+});
+
+Deno.test("inboundReachability keeps only rules to the node's own addresses", () => {
+  const reach = inboundReachability(NAS_FILTER, NAS_IPS, {
+    rules: [{
+      action: { accept: true },
+      principals: [{ nodeIP: "100.64.0.1" }, { userLogin: "admin@" }],
+    }, {
+      action: { reject: true },
+      principals: [{ any: true }],
+    }],
+  });
+  assert(reach.readable);
+  assertFalse(reach.anyTailnet);
+  assertEquals(reach.rules, [
+    {
+      sources: ["100.64.0.1/32", "fd7a:115c:a1e0::1/128"],
+      ports: [{ first: 0, last: 65535 }],
+      protocols: [1, 6, 17, 58],
+      anyTailnet: false,
+    },
+    {
+      // The forwarded route's 443 is not this node's.
+      sources: ["100.64.0.3/32", "fd7a:115c:a1e0::3/128"],
+      ports: [{ first: 8096, last: 8096 }],
+      protocols: [1, 6, 17, 58],
+      anyTailnet: false,
+    },
+  ]);
+  assertEquals(reach.sshSources, ["100.64.0.1", "user:admin@"]);
+});
+
+Deno.test("inboundReachability merges rules with the same sources", () => {
+  const rule = (first: number, last: number) => ({
+    Dsts: [{ Net: "100.64.0.2/32", Ports: { First: first, Last: last } }],
+    IPProto: [6],
+    Srcs: ["100.64.0.1/32"],
+  });
+  const reach = inboundReachability(
+    [rule(80, 80), rule(81, 90), rule(22, 22), rule(85, 100)],
+    NAS_IPS,
+    null,
+  );
+  assertEquals(reach.rules, [{
+    sources: ["100.64.0.1/32"],
+    ports: [{ first: 22, last: 22 }, { first: 80, last: 100 }],
+    protocols: [6],
+    anyTailnet: false,
+  }]);
+});
+
+Deno.test("inboundReachability flags an allow-all filter and an unreadable one", () => {
+  const all = inboundReachability(
+    [{
+      Dsts: [{ Net: "0.0.0.0/0", Ports: { First: 0, Last: 65535 } }],
+      IPProto: [6, 17, 1, 58],
+      Srcs: HEADSCALE_STAR,
+    }],
+    NAS_IPS,
+    null,
+  );
+  assert(all.anyTailnet);
+  const none = inboundReachability("no-access", NAS_IPS, null);
+  assertFalse(none.readable);
+  assertEquals(none.reason, "no-access");
+  assertEquals(none.rules, []);
+  // No address to match: unknown, not "nothing can reach it".
+  const noIps = inboundReachability(NAS_FILTER, [], null);
+  assertFalse(noIps.readable);
+  assertEquals(noIps.reason, "no-addresses");
+  assertFalse(inboundReachability(NAS_FILTER, ["not-an-ip"], null).readable);
+});
+
+Deno.test("scanTarget reads the packet filter only when asked", async () => {
+  const text = probe({
+    status: {
+      BackendState: "Running",
+      Self: { KeyExpiry: "2027-04-01T00:00:00Z", TailscaleIPs: NAS_IPS },
+    },
+  });
+  const plain = fakeRunner([text]);
+  const { status: without } = await scanTarget(plain.run, "h", {
+    inContainer: false,
+  });
+  assertEquals(plain.calls.length, 1);
+  assertEquals(without.tailscale.reachability, undefined);
+
+  const asked = fakeRunner([text, reachOutput(NAS_FILTER)]);
+  const { status } = await scanTarget(asked.run, "h", {
+    inContainer: false,
+    reachability: true,
+  });
+  assertEquals(asked.calls.length, 2);
+  assertEquals(asked.calls[1].command, REACH_SCRIPT);
+  assertEquals(status.tailscale.reachability?.selfIps, NAS_IPS);
+  assertEquals(status.tailscale.reachability?.rules.length, 2);
+});
+
+Deno.test("REACH_SCRIPT prints only the PacketFilter key of the netmap", async () => {
+  // tailscale debug netmap's layout: tab-indented top-level keys.
+  const netmap = [
+    "{",
+    '\t"NodeKey": "nodekey:secret",',
+    `\t"PacketFilter": ${
+      JSON.stringify(NAS_FILTER, null, "\t").replace(/\n/g, "\n\t")
+    },`,
+    '\t"PacketFilterRules": [],',
+    '\t"Peers": [{"Name": "peer"}]',
+    "}",
+  ].join("\n");
+  const dir = await Deno.makeTempDir();
+  try {
+    await Deno.writeTextFile(
+      `${dir}/tailscale`,
+      `#!/bin/sh\n[ "$1 $2" = "debug netmap" ] && cat <<'NM'\n${netmap}\nNM\n`,
+    );
+    await Deno.chmod(`${dir}/tailscale`, 0o755);
+    const out = await new Deno.Command("sh", {
+      args: ["-c", REACH_SCRIPT],
+      env: { PATH: `${dir}:/usr/bin:/bin` },
+    }).output();
+    const stdout = new TextDecoder().decode(out.stdout);
+    assertEquals(parsePacketFilter(stdout), NAS_FILTER);
+    assertFalse(stdout.includes("nodekey"));
+    assertFalse(stdout.includes("PacketFilterRules"));
+    assertFalse(stdout.includes("peer"));
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("inboundReachability keeps capability-only sources (#3923)", () => {
+  const reach = inboundReachability(
+    [{
+      Dsts: [{ Net: "100.64.0.2/32", Ports: { First: 443, Last: 443 } }],
+      IPProto: [6],
+      Srcs: [],
+      SrcCaps: ["example.com/cap/ops"],
+    }],
+    NAS_IPS,
+    null,
+  );
+  assert(reach.readable);
+  assertEquals(reach.rules, [{
+    sources: ["cap:example.com/cap/ops"],
+    ports: [{ first: 443, last: 443 }],
+    protocols: [6],
+    anyTailnet: false,
+  }]);
+});
+
+Deno.test("inboundReachability maps protocol names and keeps unknown ones (#3923)", () => {
+  const rule = (IPProto: unknown[]) => ({
+    Dsts: [{ Net: "100.64.0.2/32", Ports: { First: 0, Last: 65535 } }],
+    IPProto,
+    Srcs: ["100.64.0.1/32"],
+  });
+  const reach = inboundReachability(
+    [rule(["icmp", "ipv6-icmp"]), rule(["TCP", 17]), rule(["warp"])],
+    NAS_IPS,
+    null,
+  );
+  assertEquals(reach.rules.map((r) => r.protocols), [[1, 58], [6, 17], [
+    "warp",
+  ]]);
+});
+
+Deno.test("coversTailnet counts one block written two ways once (#3923)", () => {
+  // 100.64.0.0/11 twice (once with host bits set) plus /12: not the range.
+  assertFalse(
+    coversTailnet(["100.64.0.0/11", "100.64.0.1/11", "100.96.0.0/12"]),
+  );
+  assert(coversTailnet(["100.64.0.0/11", "100.96.0.0/11"]));
+});
+
+Deno.test("scanTarget: a failed packet filter read leaves the scan intact (#3923)", async () => {
+  const text = probe({
+    status: {
+      BackendState: "Running",
+      Self: { KeyExpiry: "2027-04-01T00:00:00Z", TailscaleIPs: NAS_IPS },
+    },
+  });
+  let n = 0;
+  const run = (command: string) => {
+    n++;
+    if (command === REACH_SCRIPT) {
+      return Promise.reject(new Error("connection reset"));
+    }
+    return Promise.resolve({ stdout: text, stderr: "", exitCode: 0 });
+  };
+  const { status } = await scanTarget(run, "h", {
+    inContainer: false,
+    reachability: true,
+  });
+  assertEquals(n, 2);
+  assertFalse(status.error !== null);
+  assertEquals(status.tailscale.reachability?.readable, false);
+  assertEquals(status.tailscale.reachability?.reason, "read-failed");
 });

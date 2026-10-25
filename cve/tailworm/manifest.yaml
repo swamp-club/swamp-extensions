@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/cve/tailworm"
-version: "2026.10.25.4"
+version: "2026.10.25.5"
 license: "AGPL-3.0-or-later"
 description: |
   Finds and mitigates hosts exposed to Tailworm, the security assessment of
@@ -49,6 +49,11 @@ description: |
   exact commands it runs (`sudo -n`, checked per command before anything
   changes). The SSH policy itself is the main control and is not visible
   from a host: rewrite it as per-pair grants.
+
+  With `includeReachability=true`, scan and scanFleet also read each node's
+  compiled packet filter, and the report shows who can reach each host on
+  which ports, with a matrix between the scanned hosts. Use it to check a
+  policy rewrite. It is the compiled policy, not a live test.
 
 repository: "https://github.com/swamp-club/swamp-extensions"
 
