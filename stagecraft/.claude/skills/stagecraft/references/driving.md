@@ -131,6 +131,29 @@ what is there, since the file may have changed since the line was copied. Make
 the change the person asks for, then run the factory's `validate` method. The
 page re-checks the file when you save it.
 
+### The studio on a deployed serve
+
+When the factories and work items live on a deployed `swamp serve`, not in this
+repo, the studio can show those instead. Any local swamp repo will do; `serve`
+takes the serve's URL as `server`:
+
+```sh
+# background: runs until Ctrl-C, and logs its URL
+swamp model method run studio serve --input server=wss://swamp.example.com
+```
+
+`server` is a ws, wss, http or https URL with no credentials in it. The studio
+reads with the person's own swamp login and grants on that serve, as any
+`--server` command does, and only reads: it runs no method there, writes nothing
+and takes no lock. It reads again every 15 seconds, so a change usually shows
+within that; a slow serve can delay it. If the first read fails (a wrong URL, no
+login, no grant), `serve` stops before it listens and says why. The page shows
+the definition as YAML written from the serve's data, so the file's comments and
+layout are not there.
+
+`server` cannot be combined with `publicOrigin`: the studio reads with the
+person's identity, so it answers on 127.0.0.1 only.
+
 ## Start a work item
 
 Work starts from a ticket: file one on the factory's tracker if there is none

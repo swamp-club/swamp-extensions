@@ -187,7 +187,10 @@ swamp model method run <studio> serve
 ```
 
 `serve` logs a line such as `studio: http://127.0.0.1:38813/`. Give the person
-that URL to open in a browser, and leave the studio running.
+that URL to open in a browser, and leave the studio running. When the factory
+lives on a deployed swamp serve instead of this repo, start `serve` with that
+serve's URL as `server`; see
+[driving.md](driving.md#the-studio-on-a-deployed-serve).
 
 Walk them through Design mode: the path a work item takes, where it stops for
 them (the gold gates), where it can loop back, and any findings `validate` left,

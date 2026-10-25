@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/stagecraft"
-version: "2026.10.24.1"
+version: "2026.10.25.1"
 license: "AGPL-3.0-or-later"
 description: |
   stagecraft builds factories. A factory describes your process as a set of
@@ -36,7 +36,9 @@ description: |
   - `@swamp/stagecraft/work-item`: starts work items and drives them through
     the stages, gates and human stops
   - `@swamp/stagecraft/studio`: a local page showing every factory and its
-    work items
+    work items, or, with `serve --input server=<url>`, a deployed swamp
+    serve's, read-only with your own swamp login (not together with
+    `publicOrigin`)
   - `@swamp/stagecraft/tracker`: the built-in tracker, kept in swamp data
   - `@swamp/stagecraft/linear`: publishes work items as Linear issues
   - `@swamp/stagecraft/publisher`: publishes work items to a tracker
