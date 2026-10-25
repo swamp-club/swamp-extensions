@@ -86,6 +86,8 @@ type Status = {
     tcpForwards: { localapi: boolean }[];
     /** Absent from statuses written before 2026.10.25.1. */
     localapiProxies?: unknown[];
+    /** Unix serve targets nobody could check; absent before 2026.10.25.3. */
+    unresolvedTargets?: string[];
     sshPolicy?: {
       readable: boolean;
       acceptRules: number;
@@ -176,6 +178,17 @@ function mitigateCommand(
 
 function yesNo(v: boolean): string {
   return v ? "yes" : "no";
+}
+
+/** A localapi forward or proxy; unverified when a target was not checked. */
+function localapiCell(ts: Status["tailscale"]): string {
+  if (
+    ts.tcpForwards.some((f) => f.localapi) ||
+    (ts.localapiProxies ?? []).length > 0
+  ) {
+    return "yes";
+  }
+  return (ts.unresolvedTargets ?? []).length > 0 ? "unverified" : "no";
 }
 
 /** SSH on or off, with what the node's rules allow when they were read. */
@@ -269,16 +282,11 @@ function scanReport(results: Status[], name: string) {
     const ts = r.tailscale;
     md += `| ${r.target} | ${ts.installed ? ts.version ?? "?" : "—"} | ${
       ts.installed ? sshCell(ts) : "—"
-    } | ${
-      ts.installed
-        ? yesNo(
-          ts.tcpForwards.some((f) => f.localapi) ||
-            (ts.localapiProxies ?? []).length > 0,
-        )
-        : "—"
-    } | ${ts.installed ? yesNo(ts.appConnector) : "—"} | ${
-      r.headscale.installed ? r.headscale.version ?? "yes" : "—"
-    } | ${iocCell(r)} | ${r.riskLevel.toUpperCase()} |\n`;
+    } | ${ts.installed ? localapiCell(ts) : "—"} | ${
+      ts.installed ? yesNo(ts.appConnector) : "—"
+    } | ${r.headscale.installed ? r.headscale.version ?? "yes" : "—"} | ${
+      iocCell(r)
+    } | ${r.riskLevel.toUpperCase()} |\n`;
   }
 
   const signatures = results.flatMap((r) =>

@@ -420,3 +420,21 @@ Deno.test("hosts graded from probe output get no mitigate command (swamp-club #3
   assertFalse(only.markdown.includes("Run mitigate as a dry run"));
   assertStringIncludes(only.markdown, "run the probe again and grade");
 });
+
+Deno.test("the localapi column says unverified when a target was not checked (#3910)", async () => {
+  const s = status("10.0.0.1", {
+    serve: { TCP: { "9000": { TCPForward: "unix:/srv/api.sock" } } },
+  });
+  assertEquals(s.tailscale.unresolvedTargets, ["/srv/api.sock"]);
+  const out = await report.execute(makeContext("scan", [s]));
+  assertStringIncludes(
+    out.markdown,
+    "| 10.0.0.1 | 1.104.2 | no | unverified |",
+  );
+  // A status from before the field existed reads as before.
+  const { unresolvedTargets: _, ...tailscale } = s.tailscale;
+  const old = await report.execute(
+    makeContext("scan", [{ ...s, tailscale }]),
+  );
+  assertStringIncludes(old.markdown, "| 10.0.0.1 | 1.104.2 | no | no |");
+});

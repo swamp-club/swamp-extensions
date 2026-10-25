@@ -357,6 +357,9 @@ const StatusSchema = z.object({
     unixProxies: z.array(z.string()),
     // Absent from statuses written before 2026.10.25.1.
     localapiProxies: z.array(WebProxySchema).default([]),
+    // Unix serve targets whose real path could not be read; absent from
+    // statuses written before 2026.10.25.3.
+    unresolvedTargets: z.array(z.string()).default([]),
     missingBulletins: z.array(z.string()),
     sshPolicy: SshPolicySchema,
   }),
@@ -466,6 +469,12 @@ const AUDIT_TAGS_SH =
   `echo "AUDIT|$(printf '%s\\n' "$a" | grep -cE 'key=tailworm|-k tailworm')"`;
 
 /**
+ * The probe's output format. Output without it (a copy of an older probe kept
+ * by a workflow) still grades, but its resolve lines are not read.
+ */
+export const PROBE_FORMAT = 2;
+
+/**
  * Prints tagged facts about Tailscale and headscale on a POSIX host. Nothing
  * here needs root; the listener, nftables and audit checks are skipped
  * without it. Only the TS_ variables the findings concern are read from the
@@ -478,6 +487,7 @@ exec 2>/dev/null
 PATH="$PATH:/usr/local/sbin:/usr/sbin:/sbin"; export PATH
 names='(TS_SERVE_ALLOW_ALL_INTERFACES|TS_[A-Z0-9_]*CONN25[A-Z0-9_]*)'
 ${ROOTPROC_SH}
+echo "PROBE|${PROBE_FORMAT}"
 echo "HOSTNAME|$(hostname || cat /etc/hostname)"
 echo "UID|$(id -u)"
 echo "KERNEL|$(uname -s)"
@@ -498,8 +508,17 @@ if command -v tailscale >/dev/null; then
   echo; echo "@@ end"
   # Where each unix socket in the serve config really points, so a symlink to
   # tailscaled.sock is caught from this output alone. Read as data, never run.
-  printf '%s\\n' "$sv" | grep -o '"unix:[^"]*"' | sed -e 's/^"unix://' -e 's/"$//' | sort -u | head -n 50 | while IFS= read -r u; do
-    r=$(readlink -f -- "$u") && [ -n "$r" ] && printf 'RESOLVE|%s|%s\\n' "$u" "$r"
+  # The JSON escapes tailscale writes are decoded first; \\\\ goes through a
+  # placeholder so an escaped backslash is never read as the start of another
+  # escape. A path left with any other escape does not resolve and is
+  # reported as unverified.
+  # A result with a line break could print lines for another path: dropped,
+  # so that path reads as unverified.
+  b=$(printf '\\001'); cr=$(printf '\\r'); nl='
+'
+  printf '%s\\n' "$sv" | grep -oE '"unix:([^"\\\\]|\\\\.)*"' | sed -e 's/^"unix://' -e 's/"$//' -e 's/\\\\\\\\/'"$b"'/g' -e 's/\\\\u0026/\\&/g' -e 's/\\\\u003c/</g' -e 's/\\\\u003e/>/g' -e 's/\\\\\\//\\//g' -e 's/\\\\"/"/g' -e 's/'"$b"'/\\\\/g' | sort -u | head -n 50 | while IFS= read -r u; do
+    printf 'RESOLVEPATH|%s\\n' "$u"
+    r=$(readlink -f -- "$u") && [ -n "$r" ] && case $r in *"$nl"*|*"$cr"*) ;; *) printf 'RESOLVED|%s\\n' "$r" ;; esac
   done
 elif command -v tailscaled >/dev/null; then
   echo "TSVERSION|$(tailscaled --version | head -n 1)"
@@ -629,6 +648,8 @@ export type ProbeFacts = {
    * and by scanTarget for any the probe could not resolve.
    */
   resolved: Record<string, string>;
+  /** The PROBE| format the output was written in; null before format 2. */
+  probeFormat: number | null;
   complete: boolean;
 };
 
@@ -706,18 +727,21 @@ export function parseProbe(text: string): ProbeFacts {
     auditCount: null,
     unreadable: [],
     resolved: {},
+    probeFormat: null,
     complete: false,
   };
   let section: "prefs" | "serve" | "status" | "sshpolicy" | null = null;
   const listeners: { path: string; pid: number | null }[] = [];
   const resolves: string[] = [];
+  // Some exec channels (kubectl exec -t) end lines with CR LF.
+  const lines = text.split(/\r?\n/);
   const json: Record<string, string[]> = {
     prefs: [],
     serve: [],
     status: [],
     sshpolicy: [],
   };
-  for (const line of text.split("\n")) {
+  for (const line of lines) {
     const marker = line.match(/^@@ (\w+)$/);
     if (marker) {
       const name = marker[1];
@@ -869,8 +893,14 @@ export function parseProbe(text: string): ProbeFacts {
       case "UNREADABLE":
         facts.unreadable.push(rest);
         break;
-      case "RESOLVE":
-        resolves.push(rest);
+      case "RESOLVEPATH":
+      case "RESOLVED":
+        resolves.push(line);
+        break;
+      case "PROBE":
+        facts.probeFormat = /^\d+$/.test(rest.trim())
+          ? Number(rest.trim())
+          : null;
         break;
       case "END":
         facts.complete = true;
@@ -881,14 +911,9 @@ export function parseProbe(text: string): ProbeFacts {
   facts.serve = parseJson(json.serve.join("\n"));
   facts.status = parseJson(json.status.join("\n"));
   facts.sshPolicy = parseSshPolicy(json.sshpolicy.join("\n"));
-  // Matched by the path asked about, so a "|" in a path cannot shift it.
+  const found = parseResolves(resolves);
   for (const p of unixTargets(facts)) {
-    const prefix = `${p}|`;
-    for (const r of resolves) {
-      if (r.startsWith(prefix) && r.length > prefix.length) {
-        facts.resolved[p] = r.slice(prefix.length);
-      }
-    }
+    if (found[p]) facts.resolved[p] = found[p];
   }
   // Only a root tailscaled's listeners: a user's process named tailscaled
   // must not raise a signature. ss names the pid; without one, keep it.
@@ -1012,6 +1037,12 @@ export function unixTargets(facts: ProbeFacts): string[] {
     ...serveUnixProxies(facts.serve),
   ].filter((t) => t.startsWith("unix:")).map((t) => t.slice(5));
   return [...new Set(paths)];
+}
+
+/** A serve target as report text: quoted when it holds control characters. */
+export function shown(target: string): string {
+  // deno-lint-ignore no-control-regex
+  return /[\x00-\x1f\x7f]/.test(target) ? JSON.stringify(target) : target;
 }
 
 function isLocalapiSocket(path: string, facts: ProbeFacts): boolean {
@@ -1255,6 +1286,11 @@ export function analyze(
   });
   const localapiProxies: WebProxy[] = webProxies.filter((p) => p.localapi)
     .map(({ localapi: _, ...p }) => p);
+  // Nobody could read where these point: not run as root, an escape the probe
+  // does not decode, or an older probe. One may still be the localapi.
+  const unresolvedTargets = unixTargets(facts).filter((p) =>
+    !(p in facts.resolved) && !isLocalapiSocket(p, facts)
+  );
   const missingBulletins = version
     ? BULLETINS.filter((b) => compareVersions(version, b.fixed) < 0)
     : [];
@@ -1307,11 +1343,17 @@ export function analyze(
         title: "serve forwards to unix sockets that tailscaled dials as root",
         detail: `Unix targets: ${
           [
-            ...otherUnix.map((f) => `${f.target} (tcp ${f.port})`),
-            ...otherProxies,
+            ...otherUnix.map((f) => `${shown(f.target)} (tcp ${f.port})`),
+            ...otherProxies.map(shown),
           ]
             .join(", ")
-        }. The target is checked once at config time; swapping it for a symlink later makes tailscaled dial any root-only socket.`,
+        }. The target is checked once at config time; swapping it for a symlink later makes tailscaled dial any root-only socket.${
+          unresolvedTargets.length > 0
+            ? ` Not checked where it points: ${
+              unresolvedTargets.map(shown).join(", ")
+            }; it may lead to the localapi.`
+            : ""
+        }`,
       });
     }
     if (appConnector || conn25) {
@@ -1521,6 +1563,7 @@ export function analyze(
       tcpForwards,
       unixProxies,
       localapiProxies,
+      unresolvedTargets,
       missingBulletins: missingBulletins.map((b) => b.id),
       sshPolicy,
     },
@@ -1549,6 +1592,15 @@ export function analyze(
     mitigation: null,
   };
   status.recommendations = buildRecommendations(status);
+  if (unresolvedTargets.length > 0 && (facts.probeFormat ?? 0) < PROBE_FORMAT) {
+    // Rerunning the current probe resolves them; checking by hand comes after.
+    status.recommendations = status.recommendations.filter((r) =>
+      !r.startsWith("Could not check where")
+    );
+    status.recommendations.push(
+      "This output came from an older copy of the probe, which this version cannot read the serve targets from: run probeScript again and use its command.",
+    );
+  }
   status.summary = summarize(status);
   return status;
 }
@@ -1637,6 +1689,16 @@ function buildRecommendations(s: Status): string[] {
   if (has("serve-unix-forward")) {
     recs.push(
       "Review serve forwards to unix sockets: tailscaled dials them as root for every permitted peer. Remove any that point at privileged daemons.",
+    );
+  }
+  const unresolved = s.tailscale.unresolvedTargets;
+  if (unresolved.length > 0) {
+    recs.push(
+      `Could not check where ${unresolved.map(shown).join(", ")} ${
+        unresolved.length === 1 ? "points" : "point"
+      }: run readlink -f on ${
+        unresolved.length === 1 ? "it" : "each"
+      } as root. One that leads to tailscaled.sock is a critical localapi forward (finding 7): remove it now. Scan or probe as root to have it checked.`,
     );
   }
   if (has("app-connector")) {
@@ -1906,13 +1968,49 @@ async function stopContainer(containerId: string, logger: Logger) {
 
 // --- Scanning ----------------------------------------------------------------
 
-/** Prints `RESOLVE|<path>|<readlink -f path>` for each unix serve target. */
+/**
+ * Prints `RESOLVEPATH|<path>` for each unix serve target, then
+ * `RESOLVED|<readlink -f path>` when it resolves to a path without a line
+ * break (one with a line break could print lines for another path).
+ */
 export function resolveScript(paths: string[]): string {
-  return paths.map((p) =>
-    `printf 'RESOLVE|%s|%s\\n' ${shQuote(p)} "$(readlink -f -- ${
-      shQuote(p)
-    } 2>/dev/null)"`
-  ).join("\n");
+  return [
+    `cr=$(printf '\\r'); nl='\n'`,
+    ...paths.map((p) =>
+      `printf 'RESOLVEPATH|%s\\n' ${shQuote(p)}; r=$(readlink -f -- ${
+        shQuote(p)
+      } 2>/dev/null) && [ -n "$r" ] && case $r in *"$nl"*|*"$cr"*) ;; *) printf 'RESOLVED|%s\\n' "$r" ;; esac`
+    ),
+  ].join("\n");
+}
+
+/**
+ * Pairs each `RESOLVED|` line with the `RESOLVEPATH|` line right before it.
+ * The path and its result are on separate lines, so a "|" in either cannot
+ * move a result to another path. A path given two different results is
+ * dropped, so it reads as unverified rather than taking whichever came last.
+ */
+export function parseResolves(lines: string[]): Record<string, string> {
+  const out: Record<string, string> = {};
+  const conflicting = new Set<string>();
+  let path: string | null = null;
+  for (const line of lines) {
+    if (line.startsWith("RESOLVEPATH|")) {
+      path = line.slice("RESOLVEPATH|".length);
+    } else if (line.startsWith("RESOLVED|") && path !== null) {
+      const real = line.slice("RESOLVED|".length);
+      if (real && !conflicting.has(path)) {
+        if (path in out && out[path] !== real) {
+          conflicting.add(path);
+          delete out[path];
+        } else {
+          out[path] = real;
+        }
+      }
+      path = null;
+    }
+  }
+  return out;
 }
 
 /**
@@ -1960,18 +2058,15 @@ export async function scanTarget(
 ): Promise<{ status: Status; facts: ProbeFacts }> {
   const facts = gradeProbe(await run(PROBE_SCRIPT), target);
   // Only the paths the probe could not resolve itself.
-  const paths = unixTargets(facts).filter((p) => !(p in facts.resolved));
+  // A path with a line break would print as several lines and could pair a
+  // result with another path; it stays unresolved and is reported unverified.
+  const paths = unixTargets(facts).filter((p) =>
+    !(p in facts.resolved) && !/[\r\n]/.test(p)
+  );
   if (paths.length > 0) {
     const res = await run(resolveScript(paths));
-    // Matched by the path asked about, so a "|" in a path cannot shift it.
-    for (const line of res.stdout.split("\n")) {
-      for (const p of paths) {
-        const prefix = `RESOLVE|${p}|`;
-        if (line.startsWith(prefix) && line.length > prefix.length) {
-          facts.resolved[p] = line.slice(prefix.length);
-        }
-      }
-    }
+    const found = parseResolves(res.stdout.split(/\r?\n/));
+    for (const p of paths) if (found[p]) facts.resolved[p] = found[p];
   }
   if (
     opts.sudoDefenses && facts.uid !== 0 && facts.tools["sudo"] &&
@@ -2227,6 +2322,7 @@ function errorStatus(
       tcpForwards: [],
       unixProxies: [],
       localapiProxies: [],
+      unresolvedTargets: [],
       missingBulletins: [],
       sshPolicy: summarizeSshPolicy(undefined),
     },

@@ -32,10 +32,12 @@ import {
   nftTableRules,
   ownServiceUnit,
   parseProbe,
+  parseResolves,
   parseSshPolicy,
   parseVersion,
   planMitigation,
   preflightScript,
+  PROBE_FORMAT,
   PROBE_SCRIPT,
   probeBundle,
   renderStep,
@@ -46,6 +48,7 @@ import {
   serveForwards,
   serveUnixProxies,
   serveWebProxies,
+  shown,
   shQuote,
   type Status,
   summarizeSshPolicy,
@@ -790,7 +793,7 @@ Deno.test("allowedSteps requires a passwordless sudoers match", () => {
 Deno.test("resolveScript quotes each path", () => {
   assertEquals(
     resolveScript(["/srv/a b.sock"]),
-    `printf 'RESOLVE|%s|%s\\n' '/srv/a b.sock' "$(readlink -f -- '/srv/a b.sock' 2>/dev/null)"`,
+    `cr=$(printf '\\r'); nl='\n'\nprintf 'RESOLVEPATH|%s\\n' '/srv/a b.sock'; r=$(readlink -f -- '/srv/a b.sock' 2>/dev/null) && [ -n "$r" ] && case $r in *"$nl"*|*"$cr"*) ;; *) printf 'RESOLVED|%s\\n' "$r" ;; esac`,
   );
 });
 
@@ -836,8 +839,8 @@ Deno.test("scanTarget resolves unix serve targets before analysing", async () =>
     serve: { TCP: { "9000": { TCPForward: "unix:/srv/api.sock" } } },
   });
   const { run, calls } = fakeRunner([text], (cmd) => ({
-    stdout: cmd.startsWith("printf 'RESOLVE")
-      ? "RESOLVE|/srv/api.sock|/run/tailscale/tailscaled.sock"
+    stdout: cmd.includes("printf 'RESOLVEPATH")
+      ? "RESOLVEPATH|/srv/api.sock\nRESOLVED|/run/tailscale/tailscaled.sock"
       : "",
     stderr: "",
     exitCode: 0,
@@ -1292,8 +1295,8 @@ Deno.test("a resolved path containing | is parsed by the path asked about", asyn
     serve: { TCP: { "9000": { TCPForward: `unix:${target}` } } },
   });
   const { run } = fakeRunner([text], (cmd) => ({
-    stdout: cmd.startsWith("printf 'RESOLVE")
-      ? `RESOLVE|${target}|/run/tailscale/tailscaled.sock`
+    stdout: cmd.includes("printf 'RESOLVEPATH")
+      ? `RESOLVEPATH|${target}\nRESOLVED|/run/tailscale/tailscaled.sock`
       : "",
     stderr: "",
     exitCode: 0,
@@ -2423,8 +2426,8 @@ Deno.test("PROBE_SCRIPT resolves unix serve targets itself, reading paths as dat
       env: { PATH: `${dir}/bin:${Deno.env.get("PATH") ?? "/usr/bin:/bin"}` },
     }).output();
     const stdout = new TextDecoder().decode(out.stdout);
-    assertStringIncludes(stdout, `RESOLVE|${odd}|${sock}`);
-    assertStringIncludes(stdout, `RESOLVE|${web}|${sock}`);
+    assertStringIncludes(stdout, `RESOLVEPATH|${odd}\nRESOLVED|${sock}`);
+    assertStringIncludes(stdout, `RESOLVEPATH|${web}\nRESOLVED|${sock}`);
     assertFalse(stdout.includes("a b;pwned"), "a serve path was run");
     const facts = parseProbe(stdout);
     assertEquals(facts.resolved[odd], sock);
@@ -2438,7 +2441,10 @@ Deno.test("PROBE_SCRIPT resolves unix serve targets itself, reading paths as dat
 Deno.test("scanTarget skips the resolve command for paths the probe resolved", async () => {
   const text = probe({
     serve: SYMLINK_SERVE,
-    lines: ["RESOLVE|/srv/api.sock|/run/tailscale/tailscaled.sock"],
+    lines: [
+      "RESOLVEPATH|/srv/api.sock",
+      "RESOLVED|/run/tailscale/tailscaled.sock",
+    ],
   });
   const { run, calls } = fakeRunner([text]);
   const { status } = await scanTarget(run, "h", { inContainer: false });
@@ -2453,11 +2459,11 @@ Deno.test("scanTarget skips the resolve command for paths the probe resolved", a
         "9001": { TCPForward: "unix:/srv/other.sock" },
       },
     },
-    lines: ["RESOLVE|/srv/api.sock|/srv/api.sock"],
+    lines: ["RESOLVEPATH|/srv/api.sock", "RESOLVED|/srv/api.sock"],
   });
   const second = fakeRunner([both], (cmd) => ({
-    stdout: cmd.startsWith("printf 'RESOLVE")
-      ? "RESOLVE|/srv/other.sock|/run/tailscale/tailscaled.sock"
+    stdout: cmd.includes("printf 'RESOLVEPATH")
+      ? "RESOLVEPATH|/srv/other.sock\nRESOLVED|/run/tailscale/tailscaled.sock"
       : "",
     stderr: "",
     exitCode: 0,
@@ -2475,7 +2481,10 @@ Deno.test("scanTarget skips the resolve command for paths the probe resolved", a
 Deno.test("grade writes the status scan would, marked as an external probe", async () => {
   const text = probe({
     serve: SYMLINK_SERVE,
-    lines: ["RESOLVE|/srv/api.sock|/run/tailscale/tailscaled.sock"],
+    lines: [
+      "RESOLVEPATH|/srv/api.sock",
+      "RESOLVED|/run/tailscale/tailscaled.sock",
+    ],
   });
   const { resources, logs } = await runMethod("grade", {
     target: "ci-vm-1",
@@ -2579,4 +2588,278 @@ Deno.test("probeScript stores the probe, compressed, and one command that runs i
   }).output();
   assertEquals(new TextDecoder().decode(decoded.stdout), PROBE_SCRIPT);
   assert(p.commandBytes < p.scriptBytes);
+});
+
+// --- Unresolved serve targets, RESOLVE matching, CRLF (swamp-club #3910) ----
+
+Deno.test("an unresolved unix serve target is reported as unverified (#3910)", () => {
+  const { status } = gradeOutput(
+    probe({ serve: SYMLINK_SERVE, lines: [`PROBE|${PROBE_FORMAT}`] }),
+    "vm",
+    { encoding: "plain" },
+  );
+  const ts = status.tailscale as typeof status.tailscale & {
+    unresolvedTargets?: string[];
+  };
+  assertEquals(ts.unresolvedTargets, ["/srv/api.sock"]);
+  assert(
+    status.recommendations.some((r) =>
+      r.includes("/srv/api.sock") && r.includes("tailscaled.sock")
+    ),
+  );
+});
+
+Deno.test("RESOLVE results go to the right path when one path prefixes another (#3910)", () => {
+  const facts = parseProbe(probe({
+    serve: {
+      TCP: {
+        "9000": { TCPForward: "unix:/a" },
+        "9001": { TCPForward: "unix:/a|/b" },
+      },
+    },
+    lines: [
+      "RESOLVEPATH|/a",
+      "RESOLVED|/r1",
+      "RESOLVEPATH|/a|/b",
+      "RESOLVED|/r2",
+    ],
+  }));
+  assertEquals(facts.resolved["/a"], "/r1");
+  assertEquals(facts.resolved["/a|/b"], "/r2");
+});
+
+Deno.test("grade reads probe output with CRLF line endings (#3910)", () => {
+  const text = probe({ serve: LOCALAPI_SERVE }).replaceAll("\n", "\r\n");
+  const { status } = gradeOutput(text, "vm", { encoding: "plain" });
+  assertEquals(status.error, null);
+  assertEquals(ids(status).includes("serve-localapi-forward"), true);
+});
+
+Deno.test("PROBE_SCRIPT resolves a serve path Go escaped in the JSON (#3910)", async () => {
+  const dir = await Deno.realPath(await Deno.makeTempDir());
+  try {
+    const sock = `${dir}/tailscaled.sock`;
+    await Deno.writeTextFile(sock, "");
+    const odd = `${dir}/a&b.sock`;
+    // A literal backslash, and one followed by u0026 that is not an escape.
+    const slash = `${dir}/c\\d.sock`;
+    const literal = `${dir}/e\\u0026f.sock`;
+    for (const p of [odd, slash, literal]) await Deno.symlink(sock, p);
+    // tailscale's JSON encoder writes &, < and > as unicode escapes.
+    const json = JSON.stringify({
+      TCP: {
+        "9000": { TCPForward: `unix:${odd}` },
+        "9001": { TCPForward: `unix:${slash}` },
+        "9002": { TCPForward: `unix:${literal}` },
+      },
+    }).replaceAll("&", "\\u0026");
+    await Deno.writeTextFile(`${dir}/serve.json`, json);
+    await Deno.mkdir(`${dir}/bin`);
+    await Deno.writeTextFile(
+      `${dir}/bin/tailscale`,
+      `#!/bin/sh\ncase "$1 $2" in\n  "serve status") cat '${dir}/serve.json' ;;\n  version*) echo 1.104.2 ;;\nesac\n`,
+    );
+    await Deno.chmod(`${dir}/bin/tailscale`, 0o755);
+    const out = await new Deno.Command("sh", {
+      args: ["-c", PROBE_SCRIPT],
+      env: { PATH: `${dir}/bin:${Deno.env.get("PATH") ?? "/usr/bin:/bin"}` },
+    }).output();
+    const facts = parseProbe(new TextDecoder().decode(out.stdout));
+    assertEquals(facts.resolved[odd], sock);
+    assertEquals(facts.resolved[slash], sock);
+    assertEquals(facts.resolved[literal], sock);
+    assertEquals(facts.probeFormat, PROBE_FORMAT);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("old RESOLVE lines are ignored and the old probe is named (#3910)", () => {
+  const old = probe({
+    serve: SYMLINK_SERVE,
+    lines: ["RESOLVE|/srv/api.sock|/run/tailscale/tailscaled.sock"],
+  });
+  const { status, facts } = gradeOutput(old, "vm", { encoding: "plain" });
+  assertEquals(facts.resolved, {});
+  assertEquals(status.tailscale.unresolvedTargets, ["/srv/api.sock"]);
+  assert(
+    status.recommendations.some((r) => r.includes("run probeScript again")),
+  );
+
+  // The current probe with a target it could not resolve: no such advice.
+  const current = gradeOutput(
+    probe({ serve: SYMLINK_SERVE, lines: [`PROBE|${PROBE_FORMAT}`] }),
+    "vm",
+    { encoding: "plain" },
+  ).status;
+  assertEquals(current.tailscale.unresolvedTargets, ["/srv/api.sock"]);
+  assertFalse(
+    current.recommendations.some((r) => r.includes("run probeScript again")),
+  );
+});
+
+Deno.test("resolved targets and the localapi itself are not listed as unverified (#3910)", () => {
+  const { status } = scan(probe({
+    serve: {
+      TCP: {
+        "9000": { TCPForward: "unix:/srv/api.sock" },
+        "8443": { TCPForward: "unix:/run/tailscale/tailscaled.sock" },
+      },
+    },
+    lines: ["RESOLVEPATH|/srv/api.sock", "RESOLVED|/srv/api.sock"],
+  }));
+  assertEquals(status.tailscale.unresolvedTargets, []);
+  assertFalse(
+    status.recommendations.some((r) => r.startsWith("Could not check")),
+  );
+  const forward = status.exposures.find((e) => e.id === "serve-unix-forward");
+  assertFalse(forward?.detail.includes("Not checked") ?? false);
+});
+
+Deno.test("a status stored before unresolvedTargets existed still parses (#3910)", () => {
+  const { status } = scan(probe({}));
+  const { unresolvedTargets: _, ...tailscale } = status.tailscale;
+  const parsed = model.resources.status.schema.parse({ ...status, tailscale });
+  assertEquals(parsed.tailscale.unresolvedTargets, []);
+});
+
+Deno.test("a serve path with a line break cannot overwrite another path's result (#3910)", async () => {
+  const text = probe({
+    serve: {
+      TCP: {
+        "9000": { TCPForward: "unix:/srv/x.sock" },
+        "9001": { TCPForward: "unix:/srv/x.sock\nRESOLVED|/srv/benign" },
+      },
+    },
+  });
+  const { run, calls } = fakeRunner([text], (cmd) => ({
+    stdout: cmd.includes("printf 'RESOLVEPATH")
+      ? "RESOLVEPATH|/srv/x.sock\nRESOLVED|/run/tailscale/tailscaled.sock"
+      : "",
+    stderr: "",
+    exitCode: 0,
+  }));
+  const { status, facts } = await scanTarget(run, "h", { inContainer: false });
+  // Only the plain path is asked about; the other stays unverified.
+  assertFalse(calls[1].command.includes("benign"));
+  assertEquals(facts.resolved["/srv/x.sock"], "/run/tailscale/tailscaled.sock");
+  assert(ids(status).includes("serve-localapi-forward"));
+  assertEquals(status.tailscale.unresolvedTargets, [
+    "/srv/x.sock\nRESOLVED|/srv/benign",
+  ]);
+});
+
+Deno.test("a path given two different results is dropped (#3910)", () => {
+  assertEquals(
+    parseResolves([
+      "RESOLVEPATH|/a",
+      "RESOLVED|/run/tailscale/tailscaled.sock",
+      "RESOLVEPATH|/a",
+      "RESOLVED|/srv/benign",
+      "RESOLVEPATH|/a",
+      "RESOLVED|/srv/benign",
+      "RESOLVEPATH|/b",
+      "RESOLVED|/r",
+      "RESOLVEPATH|/b",
+      "RESOLVED|/r",
+    ]),
+    { "/b": "/r" },
+  );
+});
+
+Deno.test("an older probe gets the rerun advice instead of the manual check (#3910)", () => {
+  const { status } = gradeOutput(
+    probe({ serve: SYMLINK_SERVE }),
+    "vm",
+    { encoding: "plain" },
+  );
+  assert(
+    status.recommendations.some((r) => r.includes("run probeScript again")),
+  );
+  assertFalse(
+    status.recommendations.some((r) => r.startsWith("Could not check where")),
+  );
+});
+
+Deno.test("a symlink to a path with line breaks cannot forge another path's result (#3910)", async () => {
+  const dir = await Deno.realPath(await Deno.makeTempDir());
+  try {
+    const sock = `${dir}/tailscaled.sock`;
+    await Deno.writeTextFile(sock, "");
+    // y.sock leads to the localapi; x.sock points at a name whose line breaks
+    // would print a harmless result for y.sock.
+    const x = `${dir}/x.sock`;
+    const y = `${dir}/y.sock`;
+    const forged = `${dir}/d\nRESOLVEPATH|${y}\nRESOLVED|/srv/benign`;
+    await Deno.mkdir(forged.slice(0, forged.lastIndexOf("/")), {
+      recursive: true,
+    });
+    await Deno.symlink(forged, x);
+    await Deno.symlink(sock, y);
+    const serve = {
+      TCP: {
+        "9000": { TCPForward: `unix:${x}` },
+        "9001": { TCPForward: `unix:${y}` },
+      },
+    };
+    await Deno.writeTextFile(`${dir}/serve.json`, JSON.stringify(serve));
+    await Deno.mkdir(`${dir}/bin`);
+    await Deno.writeTextFile(
+      `${dir}/bin/tailscale`,
+      `#!/bin/sh\ncase "$1 $2" in\n  "serve status") cat '${dir}/serve.json' ;;\n  version*) echo 1.104.2 ;;\nesac\n`,
+    );
+    await Deno.chmod(`${dir}/bin/tailscale`, 0o755);
+    const env = {
+      PATH: `${dir}/bin:${Deno.env.get("PATH") ?? "/usr/bin:/bin"}`,
+    };
+    const out = await new Deno.Command("sh", {
+      args: ["-c", PROBE_SCRIPT],
+      env,
+    }).output();
+    const stdout = new TextDecoder().decode(out.stdout);
+    assertFalse(stdout.includes("RESOLVED|/srv/benign"));
+    const facts = parseProbe(stdout);
+    assertEquals(facts.resolved[y], sock);
+    assertEquals(facts.resolved[x], undefined);
+    const status = analyze(facts, "h", { inContainer: false });
+    assert(ids(status).includes("serve-localapi-forward"));
+    assertEquals(status.tailscale.unresolvedTargets, [x]);
+
+    // scanTarget's own resolve command drops it the same way.
+    const res = await new Deno.Command("sh", {
+      args: ["-c", resolveScript([x, y])],
+    }).output();
+    const lines = new TextDecoder().decode(res.stdout);
+    assertFalse(lines.includes("RESOLVED|/srv/benign"));
+    assertEquals(parseResolves(lines.split("\n")), { [y]: sock });
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("serve targets with control characters are quoted in report text (#3910)", () => {
+  const target = "/srv/x.sock\nRESOLVED|/srv/benign";
+  assertEquals(shown(target), JSON.stringify(target));
+  assertEquals(shown("/srv/a b.sock"), "/srv/a b.sock");
+  const { status } = scan(probe({
+    serve: { TCP: { "9001": { TCPForward: `unix:${target}` } } },
+    lines: [`PROBE|${PROBE_FORMAT}`],
+  }));
+  const text = [
+    ...status.recommendations,
+    ...status.exposures.map((e) => e.detail),
+  ];
+  assertFalse(text.some((t) => t.includes("\n")));
+  assert(text.some((t) => t.includes(JSON.stringify(target))));
+});
+
+Deno.test("output from a newer probe format is not called older (#3910)", () => {
+  const { status } = gradeOutput(
+    probe({ serve: SYMLINK_SERVE, lines: [`PROBE|${PROBE_FORMAT + 1}`] }),
+    "vm",
+    { encoding: "plain" },
+  );
+  assertFalse(
+    status.recommendations.some((r) => r.includes("run probeScript again")),
+  );
 });

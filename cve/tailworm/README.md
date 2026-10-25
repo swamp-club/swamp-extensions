@@ -191,7 +191,16 @@ evaluated again.
 - The status carries `externalProbe: true`. `grade` trusts the output it is
   given: anyone who can run it can write a clean grade for a host.
 - `grade` runs nothing on the host, so it never reads defenses through sudo.
-  Unix serve targets are resolved by the probe itself.
+  Unix serve targets are resolved by the probe itself, so run it as root: a
+  target the probe cannot follow (a directory it cannot read, an escape it
+  does not decode, more than 50 targets) is listed in
+  `tailscale.unresolvedTargets`, the report's localapi column says
+  `unverified`, and a recommendation says how to check it by hand.
+- Output with CRLF line endings (`kubectl exec -t`) is read as is.
+- Output from a probe saved before 2026.10.25.3 grades, but its serve targets
+  read as unverified, with a recommendation to run `probeScript` again. A
+  workflow that keeps the `probe` resource needs a fresh `probeScript` run
+  after an upgrade.
 - Output that cannot be graded (not probe output, cut off before its `END`
   line, invalid base64) writes an error status instead of failing the run, so
   one bad host in a loop shows as an `ERROR` row. Like a host `scanFleet`
@@ -384,6 +393,9 @@ fixed release by default, pull it and drop the argument.
   rules and the forensic signatures are the interim control.
 - A clean signature check does not rule out a past compromise. The
   report's race leaves no trace once the attacker's socket is gone.
+- A unix serve target that cannot be resolved (a scan or probe run as a
+  non-root user that cannot read its directory) is reported as unverified,
+  not as the localapi: check it with `readlink -f` as root.
 - SSH targets use port 22, and the target's login shell must parse POSIX
   `sh` quoting (csh or fish as the login shell makes the scan fail with an
   error, never a clean result).
