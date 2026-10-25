@@ -104,6 +104,7 @@ check needs root (`ss -xlp`). On macOS the signatures are not checked.
 | `scan` | Scan one target: the local machine, an SSH host, or a Docker container or image |
 | `scanFleet` | Scan a comma-separated list of hosts in parallel over SSH |
 | `grade` | Grade probe output collected through another exec channel (KubeVirt guest agent, `kubectl exec`) |
+| `gradeFleet` | Grade many hosts' probe output in one call, into one fleet report |
 | `probeScript` | Store the probe script, compressed, and as one `sh` command line, for another transport to run |
 | `mitigate` | Scan, then apply the interim mitigations on exposed hosts. `dryRun` defaults to `true` |
 
@@ -139,7 +140,8 @@ swamp behavior run tailworm-fleet scanFleet \
 `ubuntu@10.0.1.10` logs in as `ubuntu`; a plain entry like `10.0.1.12` uses the
 model's `sshUser`. Every host uses the model's `sshKey`. Data and logs are
 still named by the host alone, and the report's suggested commands keep each
-host's user. Listing one host with two different users is an error.
+host's user. Listing one host with two different users is an error, and so
+is a host named `fleet`: the fleet summary is logged under that name.
 
 SSH runs non-interactively (`BatchMode=yes`) on port 22 and accepts new host
 keys on first connection.
@@ -208,6 +210,57 @@ evaluated again.
 - `mitigate` cannot reach these hosts, and the report suggests no mitigate
   command for them. Apply the commands in [What mitigate does](#what-mitigate-does)
   through the same channel, then probe and grade again.
+
+#### Grade a fleet
+
+`gradeFleet` grades many hosts' output in one call: one status and log per
+host, as `grade` writes them, a `fleet` summary log, and one fleet report.
+Running `grade` once per host in a `forEach` gives one report per host
+instead. `outputs` lists each host's `target` and `output`; `encoding` sets the
+default, and an entry's own `encoding` overrides it.
+
+```bash
+cat > fleet.yaml <<'YAML'
+encoding: base64
+outputs:
+  - target: ci-vm-1
+    output: <ci-vm-1's out-data>
+  - target: ci-vm-2
+    output: <ci-vm-2's out-data>
+  - target: ci-vm-3
+    encoding: plain
+    output: |
+      <ci-vm-3's stdout>
+YAML
+swamp behavior run tailworm gradeFleet --input-file fleet.yaml
+```
+
+In a workflow, map the step that ran the probe on every VM to `outputs` with
+CEL. Here `guests` stored a list `vms` of `{name, outData}`; use your own
+field names:
+
+```yaml
+      - name: grade
+        task:
+          type: model_method
+          modelIdOrName: tailworm
+          methodName: gradeFleet
+          inputs:
+            encoding: base64
+            outputs: '${{ data.latest("guests", "results").attributes.vms.map(v, {"target": v.name, "output": v.outData}) }}'
+```
+
+Quote the expression: the `": "` inside the map is YAML syntax otherwise.
+
+- Targets must be distinct, and so must the names their data is stored
+  under: `a..b` is stored as `a_b`, so `a..b` and `a_b` in one call are
+  rejected. A target that is not a host label rejects the call, and the error
+  gives its position in `outputs`.
+- A host whose output cannot be graded is an `ERROR` row, as with `grade`; the
+  others are still graded.
+- The `fleet` log is the one `scanFleet` writes too, so it holds whichever
+  ran last. A target named `fleet` is rejected, since its own log would
+  overwrite the summary.
 
 ### Mitigate
 
@@ -342,6 +395,8 @@ missing privileges.
 | `grade` | `target` | required | Host the output came from (letters, digits, `.`, `_`, `:`, `-`); names the status and log |
 | `grade` | `output` | required | The probe's stdout from that host |
 | `grade` | `encoding` | `plain` | `base64` for output still encoded, such as QEMU guest-exec out-data |
+| `gradeFleet` | `outputs` | required | One `{target, output, encoding?}` per host; targets as for `grade`, all distinct |
+| `gradeFleet` | `encoding` | `plain` | Encoding for entries that do not set their own |
 | `mitigate` | `hosts` | `targetHost` | Comma-separated hosts; `user@host` logs in as `user` |
 | `mitigate` | `dryRun` | `true` | Print the plan without running it |
 | `mitigate` | `removeLocalapiForwards` | `true` | Remove serve forwards to `tailscaled.sock` |
@@ -356,7 +411,7 @@ missing privileges.
 
 `@swamp/cve/tailworm-report` runs after each method:
 
-- After `scan`, `scanFleet` and `grade`, it shows one row per host. The SSH column
+- After `scan`, `scanFleet`, `grade` and `gradeFleet`, it shows one row per host. The SSH column
   summarises the node's rules when they were read, for example
   `yes (3 src, root, fwd)`. It also shows forensic signatures, errors,
   deduplicated recommendations, and the mitigate command for the exposed

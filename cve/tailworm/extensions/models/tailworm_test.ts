@@ -159,7 +159,14 @@ Deno.test("model export has expected shape", () => {
   assertEquals(typeof model.version, "string");
   assertEquals(
     new Set(Object.keys(model.methods)),
-    new Set(["scan", "scanFleet", "grade", "probeScript", "mitigate"]),
+    new Set([
+      "scan",
+      "scanFleet",
+      "grade",
+      "gradeFleet",
+      "probeScript",
+      "mitigate",
+    ]),
   );
   assertEquals(Object.keys(model.resources), ["status", "probe"]);
   assertEquals(model.reports, ["@swamp/cve/tailworm-report"]);
@@ -2350,19 +2357,21 @@ Deno.test("a capped headscale is not told to set MemoryMax again (swamp-club #39
 
 // --- Hosts reached through another exec channel (swamp-club #3908) ----------
 
-/** Runs grade or probeScript with an in-memory context. */
+/** Runs grade, gradeFleet or probeScript with an in-memory context. */
 async function runMethod(
-  method: "grade" | "probeScript",
+  method: "grade" | "gradeFleet" | "probeScript",
   args: Record<string, unknown>,
 ) {
   const resources: Record<string, unknown> = {};
   const logs: string[] = [];
+  const logsByName: Record<string, string[]> = {};
   const context = {
     globalArgs: model.globalArguments.parse({}),
     logger: { info: () => {}, debug: () => {} },
-    createFileWriter: () => ({
+    createFileWriter: (_spec: string, name: string) => ({
       writeLine: (l: string) => {
         logs.push(l);
+        (logsByName[name] ??= []).push(l);
         return Promise.resolve();
       },
       finalize: () => Promise.resolve(),
@@ -2375,10 +2384,13 @@ async function runMethod(
   if (method === "grade") {
     const parsed = model.methods.grade.arguments.parse(args);
     await model.methods.grade.execute(parsed, context);
+  } else if (method === "gradeFleet") {
+    const parsed = model.methods.gradeFleet.arguments.parse(args);
+    await model.methods.gradeFleet.execute(parsed, context);
   } else {
     await model.methods.probeScript.execute({}, context);
   }
-  return { resources, logs };
+  return { resources, logs, logsByName };
 }
 
 /** The status a scan or grade wrote, without its timestamp. */
@@ -2862,4 +2874,153 @@ Deno.test("output from a newer probe format is not called older (#3910)", () => 
   assertFalse(
     status.recommendations.some((r) => r.includes("run probeScript again")),
   );
+});
+
+// --- Grading a fleet of probe outputs (swamp-club #3912) --------------------
+
+Deno.test("gradeFleet writes per host the status grade writes for the same output", async () => {
+  const exposed = probe({ serve: LOCALAPI_SERVE });
+  const clean = probe({});
+  const { resources, logsByName } = await runMethod("gradeFleet", {
+    outputs: [
+      { target: "ci-vm-1", output: exposed },
+      { target: "ci-vm-2", output: clean },
+    ],
+  });
+  assertEquals(Object.keys(resources).sort(), [
+    "status/ci-vm-1",
+    "status/ci-vm-2",
+  ]);
+  for (const [target, output] of [["ci-vm-1", exposed], ["ci-vm-2", clean]]) {
+    const fleet = resources[`status/${target}`] as Status;
+    const single = (await runMethod("grade", { target, output }))
+      .resources[`status/${target}`] as Status;
+    assert(model.resources.status.schema.safeParse(fleet).success);
+    assertEquals(fleet.externalProbe, true);
+    assertEquals(stable(fleet), stable(single));
+    assert(
+      logsByName[target].some((l) => l.includes("nothing was run on the host")),
+    );
+  }
+  const summary = logsByName.fleet.join("");
+  assertStringIncludes(summary, "Tailworm fleet grade: 2 host(s)");
+  assertStringIncludes(summary, "ci-vm-1: CRITICAL");
+  assertStringIncludes(
+    summary,
+    "FLEET SUMMARY: 2 graded, 1 affected, 0 errors",
+  );
+});
+
+Deno.test("gradeFleet takes a default encoding that an entry can override", async () => {
+  const text = probe({ serve: LOCALAPI_SERVE });
+  const { resources } = await runMethod("gradeFleet", {
+    encoding: "base64",
+    outputs: [
+      { target: "b64", output: btoa(text) },
+      { target: "plain", output: text, encoding: "plain" },
+    ],
+  });
+  const b64 = resources["status/b64"] as Status;
+  const plain = resources["status/plain"] as Status;
+  assertEquals(b64.error, null);
+  assertEquals(ids(b64), ["serve-localapi-forward"]);
+  assertEquals(ids(b64), ids(plain));
+  assertEquals(b64.riskLevel, plain.riskLevel);
+  assertEquals(
+    model.methods.gradeFleet.arguments.parse({
+      outputs: [{ target: "vm", output: "x" }],
+    }).encoding,
+    "plain",
+  );
+});
+
+Deno.test("gradeFleet writes an error row for output it cannot grade and grades the rest", async () => {
+  const { resources, logsByName } = await runMethod("gradeFleet", {
+    outputs: [
+      { target: "bad", output: "Permission denied" },
+      { target: "corrupt", output: "not*base64", encoding: "base64" },
+      { target: "good", output: probe({ serve: LOCALAPI_SERVE }) },
+    ],
+  });
+  for (const target of ["bad", "corrupt"]) {
+    const s = resources[`status/${target}`] as Status;
+    assert(model.resources.status.schema.safeParse(s).success);
+    assertEquals(s.riskLevel, "unknown");
+    assertEquals(s.externalProbe, true);
+    assert(s.error);
+  }
+  assertEquals((resources["status/good"] as Status).riskLevel, "critical");
+  assertStringIncludes(
+    logsByName.fleet.join(""),
+    "FLEET SUMMARY: 3 graded, 1 affected, 2 errors",
+  );
+});
+
+Deno.test("gradeFleet rejects an empty list, bad labels and targets that share a data name", () => {
+  const parse = (outputs: unknown) =>
+    model.methods.gradeFleet.arguments.safeParse({ outputs });
+  assertFalse(parse([]).success);
+
+  const badLabel = parse([
+    { target: "ok-1", output: "x" },
+    { target: "a/b", output: "x" },
+  ]);
+  assertFalse(badLabel.success);
+  assertEquals(badLabel.error.issues[0].path, ["outputs", 1, "target"]);
+
+  const twice = parse([
+    { target: "vm", output: "x" },
+    { target: "vm", output: "y" },
+  ]);
+  assertFalse(twice.success);
+  assertStringIncludes(twice.error.issues[0].message, "vm is listed twice");
+
+  // instanceName stores a..b as a_b, so the two would overwrite each other.
+  const collide = parse([
+    { target: "a..b", output: "x" },
+    { target: "a_b", output: "y" },
+  ]);
+  assertFalse(collide.success);
+  assertEquals(collide.error.issues[0].path, ["outputs", 1, "target"]);
+  assertStringIncludes(
+    collide.error.issues[0].message,
+    "a..b and a_b would both be stored as a_b",
+  );
+});
+
+Deno.test("fleet methods refuse a host whose log would overwrite the fleet summary", async () => {
+  const graded = model.methods.gradeFleet.arguments.safeParse({
+    outputs: [
+      { target: "ci-vm-1", output: "x" },
+      { target: "fleet", output: "x" },
+    ],
+  });
+  assertFalse(graded.success);
+  assertEquals(graded.error.issues[0].path, ["outputs", 1, "target"]);
+  assertStringIncludes(
+    graded.error.issues[0].message,
+    "would write its log over the fleet summary log",
+  );
+
+  // scanFleet refuses before it opens any log or connects to any host.
+  const opened: string[] = [];
+  const context = {
+    globalArgs: model.globalArguments.parse({}),
+    logger: { info: () => {}, debug: () => {} },
+    createFileWriter: (_spec: string, name: string) => {
+      opened.push(name);
+      return {
+        writeLine: () => Promise.resolve(),
+        finalize: () => Promise.resolve(),
+      };
+    },
+    writeResource: () => Promise.resolve({}),
+  } as unknown as Parameters<typeof model.methods.scanFleet.execute>[1];
+  await assertRejects(
+    () =>
+      model.methods.scanFleet.execute({ hosts: "10.0.0.1,ops@fleet" }, context),
+    Error,
+    "fleet would write its log over the fleet summary log",
+  );
+  assertEquals(opened, []);
 });

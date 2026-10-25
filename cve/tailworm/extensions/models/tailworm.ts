@@ -3209,6 +3209,96 @@ export async function mitigateTarget(
   return { status: { ...final.status, mitigation: base }, mitigation: base };
 }
 
+/**
+ * Grades one host's probe output into its log, for grade and gradeFleet.
+ * Output that cannot be graded gives an error status, not a failed run.
+ */
+async function gradeHost(
+  context: MethodContext,
+  target: string,
+  output: string,
+  encoding: ProbeEncoding,
+): Promise<Status> {
+  const log = context.createFileWriter("log", instanceName(target));
+  try {
+    await log.writeLine(
+      `[${
+        new Date().toISOString()
+      }] Grading probe output given for ${target}\n`,
+    );
+    await log.writeLine(
+      "The caller ran the probe; nothing was run on the host.\n\n",
+    );
+    try {
+      const { status } = gradeOutput(output, target, {
+        encoding,
+        fixedVersion: context.globalArgs.fixedVersion,
+      });
+      await writeScanLog(log, status);
+      return status;
+    } catch (err) {
+      // One bad host in a workflow loop is an error row, not a failed run.
+      const status = gradeErrorStatus(target, err);
+      await log.writeLine(`Cannot grade: ${status.error}\n`);
+      return status;
+    }
+  } finally {
+    await log.finalize();
+  }
+}
+
+/** The log scanFleet and gradeFleet write their fleet summary to. */
+export const FLEET_LOG = "fleet";
+
+/**
+ * Refuses a fleet host whose log would be the fleet summary log: both writers
+ * are open at once, and one would overwrite the other.
+ */
+export function fleetLogClash(host: string): string | null {
+  return instanceName(host) === FLEET_LOG
+    ? `${host} would write its log over the fleet summary log (${FLEET_LOG}); give the host another name`
+    : null;
+}
+
+/** One host's probe output given to gradeFleet. */
+const FleetOutputSchema = z.object({
+  target: z
+    .string()
+    .regex(HOST_LABEL)
+    .describe(
+      "Name of the host the output came from; its status and log are named by it",
+    ),
+  output: z.string().describe("The probe's stdout from that host"),
+  encoding: z
+    .enum(["plain", "base64"])
+    .optional()
+    .describe("Overrides the method's encoding for this host"),
+});
+
+/** gradeFleet's outputs: one per host, no two writing the same data name. */
+export const FleetOutputsSchema = z
+  .array(FleetOutputSchema)
+  .min(1)
+  .superRefine((entries, ctx) => {
+    const seen = new Map<string, string>();
+    entries.forEach((e, i) => {
+      const name = instanceName(e.target);
+      const prior = seen.get(name);
+      const clash = fleetLogClash(e.target);
+      if (clash !== null) {
+        ctx.addIssue({ code: "custom", path: [i, "target"], message: clash });
+      } else if (prior !== undefined) {
+        ctx.addIssue({
+          code: "custom",
+          path: [i, "target"],
+          message: prior === e.target
+            ? `${e.target} is listed twice`
+            : `${prior} and ${e.target} would both be stored as ${name}`,
+        });
+      } else seen.set(name, e.target);
+    });
+  });
+
 // --- Model -------------------------------------------------------------------
 
 export const model = {
@@ -3306,7 +3396,11 @@ export const model = {
         const logger = context.logger;
         const entries = hostList(args.hosts, g.sshUser);
         const hosts = entries.map((e) => e.host);
-        const summaryLog = context.createFileWriter("log", "fleet");
+        for (const host of hosts) {
+          const clash = fleetLogClash(host);
+          if (clash !== null) throw new Error(clash);
+        }
+        const summaryLog = context.createFileWriter("log", FLEET_LOG);
         await summaryLog.writeLine(
           `[${
             new Date().toISOString()
@@ -3397,37 +3491,83 @@ export const model = {
         args: { target: string; output: string; encoding: ProbeEncoding },
         context: MethodContext,
       ) => {
-        const log = context.createFileWriter("log", instanceName(args.target));
-        let status: Status;
-        try {
-          await log.writeLine(
-            `[${
-              new Date().toISOString()
-            }] Grading probe output given for ${args.target}\n`,
-          );
-          await log.writeLine(
-            "The caller ran the probe; nothing was run on the host.\n\n",
-          );
-          try {
-            status = gradeOutput(args.output, args.target, {
-              encoding: args.encoding,
-              fixedVersion: context.globalArgs.fixedVersion,
-            }).status;
-            await writeScanLog(log, status);
-          } catch (err) {
-            // One bad host in a workflow loop is an error row, not a failed run.
-            status = gradeErrorStatus(args.target, err);
-            await log.writeLine(`Cannot grade: ${status.error}\n`);
-          }
-        } finally {
-          await log.finalize();
-        }
+        const status = await gradeHost(
+          context,
+          args.target,
+          args.output,
+          args.encoding,
+        );
         const handle = await context.writeResource(
           "status",
           instanceName(args.target),
           status,
         );
         return { dataHandles: [handle] };
+      },
+    },
+
+    gradeFleet: {
+      description:
+        "Grade many hosts' probe output in one call, for a fleet reached through another exec channel (KubeVirt guest agent, kubectl exec). Writes one status and log per host, as grade does, so the report covers the whole fleet. Output that cannot be graded writes an error status for that host.",
+      arguments: z.object({
+        outputs: FleetOutputsSchema.describe(
+          "One {target, output, encoding?} per host; targets must be distinct",
+        ),
+        encoding: z
+          .enum(["plain", "base64"])
+          .default("plain")
+          .describe(
+            "Encoding for entries that do not set their own; base64 for guest-exec out-data",
+          ),
+      }),
+      execute: async (
+        args: {
+          outputs: {
+            target: string;
+            output: string;
+            encoding?: ProbeEncoding;
+          }[];
+          encoding: ProbeEncoding;
+        },
+        context: MethodContext,
+      ) => {
+        const summaryLog = context.createFileWriter("log", FLEET_LOG);
+        const handles = [];
+        let affected = 0;
+        let errors = 0;
+        try {
+          await summaryLog.writeLine(
+            `[${
+              new Date().toISOString()
+            }] Tailworm fleet grade: ${args.outputs.length} host(s)\n\n`,
+          );
+          for (const entry of args.outputs) {
+            const status = await gradeHost(
+              context,
+              entry.target,
+              entry.output,
+              entry.encoding ?? args.encoding,
+            );
+            if (status.error) errors++;
+            else if (status.vulnerable) affected++;
+            handles.push(
+              await context.writeResource(
+                "status",
+                instanceName(entry.target),
+                status,
+              ),
+            );
+            await summaryLog.writeLine(
+              `${entry.target}: ${status.riskLevel.toUpperCase()} — ${status.summary}\n`,
+            );
+          }
+          await summaryLog.writeLine(
+            `\nFLEET SUMMARY: ${args.outputs.length} graded, ${affected} affected, ${errors} errors\n`,
+          );
+        } finally {
+          await summaryLog.finalize();
+        }
+        return { dataHandles: handles };
       },
     },
 

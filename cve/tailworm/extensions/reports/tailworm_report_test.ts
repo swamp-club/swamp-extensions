@@ -438,3 +438,22 @@ Deno.test("the localapi column says unverified when a target was not checked (#3
   );
   assertStringIncludes(old.markdown, "| 10.0.0.1 | 1.104.2 | no | no |");
 });
+
+Deno.test("a gradeFleet run renders one fleet report with no mitigate command (swamp-club #3912)", async () => {
+  const serve = {
+    TCP: { "8443": { TCPForward: "unix:/run/tailscale/tailscaled.sock" } },
+  };
+  const vms = [
+    { ...status("ci-vm-1", { serve }), externalProbe: true },
+    { ...status("ci-vm-2"), externalProbe: true },
+  ];
+  const out = await report.execute(makeContext("gradeFleet", vms));
+  assertStringIncludes(
+    out.markdown,
+    "**2** host(s) scanned: **1** exposed, **1** not exposed",
+  );
+  assertStringIncludes(out.markdown, "| ci-vm-1 |");
+  assertStringIncludes(out.markdown, "| ci-vm-2 |");
+  assertFalse(out.markdown.includes("swamp behavior run"));
+  assertStringIncludes(out.markdown, "run the probe again and grade");
+});
