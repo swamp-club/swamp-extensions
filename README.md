@@ -37,6 +37,7 @@ end-to-end with a single `swamp workflow run`.
 | [`@swamp/cve/http2shell`](cve/http2shell/) | Finds and fixes Brotli decoders exposed to the Node2Shell / HTTP2Shell RCE (CVE-2026-111497): system libbrotli, Node.js, Bun, Python Brotli/brotlicffi, .NET, Envoy/Istio, curl, lockfiles, on Linux, macOS, Windows and containers | None on targets (POSIX sh or PowerShell probe; mitigate uses the host's package manager) |
 | [`@swamp/cve/mini-shai-hulud`](cve/mini-shai-hulud/) | Scans deno.lock and package-lock.json for npm packages compromised in the May 2026 "Mini Shai-Hulud" supply chain attack (317 packages) | None |
 | [`@swamp/cve/php-rce-2026-10`](cve/php-rce-2026-10/) | Finds and patches PHP installs exposed to the critical PHP RCEs fixed on 2026-10-21 (CVE-2026-109618 + CVE-2026-109619) | None on targets (POSIX sh probe; mitigate uses the host's package manager) |
+| [`@swamp/cve/tailworm`](cve/tailworm/) | Finds and mitigates Tailscale and headscale hosts exposed to the Tailworm findings published 2026-10-24 (Tailscale SSH forwarding as root, serve forwards to the localapi, conn25 egress, headscale DoS) | The `tailscale` CLI on targets; mitigate uses nft, auditd and systemctl where present |
 
 ## Container Image Extension
 
@@ -104,6 +105,7 @@ swamp extension pull @swamp/cve/emudhra
 swamp extension pull @swamp/cve/http2shell
 swamp extension pull @swamp/cve/mini-shai-hulud
 swamp extension pull @swamp/cve/php-rce-2026-10
+swamp extension pull @swamp/cve/tailworm
 
 # SSH
 swamp extension pull @swamp/ssh

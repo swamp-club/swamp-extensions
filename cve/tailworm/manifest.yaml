@@ -1,0 +1,71 @@
+manifestVersion: 1
+name: "@swamp/cve/tailworm"
+version: "2026.10.24.1"
+license: "AGPL-3.0-or-later"
+description: |
+  Finds and mitigates hosts exposed to Tailworm, the security assessment of
+  Tailscale v1.104.2 and headscale v0.29.5 published at tailworm.com on
+  2026-10-24 (Erica Windisch, Cyberdione Labs). The findings were reproduced
+  in a lab. No CVE or Tailscale bulletin had been issued, and no fixed
+  release existed, when this was written.
+
+  - **Tailscale SSH** runs ssh -L/-R unix-socket forwarding as root. A rename
+    race defeats its path allowlist, so any device an SSH rule admits can
+    reach docker.sock, /run/systemd/private or tailscaled.sock as root.
+  - **serve --tcp to tailscaled.sock** gives remote peers read/write localapi
+    access (node takeover).
+  - **conn25 app connectors** let entitled peers pick arbitrary egress
+    destinations, including cloud metadata.
+  - **headscale** can be crash-looped and its onboarding blocked without
+    authentication.
+
+  ## Methods
+
+  - `scan` scans one host (local, SSH, or Docker container or image).
+  - `scanFleet` scans many hosts in parallel over SSH.
+  - `mitigate` scans first, then applies the report's interim mitigations on
+    exposed hosts: removes serve forwards to tailscaled.sock, blocks
+    tailscaled egress to cloud metadata with nftables, installs auditd rules
+    for tailscaled's socket operations, and caps headscale memory. Turning
+    Tailscale SSH or the app connector off is opt-in. `dryRun` defaults to
+    true.
+
+  ## What it reports
+
+  Tailscale version and the earlier 2026 bulletins it misses, SSH, serve
+  forwards to unix sockets, funnel, app connector and conn25, node key
+  expiry, TS_SERVE_ALLOW_ALL_INTERFACES, headscale limits and exposure, and
+  the report's forensic signatures: a tailscaled.sock that is not 0666,
+  tailscaled listening on unix sockets, and root-owned 0755 sockets in the
+  forwarding directories.
+
+  Scanning needs no root; the listener, nftables and auditd checks are
+  skipped without it. mitigate needs root, or passwordless sudo for the
+  exact commands it runs (`sudo -n`, checked per command before anything
+  changes). The SSH policy itself is the main control and is not visible
+  from a host: rewrite it as per-pair grants.
+
+repository: "https://github.com/swamp-club/swamp-extensions"
+
+models:
+  - tailworm.ts
+
+reports:
+  - tailworm_report.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+
+platforms:
+  - darwin-aarch64
+  - darwin-x86_64
+  - linux-aarch64
+  - linux-x86_64
+
+labels:
+  - security
+  - vulnerability
+  - cve
+  - tailscale
+  - headscale
