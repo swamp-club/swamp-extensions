@@ -510,7 +510,10 @@ fixed release by default, pull it and drop the argument.
   connection test: a service that is not listening still shows as reachable.
   Rules to subnet routes or exit-node traffic a node forwards, and app
   capability grants (which carry no ports), are not shown. `grade` and
-  `gradeFleet` do not collect it.
+  `gradeFleet` do not collect it. It was checked against headscale v0.29.5
+  and Tailscale's own control server, both with tailscale v1.104.2. Tailscale's
+  control server sent no capability sources (`cap:<name>`) for app grants,
+  posture conditions or node attributes; it compiles those to addresses.
 - conn25 detection is a heuristic (capabilities or environment naming conn25).
   In Kubernetes, check the operator's connector deployments directly.
 - Firewalls cannot see the unix-socket attacks (findings 1–3). The audit

@@ -3137,7 +3137,7 @@ Deno.test("prefix containment for IPv4 and IPv6", () => {
   assertEquals(parsePrefix("::1")?.addr, 1n);
 });
 
-Deno.test("coversTailnet: Tailscale's star, headscale's split, not one host", () => {
+Deno.test("coversTailnet: a /0 star, headscale's split, not one host", () => {
   assert(coversTailnet(["0.0.0.0/0", "::/0"]));
   assert(coversTailnet(HEADSCALE_STAR));
   // headscale v4-only: the CGNAT split alone still covers the range.
@@ -3215,6 +3215,601 @@ Deno.test("inboundReachability flags an allow-all filter and an unreadable one",
   assertFalse(noIps.readable);
   assertEquals(noIps.reason, "no-addresses");
   assertFalse(inboundReachability(NAS_FILTER, ["not-an-ip"], null).readable);
+});
+
+/**
+ * PacketFilter rules as Tailscale's own control server compiled them
+ * (tailscale v1.104.2) for a throwaway tailnet with this policy:
+ *
+ * - "*" to tag:plain tcp:80; tag:client to tag:plain tcp:8000-8010, udp:53
+ * - tag:client to 10.99.0.0/24 tcp:443 via tag:router (an exit node)
+ * - tag:client to autogroup:internet
+ * - tag:client to tag:svc tcp:9100 with a srcPosture condition
+ * - tag:client to tag:svc, app capability example.com/cap/tailworm-test
+ * - tag:client to svc:web tcp:443, a Service hosted on tag:svc
+ */
+const TS_IPS = {
+  plain: ["100.94.128.86", "fd7a:115c:a1e0::3936:8058"],
+  router: ["100.84.205.63", "fd7a:115c:a1e0::3736:cd40"],
+  svc: ["100.106.245.61", "fd7a:115c:a1e0::7036:f53e"],
+  client: ["100.93.103.17", "fd7a:115c:a1e0::3636:6712"],
+};
+
+const TS_PLAIN_FILTER = [{
+  Caps: [],
+  Dsts: [{
+    Net: "100.94.128.86/32",
+    Ports: { First: 8000, Last: 8010 },
+  }, {
+    Net: "fd7a:115c:a1e0::3936:8058/128",
+    Ports: { First: 8000, Last: 8010 },
+  }],
+  IPProto: [6],
+  SrcCaps: null,
+  Srcs: ["100.93.103.17/32", "fd7a:115c:a1e0::3636:6712/128"],
+}, {
+  Caps: [],
+  Dsts: [
+    { Net: "100.94.128.86/32", Ports: { First: 80, Last: 80 } },
+    {
+      Net: "fd7a:115c:a1e0::3936:8058/128",
+      Ports: { First: 80, Last: 80 },
+    },
+  ],
+  IPProto: [6],
+  SrcCaps: null,
+  Srcs: [
+    "10.99.0.0/24",
+    "100.115.94.0/23",
+    "100.115.96.0/19",
+    "100.115.128.0/17",
+    "100.116.0.0/14",
+    "100.120.0.0/13",
+    "100.64.0.0/11",
+    "100.96.0.0/12",
+    "100.112.0.0/15",
+    "100.114.0.0/16",
+    "100.115.0.0/18",
+    "100.115.64.0/20",
+    "100.115.80.0/21",
+    "100.115.88.0/22",
+    "fd7a:115c:a1e0::/48",
+  ],
+}, {
+  Caps: [],
+  Dsts: [
+    { Net: "100.94.128.86/32", Ports: { First: 53, Last: 53 } },
+    {
+      Net: "fd7a:115c:a1e0::3936:8058/128",
+      Ports: { First: 53, Last: 53 },
+    },
+  ],
+  IPProto: [17],
+  SrcCaps: null,
+  Srcs: ["100.93.103.17/32", "fd7a:115c:a1e0::3636:6712/128"],
+}];
+
+/**
+ * The exit node's filter also carries rules to other nodes and the Service,
+ * the via route and autogroup:internet. 100.120.153.123 and
+ * fd7a:115c:a1e0::8336:997e are a Service host deleted minutes before, which
+ * control still sent.
+ */
+const TS_ROUTER_FILTER = [{
+  Caps: [],
+  Dsts: [
+    { Net: "100.75.211.236/32", Ports: { First: 9100, Last: 9100 } },
+    { Net: "100.106.245.61/32", Ports: { First: 9100, Last: 9100 } },
+    { Net: "100.120.153.123/32", Ports: { First: 9100, Last: 9100 } },
+    {
+      Net: "fd7a:115c:a1e0::7036:f53e/128",
+      Ports: { First: 9100, Last: 9100 },
+    },
+    {
+      Net: "fd7a:115c:a1e0::8136:d3ed/128",
+      Ports: { First: 9100, Last: 9100 },
+    },
+    {
+      Net: "fd7a:115c:a1e0::8336:997e/128",
+      Ports: { First: 9100, Last: 9100 },
+    },
+    { Net: "100.94.128.86/32", Ports: { First: 8000, Last: 8010 } },
+    {
+      Net: "fd7a:115c:a1e0::3936:8058/128",
+      Ports: { First: 8000, Last: 8010 },
+    },
+    { Net: "100.75.211.236/32", Ports: { First: 443, Last: 443 } },
+    {
+      Net: "fd7a:115c:a1e0::8136:d3ed/128",
+      Ports: { First: 443, Last: 443 },
+    },
+  ],
+  IPProto: [6],
+  SrcCaps: null,
+  Srcs: ["100.93.103.17/32", "fd7a:115c:a1e0::3636:6712/128"],
+}, {
+  Caps: [],
+  Dsts: [
+    { Net: "100.94.128.86/32", Ports: { First: 80, Last: 80 } },
+    {
+      Net: "fd7a:115c:a1e0::3936:8058/128",
+      Ports: { First: 80, Last: 80 },
+    },
+  ],
+  IPProto: [6],
+  SrcCaps: null,
+  Srcs: [
+    "10.99.0.0/24",
+    "100.115.94.0/23",
+    "100.115.96.0/19",
+    "100.115.128.0/17",
+    "100.116.0.0/14",
+    "100.120.0.0/13",
+    "100.64.0.0/11",
+    "100.96.0.0/12",
+    "100.112.0.0/15",
+    "100.114.0.0/16",
+    "100.115.0.0/18",
+    "100.115.64.0/20",
+    "100.115.80.0/21",
+    "100.115.88.0/22",
+    "fd7a:115c:a1e0::/48",
+  ],
+}, {
+  Caps: [],
+  Dsts: [
+    { Net: "100.94.128.86/32", Ports: { First: 53, Last: 53 } },
+    {
+      Net: "fd7a:115c:a1e0::3936:8058/128",
+      Ports: { First: 53, Last: 53 },
+    },
+  ],
+  IPProto: [17],
+  SrcCaps: null,
+  Srcs: ["100.93.103.17/32", "fd7a:115c:a1e0::3636:6712/128"],
+}, {
+  Caps: [],
+  Dsts: [{ Net: "10.99.0.0/24", Ports: { First: 443, Last: 443 } }],
+  IPProto: [6],
+  SrcCaps: null,
+  Srcs: ["100.93.103.17/32", "fd7a:115c:a1e0::3636:6712/128"],
+}, {
+  Caps: [],
+  Dsts: [
+    { Net: "0.0.0.0/5", Ports: { First: 0, Last: 65535 } },
+    { Net: "8.0.0.0/7", Ports: { First: 0, Last: 65535 } },
+    { Net: "11.0.0.0/8", Ports: { First: 0, Last: 65535 } },
+    { Net: "12.0.0.0/6", Ports: { First: 0, Last: 65535 } },
+    { Net: "16.0.0.0/4", Ports: { First: 0, Last: 65535 } },
+    { Net: "32.0.0.0/3", Ports: { First: 0, Last: 65535 } },
+    { Net: "64.0.0.0/3", Ports: { First: 0, Last: 65535 } },
+    { Net: "96.0.0.0/6", Ports: { First: 0, Last: 65535 } },
+    { Net: "100.0.0.0/10", Ports: { First: 0, Last: 65535 } },
+    { Net: "100.128.0.0/9", Ports: { First: 0, Last: 65535 } },
+    { Net: "101.0.0.0/8", Ports: { First: 0, Last: 65535 } },
+    { Net: "102.0.0.0/7", Ports: { First: 0, Last: 65535 } },
+    { Net: "104.0.0.0/5", Ports: { First: 0, Last: 65535 } },
+    { Net: "112.0.0.0/4", Ports: { First: 0, Last: 65535 } },
+    { Net: "128.0.0.0/3", Ports: { First: 0, Last: 65535 } },
+    { Net: "160.0.0.0/5", Ports: { First: 0, Last: 65535 } },
+    { Net: "168.0.0.0/8", Ports: { First: 0, Last: 65535 } },
+    { Net: "169.0.0.0/9", Ports: { First: 0, Last: 65535 } },
+    { Net: "169.128.0.0/10", Ports: { First: 0, Last: 65535 } },
+    { Net: "169.192.0.0/11", Ports: { First: 0, Last: 65535 } },
+    { Net: "169.224.0.0/12", Ports: { First: 0, Last: 65535 } },
+    { Net: "169.240.0.0/13", Ports: { First: 0, Last: 65535 } },
+    { Net: "169.248.0.0/14", Ports: { First: 0, Last: 65535 } },
+    { Net: "169.252.0.0/15", Ports: { First: 0, Last: 65535 } },
+    { Net: "169.255.0.0/16", Ports: { First: 0, Last: 65535 } },
+    { Net: "170.0.0.0/7", Ports: { First: 0, Last: 65535 } },
+    { Net: "172.0.0.0/12", Ports: { First: 0, Last: 65535 } },
+    { Net: "172.32.0.0/11", Ports: { First: 0, Last: 65535 } },
+    { Net: "172.64.0.0/10", Ports: { First: 0, Last: 65535 } },
+    { Net: "172.128.0.0/9", Ports: { First: 0, Last: 65535 } },
+    { Net: "173.0.0.0/8", Ports: { First: 0, Last: 65535 } },
+    { Net: "174.0.0.0/7", Ports: { First: 0, Last: 65535 } },
+    { Net: "176.0.0.0/4", Ports: { First: 0, Last: 65535 } },
+    { Net: "192.0.0.0/9", Ports: { First: 0, Last: 65535 } },
+    { Net: "192.128.0.0/11", Ports: { First: 0, Last: 65535 } },
+    { Net: "192.160.0.0/13", Ports: { First: 0, Last: 65535 } },
+    { Net: "192.169.0.0/16", Ports: { First: 0, Last: 65535 } },
+    { Net: "192.170.0.0/15", Ports: { First: 0, Last: 65535 } },
+    { Net: "192.172.0.0/14", Ports: { First: 0, Last: 65535 } },
+    { Net: "192.176.0.0/12", Ports: { First: 0, Last: 65535 } },
+    { Net: "192.192.0.0/10", Ports: { First: 0, Last: 65535 } },
+    { Net: "193.0.0.0/8", Ports: { First: 0, Last: 65535 } },
+    { Net: "194.0.0.0/7", Ports: { First: 0, Last: 65535 } },
+    { Net: "196.0.0.0/6", Ports: { First: 0, Last: 65535 } },
+    { Net: "200.0.0.0/5", Ports: { First: 0, Last: 65535 } },
+    { Net: "208.0.0.0/4", Ports: { First: 0, Last: 65535 } },
+    { Net: "224.0.0.0/3", Ports: { First: 0, Last: 65535 } },
+    { Net: "2000::/3", Ports: { First: 0, Last: 65535 } },
+  ],
+  IPProto: [6, 17, 1, 58],
+  SrcCaps: null,
+  Srcs: ["100.93.103.17/32", "fd7a:115c:a1e0::3636:6712/128"],
+}];
+
+const TS_SVC_FILTER = [{
+  Caps: [],
+  Dsts: [
+    { Net: "100.75.211.236/32", Ports: { First: 9100, Last: 9100 } },
+    { Net: "100.106.245.61/32", Ports: { First: 9100, Last: 9100 } },
+    {
+      Net: "fd7a:115c:a1e0::7036:f53e/128",
+      Ports: { First: 9100, Last: 9100 },
+    },
+    {
+      Net: "fd7a:115c:a1e0::8136:d3ed/128",
+      Ports: { First: 9100, Last: 9100 },
+    },
+    { Net: "100.75.211.236/32", Ports: { First: 443, Last: 443 } },
+    {
+      Net: "fd7a:115c:a1e0::8136:d3ed/128",
+      Ports: { First: 443, Last: 443 },
+    },
+  ],
+  IPProto: [6],
+  SrcCaps: null,
+  Srcs: ["100.93.103.17/32", "fd7a:115c:a1e0::3636:6712/128"],
+}, {
+  Caps: [{
+    Cap: "example.com/cap/tailworm-test",
+    Dst: "100.106.245.61/32",
+    Values: [{ x: 1 }],
+  }, {
+    Cap: "example.com/cap/tailworm-test",
+    Dst: "fd7a:115c:a1e0::7036:f53e/128",
+    Values: [{ x: 1 }],
+  }, {
+    Cap: "example.com/cap/tailworm-test",
+    Dst: "100.75.211.236/32",
+    Values: [{ x: 1 }],
+  }, {
+    Cap: "example.com/cap/tailworm-test",
+    Dst: "fd7a:115c:a1e0::8136:d3ed/128",
+    Values: [{ x: 1 }],
+  }],
+  Dsts: [],
+  IPProto: [6, 17, 1, 58],
+  SrcCaps: null,
+  Srcs: ["100.93.103.17/32", "fd7a:115c:a1e0::3636:6712/128"],
+}];
+
+Deno.test("Tailscale control: a star source arrives as the CGNAT split plus routes", () => {
+  const star = (TS_PLAIN_FILTER as { Srcs: string[] }[])
+    .find((r) => r.Srcs.includes("10.99.0.0/24"))!.Srcs;
+  assertFalse(star.includes("0.0.0.0/0"));
+  assert(coversTailnet(star));
+  for (const filter of [TS_PLAIN_FILTER, TS_ROUTER_FILTER, TS_SVC_FILTER]) {
+    assertEquals(parsePacketFilter(reachOutput(filter)), filter);
+  }
+});
+
+Deno.test("Tailscale control: a plain node keeps its star, range and UDP rules", () => {
+  const reach = inboundReachability(TS_PLAIN_FILTER, TS_IPS.plain, null);
+  assert(reach.readable);
+  assert(reach.anyTailnet);
+  const client = [
+    `${TS_IPS.client[0]}/32`,
+    `${TS_IPS.client[1]}/128`,
+  ];
+  assertEquals(
+    reach.rules.map((r) => ({
+      star: r.anyTailnet,
+      sources: r.anyTailnet ? [] : r.sources,
+      ports: r.ports,
+      protocols: r.protocols,
+    })),
+    [
+      {
+        star: false,
+        sources: client,
+        ports: [{ first: 8000, last: 8010 }],
+        protocols: [6],
+      },
+      {
+        star: true,
+        sources: [],
+        ports: [{ first: 80, last: 80 }],
+        protocols: [6],
+      },
+      {
+        star: false,
+        sources: client,
+        ports: [{ first: 53, last: 53 }],
+        protocols: [17],
+      },
+    ],
+  );
+});
+
+Deno.test("Tailscale control: an exit node is not reachable through what it forwards", () => {
+  // Rules to other nodes, the Service, the via route and autogroup:internet
+  // (48 public prefixes, none of them the tailnet's) all miss its addresses.
+  const reach = inboundReachability(TS_ROUTER_FILTER, TS_IPS.router, null);
+  assert(reach.readable);
+  assertEquals(reach.rules, []);
+  assertFalse(reach.anyTailnet);
+});
+
+Deno.test("Tailscale control: a Service host keeps only rules to its own addresses", () => {
+  // The Service's address shares the rules with the node's own; the app
+  // capability grant carries no destinations. Only the posture rule's port
+  // on the node's own addresses is kept.
+  const reach = inboundReachability(TS_SVC_FILTER, TS_IPS.svc, null);
+  assertEquals(reach.rules, [{
+    sources: [`${TS_IPS.client[0]}/32`, `${TS_IPS.client[1]}/128`],
+    ports: [{ first: 9100, last: 9100 }],
+    protocols: [6],
+    anyTailnet: false,
+  }]);
+});
+
+/**
+ * A second policy on the same throwaway tailnet, as Tailscale's control server
+ * compiled it for tag:plain: legacy acls (group:eng to :22,2222, autogroup:tagged
+ * to :9000, a hosts alias to :7000, proto icmp and proto sctp:5000), grants
+ * from an ipset with a removed range (:6000) and from autogroup:admin (:6100),
+ * and SSH rules: accept as root for tag:client, check as nonroot for group:eng.
+ * usera and userb are untagged devices of group:eng's one user.
+ */
+const TS_ACL_IPS = {
+  plain: ["100.101.236.51", "fd7a:115c:a1e0::5436:ec35"],
+  client: ["100.77.101.10", "fd7a:115c:a1e0::2236:650c"],
+  usera: ["100.79.251.108", "fd7a:115c:a1e0::b36:fb6d"],
+  userb: ["100.114.70.43", "fd7a:115c:a1e0::a536:462c"],
+};
+
+const TS_ACL_PLAIN_FILTER = [{
+  Caps: [],
+  Dsts: [{ Net: "100.101.236.51/32", Ports: { First: 8000, Last: 8010 } }, {
+    Net: "fd7a:115c:a1e0::5436:ec35/128",
+    Ports: { First: 8000, Last: 8010 },
+  }],
+  IPProto: [6],
+  SrcCaps: null,
+  Srcs: ["100.77.101.10/32", "fd7a:115c:a1e0::2236:650c/128"],
+}, {
+  Caps: [],
+  Dsts: [{ Net: "100.101.236.51/32", Ports: { First: 80, Last: 80 } }, {
+    Net: "fd7a:115c:a1e0::5436:ec35/128",
+    Ports: { First: 80, Last: 80 },
+  }],
+  IPProto: [6],
+  SrcCaps: null,
+  Srcs: [
+    "10.99.0.0/24",
+    "100.115.94.0/23",
+    "100.115.96.0/19",
+    "100.115.128.0/17",
+    "100.116.0.0/14",
+    "100.120.0.0/13",
+    "100.64.0.0/11",
+    "100.96.0.0/12",
+    "100.112.0.0/15",
+    "100.114.0.0/16",
+    "100.115.0.0/18",
+    "100.115.64.0/20",
+    "100.115.80.0/21",
+    "100.115.88.0/22",
+    "fd7a:115c:a1e0::/48",
+  ],
+}, {
+  Caps: [],
+  Dsts: [{ Net: "100.101.236.51/32", Ports: { First: 53, Last: 53 } }, {
+    Net: "fd7a:115c:a1e0::5436:ec35/128",
+    Ports: { First: 53, Last: 53 },
+  }],
+  IPProto: [17],
+  SrcCaps: null,
+  Srcs: ["100.77.101.10/32", "fd7a:115c:a1e0::2236:650c/128"],
+}, {
+  Caps: [],
+  Dsts: [{ Net: "100.101.236.51/32", Ports: { First: 6000, Last: 6000 } }, {
+    Net: "fd7a:115c:a1e0::5436:ec35/128",
+    Ports: { First: 6000, Last: 6000 },
+  }],
+  IPProto: [6],
+  SrcCaps: null,
+  Srcs: ["100.64.0.0/12", "100.96.0.0/11"],
+}, {
+  Caps: [],
+  Dsts: [{ Net: "100.101.236.51/32", Ports: { First: 6100, Last: 6100 } }, {
+    Net: "fd7a:115c:a1e0::5436:ec35/128",
+    Ports: { First: 6100, Last: 6100 },
+  }],
+  IPProto: [6],
+  SrcCaps: null,
+  Srcs: [
+    "100.114.70.43/32",
+    "100.79.251.108/32",
+    "fd7a:115c:a1e0::a536:462c/128",
+    "fd7a:115c:a1e0::b36:fb6d/128",
+  ],
+}, {
+  Caps: [],
+  Dsts: [
+    { Net: "100.101.236.51/32", Ports: { First: 22, Last: 22 } },
+    { Net: "100.101.236.51/32", Ports: { First: 2222, Last: 2222 } },
+    { Net: "fd7a:115c:a1e0::5436:ec35/128", Ports: { First: 22, Last: 22 } },
+    {
+      Net: "fd7a:115c:a1e0::5436:ec35/128",
+      Ports: { First: 2222, Last: 2222 },
+    },
+  ],
+  IPProto: [6, 17, 1, 58],
+  SrcCaps: null,
+  Srcs: [
+    "100.114.70.43/32",
+    "100.79.251.108/32",
+    "fd7a:115c:a1e0::a536:462c/128",
+    "fd7a:115c:a1e0::b36:fb6d/128",
+  ],
+}, {
+  Caps: [],
+  Dsts: [{ Net: "100.101.236.51/32", Ports: { First: 9000, Last: 9000 } }, {
+    Net: "fd7a:115c:a1e0::5436:ec35/128",
+    Ports: { First: 9000, Last: 9000 },
+  }],
+  IPProto: [6, 17, 1, 58],
+  SrcCaps: null,
+  Srcs: [
+    "100.101.236.51/32",
+    "100.121.177.17/32",
+    "100.70.156.94/32",
+    "100.75.211.236/32",
+    "100.77.101.10/32",
+    "fd7a:115c:a1e0::2236:650c/128",
+    "fd7a:115c:a1e0::5436:ec35/128",
+    "fd7a:115c:a1e0::8136:d3ed/128",
+    "fd7a:115c:a1e0::dd36:9c5f/128",
+    "fd7a:115c:a1e0::e036:b112/128",
+  ],
+}, {
+  Caps: [],
+  Dsts: [{ Net: "100.101.236.51/32", Ports: { First: 7000, Last: 7000 } }, {
+    Net: "fd7a:115c:a1e0::5436:ec35/128",
+    Ports: { First: 7000, Last: 7000 },
+  }],
+  IPProto: [6, 17, 1, 58],
+  SrcCaps: null,
+  Srcs: ["100.64.0.0/12"],
+}, {
+  Caps: [],
+  Dsts: [{ Net: "100.101.236.51/32", Ports: { First: 0, Last: 65535 } }, {
+    Net: "fd7a:115c:a1e0::5436:ec35/128",
+    Ports: { First: 0, Last: 65535 },
+  }],
+  IPProto: [1],
+  SrcCaps: null,
+  Srcs: ["100.77.101.10/32", "fd7a:115c:a1e0::2236:650c/128"],
+}, {
+  Caps: [],
+  Dsts: [{ Net: "100.101.236.51/32", Ports: { First: 5000, Last: 5000 } }, {
+    Net: "fd7a:115c:a1e0::5436:ec35/128",
+    Ports: { First: 5000, Last: 5000 },
+  }],
+  IPProto: [132],
+  SrcCaps: null,
+  Srcs: ["100.77.101.10/32", "fd7a:115c:a1e0::2236:650c/128"],
+}];
+
+const TS_ACL_PLAIN_SSH = {
+  "rules": [{
+    "action": {
+      "holdAndDelegate":
+        "https://unused/machine/ssh/action/$SRC_NODE_ID/to/$DST_NODE_ID?local_user=$LOCAL_USER",
+    },
+    "principals": [
+      { "nodeIP": "100.114.70.43" },
+      { "nodeIP": "100.79.251.108" },
+      { "nodeIP": "fd7a:115c:a1e0::a536:462c" },
+      { "nodeIP": "fd7a:115c:a1e0::b36:fb6d" },
+    ],
+    "sshUsers": { "0": "", "*": "=", "root": "" },
+  }, {
+    "action": {
+      "accept": true,
+      "allowAgentForwarding": true,
+      "allowLocalPortForwarding": true,
+      "allowRemotePortForwarding": true,
+    },
+    "principals": [{ "nodeIP": "100.77.101.10" }, {
+      "nodeIP": "fd7a:115c:a1e0::2236:650c",
+    }],
+    "sshUsers": { "0": "", "root": "root" },
+  }],
+};
+
+Deno.test("Tailscale control: acls, groups, autogroups and ipsets read as their sources", () => {
+  const reach = inboundReachability(
+    TS_ACL_PLAIN_FILTER,
+    TS_ACL_IPS.plain,
+    TS_ACL_PLAIN_SSH,
+  );
+  const host = (ips: string[]) => [`${ips[0]}/32`, `${ips[1]}/128`];
+  const client = host(TS_ACL_IPS.client);
+  const users = [...host(TS_ACL_IPS.userb), ...host(TS_ACL_IPS.usera)].sort();
+  const one = (first: number, last = first) => [{ first, last }];
+  assertEquals(
+    reach.rules.map((r) => ({
+      // The star and autogroup:tagged rules are checked by count below.
+      sources: r.anyTailnet || r.sources.length > 4
+        ? r.sources.length
+        : r.sources,
+      ports: r.ports,
+      protocols: r.protocols,
+      anyTailnet: r.anyTailnet,
+    })),
+    [
+      {
+        sources: client,
+        ports: one(8000, 8010),
+        protocols: [6],
+        anyTailnet: false,
+      },
+      { sources: 15, ports: one(80), protocols: [6], anyTailnet: true },
+      { sources: client, ports: one(53), protocols: [17], anyTailnet: false },
+      // ipset:lab, 100.64.0.0/10 less 100.80.0.0/12: not the whole tailnet.
+      {
+        sources: ["100.64.0.0/12", "100.96.0.0/11"],
+        ports: one(6000),
+        protocols: [6],
+        anyTailnet: false,
+      },
+      // autogroup:admin and group:eng: the one user's two devices.
+      { sources: users, ports: one(6100), protocols: [6], anyTailnet: false },
+      {
+        sources: users,
+        ports: [...one(22), ...one(2222)],
+        protocols: [1, 6, 17, 58],
+        anyTailnet: false,
+      },
+      // autogroup:tagged: the four tagged nodes and the tagged Service.
+      {
+        sources: 10,
+        ports: one(9000),
+        protocols: [1, 6, 17, 58],
+        anyTailnet: false,
+      },
+      // The hosts alias.
+      {
+        sources: ["100.64.0.0/12"],
+        ports: one(7000),
+        protocols: [1, 6, 17, 58],
+        anyTailnet: false,
+      },
+      {
+        sources: client,
+        ports: one(0, 65535),
+        protocols: [1],
+        anyTailnet: false,
+      },
+      {
+        sources: client,
+        ports: one(5000),
+        protocols: [132],
+        anyTailnet: false,
+      },
+    ],
+  );
+  // Accept as root for tag:client, check as nonroot for group:eng.
+  assertEquals(
+    reach.sshSources.sort(),
+    [...TS_ACL_IPS.client, ...TS_ACL_IPS.userb, ...TS_ACL_IPS.usera].sort(),
+  );
+  const ssh = summarizeSshPolicy(TS_ACL_PLAIN_SSH);
+  assertEquals(
+    [
+      ssh.acceptRules,
+      ssh.checkRules,
+      ssh.sources,
+      ssh.rootAllowed,
+      ssh.anyUser,
+    ],
+    [1, 1, 3, true, true],
+  );
 });
 
 Deno.test("scanTarget reads the packet filter only when asked", async () => {

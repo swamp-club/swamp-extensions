@@ -554,6 +554,20 @@ Deno.test("reachability: per-host tree and a matrix between scanned hosts", asyn
   assertEquals(json[1].reachability?.rules.length, 3);
 });
 
+Deno.test("reachability: SCTP keeps its ports, ICMP has none (#3924)", async () => {
+  // As Tailscale's control server compiled sctp:22 and proto icmp for a pair.
+  const laptop = reachable("laptop", ["100.64.0.1", "fd7a:115c:a1e0::1"], []);
+  const nas = reachable("nas", ["100.64.0.2", "fd7a:115c:a1e0::2"], [
+    { sources: LAPTOP, ports: [{ first: 22, last: 22 }], protocols: [132] },
+    { sources: LAPTOP, ports: ALL, protocols: [1] },
+  ], { prefs: { RunSSH: true } });
+  const md = (await report.execute(makeContext("scanFleet", [laptop, nas])))
+    .markdown;
+  // Port 22 over SCTP is not Tailscale SSH, so it is not marked.
+  assertStringIncludes(md, "| laptop | — | ✅ sctp 22; icmp |");
+  assertFalse(md.includes("proto 132"));
+});
+
 Deno.test("reachability: allow-all, no rules, and an unreadable netmap", async () => {
   const open = reachable("open", ["100.64.0.5"], [
     { sources: ["0.0.0.0/0", "::/0"], ports: ALL, protocols: [] },

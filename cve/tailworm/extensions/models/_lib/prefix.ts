@@ -83,9 +83,11 @@ const TAILNET_V4 = parsePrefix("100.64.0.0/10")!;
 const TAILNET_V6 = parsePrefix("fd7a:115c:a1e0::/48")!;
 
 /**
- * The sources cover the tailnet's whole range. Tailscale sends a "*" source
- * as 0.0.0.0/0 and ::/0; headscale splits it into CGNAT prefixes around its
- * reserved ranges, so most of 100.64.0.0/10 (or the whole IPv6 range) counts.
+ * The sources cover the tailnet's whole range. A "*" source can arrive as
+ * 0.0.0.0/0 and ::/0, but Tailscale's control server and headscale both split
+ * it into CGNAT prefixes around their reserved ranges (Tailscale adds the
+ * approved subnet routes), so most of 100.64.0.0/10 (or the whole IPv6 range)
+ * counts.
  */
 export function coversTailnet(sources: string[]): boolean {
   // Host bits cleared and duplicates dropped, so one block written two ways

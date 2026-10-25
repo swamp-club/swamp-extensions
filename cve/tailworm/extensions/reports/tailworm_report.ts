@@ -316,14 +316,21 @@ function portMarks(r: Status): Map<number, string> {
   return marks;
 }
 
-/** A rule's ports, or its protocols when it carries no TCP or UDP. */
+/**
+ * A rule's ports, or its protocols when it carries no TCP or UDP. SCTP has
+ * ports too, so it keeps them (unmarked: the marks are TCP ports).
+ */
 function portsLabel(rule: ReachRule, marks: Map<number, string>): string {
   if (
     rule.protocols.length > 0 &&
     !rule.protocols.some((p) => p === 6 || p === 17)
   ) {
     return rule.protocols.map((p) =>
-      typeof p === "string" ? p : PROTOCOLS[p] ?? `proto ${p}`
+      p === 132
+        ? `sctp ${portsLabel({ ...rule, protocols: [] }, new Map())}`
+        : typeof p === "string"
+        ? p
+        : PROTOCOLS[p] ?? `proto ${p}`
     ).join(", ");
   }
   const marked = (first: number, last: number) =>
