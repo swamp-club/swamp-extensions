@@ -362,7 +362,13 @@ Deno.test("triage: refuses to make the primary public while it carries a securit
     await assertRejects(
       () =>
         model.methods.triage.execute(
-          { type: "bug", confidence: "high", reasoning: "r" },
+          {
+            type: "bug",
+            confidence: "high",
+            reasoning: "r",
+            // Past the security guard, so the parity check is what refuses.
+            allowLeavingSecurity: true,
+          },
           context,
         ),
       Error,
@@ -371,23 +377,21 @@ Deno.test("triage: refuses to make the primary public while it carries a securit
   });
 });
 
-Deno.test("fast_forward: refuses to make the primary platform while it carries a security issue", async () => {
+Deno.test("fast_forward: a security primary carrying a security issue stays security (swamp-club #3899)", async () => {
   await withLifecycle(1, (club, store) => {
     club.addIssue({ number: 1, type: "security", status: "triaged" });
     club.addIssue({ number: 2, type: "security" });
     carrying(store, { issueNumber: 2 });
-  }, async ({ club, context }) => {
-    await assertRejects(
-      () =>
-        model.methods.fast_forward.execute({
-          summary: "s",
-          steps: [{ order: 1, description: "d", files: ["a.ts"] }],
-          testingStrategy: "t",
-        }, context),
-      Error,
-      "Unlink #2",
-    );
+  }, async ({ club, context, store }) => {
+    await model.methods.fast_forward.execute({
+      summary: "s",
+      steps: [{ order: 1, description: "d", files: ["a.ts"] }],
+      testingStrategy: "t",
+    }, context);
     assertEquals(club.issues.get(1)!.type, "security");
+    assertEquals(club.issues.get(2)!.type, "security");
+    assertEquals(store["classification-main"].type, "security");
+    assertEquals(store["state-main"].phase, "implementing");
   });
 });
 
@@ -1050,4 +1054,267 @@ Deno.test("buildNotifyMessage: thanks a duplicate's reporter with the canonical 
   assertStringIncludes(message, "#9");
   assertStringIncludes(message, PR);
   assertEquals(message.includes("Secret"), false);
+});
+
+// ---------------------------------------------------------------------------
+// fast_forward keeps the issue's type (swamp-club #3899)
+// ---------------------------------------------------------------------------
+
+for (const type of ["security", "bug", "feature", "platform"] as const) {
+  Deno.test(`fast_forward: keeps a ${type} issue ${type} (swamp-club #3899)`, async () => {
+    await withLifecycle(1, (club, store) => {
+      club.addIssue({ number: 1, type, status: "triaged" });
+      store["context-main"] = { type, title: "t", body: "b" };
+    }, async ({ club, context, store }) => {
+      await model.methods.fast_forward.execute({
+        summary: "s",
+        steps: [{ order: 1, description: "d", files: ["a.ts"] }],
+        testingStrategy: "t",
+      }, context);
+      assertEquals(club.issues.get(1)!.type, type);
+      assertEquals(store["classification-main"].type, type);
+    });
+  });
+}
+
+Deno.test("fast_forward: sends no type change (swamp-club #3899)", async () => {
+  await withLifecycle(1, (club) => {
+    club.addIssue({ number: 1, type: "security", status: "triaged" });
+  }, async ({ club, context }) => {
+    await model.methods.fast_forward.execute({
+      summary: "s",
+      steps: [{ order: 1, description: "d", files: ["a.ts"] }],
+      testingStrategy: "t",
+    }, context);
+    const patches = club.calls.filter((c) => c.method === "PATCH");
+    assertEquals(patches.length > 0, true);
+    assertEquals(patches.some((c) => c.body && "type" in c.body), false);
+  });
+});
+
+Deno.test("triage: refuses to take an issue out of security without the opt-in (swamp-club #3899)", async () => {
+  await withLifecycle(1, (club) => {
+    club.addIssue({ number: 1, type: "security" });
+  }, async ({ club, context }) => {
+    await assertRejects(
+      () =>
+        model.methods.triage.execute(
+          { type: "bug", confidence: "high", reasoning: "r" },
+          context,
+        ),
+      Error,
+      "removes its private visibility",
+    );
+    assertEquals(club.issues.get(1)!.type, "security");
+    assertEquals(club.issues.get(1)!.status, "open");
+    assertEquals(club.stepsOn(1), []);
+  });
+});
+
+Deno.test("triage: allowLeavingSecurity lets a misfiled security issue change type (swamp-club #3899)", async () => {
+  await withLifecycle(1, (club) => {
+    club.addIssue({ number: 1, type: "security" });
+  }, async ({ club, context }) => {
+    await model.methods.triage.execute(
+      {
+        type: "bug",
+        confidence: "high",
+        reasoning: "r",
+        allowLeavingSecurity: true,
+      },
+      context,
+    );
+    assertEquals(club.issues.get(1)!.type, "bug");
+  });
+});
+
+Deno.test("triage: moving an issue into security needs no opt-in (swamp-club #3899)", async () => {
+  await withLifecycle(1, (club) => {
+    club.addIssue({ number: 1, type: "bug" });
+  }, async ({ club, context }) => {
+    await model.methods.triage.execute(
+      { type: "security", confidence: "high", reasoning: "r" },
+      context,
+    );
+    assertEquals(club.issues.get(1)!.type, "security");
+  });
+});
+
+Deno.test("triage: refuses to change the type when swamp-club cannot confirm it (swamp-club #3899)", async () => {
+  await withLifecycle(1, (club) => {
+    club.addIssue({ number: 1, type: "security" });
+    // The read fails; the type change after it would succeed.
+    club.failWhen = (call) =>
+      call.method === "GET" && call.path.endsWith("/issues/1")
+        ? new Response("unavailable", { status: 503 })
+        : undefined;
+  }, async ({ club, context }) => {
+    await assertRejects(
+      () =>
+        model.methods.triage.execute(
+          { type: "bug", confidence: "high", reasoning: "r" },
+          context,
+        ),
+      Error,
+      "Could not read issue #1",
+    );
+    assertEquals(club.issues.get(1)!.type, "security");
+    assertEquals(club.calls.some((c) => c.method === "PATCH"), false);
+  });
+});
+
+Deno.test("fast_forward: an unknown type is recorded as platform with low confidence (swamp-club #3899)", async () => {
+  await withLifecycle(1, (club) => {
+    club.addIssue({ number: 1, type: "security", status: "triaged" });
+    // Only fast_forward's first read fails; later status checks succeed.
+    let reads = 0;
+    club.failWhen = (call) =>
+      call.method === "GET" && call.path.endsWith("/issues/1") && reads++ === 0
+        ? new Response("unavailable", { status: 503 })
+        : undefined;
+  }, async ({ club, context, store, warnings }) => {
+    await model.methods.fast_forward.execute({
+      summary: "s",
+      steps: [{ order: 1, description: "d", files: ["a.ts"] }],
+      testingStrategy: "t",
+    }, context);
+    assertEquals(store["classification-main"].type, "platform");
+    assertEquals(store["classification-main"].confidence, "low");
+    assertEquals(warnings.some((w) => w.includes("recorded platform")), true);
+    // Nothing is sent upstream: the issue keeps its type.
+    assertEquals(club.issues.get(1)!.type, "security");
+  });
+});
+
+Deno.test("fast_forward: falls back to the stored type when swamp-club does not answer (swamp-club #3899)", async () => {
+  await withLifecycle(1, (club, store) => {
+    club.addIssue({ number: 1, type: "security", status: "triaged" });
+    store["context-main"] = { type: "security", title: "t", body: "b" };
+    // Only fast_forward's first read fails; later status checks succeed.
+    let reads = 0;
+    club.failWhen = (call) =>
+      call.method === "GET" && call.path.endsWith("/issues/1") && reads++ === 0
+        ? new Response("unavailable", { status: 503 })
+        : undefined;
+  }, async ({ club, context, store }) => {
+    await model.methods.fast_forward.execute({
+      summary: "s",
+      steps: [{ order: 1, description: "d", files: ["a.ts"] }],
+      testingStrategy: "t",
+    }, context);
+    assertEquals(store["classification-main"].type, "security");
+    assertEquals(store["classification-main"].confidence, "medium");
+    assertEquals(club.issues.get(1)!.type, "security");
+  });
+});
+
+/** A GET of the issue whose JSON omits the type field. */
+const withoutType = (club: FakeSwampClub, issueNumber: number) => {
+  club.failWhen = (call) => {
+    if (
+      call.method !== "GET" || !call.path.endsWith(`/issues/${issueNumber}`)
+    ) {
+      return undefined;
+    }
+    const { type: _, ...issue } = club.issues.get(issueNumber)!;
+    return Response.json({ issue, lifecycleEntries: [], relationships: [] });
+  };
+};
+
+Deno.test("fast_forward: refuses when a linked issue became security after linking (swamp-club #3899)", async () => {
+  await withLifecycle(1, (club, store) => {
+    club.addIssue({ number: 1, type: "bug", status: "triaged" });
+    // Linked as a bug, then made security in swamp-club.
+    club.addIssue({ number: 2, type: "security" });
+    carrying(store, { issueNumber: 2 });
+  }, async ({ club, context }) => {
+    await assertRejects(
+      () =>
+        model.methods.fast_forward.execute({
+          summary: "s",
+          steps: [{ order: 1, description: "d", files: ["a.ts"] }],
+          testingStrategy: "t",
+        }, context),
+      Error,
+      "Unlink #2",
+    );
+    assertEquals(club.issues.get(1)!.status, "triaged");
+  });
+});
+
+Deno.test("fetchIssue marks a missing type instead of passing it off as feature (swamp-club #3899)", async () => {
+  await withLifecycle(1, (club) => {
+    club.addIssue({ number: 1, type: "security" });
+    withoutType(club, 1);
+  }, async ({ club, context }) => {
+    // triage cannot confirm the issue is not security.
+    await assertRejects(
+      () =>
+        model.methods.triage.execute(
+          { type: "bug", confidence: "high", reasoning: "r" },
+          context,
+        ),
+      Error,
+      "Could not read issue #1's type",
+    );
+    assertEquals(club.issues.get(1)!.type, "security");
+    assertEquals(club.calls.some((c) => c.method === "PATCH"), false);
+  });
+});
+
+Deno.test("a linked issue with a missing type fails the parity check (swamp-club #3899)", async () => {
+  await withLifecycle(1, (club, store) => {
+    club.addIssue({ number: 1, type: "bug", status: "triaged" });
+    club.addIssue({ number: 2, type: "security" });
+    carrying(store, { issueNumber: 2 });
+    withoutType(club, 2);
+  }, async ({ context }) => {
+    await assertRejects(
+      () =>
+        model.methods.fast_forward.execute({
+          summary: "s",
+          steps: [{ order: 1, description: "d", files: ["a.ts"] }],
+          testingStrategy: "t",
+        }, context),
+      Error,
+      "Could not read linked issue #2's type",
+    );
+  });
+});
+
+Deno.test("link_issue refuses an issue whose type swamp-club did not send (swamp-club #3899)", async () => {
+  await withLifecycle(1, (club, store) => {
+    club.addIssue({ number: 1, status: "in_progress" });
+    club.addIssue({ number: 2, type: "security" });
+    phase(store, "implementing");
+    withoutType(club, 2);
+  }, async ({ club, context }) => {
+    await assertRejects(
+      () =>
+        model.methods.link_issue.execute(
+          { issueNumber: 2, relationship: "related_to" },
+          context,
+        ),
+      Error,
+      "Could not read issue #2's type",
+    );
+    assertEquals(club.relationships, []);
+  });
+});
+
+Deno.test("fast_forward does not trust a missing type from swamp-club (swamp-club #3899)", async () => {
+  await withLifecycle(1, (club, store) => {
+    club.addIssue({ number: 1, type: "security", status: "triaged" });
+    store["context-main"] = { type: "security", title: "t", body: "b" };
+    withoutType(club, 1);
+  }, async ({ context, store }) => {
+    await model.methods.fast_forward.execute({
+      summary: "s",
+      steps: [{ order: 1, description: "d", files: ["a.ts"] }],
+      testingStrategy: "t",
+    }, context);
+    // The stored type is used, not the "feature" default.
+    assertEquals(store["classification-main"].type, "security");
+    assertEquals(store["classification-main"].confidence, "medium");
+  });
 });

@@ -475,8 +475,8 @@ Deno.test("model: exposes the new post_attestation method definition", () => {
   );
 });
 
-Deno.test("model: version is 2026.09.30.1", () => {
-  assertEquals(model.version, "2026.09.30.1");
+Deno.test("model: version is 2026.10.25.1", () => {
+  assertEquals(model.version, "2026.10.25.1");
 });
 
 // ---------------------------------------------------------------------------
@@ -2192,8 +2192,9 @@ Deno.test("fast_forward: writes classification, plan, adversarialReview, codeCon
       w.specName === "classification"
     );
     assertEquals(classificationWrite !== undefined, true);
+    // No swamp-club client and no stored context: the type is unknown.
     assertEquals(classificationWrite!.data.type, "platform");
-    assertEquals(classificationWrite!.data.confidence, "high");
+    assertEquals(classificationWrite!.data.confidence, "low");
 
     const planWrite = writes.find((w) => w.specName === "plan");
     assertEquals(planWrite !== undefined, true);

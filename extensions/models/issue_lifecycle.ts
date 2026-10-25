@@ -271,9 +271,10 @@ async function assertLinkedParity(
 ): Promise<void> {
   for (const entry of linked) {
     const issue = await sc.forIssue(entry.issueNumber).fetchIssue();
-    if (!issue) {
+    // An unknown type could be security, so it cannot pass the check.
+    if (!issue || issue.typeMissing) {
       throw new Error(
-        `Could not fetch linked issue #${entry.issueNumber} to check it can ` +
+        `Could not read linked issue #${entry.issueNumber}'s type to check it can ` +
           `stay linked to a ${primary.type} issue.`,
       );
     }
@@ -328,7 +329,7 @@ async function warnIfCarriedElsewhere(
 
 export const model = {
   type: "@swamp/issue-lifecycle",
-  version: "2026.09.30.1",
+  version: "2026.10.25.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -583,6 +584,21 @@ export const model = {
         "the PR on the swamp-club issue itself. No globalArguments changes; " +
         "both new resources are optional, so existing instances need no " +
         "migration.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.25.1",
+      description:
+        "Lifecycle steps no longer change an issue's type behind the user's " +
+        "back (swamp-club #3899). fast_forward keeps the issue's current " +
+        "type (from swamp-club, else the stored context) instead of forcing " +
+        "platform, and never sends a type change. triage refuses to move an " +
+        "issue out of security unless the new allowLeavingSecurity input is " +
+        "true, since that removes its private visibility; it also refuses " +
+        "when swamp-club cannot confirm the type. A type swamp-club omits is " +
+        "treated as unknown, never as the feature default, by triage, " +
+        "fast_forward, link_issue and the security parity check. No " +
+        "resources and no globalArguments changes.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -1231,12 +1247,18 @@ export const model = {
             "Required when isRegression is true.",
         ),
         clarifyingQuestions: z.array(z.string()).optional(),
+        allowLeavingSecurity: z.boolean().optional().describe(
+          "Allow moving an issue that swamp-club has as security to another " +
+            "type. That removes its private visibility, so set it only when " +
+            "the human has said the issue was misfiled.",
+        ),
       }),
       execute: async (
         args: {
           type: "bug" | "feature" | "platform" | "security";
           confidence: "high" | "medium" | "low";
           reasoning: string;
+          allowLeavingSecurity?: boolean;
           isRegression?: boolean;
           regressionIntroducedIn?: string;
           regressionEvidence?: string;
@@ -1336,6 +1358,26 @@ export const model = {
           context.logger,
         );
         if (sc) {
+          if (args.type !== "security" && !args.allowLeavingSecurity) {
+            // Fails closed: fetchIssue returns null on any failed request,
+            // and the type change below could still succeed.
+            const current = await sc.fetchIssue();
+            if (!current || current.typeMissing) {
+              throw new Error(
+                `Could not read issue #${issueNumber}'s type from swamp-club ` +
+                  `to confirm it is not security, so it was not made ` +
+                  `${args.type}. Retry triage.`,
+              );
+            }
+            if (current.type === "security") {
+              throw new Error(
+                `Issue #${issueNumber} is security in swamp-club. Making it ` +
+                  `${args.type} removes its private visibility. Classify it ` +
+                  `as security, or pass allowLeavingSecurity=true once the ` +
+                  `human has confirmed it was misfiled.`,
+              );
+            }
+          }
           const linked = await readLinkedIssues(context.readResource);
           await assertLinkedParity(
             sc,
@@ -2253,14 +2295,38 @@ export const model = {
         const now = new Date().toISOString();
         const handles = [];
 
+        // Keep the issue's type: swamp-club's is current, the stored context
+        // is what start fetched. Changing it here would, for a security
+        // issue, remove its private visibility (swamp-club #3899).
+        const sc = await createSwampClubClient(
+          context.globalArgs,
+          context.logger,
+        );
+        const fetched = sc ? await sc.fetchIssue() : null;
+        const upstream = fetched?.typeMissing ? null : fetched;
+        const stored = context.readResource
+          ? await context.readResource("context-main")
+          : null;
+        const fromUpstream = IssueType.safeParse(upstream?.type).data;
+        const fromStored = IssueType.safeParse(stored?.type).data;
+        const type = fromUpstream ?? fromStored ?? "platform";
+        if (!fromUpstream && !fromStored) {
+          // Only recorded locally: fast_forward sends no type upstream.
+          context.logger.warning(
+            "Could not read issue #{issueNumber}'s type; recorded platform locally",
+            { issueNumber },
+          );
+        }
+
         handles.push(
           await context.writeResource(
             "classification",
             "classification-main",
             {
-              type: "platform",
-              confidence: "high",
-              reasoning: "Ad-hoc work — retroactive tracking issue created",
+              type,
+              confidence: fromUpstream ? "high" : fromStored ? "medium" : "low",
+              reasoning:
+                `Ad-hoc work — retroactive tracking; type kept as ${type}`,
               classifiedAt: now,
             },
           ),
@@ -2320,22 +2386,11 @@ export const model = {
           { summary: args.summary },
         );
 
-        const sc = await createSwampClubClient(
-          context.globalArgs,
-          context.logger,
-        );
         if (sc) {
+          // The type is kept, but a linked issue may have changed type since
+          // link_issue checked the pair.
           const linked = await readLinkedIssues(context.readResource);
-          await assertLinkedParity(
-            sc,
-            { number: issueNumber, type: "platform" },
-            linked,
-          );
-          recordUpstreamChange(
-            context.logger,
-            "issue type update",
-            await sc.updateType("platform"),
-          );
+          await assertLinkedParity(sc, { number: issueNumber, type }, linked);
           // Walk through triaged first — a freshly filed issue is in status
           // open, and swamp-club rejects a direct jump to in_progress.
           recordUpstreamChange(
@@ -3670,6 +3725,18 @@ export const model = {
           throw new Error(
             `Issue #${target} has already shipped, so there is nothing for ` +
               `this lifecycle to carry.`,
+          );
+        }
+        // An unknown type could be security, so it cannot pass the check.
+        const unknown = primaryIssue.typeMissing
+          ? primary
+          : linkedIssue.typeMissing
+          ? target
+          : null;
+        if (unknown !== null) {
+          throw new Error(
+            `Could not read issue #${unknown}'s type from swamp-club, so it ` +
+              `cannot be checked for security parity. Retry link_issue.`,
           );
         }
         const parity = securityParityError(

@@ -171,7 +171,9 @@ sequential lab number (e.g. `42`) as the `issueNumber` global arg.
 Every state transition (triage, plan, approve, implement, complete) posts a
 structured lifecycle entry to the swamp-club API and transitions the issue's
 status. The `triage` method additionally PATCHes the issue's `type` field to
-match the classification.
+match the classification. It refuses to move an issue out of `security`, which
+would remove its private visibility, unless `allowLeavingSecurity=true` is
+passed. `fast_forward` keeps the issue's current type and never changes it.
 
 Each lab issue has a sequential, human-friendly number (`#1`, `#2`, ...) used in
 every lab URL — both the dashboard and the API. You can find an issue at

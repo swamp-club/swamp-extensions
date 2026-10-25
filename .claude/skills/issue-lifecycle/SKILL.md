@@ -108,7 +108,8 @@ attestation to flow through.
 
    Build the plan steps retroactively from the actual work — each step should
    describe a logical unit of change with its files. The testing strategy should
-   reflect how the changes were validated.
+   reflect how the changes were validated. `fast_forward` keeps the issue's
+   existing type (a `security` issue stays `security`); it never changes it.
 
 5. **Transition to `verifying`.** `fast_forward` leaves the lifecycle at
    `implementing`, and `post_attestation` is only accepted from `verifying` — so
@@ -293,6 +294,11 @@ swamp-club):
 switch an issue to it — `swamp issue bug|feature|security` and
 `swamp issue edit --type` accept only the other three. Classify an existing
 issue as `platform` if it fits; never try to create one.
+
+`triage` refuses to move an issue that swamp-club has as `security` to any
+other type, because that removes its private visibility and can expose
+embargoed content. Pass `--input allowLeavingSecurity=true` only when the
+human has explicitly said the issue was misfiled — never on your own judgment.
 
 Two additional classification details are captured in the classification record
 but do NOT map to separate swamp-club types:

@@ -19,7 +19,7 @@
 // ---------------------------------------------------------------------------
 
 import { join } from "@std/path";
-import type { IssueType } from "./schemas.ts";
+import { IssueType } from "./schemas.ts";
 import {
   type ForwardStatus,
   parsePrNumber,
@@ -91,7 +91,13 @@ export interface FetchedRelationship {
 
 export interface FetchedIssue {
   number: number;
+  /** "feature" when swamp-club omitted the type; typeMissing says so. */
   type: IssueType;
+  /**
+   * swamp-club sent no type, or one this client does not know. Security
+   * checks treat the type as unknown rather than as the "feature" default.
+   */
+  typeMissing?: true;
   status: string;
   title: string;
   body: string;
@@ -260,7 +266,10 @@ export class SwampClubClient {
       if (!issue || typeof issue.number !== "number") return null;
       return {
         number: issue.number,
-        type: (issue.type ?? "feature") as IssueType,
+        type: IssueType.safeParse(issue.type).data ?? "feature",
+        ...(IssueType.safeParse(issue.type).success
+          ? {}
+          : { typeMissing: true as const }),
         status: issue.status ?? "open",
         title: issue.title ?? "",
         body: issue.body ?? "",

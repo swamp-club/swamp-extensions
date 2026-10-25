@@ -130,7 +130,12 @@ wait for the human's response before moving on.
 
 Running `triage` automatically:
 
-- Updates the swamp-club issue's `type` field via PATCH
+- Updates the swamp-club issue's `type` field via PATCH. Moving an issue out of
+  `security` is refused, since it removes the issue's private visibility,
+  unless `--input allowLeavingSecurity=true` is passed; pass it only when the
+  human has explicitly confirmed the issue was misfiled. If swamp-club cannot be read
+  to confirm the issue's type, a change to a non-security type is refused;
+  retry once swamp-club answers
 - Transitions the swamp-club status to `triaged`
 - Posts a `classified` lifecycle entry with the full classification payload
 
