@@ -168,6 +168,7 @@ function withUser(status: Status, sshUser: string | undefined): Status {
   return sshUser !== undefined ? { ...status, sshUser } : status;
 }
 
+/** A host label as a data instance name: no path separators or "..". */
 export function instanceName(label: string): string {
   return label.replace(/[\/\\]/g, "_").replace(/\.\./g, "_");
 }
@@ -196,6 +197,7 @@ export async function mapLimit<T, R>(
   return out;
 }
 
+/** The status written for a host that could not be scanned, carrying the error. */
 export function errorStatus(
   target: string,
   err: unknown,
@@ -292,9 +294,21 @@ function containerOf(t: Transport): string | undefined {
     : undefined;
 }
 
+/**
+ * The @swamp/cve/http2shell model: scans hosts, containers and images for
+ * Brotli decoders exposed to CVE-2026-111497, and mitigates Linux hosts.
+ */
 export const model = {
   type: "@swamp/cve/http2shell",
-  version: "2026.10.24.1",
+  version: "2026.10.25.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.25.1",
+      description:
+        "staleProcesses entries record the optional uid of each process. Existing arguments are unchanged.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   reports: ["@swamp/cve/http2shell-report"],

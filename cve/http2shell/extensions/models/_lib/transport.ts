@@ -23,7 +23,7 @@
  */
 
 import { analyze, parseProbe, type ProbeFacts } from "./analysis.ts";
-import { buildShProbe, shQuote } from "./probe_sh.ts";
+import { buildShProbe } from "./probe_sh.ts";
 import { buildWindowsProbe } from "./probe_windows.ts";
 import type { Status } from "./schemas.ts";
 import { cmdLine, runOverWindowsSsh, type SshSession } from "./windows_ssh.ts";
@@ -296,6 +296,23 @@ function windowsSshSession(
   };
 }
 
+/**
+ * The ssh command line. ssh runs its remote command through the user's login
+ * shell, which may not be POSIX (fish, csh), so sh gets the script on stdin
+ * (see wrapScript) instead of quoted in an argument.
+ */
+export function sshArgv(args: string[], ps: boolean): string[] {
+  return ["ssh", ...args, ps ? POWERSHELL_ARGV.join(" ") : "sh -s"];
+}
+
+/**
+ * A script for sh -s. Wrapping it in a function makes sh read all of it
+ * before running anything, so no command it starts can consume the rest.
+ */
+export function wrapScript(script: string): string {
+  return `h2s_main() {\n${script}\n}\nh2s_main </dev/null\n`;
+}
+
 export function makeRunner(transport: Transport, logger: Logger): Runner {
   return async (
     command: string,
@@ -341,13 +358,9 @@ export function makeRunner(transport: Transport, logger: Logger): Runner {
           );
         }
         return await runArgv(
-          [
-            "ssh",
-            ...transport.args,
-            ps ? POWERSHELL_ARGV.join(" ") : `sh -c ${shQuote(command)}`,
-          ],
+          sshArgv(transport.args, ps),
           timeoutMs,
-          stdin,
+          ps ? stdin : wrapScript(command),
         );
       default:
         return await runArgv(shArgv, timeoutMs, stdin);

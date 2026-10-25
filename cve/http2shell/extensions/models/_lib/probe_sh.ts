@@ -56,7 +56,7 @@ export const LOCK_PATTERN =
 /**
  * The ownership check the probe applies before it runs, or runs ldd on, any
  * file, and that mitigate repeats right before it runs a Python interpreter.
- * Defines me, adm and trusted().
+ * Defines me, os, adm, acl_ok(), trusted(), tree_ok() and cfg_ok().
  */
 export const TRUSTED_SH = `
 me=$(id -u)
@@ -67,20 +67,95 @@ me=$(id -u)
 # admin-writable). A symlink's own mode means nothing, so only its owner
 # counts; callers check what it resolves to as well. Anything else (another
 # user's nvm, a world-writable /opt) is reported without being run.
+os=$(uname -s)
 adm=0
-[ "$(uname -s)" = Darwin ] && adm=80
+[ "$os" = Darwin ] && adm=80
+# Mode bits are not the whole story: an ACL (ls shows + after the mode) can
+# let another user write a root-owned 0644 file. A path with one passes only
+# when no entry grants anyone else write. Linux: no named user or group other
+# than root, this user, root's group or adm with an effective w; default:
+# entries only shape new files, and a w the mask removes is not effective.
+# Without getfacl the ACL cannot be read, so it refuses. macOS: no allow entry
+# with a write permission for anyone but root, admin, wheel or this user;
+# deny entries (macOS puts one on every home) take nothing from the owner.
+acl_ok() {
+  m=$(ls -ld "$1" | awk '{ print $1 }')
+  [ -n "$m" ] || return 1
+  if [ "$os" = Darwin ]; then
+    # macOS shows @ instead of + when the path also has extended attributes.
+    case "$m" in *[+@]) ;; *) return 0;; esac
+    # An entry is "N: principal [inherited] allow|deny perms", and a
+    # principal's name may hold spaces; a line in no such shape refuses.
+    ls -lde "$1" | sed 1d | awk -v me="$(id -un)" '
+      { k = 0; for (i = 3; i <= NF; i++) if ($i == "allow" || $i == "deny") { k = i; break } }
+      k == 0 { bad = 1; next }
+      $k == "deny" || $(k + 1) !~ /write|append|add_file|add_subdirectory|delete_child|chown/ { next }
+      { w = $2; for (i = 3; i < k; i++) if ($i != "inherited") w = w " " $i }
+      w == "user:root" || w == "user:" me || w == "group:admin" || w == "group:wheel" { next }
+      { bad = 1 }
+      END { exit bad }'
+  else
+    case "$m" in *+) ;; *) return 0;; esac
+    fa=$(getfacl -cpn "$1") && [ -n "$fa" ] || return 1
+    printf '%s\\n' "$fa" | awk -F: -v me="$me" -v adm="$adm" '
+      $1 != "user" && $1 != "group" || $2 == "" { next }
+      { p = $3; if (match($0, /#effective:[rwx-]+/)) p = substr($0, RSTART + 11, RLENGTH - 11) }
+      p !~ /w/ { next }
+      $1 == "user" && ($2 == 0 || $2 == me) { next }
+      $1 == "group" && ($2 == 0 || $2 == adm) { next }
+      { bad = 1 }
+      END { exit bad }'
+  fi
+}
 trusted() {
   t=$1
   while :; do
     [ -n "$(find "$t" -maxdepth 0 \\( -user 0 -o -user "$me" \\) \\( -type l -o ! -perm -0002 \\( ! -perm -0020 -o -group 0 -o -group "$adm" \\) \\) -print)" ] || return 1
+    [ -L "$t" ] || acl_ok "$t" || return 1
     [ "$t" = / ] && return 0
     t=$(dirname "$t")
   done
 }
 # A directory tree nobody else can change: no file or directory in it is
-# writable by others, or by a group other than root's (or macOS admin).
+# writable by others, or by a group other than root's (or macOS admin), or
+# through an ACL. Only the entries ls marks with + (or @ on macOS) are read
+# for their ACL.
 tree_ok() {
-  [ -z "$(find "$1" \\( -type f -o -type d \\) \\( -perm -0002 -o \\( -perm -0020 ! -group 0 ! -group "$adm" \\) \\) -print | head -n 1)" ]
+  [ -z "$(find "$1" \\( -type f -o -type d \\) \\( -perm -0002 -o \\( -perm -0020 ! -group 0 ! -group "$adm" \\) \\) -print | head -n 1)" ] || return 1
+  [ -z "$(find "$1" \\( -type f -o -type d \\) -exec ls -ldn {} + | awk '$1 ~ /[+@]$/ { for (i = 0; i < 8; i++) sub(/^[^ ]+ +/, ""); print }' | while IFS= read -r a; do acl_ok "$a" || { echo bad; break; }; done)" ]
+}
+# A venv's pyvenv.cfg is read by its interpreter even with -I: the one next
+# to the interpreter first, then the one in the venv root. Its home key
+# decides where the standard library is loaded from. Each one present must
+# pass trusted, and its home must hold an interpreter of the same name that
+# passes trusted too (the install the venv links to, or for a --copies venv
+# the one it was copied from), whose lib/pythonX.Y (and lib64) tree nobody
+# else can change. Python reads the key case-insensitively. A venv with
+# include-system-site-packages = true also runs the .pth files of the base
+# install's site directories (Debian's /usr/local dist-packages is writable
+# by group staff), even under -I, so it refuses. Takes the venv root and its
+# interpreter.
+cfg_ok() {
+  for c in "$(dirname "$2")/pyvenv.cfg" "$1/pyvenv.cfg"; do
+    [ -e "$c" ] || [ -L "$c" ] || continue
+    trusted "$c" && trusted "$(readlink -f "$c")" || return 1
+    isp=$(awk -F= 'tolower($1) ~ /^[[:space:]]*include-system-site-packages[[:space:]]*$/ { v = tolower($2); gsub(/[[:space:]]/, "", v); print v; exit }' "$c")
+    [ "$isp" = true ] && return 1
+    h=$(sed -n 's/^[[:space:]]*[Hh][Oo][Mm][Ee][[:space:]]*=[[:space:]]*//p' "$c" | head -n 1 | sed 's/[[:space:]]*$//')
+    [ -n "$h" ] || continue
+    case "$h" in /*) ;; *) return 1;; esac
+    hi=$h/$(basename "$2")
+    [ -e "$hi" ] && trusted "$hi" && trusted "$(readlink -f "$hi")" || return 1
+    hp=$(dirname "$(dirname "$(readlink -f "$hi")")")
+    hl=0
+    for l in "$hp/lib/$(basename "$2")" "$hp/lib64/$(basename "$2")"; do
+      [ -d "$l" ] || continue
+      trusted "$l" && tree_ok "$l" || return 1
+      hl=1
+    done
+    [ "$hl" = 1 ] || return 1
+  done
+  return 0
 }
 `;
 
@@ -195,14 +270,15 @@ py_site() {
   case " $pyseen " in *" $r "*) return;; esac
   pyseen="$pyseen $r"
   # Whether mitigate may run this environment's interpreter: the site
-  # directory, <root>/bin/pythonX.Y and the file it resolves to all pass trusted.
+  # directory, <root>/bin/pythonX.Y and the file it resolves to all pass
+  # trusted, and so does <root>/pyvenv.cfg when there is one.
   ok=0
   case "$r" in
     */lib/python3.*/site-packages)
       pr=\${r%/lib/python3.*/site-packages}
       pv=\${r%/site-packages}
       i="$pr/bin/\${pv##*/}"
-      if [ -e "$i" ] && trusted "$pv" && tree_ok "$pv" && trusted "$i" && trusted "$(readlink -f "$i")"; then ok=1; fi;;
+      if [ -e "$i" ] && trusted "$pv" && tree_ok "$pv" && trusted "$i" && trusted "$(readlink -f "$i")" && cfg_ok "$pr" "$i"; then ok=1; fi;;
   esac
   echo "PYENV|$(san "$r")|$(ls -ldn "$r" | awk '{ print $3 "|" $1 }')|$2|$ok"
   for m in "$r"/*.dist-info "$r"/*.egg-info; do
@@ -262,7 +338,10 @@ done
 if [ -d /proc/1 ]; then
   if [ "$(id -u)" = 0 ]; then echo "PROCSCOPE|all"; else echo "PROCSCOPE|own"; fi
   incont=0
+  useen=""
   { [ -f /.dockerenv ] || [ -f /run/.containerenv ]; } && incont=1
+  # fd 3 is the probe's own output, for lines the cap below must not drop.
+  exec 3>&1
   for p in /proc/[0-9]*; do
     # On a host, a container's processes map their image's own libraries,
     # which the host's packages do not fix; scan the container instead.
@@ -285,15 +364,40 @@ if [ -d /proc/1 ]; then
     u=$(san "$u")
     c=$(san "$(cat "$p/comm")")
     i=\${p#/proc/}
-    printf '%s\\n' "$f" | while IFS= read -r x; do [ -n "$x" ] && echo "MAPS|$i|$c|$u|$(san "$x")"; done
-    printf '%s\\n' "$l" | while IFS= read -r x; do [ -n "$x" ] && echo "LOADED|$i|$c|$u|$(san "$x")"; done
+    # The real uid: a setuid program a user starts still counts as theirs.
+    pu=$(awk '/^Uid:/ { print $2; exit }' "$p/status")
+    printf '%s\\n' "$f" | while IFS= read -r x; do [ -n "$x" ] && echo "MAPS|$i|$c|$u|$(san "$x")|$pu"; done
+    printf '%s\\n' "$l" | while IFS= read -r x; do [ -n "$x" ] && echo "LOADED|$i|$c|$u|$(san "$x")|$pu"; done
+    # Once per unit: its main process and the uid its User= runs as (root
+    # when unset), so mitigate restarts a unit for its own service's
+    # processes, never for a user's job that happens to share its cgroup.
+    case " $useen " in *" $u "*) continue;; esac
+    useen="$useen $u"
+    case "$u" in ""|*[!A-Za-z0-9@:._-]*) continue;; esac
+    command -v systemctl >/dev/null || continue
+    # key=value, which every systemd prints (--value needs 230 or later).
+    # No User= line means systemctl failed: no uid, never root.
+    sc=$(run_to systemctl show -p MainPID -p User -- "$u")
+    mp=$(printf '%s\\n' "$sc" | sed -n 's/^MainPID=//p')
+    case "$sc" in *User=*) ;; *) continue;; esac
+    su=$(printf '%s\\n' "$sc" | sed -n 's/^User=//p')
+    if [ -z "$su" ]; then uu=0; else uu=$(id -u -- "$su"); fi
+    # Past the process-line cap, on the probe's own output.
+    echo "UNIT|$u|$mp|$uu" >&3
   done | head -n 400
+  exec 3>&-
 else
   echo "PROCSCOPE|none"
 fi
-if command -v ss >/dev/null; then ss -H -ltnp | sed 's/^/LISTEN|/'
-elif command -v netstat >/dev/null && netstat -ltnp >/dev/null; then netstat -ltnp | grep -i listen | sed 's/^/LISTEN|/'
-elif command -v lsof >/dev/null; then lsof -nP -iTCP -sTCP:LISTEN | awk 'NR > 1 { print "LSOF|" $1 "|" $2 "|" $9 }'
+# A listening process's name (comm, 15 bytes) is chosen by whoever runs it.
+# Every row loses CR and |, and only socket rows are kept: state, two numeric
+# queues and a host:port address. A line break in a name starts a line whose
+# text up to that address is the rest of the name, and "LISTEN 0 0 a:1"
+# already fills the 15 bytes, so the address would run into the quote ss
+# puts after the name and fail the match.
+if command -v ss >/dev/null; then ss -H -ltnp | tr '\r|' '??' | awk '$1 == "LISTEN" && $2 ~ /^[0-9]+$/ && $3 ~ /^[0-9]+$/ && $4 ~ /.:[0-9*]+$/ { print "LISTEN|" $0 }'
+elif command -v netstat >/dev/null && netstat -ltnp >/dev/null; then netstat -ltnp | tr '\r|' '??' | awk '$1 ~ /^tcp/ && $2 ~ /^[0-9]+$/ && $3 ~ /^[0-9]+$/ && $4 ~ /.:[0-9*]+$/ && $6 == "LISTEN" { print "LISTEN|" $0 }'
+elif command -v lsof >/dev/null; then lsof -nP -iTCP -sTCP:LISTEN | tr '\r|' '??' | awk 'NR > 1 && NF >= 9 { print "LSOF|" $1 "|" $2 "|" $9 }'
 else echo "NOLISTEN|1"; fi
 echo "END|1"
 `;

@@ -112,6 +112,8 @@ export type ProbeFacts = {
   maps: StaleProcess[];
   /** Processes with the current brotli library loaded: restarted after an upgrade. */
   loaded: StaleProcess[];
+  /** The systemd units of those processes: main process and the uid of User= (0 when unset). */
+  units: { name: string; mainPid: number | null; uid: number | null }[];
   listeners: Listener[];
   listenersKnown: boolean;
   complete: boolean;
@@ -127,12 +129,13 @@ function splitFields(rest: string, n: number): string[] {
 }
 
 /**
- * A MAPS or LOADED line: pid, process name, system unit, mapped path. A unit
+ * A MAPS or LOADED line: pid, process name, system unit, mapped path, real
+ * uid (absent from older probes and the Windows one). A unit
  * that is not a well-formed system unit name is dropped, so it can never
  * become a restart target, and the path must be absolute.
  */
 function processLine(rest: string): StaleProcess | null {
-  const [pid, proc, unit, path] = splitFields(rest, 4);
+  const [pid, proc, unit, path, uid] = splitFields(rest, 5);
   const n = Number(pid);
   if (!/^\d+$/.test(pid) || !Number.isInteger(n) || !path.startsWith("/")) {
     return null;
@@ -142,7 +145,13 @@ function processLine(rest: string): StaleProcess | null {
     process: proc,
     unit: UNIT_NAME.test(unit) ? unit : null,
     path,
+    uid: wholeNumber(uid),
   };
+}
+
+/** A non-negative integer field, or null. */
+function wholeNumber(s: string): number | null {
+  return /^\d+$/.test(s.trim()) ? Number(s.trim()) : null;
 }
 
 /** Splits an apk "name-version-rN" string. */
@@ -227,6 +236,7 @@ export function parseProbe(text: string): ProbeFacts {
     processScope: "none",
     maps: [],
     loaded: [],
+    units: [],
     listeners: [],
     listenersKnown: true,
     complete: false,
@@ -432,6 +442,20 @@ export function parseProbe(text: string): ProbeFacts {
       case "LOADED": {
         const p = processLine(rest);
         if (p) f.loaded.push(p);
+        break;
+      }
+      case "UNIT": {
+        const [name, mainPid, uid] = splitFields(rest, 3);
+        // The first line for a unit stands.
+        if (UNIT_NAME.test(name) && !f.units.some((u) => u.name === name)) {
+          const pid = wholeNumber(mainPid);
+          f.units.push({
+            name,
+            // systemctl prints MainPID=0 for a unit with no main process.
+            mainPid: pid === 0 ? null : pid,
+            uid: wholeNumber(uid),
+          });
+        }
         break;
       }
       case "LISTEN": {

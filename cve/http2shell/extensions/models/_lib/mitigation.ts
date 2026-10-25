@@ -54,8 +54,12 @@ export type MitigationStep = {
   purpose: string;
   /** For restart steps: the unit, run only if it still maps the old library. */
   unit?: string;
+  /** For restart steps: the unit already ran the old library at the scan, rather than only having the current one loaded. */
+  stale?: boolean;
   /** Paths whose ownership is checked again on the target right before the step runs. */
   guard?: string[];
+  /** For python steps: the venv root and interpreter whose pyvenv.cfg, if any, is checked again too. */
+  venv?: { root: string; interpreter: string };
 };
 
 /**
@@ -65,11 +69,16 @@ export type MitigationStep = {
  */
 export function guardedCommand(step: MitigationStep, command: string): string {
   if (!step.guard || step.guard.length === 0) return command;
-  const checks = step.guard.map((p) =>
-    `trusted ${shQuote(p)} && trusted "$(readlink -f ${
-      shQuote(p)
-    })" && { [ ! -d ${shQuote(p)} ] || tree_ok ${shQuote(p)}; }`
-  ).join(" && ");
+  const checks = [
+    ...step.guard.map((p) =>
+      `trusted ${shQuote(p)} && trusted "$(readlink -f ${
+        shQuote(p)
+      })" && { [ ! -d ${shQuote(p)} ] || tree_ok ${shQuote(p)}; }`
+    ),
+    ...(step.venv
+      ? [`cfg_ok ${shQuote(step.venv.root)} ${shQuote(step.venv.interpreter)}`]
+      : []),
+  ].join(" && ");
   // From /, so nothing in the caller's working directory is picked up.
   return `${TRUSTED_SH}\ncd / || exit 3\nif ${checks}; then exec ${command}; else echo "refused: ${
     step.guard.join(", ").replace(/["$`\\]/g, "")
@@ -97,6 +106,38 @@ export const RESTARTABLE =
 const SKIP_UNIT =
   /^(user@\d+|init|systemd-[a-z-]+|session-\d+)\.(service|scope)$/;
 
+/**
+ * Where a package upgrade puts the libraries and binaries it replaces. A
+ * deleted copy mapped from anywhere else could be a file the process's own
+ * user copied and removed.
+ */
+const SYSTEM_PATH = /^\/(usr\/)?(lib|lib32|lib64|libx32|bin|sbin)\//;
+
+/**
+ * Whether a process may make root restart its unit: it maps a path under the
+ * system directories or a Python environment only root or this user can
+ * change, and it is the unit's own service, running as root, as the unit's
+ * User=, or as its main process. A user's cron job runs in cron.service's
+ * cgroup; it must never be able to restart cron.service. A missing uid is
+ * never taken for root.
+ */
+export function restartable(
+  p: StaleProcess,
+  facts: Pick<ProbeFacts, "units" | "pyEnvs" | "uid">,
+): boolean {
+  const trustedEnv = facts.pyEnvs.some((e) =>
+    e.trusted && ownerOnlyWrite(e.mode) &&
+    (e.owner === 0 || (e.owner !== null && e.owner === facts.uid)) &&
+    p.path.startsWith(`${e.dir}/`)
+  );
+  if (!SYSTEM_PATH.test(p.path) && !trustedEnv) return false;
+  if (p.uid === 0) return true;
+  const unit = facts.units.find((u) => u.name === p.unit);
+  if (!unit) return false;
+  return (unit.mainPid !== null && unit.mainPid === p.pid) ||
+    (unit.uid !== null && p.uid != null && unit.uid === p.uid);
+}
+
 /** The systemd units of these processes, sorted, skipping session units. */
 export function unitsOf(procs: StaleProcess[]): string[] {
   return [
@@ -106,6 +147,11 @@ export function unitsOf(procs: StaleProcess[]): string[] {
       ),
     ),
   ].sort();
+}
+
+/** The root of a <root>/lib/pythonX.Y/site-packages directory. */
+function venvRoot(siteDir: string): string {
+  return siteDir.replace(/\/lib\/python3\.\d+\/site-packages$/, "");
 }
 
 /**
@@ -137,7 +183,10 @@ export function windowsInterpreter(
     : `${m[1]}\\python.exe`;
 }
 
-/** No group or other write bit in an `ls -l` mode such as drwxr-xr-x. */
+/**
+ * No group or other write bit in an `ls -l` mode such as drwxr-xr-x. An ACL
+ * (a trailing +) is judged by the probe, whose trusted flag reads it.
+ */
 function ownerOnlyWrite(mode: string): boolean {
   return mode.length >= 9 && mode[5] !== "w" && mode[8] !== "w";
 }
@@ -275,6 +324,8 @@ export function planMitigation(
     f.kind === "python" && f.source === "pip" && f.verdict !== "check-vendor"
   );
   const envs = [...new Set(pip.map((f) => f.path))].sort();
+  /** Site directories a python step changes. */
+  const pythonDirs: string[] = [];
   for (const dir of envs) {
     const py = interpreterFor(dir);
     if (!py) {
@@ -306,6 +357,7 @@ export function planMitigation(
       continue;
     }
     if (opts.upgradePython) {
+      pythonDirs.push(dir);
       steps.push({
         phase: "python",
         // -I: no working directory, user site or PYTHON* variables on sys.path.
@@ -314,8 +366,10 @@ export function planMitigation(
         purpose:
           `Upgrade Brotli and brotlicffi in ${dir} (ownership checked again first)`,
         guard: [dir.replace(/\/site-packages$/, ""), py],
+        venv: { root: venvRoot(dir), interpreter: py },
       });
     } else if (opts.removePythonBrotli) {
+      pythonDirs.push(dir);
       steps.push({
         phase: "python",
         argv: [
@@ -332,6 +386,7 @@ export function planMitigation(
         purpose:
           `Remove Brotli and brotlicffi from ${dir} (clients fall back to gzip and deflate; ownership checked again first)`,
         guard: [dir.replace(/\/site-packages$/, ""), py],
+        venv: { root: venvRoot(dir), interpreter: py },
       });
     } else {
       notes.push(
@@ -374,18 +429,23 @@ export function planMitigation(
   }
 
   // Restart the units that run the old library: those already stale, and,
-  // after an upgrade, those that have it loaded now. Only services whose
-  // process is a Brotli-decoding server; anything else that links libbrotli
-  // (NetworkManager, a display manager, dbus) is left to restart by hand.
+  // after an upgrade, those that have it loaded now: every one after a
+  // package upgrade, and those loading it from an environment a python step
+  // changes. Only services whose process is a Brotli-decoding server;
+  // anything else that links libbrotli (NetworkManager, a display manager,
+  // dbus) is left to restart by hand.
   if (opts.restartServices) {
     const willUpgrade = steps.some((s) => s.phase === "upgrade");
     const candidates = [
       ...facts.maps,
-      ...(willUpgrade ? facts.loaded : []),
+      ...facts.loaded.filter((p) =>
+        willUpgrade || pythonDirs.some((d) => p.path.startsWith(`${d}/`))
+      ),
     ];
-    const units = unitsOf(
-      candidates.filter((p) => RESTARTABLE.test(p.process)),
-    );
+    const servers = candidates.filter((p) => RESTARTABLE.test(p.process));
+    const eligible = servers.filter((p) => restartable(p, facts));
+    const units = unitsOf(eligible);
+    const stale = unitsOf(facts.maps.filter((p) => eligible.includes(p)));
     const others = unitsOf(
       candidates.filter((p) => !RESTARTABLE.test(p.process)),
     ).filter((u) => !units.includes(u));
@@ -393,6 +453,15 @@ export function planMitigation(
       notes.push(
         `Not restarted automatically (not a Brotli-decoding server), restart when convenient: ${
           others.join(", ")
+        }.`,
+      );
+    }
+    const unowned = unitsOf(servers.filter((p) => !eligible.includes(p)))
+      .filter((u) => !units.includes(u));
+    if (unowned.length > 0) {
+      notes.push(
+        `Not restarted automatically (the process is not the unit's own service running as root, its User= or its main process, or maps a file outside the system and trusted Python directories), check and restart by hand: ${
+          unowned.join(", ")
         }.`,
       );
     }
@@ -404,11 +473,11 @@ export function planMitigation(
           privileged: true,
           purpose: `Restart ${unit} so it loads the fixed Brotli`,
           unit,
+          stale: stale.includes(unit),
         });
       }
     }
-    const bare = [...facts.maps, ...(willUpgrade ? facts.loaded : [])]
-      .filter((p) => !p.unit);
+    const bare = candidates.filter((p) => !p.unit);
     if (bare.length > 0) {
       notes.push(
         `Not a system service, restart by hand: ${
@@ -466,13 +535,21 @@ export function macScript(
       const env = facts?.pyEnvs.find((e) => e.dir === f.path);
       const foreign = env?.owner != null && facts?.uid != null &&
         env.owner !== facts.uid;
+      // The same check as on Linux: this user's environment, writable by
+      // nobody else, with an interpreter the probe confirmed.
+      const runnable = !!py && !!env && !foreign && env.owner !== null &&
+        ownerOnlyWrite(env.mode) && env.trusted;
       lines.push(
-        py && !foreign
+        runnable
           ? `${shQuote(py)} -I -m pip install --upgrade ${
             PIP_SPECS.map(shQuote).join(" ")
           }`
           : `# ${f.path}${
-            foreign ? ` belongs to uid ${env!.owner}; as that user run` : ":"
+            foreign
+              ? ` belongs to uid ${env!.owner}; as that user run`
+              : py
+              ? ": its interpreter could not be confirmed as written only by root or this user; as its owner run"
+              : ":"
           } pip install --upgrade ${PIP_SPECS.join(" ")}`,
       );
     } else if (f.kind === "electron") {
@@ -674,11 +751,18 @@ export function parseSudoList(
 function sudoGlob(glob: string, inPath: boolean): RegExp {
   const any = inPath ? "[^/]*" : ".*";
   const one = inPath ? "[^/]" : ".";
-  return new RegExp(
-    "^" + glob.replace(/[.+^${}()|\\]/g, "\\$&").replace(/\*/g, any)
-      .replace(/\?/g, one) +
-      "$",
-  );
+  // One pass, so a backslash always makes the next character literal: \* is
+  // a star, \\* a backslash then any text. Brackets stay character classes.
+  let re = "^";
+  for (let i = 0; i < glob.length; i++) {
+    const c = glob[i];
+    if (c === "\\" && i + 1 < glob.length) {
+      re += glob[++i].replace(/[.*+?^${}()|[\]\\\/]/g, "\\$&");
+    } else if (c === "*") re += any;
+    else if (c === "?") re += one;
+    else re += c.replace(/[.+^${}()|\\\/]/g, "\\$&");
+  }
+  return new RegExp(re + "$");
 }
 
 /**
@@ -699,8 +783,10 @@ function sudoItemMatches(item: string, argv: string[]): boolean {
     ) return false;
   } else if (!sudoGlob(cmd, true).test(binary)) return false;
   if (space === -1) return true;
-  // sudo -ll prints the item's own escapes (\\: \\, \\= \\\\); undo them.
-  const want = text.slice(space).trim().replace(/\\(.)/g, "$1");
+  // sudo -ll prints the item's own escapes (\\: \\, \\= \\\\ \\*). The glob
+  // reads them itself, so an escaped star stays a literal star.
+  const raw = text.slice(space).trim();
+  const want = raw.replace(/\\(.)/g, "$1");
   const args = rest.join(" ");
   if (want === '""') return args === "";
   if (want.startsWith("^") && want.endsWith("$")) {
@@ -710,7 +796,7 @@ function sudoItemMatches(item: string, argv: string[]): boolean {
       return false;
     }
   }
-  return sudoGlob(want, false).test(args);
+  return sudoGlob(raw, false).test(args);
 }
 
 /**
@@ -928,13 +1014,24 @@ export async function mitigateTarget(
         beforeRestart = await rescan("before restarting services");
         rescanned = true;
       }
-      // A failed rescan cannot rule anything out, so restart anyway.
-      const stale = beforeRestart
-        ? unitsOf(beforeRestart.facts.maps)
-        : [step.unit!];
-      if (!stale.includes(step.unit!)) {
+      if (beforeRestart) {
+        const now = beforeRestart.facts;
+        const stale = unitsOf(
+          now.maps.filter((p) =>
+            RESTARTABLE.test(p.process) && restartable(p, now)
+          ),
+        );
+        if (!stale.includes(step.unit!)) {
+          rec.status = "skipped";
+          rec.output = `${step.unit} does not run the old library.`;
+          continue;
+        }
+      } else if (!step.stale) {
+        // A failed rescan cannot rule anything out: restart the units that
+        // already ran the old library, not those that only had it loaded.
         rec.status = "skipped";
-        rec.output = `${step.unit} does not run the old library.`;
+        rec.output =
+          `${step.unit} was not restarted: the rescan before restarting failed, and it was not running the old library at the first scan.`;
         continue;
       }
     }

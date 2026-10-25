@@ -17,6 +17,7 @@ import {
   planMitigation,
   preflightScript,
   renderStep,
+  restartable,
   runsWithoutPassword,
   unitsOf,
   windowsInterpreter,
@@ -43,10 +44,11 @@ const VULNERABLE = [
   "PKG|dpkg|python3-brotli|1.0.9-2",
   "PKG|dpkg|nodejs|18.20.4+dfsg-1~deb12u3",
   "NODE|/usr/bin/node|nodejs|v18.20.4 1.0.9|/lib/x86_64-linux-gnu/libbrotlidec.so.1",
-  "LOADED|501|node|api.service|/usr/lib/x86_64-linux-gnu/libbrotlidec.so.1.0.9",
-  "LOADED|502|python3|worker.service|/usr/lib/x86_64-linux-gnu/libbrotlidec.so.1.0.9",
-  "LOADED|1|systemd|init.scope|/usr/lib/x86_64-linux-gnu/libbrotlidec.so.1.0.9",
-  "LOADED|900|node||/usr/lib/x86_64-linux-gnu/libbrotlidec.so.1.0.9",
+  "LOADED|501|node|api.service|/usr/lib/x86_64-linux-gnu/libbrotlidec.so.1.0.9|1001",
+  "LOADED|502|python3|worker.service|/usr/lib/x86_64-linux-gnu/libbrotlidec.so.1.0.9|0",
+  "LOADED|1|systemd|init.scope|/usr/lib/x86_64-linux-gnu/libbrotlidec.so.1.0.9|0",
+  "LOADED|900|node||/usr/lib/x86_64-linux-gnu/libbrotlidec.so.1.0.9|1000",
+  "UNIT|api.service|501|1001",
   "END|1",
 ].join("\n");
 
@@ -56,11 +58,12 @@ const FIXED_STALE = [
   "PKG|dpkg|python3-brotli|1.0.9-2+deb12u1",
   "PKG|dpkg|nodejs|18.20.4+dfsg-1~deb12u3",
   "NODE|/usr/bin/node|nodejs|v18.20.4 1.0.9|/lib/x86_64-linux-gnu/libbrotlidec.so.1",
-  "MAPS|501|node|api.service|/usr/lib/x86_64-linux-gnu/libbrotlidec.so.1.0.9",
+  "MAPS|501|node|api.service|/usr/lib/x86_64-linux-gnu/libbrotlidec.so.1.0.9|1001",
+  "UNIT|api.service|501|1001",
   "END|1",
 ].join("\n");
 
-const FIXED_CLEAN = FIXED_STALE.replace(/\nMAPS\|[^\n]*/, "");
+const FIXED_CLEAN = FIXED_STALE.replace(/\n(MAPS|UNIT)\|[^\n]*/g, "");
 
 function plan(text: string, opts = {}) {
   const facts = parseProbe(text);
@@ -160,8 +163,12 @@ Deno.test("pip steps need a trusted interpreter, and check it again when they ru
     p.notes.some((n) => n.includes("its interpreter could not be confirmed")),
   );
 
-  // The guard refuses a path others can write, at run time.
-  const dir = await Deno.makeTempDir();
+  // The guard refuses a path others can write, at run time. Under $HOME:
+  // every directory above it must pass too, and /tmp is world-writable.
+  const dir = await Deno.makeTempDir({
+    dir: Deno.env.get("HOME"),
+    prefix: ".h2s-test-",
+  });
   try {
     await Deno.chmod(dir, 0o777);
     const step: MitigationStep = {
@@ -572,9 +579,9 @@ Deno.test("restarts only Brotli-decoding servers; other units are listed", () =>
   const { steps, notes } = plan([
     ...DEBIAN12,
     "PKG|dpkg|libbrotli1|1.0.9-2",
-    "LOADED|10|NetworkManager|NetworkManager.service|/usr/lib/x86_64-linux-gnu/libbrotlidec.so.1",
-    "LOADED|11|gdm|gdm.service|/usr/lib/x86_64-linux-gnu/libbrotlidec.so.1",
-    "LOADED|12|node|api.service|/usr/lib/x86_64-linux-gnu/libbrotlidec.so.1",
+    "LOADED|10|NetworkManager|NetworkManager.service|/usr/lib/x86_64-linux-gnu/libbrotlidec.so.1|0",
+    "LOADED|11|gdm|gdm.service|/usr/lib/x86_64-linux-gnu/libbrotlidec.so.1|0",
+    "LOADED|12|node|api.service|/usr/lib/x86_64-linux-gnu/libbrotlidec.so.1|0",
     "END|1",
   ].join("\n"));
   assertEquals(
@@ -598,4 +605,189 @@ Deno.test("parseSudoList: a directory item allows only files directly in it", ()
   ]);
   assert(runsWithoutPassword(["/usr/bin/apt-get", "update"], list));
   assert(!runsWithoutPassword(["/usr/bin/x/evil", "update"], list));
+});
+
+const LIB = "/usr/lib/x86_64-linux-gnu/libbrotlidec.so.1.0.9";
+
+Deno.test("a user's job in a system unit's cgroup never makes root restart that unit", () => {
+  const { steps, notes } = plan([
+    ...DEBIAN12,
+    "PKG|dpkg|libbrotli1|1.0.9-2+deb12u1",
+    // A user cron job named node, in cron.service's cgroup, mapping a
+    // deleted copy of the library.
+    `MAPS|700|node|cron.service|${LIB}|1000`,
+    // Its own service: the unit's User=, or its main process.
+    `MAPS|501|node|api.service|${LIB}|1001`,
+    `MAPS|610|node|jobs.service|${LIB}|1002`,
+    // No uid (an older probe) is not taken for root.
+    `MAPS|620|node|old.service|${LIB}`,
+    // Root, but mapping a copy outside the system directories.
+    `MAPS|630|node|tmp.service|/tmp/x/libbrotlidec.so.1|0`,
+    "UNIT|cron.service|400|0",
+    "UNIT|api.service|501|1001",
+    "UNIT|jobs.service|610|0",
+    "END|1",
+  ].join("\n"));
+  assertEquals(
+    steps.filter((s) => s.phase === "restart").map((s) => s.unit),
+    ["api.service", "jobs.service"],
+  );
+  const note = notes.find((n) => n.includes("check and restart by hand"));
+  assert(note);
+  for (const u of ["cron.service", "old.service", "tmp.service"]) {
+    assertStringIncludes(note, u);
+  }
+});
+
+Deno.test("restartable: system or trusted environment paths, run as the unit's own service", () => {
+  const facts = parseProbe([
+    ...DEBIAN12,
+    "PYENV|/srv/app/.venv/lib/python3.12/site-packages|0|drwxr-xr-x|venv|1",
+    // An ACL the probe could not clear.
+    "PYENV|/srv/acl/.venv/lib/python3.12/site-packages|0|drwxr-xr-x+|venv|0",
+    "UNIT|w.service|0|1001",
+    "END|1",
+  ].join("\n"));
+  const p = {
+    pid: 9,
+    process: "gunicorn",
+    unit: "w.service",
+    path: "/srv/app/.venv/lib/python3.12/site-packages/_brotli.so",
+    uid: 1001,
+  };
+  assert(restartable(p, facts));
+  // MainPID=0 means no main process: it never matches.
+  assertEquals(facts.units[0].mainPid, null);
+  assert(!restartable({ ...p, uid: 1002 }, facts));
+  assert(
+    !restartable({
+      ...p,
+      path: "/srv/acl/.venv/lib/python3.12/site-packages/_brotli.so",
+    }, facts),
+  );
+});
+
+Deno.test("a pip-only upgrade restarts the services loading Brotli from that environment", () => {
+  const { steps } = plan(
+    [
+      ...DEBIAN12,
+      "PYENV|/srv/app/.venv/lib/python3.12/site-packages|0|drwxr-xr-x|venv|1",
+      "PYPKG|/srv/app/.venv/lib/python3.12/site-packages|brotli-1.2.0.dist-info",
+      "LOADED|800|gunicorn|app.service|/srv/app/.venv/lib/python3.12/site-packages/_brotli.cpython-312-x86_64-linux-gnu.so|0",
+      // Loaded from the system library, which this run does not upgrade.
+      `LOADED|801|node|api.service|${LIB}|0`,
+      "END|1",
+    ].join("\n"),
+    { upgradePython: true },
+  );
+  assertEquals(steps.map((s) => s.phase), ["python", "restart"]);
+  assertEquals(steps[1].unit, "app.service");
+  assertEquals(steps[1].stale, false);
+  assertEquals(steps[0].venv, {
+    root: "/srv/app/.venv",
+    interpreter: "/srv/app/.venv/bin/python3.12",
+  });
+});
+
+Deno.test("a failed rescan restarts only units that already ran the old library", async () => {
+  const text = VULNERABLE.replace(
+    "\nEND|1",
+    `\nMAPS|700|node|stale.service|${LIB}|0\nEND|1`,
+  );
+  const ran: string[] = [];
+  let probes = 0;
+  const run = (c: string) => {
+    if (c.includes('echo "HOSTNAME|')) {
+      return Promise.resolve(
+        probes++ === 0
+          ? { stdout: text, stderr: "", exitCode: 0 }
+          : { stdout: "", stderr: "Connection reset", exitCode: 255 },
+      );
+    }
+    ran.push(c.match(/; then exec ([^\n]*); else echo /)?.[1] ?? c);
+    return Promise.resolve({ stdout: "", stderr: "", exitCode: 0 });
+  };
+  const r = await mitigateTarget(run, null, "web1", {
+    ...OPTS,
+    dryRun: false,
+  }, nullLog);
+  const restarts = ran.filter((c) => c.includes("systemctl"));
+  assertEquals(restarts, ["/usr/bin/systemctl restart -- stale.service"]);
+  for (const u of ["api.service", "worker.service"]) {
+    const step = r.mitigation.steps.find((x) => x.command.includes(u));
+    assertEquals(step?.status, "skipped");
+    assertStringIncludes(step!.output, "rescan before restarting failed");
+  }
+  assertEquals(r.mitigation.outcome, "partial");
+});
+
+Deno.test("pip steps follow the probe's verdict on an environment with an ACL", () => {
+  const text = (trusted: string) =>
+    [
+      ...DEBIAN12,
+      `PYENV|/srv/app/.venv/lib/python3.12/site-packages|0|drwxr-xr-x+|venv|${trusted}`,
+      "PYPKG|/srv/app/.venv/lib/python3.12/site-packages|brotli-1.2.0.dist-info",
+      "END|1",
+    ].join("\n");
+  // A default or masked entry the probe's acl_ok accepted.
+  assertEquals(
+    plan(text("1"), { upgradePython: true }).steps.map((s) => s.phase),
+    ["python"],
+  );
+  const refused = plan(text("0"), { upgradePython: true });
+  assertEquals(refused.steps.length, 0);
+  assert(refused.notes.some((n) => n.includes("not changed")));
+});
+
+Deno.test("macScript runs pip only in this user's trusted environments", () => {
+  const pending = ["/Users/a/v1", "/Users/a/v2", "/Users/a/v3", "/Users/a/v4"]
+    .map((d) => ({
+      kind: "python",
+      source: "pip",
+      path: `${d}/lib/python3.12/site-packages`,
+    })) as Parameters<typeof macScript>[0];
+  const env = (d: string, mode: string, trusted: boolean) => ({
+    dir: `/Users/a/${d}/lib/python3.12/site-packages`,
+    owner: 501,
+    mode,
+    kind: "venv",
+    trusted,
+  });
+  const script = macScript(pending, {
+    uid: 501,
+    home: "/Users/a",
+    notRun: [],
+    pyEnvs: [
+      env("v1", "drwxr-xr-x", true),
+      env("v2", "drwxrwxr-x", true),
+      env("v3", "drwxr-xr-x", false),
+      env("v4", "drwxr-xr-x+", false),
+    ],
+  })!;
+  assertStringIncludes(script, "\n/Users/a/v1/bin/python3.12 -I -m pip");
+  for (const d of ["v2", "v3", "v4"]) {
+    assert(!script.includes(`\n/Users/a/${d}/bin/python3.12 -I`));
+    assertStringIncludes(
+      script,
+      `# /Users/a/${d}/lib/python3.12/site-packages: its interpreter could not be confirmed`,
+    );
+  }
+});
+
+Deno.test("an escaped star in a sudoers rule matches only a literal star", () => {
+  const list = (cmd: string) =>
+    parseSudoList([
+      "Sudoers entry:",
+      "    RunAsUsers: root",
+      "    Options: !authenticate",
+      "    Commands:",
+      `\t${cmd}`,
+    ]);
+  const lit = list("/usr/bin/systemctl restart \\*");
+  assert(!runsWithoutPassword(["/usr/bin/systemctl", "restart", "x"], lit));
+  assert(runsWithoutPassword(["/usr/bin/systemctl", "restart", "*"], lit));
+  // An escaped backslash, then a wildcard.
+  const wild = list("/usr/bin/systemctl restart a\\\\*");
+  assert(runsWithoutPassword(["/usr/bin/systemctl", "restart", "a\\x"], wild));
+  assert(!runsWithoutPassword(["/usr/bin/systemctl", "restart", "ax"], wild));
 });

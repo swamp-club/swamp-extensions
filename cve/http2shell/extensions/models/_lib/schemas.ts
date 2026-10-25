@@ -115,6 +115,9 @@ export const StaleProcessSchema = z.object({
   process: z.string(),
   unit: z.string().nullable(),
   path: z.string(),
+  uid: z.number().nullable().optional().describe(
+    "Real uid of the process; absent in results from before 2026.10.25",
+  ),
 });
 
 export const MitigationStepRecord = z.object({

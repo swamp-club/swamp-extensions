@@ -103,7 +103,12 @@ from `searchPaths`; there the scan only reads files. Scanning never uses sudo.
 the scanning user could have written.** The file and every directory above it
 must be owned by root or the scanning user and not writable by others, or by
 their group unless that group is root's (or, on macOS, `admin`, whose members
-can sudo anyway, which keeps Homebrew working). So a root scan reports another
+can sudo anyway, which keeps Homebrew working). An ACL that lets anyone else
+write counts as writable too: on Linux any named user or group entry with an
+effective write (an ACL `getfacl` cannot read is refused), on macOS any
+`allow` entry with a write permission for anyone but root, `admin`, `wheel` or
+the scanning user; deny-only entries, like the one macOS puts on every home
+folder, are fine. So a root scan reports another
 user's `~/.nvm`, fnm, Volta, asdf, mise or `~/.bun` install, or a binary under a
 world-writable directory, without running it: its version comes from its
 install directory (`.nvm/versions/node/v24.22.0`), its linkage is unknown, and
@@ -229,7 +234,9 @@ host's user. Listing one host with two different users is an error.
 
 SSH runs non-interactively (`BatchMode=yes`, so a key or agent must already
 work), accepts a new host key on first connection and refuses a changed one,
-and gives up connecting after 10 seconds. The scan has a 3-minute limit per
+and gives up connecting after 10 seconds. The remote command is `sh -s` with
+the script on stdin, so a login shell that is not POSIX (fish, csh) does not
+matter. The scan has a 3-minute limit per
 host and package upgrades 30 minutes; a scan that stops early is reported as
 an error, never as a clean host.
 
@@ -268,7 +275,13 @@ On Linux hosts:
    scanning user, and only in an environment that user owns and that its
    group and others cannot write, whose interpreter (`bin/pythonX.Y` and what
    it resolves to) passes the same ownership check as every binary the probe
-   runs. The check is repeated on the host right before pip runs; if anything
+   runs. Each `pyvenv.cfg` (next to the interpreter, then in the venv root),
+   which the interpreter reads even with `-I`, must pass it too, and its
+   `home` must hold an interpreter of the same name that passes it (the
+   install the venv links to or was copied from), with a standard library
+   (`lib/pythonX.Y`) nobody else can change, since that is where it is loaded
+   from. A venv with `include-system-site-packages = true` is refused: it
+   would also load the base install's site directories. The check is repeated on the host right before pip runs; if anything
    changed since the scan, the step is refused. Another user's environment is never touched,
    even by a root scan: running their interpreter as root would run their code
    as root. Those, and system and user-site environments, are reported with the
@@ -279,8 +292,17 @@ On Linux hosts:
 3. With `restartServices=true` (the default), rescans and restarts the
    systemd units whose processes still map the old library (`systemctl
    restart -- <unit>`), when the process is a server that decodes Brotli
-   (node, bun, envoy, Python, gunicorn, uvicorn, celery, dotnet). Units that no
-   longer map it are skipped. Anything else that links libbrotli
+   (node, bun, envoy, Python, gunicorn, uvicorn, celery, dotnet). After a
+   package upgrade that includes every unit with the library loaded; after a
+   pip-only run, those loading Brotli from an environment it changed. A process
+   counts only when it is the unit's own service (running as root, as the
+   unit's `User=`, or as its main process) and maps a file under the system
+   library and binary directories or a Python environment only root or the
+   scanning user can change, so a user's cron job in `cron.service`'s cgroup
+   never makes root restart `cron.service`; such units are listed for you to
+   check. Units that no longer map it are skipped. If that rescan fails, only
+   units already running the old library at the first scan are restarted.
+   Anything else that links libbrotli
    (NetworkManager, a display manager, dbus) is listed for you to restart when
    convenient, so mitigate never drops your SSH session or desktop. Processes
    not run by systemd are listed too; session and init units are never

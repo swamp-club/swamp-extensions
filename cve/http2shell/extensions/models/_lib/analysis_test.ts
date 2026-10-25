@@ -546,3 +546,21 @@ Deno.test("Forged probe lines cannot fake identity, units or completeness", () =
   // END was not the last line: incomplete, never a clean result.
   assertEquals(f.complete, false);
 });
+
+Deno.test("MAPS and LOADED carry the process uid; the first UNIT line for a unit stands", () => {
+  const f = parseProbe(probe(
+    "MAPS|7|node|api.service|/usr/lib/libbrotlidec.so.1|1001",
+    "MAPS|8|node|api.service|/usr/lib/libbrotlidec.so.1|root",
+    "LOADED|9|node|api.service|/usr/lib/libbrotlidec.so.1",
+    "UNIT|api.service|7|1001",
+    "UNIT|api.service|8|0",
+    "UNIT|bad unit.service|1|0",
+    "UNIT|w.service|x|",
+  ));
+  assertEquals(f.maps.map((p) => p.uid), [1001, null]);
+  assertEquals(f.loaded[0].uid, null);
+  assertEquals(f.units, [
+    { name: "api.service", mainPid: 7, uid: 1001 },
+    { name: "w.service", mainPid: null, uid: null },
+  ]);
+});

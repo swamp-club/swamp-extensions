@@ -172,6 +172,7 @@ function uniq(values: string[]): string[] {
   return [...new Set(values)];
 }
 
+/** Summarizes the scan and mitigation results of the http2shell model. */
 export const report = {
   name: "@swamp/cve/http2shell-report",
   description:

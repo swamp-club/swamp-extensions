@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/cve/http2shell"
-version: "2026.10.24.1"
+version: "2026.10.25.1"
 license: "AGPL-3.0-or-later"
 description: |
   Finds and fixes Brotli decoders exposed to **CVE-2026-111497**
