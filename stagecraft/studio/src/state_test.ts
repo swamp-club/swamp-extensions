@@ -16,10 +16,11 @@
 // Simulate mode's state on a served file that changes: the server is a stub
 // of fetch that answers with whatever text the test has saved last.
 
-import { assert, assertEquals } from "@std/assert";
+import { assert, assertEquals, assertMatch } from "@std/assert";
 import {
   api,
   board,
+  boardError,
   copyEntry,
   discardWalk,
   drawn,
@@ -38,6 +39,7 @@ import {
   itemTicket,
   itemTicketError,
   listen,
+  loadBoard,
   loadDefinitionFile,
   loadTicket,
   loadWorkItem,
@@ -431,6 +433,58 @@ Deno.test("state: after its event stream reconnects, the page reads the list and
     await settled();
     assertEquals(asked, []);
   } finally {
+    globalThis.fetch = realFetch;
+    globalThis.EventSource = realEventSource;
+  }
+});
+
+Deno.test("state: a board whose read failed is read again when the remote serve is readable again", async () => {
+  const text = await exampleText(NAME);
+  const realFetch = globalThis.fetch;
+  const realEventSource = globalThis.EventSource;
+  let stream: EventTarget | undefined;
+  let limited = true;
+  globalThis.fetch = (input) => {
+    const url = String(input);
+    const [status, body] = url.startsWith("/api/work-items?")
+      ? limited
+        ? [422, { error: "wss://swamp.example.com is rate-limiting" }]
+        : [200, { factory: NAME, items: [], problems: [] }]
+      : url === "/api/factories"
+      ? [200, { factories: [{ name: NAME, path: modelPath(NAME) }] }]
+      : [200, { path: modelPath(NAME), text, digest: "sha256:x" }];
+    return Promise.resolve(
+      new Response(JSON.stringify(body), {
+        status,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+  };
+  globalThis.EventSource = class extends EventTarget {
+    constructor() {
+      super();
+      stream = this;
+    }
+  } as unknown as typeof EventSource;
+  try {
+    await selectFactory(NAME);
+    mode.value = "board";
+    listen();
+    await loadBoard();
+    assertMatch(boardError.value ?? "", /rate-limiting/);
+    limited = false;
+    stream!.dispatchEvent(
+      new MessageEvent("message", {
+        data: JSON.stringify({ kind: "readable" }),
+      }),
+    );
+    for (let i = 0; i < 100 && boardError.value !== null; i++) {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    }
+    assertEquals(boardError.value, null);
+    assertEquals(board.value?.items, []);
+  } finally {
+    mode.value = "design";
     globalThis.fetch = realFetch;
     globalThis.EventSource = realEventSource;
   }

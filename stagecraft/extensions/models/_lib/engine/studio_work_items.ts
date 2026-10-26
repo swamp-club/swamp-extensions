@@ -506,7 +506,12 @@ export interface WorkItemWatch {
 export function watchWorkItems(
   query: QueryData,
   emit: (event: StudioEvent) => void,
-  options: { now?: () => number; expiryMs?: number } = {},
+  options: {
+    now?: () => number;
+    expiryMs?: number;
+    // The first read of a watch, when it should not be the poll's query.
+    askQuery?: QueryData;
+  } = {},
 ): WorkItemWatch {
   const now = options.now ?? Date.now;
   const expiryMs = options.expiryMs ?? 5 * 60 * 1000;
@@ -524,6 +529,8 @@ export function watchWorkItems(
     id: string,
     read: () => Promise<string>,
     current?: string,
+    // The first read, when it is not `read` (ask's askQuery).
+    first: () => Promise<string> = read,
   ) => {
     const key = JSON.stringify([event, id]);
     const held = watches.get(key);
@@ -531,12 +538,20 @@ export function watchWorkItems(
       held.askedAt = now();
       return;
     }
-    const signature = current ?? await read();
+    const signature = current ?? await first();
     watches.set(key, { event, read, signature, askedAt: now() });
   };
   return {
     ask: (event, predicate) =>
-      askRead(event, predicate, () => versionSignature(query, predicate)),
+      askRead(
+        event,
+        predicate,
+        () => versionSignature(query, predicate),
+        undefined,
+        options.askQuery === undefined
+          ? undefined
+          : () => versionSignature(options.askQuery!, predicate),
+      ),
     askRead,
     async tick() {
       for (const [id, watch] of watches) {

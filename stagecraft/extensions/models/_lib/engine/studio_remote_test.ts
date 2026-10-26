@@ -24,6 +24,9 @@ import {
 import { parse as parseYaml } from "@std/yaml";
 import {
   failure,
+  isRateLimited,
+  pacedRunner,
+  RateLimitedError,
   remoteDefinition,
   remoteFactories,
   remoteFactoryNames,
@@ -349,4 +352,169 @@ Deno.test("remote: a model get that fails in a poll keeps that model's copy, and
   assertEquals((await remote.model("b"))?.globalArguments, {
     statuses: ["todo"],
   });
+});
+
+// --- pacing (swamp-club #3906) --------------------------------------------------
+
+/** swamp's message for a 429 handshake, as failure() passes it on. */
+const LIMITED =
+  "swamp data query failed: Rate-limited by server — try again later";
+
+/**
+ * A runner that holds each call until released, recording the order calls
+ * start in and how many run at once.
+ */
+function heldSwamp() {
+  const started: string[] = [];
+  const pending: {
+    release: (answer?: unknown) => void;
+    fail: (e: Error) => void;
+  }[] = [];
+  let running = 0;
+  let most = 0;
+  const run: SwampRunner = (args) => {
+    started.push(args.join(" "));
+    running++;
+    most = Math.max(most, running);
+    return new Promise((resolve, reject) => {
+      pending.push({
+        release: (answer = { results: [] }) => {
+          running--;
+          resolve(answer);
+        },
+        fail: (e) => {
+          running--;
+          reject(e);
+        },
+      });
+    });
+  };
+  return { run, started, pending, most: () => most };
+}
+
+/** Lets queued promise callbacks run. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+Deno.test("remote: the paced runner runs one swamp command at a time, a page's read before the poll's", async () => {
+  const swamp = heldSwamp();
+  const paced = pacedRunner(swamp.run, SERVER);
+  const reads = [
+    paced.poll(["model", "search"]),
+    paced.poll(["model", "get", "team"]),
+    paced.page(["data", "query", "a"]),
+  ];
+  await settle();
+  assertEquals(swamp.started, ["model search"]);
+  for (let i = 0; i < 3; i++) {
+    swamp.pending[i].release();
+    await settle();
+  }
+  await Promise.all(reads);
+  assertEquals(swamp.started, [
+    "model search",
+    "data query a",
+    "model get team",
+  ]);
+  assertEquals(swamp.most(), 1);
+});
+
+Deno.test("remote: the same read asked again while it waits or runs is one command, at the page's place", async () => {
+  const swamp = heldSwamp();
+  const paced = pacedRunner(swamp.run, SERVER);
+  const first = paced.poll(["model", "search"]);
+  const waiting = paced.poll(["data", "query", "a"]);
+  const other = paced.page(["data", "query", "b"]);
+  // A page joining the poll's waiting read moves it ahead of b.
+  const joined = paced.page(["data", "query", "a"]);
+  const again = paced.poll(["model", "search"]);
+  await settle();
+  for (let i = 0; i < 3; i++) {
+    swamp.pending[i].release({ results: [i] });
+    await settle();
+  }
+  assertEquals(swamp.started, ["model search", "data query a", "data query b"]);
+  assertEquals(await first, { results: [0] });
+  assertEquals(await again, { results: [0] });
+  assertEquals(await waiting, { results: [1] });
+  assertEquals(await joined, { results: [1] });
+  assertEquals(await other, { results: [2] });
+  // Once answered, asking again runs it again.
+  const later = paced.poll(["model", "search"]);
+  await settle();
+  swamp.pending[3].release();
+  await later;
+  assertEquals(swamp.started.length, 4);
+});
+
+Deno.test("remote: the paced runner starts no more commands in a window than its budget, failed ones counted", async () => {
+  const started: number[] = [];
+  let calls = 0;
+  const run: SwampRunner = () => {
+    started.push(Date.now());
+    calls++;
+    return calls === 1
+      ? Promise.reject(new Error("swamp data query failed: expired login"))
+      : Promise.resolve({ results: [] });
+  };
+  const paced = pacedRunner(run, SERVER, { perWindow: 2, windowMs: 200 });
+  const reads = [1, 2, 3].map((n) => paced.poll(["data", "query", `${n}`]));
+  await assertRejects(() => reads[0], Error, "expired login");
+  await Promise.all(reads.slice(1));
+  assertEquals(calls, 3);
+  // The third waited for the first to leave the window.
+  assert(started[2] - started[0] >= 190, JSON.stringify(started));
+  assertEquals(paced.refusals(), 0, "a failure that is no rate limit");
+});
+
+Deno.test("remote: once serve rate-limits, no command starts until the wait ends, and every read says the same", async () => {
+  let limited = true;
+  const calls: string[] = [];
+  const run: SwampRunner = (args) => {
+    calls.push(args.join(" "));
+    return limited
+      ? Promise.reject(new Error(LIMITED))
+      : Promise.resolve({ results: [] });
+  };
+  const paced = pacedRunner(run, SERVER, { rateLimitWaitMs: 150 });
+  const queued = [
+    paced.poll(["model", "search"]),
+    paced.poll(["model", "get", "team"]),
+  ];
+  const first = await assertRejects(() => queued[0], RateLimitedError);
+  const second = await assertRejects(() => queued[1], RateLimitedError);
+  const third = await assertRejects(
+    () => paced.page(["data", "query", "a"]),
+    RateLimitedError,
+  );
+  assertEquals(calls, ["model search"], "only the read serve refused ran");
+  assertEquals(second.message, first.message);
+  assertEquals(third.message, first.message);
+  assertMatch(first.message, /^wss:\/\/swamp\.example\.com is rate-limiting/);
+  assert(paced.waitUntil() > Date.now());
+  assertEquals(paced.refusals(), 3);
+  limited = false;
+  await new Promise((resolve) => setTimeout(resolve, 160));
+  assertEquals(await paced.page(["data", "query", "a"]), { results: [] });
+  assertEquals(calls.length, 2);
+});
+
+Deno.test("remote: isRateLimited knows swamp's 429 message and nothing else", () => {
+  assert(isRateLimited(new Error(LIMITED)));
+  assertFalse(isRateLimited(new Error("swamp model get failed: no grant")));
+  assertFalse(isRateLimited("Rate-limited by server"));
+});
+
+Deno.test("remote: a read waiting when the studio stops is refused, never run", async () => {
+  const swamp = heldSwamp();
+  const abort = new AbortController();
+  const paced = pacedRunner(swamp.run, SERVER, { signal: abort.signal });
+  const running = paced.poll(["model", "search"]);
+  const waiting = paced.poll(["data", "query", "a"]);
+  await settle();
+  abort.abort();
+  swamp.pending[0].release();
+  await running;
+  await assertRejects(() => waiting);
+  await assertRejects(() => paced.page(["data", "query", "b"]));
+  assertEquals(swamp.started, ["model search"]);
 });

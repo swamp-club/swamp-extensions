@@ -575,7 +575,14 @@ no factory's lock. It reads only while a studio page is open, each read a
 swamp command: every 15 seconds, slowing to every 60 seconds while nothing
 changes, so a change on the serve shows within that, not at once. With no page
 open it reads nothing; opening one reads at once. A failed read keeps
-what was read last and is logged. The definition comes from `swamp model get`
+what was read last and is logged.
+
+Each swamp command opens a connection to the serve, and serve allows 50 a
+minute from one address, shared by everyone behind the same NAT. So the studio
+runs one command at a time and starts at most 20 in any minute; a read over
+that waits. If the serve rate-limits it anyway, the studio starts no command for
+60 seconds, the page shows the last read with a message saying when it reads
+again, and once the serve answers, the page reads what it could not. The definition comes from `swamp model get`
 as data, so the page shows YAML written from it: the server file's comments and
 layout are not shown, and the source is named `<factory> on <server>`.
 

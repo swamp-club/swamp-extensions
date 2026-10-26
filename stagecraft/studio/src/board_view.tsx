@@ -450,7 +450,10 @@ export function BoardMode() {
       )}
       <p class="board-count" role="status" aria-live="polite">
         {read === null
-          ? factory.value === null ? "" : "Reading work items…"
+          // A failed read says why above, not that it is still reading.
+          ? factory.value === null || boardError.value !== null
+            ? ""
+            : "Reading work items…"
           : total === 0
           ? `No work items in ${read.factory} yet.`
           : matching === total

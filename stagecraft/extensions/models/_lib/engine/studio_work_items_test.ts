@@ -594,3 +594,29 @@ Deno.test("studio work items: a watch on a read tells when what it reads differs
   await watch.askRead(event, "source", read);
   assertEquals(watch.size(), 1);
 });
+
+Deno.test("studio work items: a watch's first read can go through its own query, and the poll through the watch's", async () => {
+  const asked: string[] = [];
+  const polled: string[] = [];
+  const answer: QueryData = () => Promise.resolve([["team-a", 1]]);
+  const watch = watchWorkItems(
+    (p) => {
+      polled.push(p);
+      return answer(p);
+    },
+    () => {},
+    {
+      askQuery: (p) => {
+        asked.push(p);
+        return answer(p);
+      },
+    },
+  );
+  await watch.ask(
+    { kind: "work-items", factory: "team" },
+    runsPredicate("team"),
+  );
+  assertEquals([asked.length, polled.length], [1, 0]);
+  await watch.tick();
+  assertEquals([asked.length, polled.length], [1, 1]);
+});

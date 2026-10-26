@@ -93,6 +93,189 @@ export function swampRunner(
   };
 }
 
+// ---------------------------------------------------------------------------
+// Pacing (swamp-club #3906). Each swamp command opens its own WebSocket, and
+// swamp serve allows 50 per source IP in 60 seconds (#3399), a budget a team
+// behind one NAT address shares. So every remote read, the poll's and the
+// page's, goes through one gate: one command at a time, a read already
+// waiting or running shared by whoever asks for it again, and at most
+// REMOTE_CALLS_PER_MINUTE commands started in any minute. When serve answers
+// that it is rate-limiting, no command starts until the window has passed.
+// One long-lived connection needs swamp's support (#3963).
+// ---------------------------------------------------------------------------
+
+/** The most swamp commands the studio starts in any minute: 40% of serve's 50. */
+export const REMOTE_CALLS_PER_MINUTE = 20;
+
+/** How long the studio starts no command once serve rate-limits it. */
+export const RATE_LIMIT_WAIT_MS = 60_000;
+
+/**
+ * Whether swamp failed because serve refused the connection with a 429.
+ * swamp gives this no error code or exit code of its own yet (#3963), so
+ * its message is matched, as failure() passes it on.
+ */
+export function isRateLimited(e: unknown): boolean {
+  return e instanceof Error && /Rate-limited by server/.test(e.message);
+}
+
+/** A read refused because serve is rate-limiting the studio. */
+export class RateLimitedError extends Error {
+  constructor(server: string, until: number) {
+    // The same message for every read until `until`, so it is logged once.
+    super(
+      `${server} is rate-limiting this address (serve allows 50 ` +
+        `connections a minute per address); reading again at ` +
+        `${new Date(until).toISOString().slice(11, 19)} UTC`,
+    );
+    this.name = "RateLimitedError";
+  }
+}
+
+/** The paced runner: one gate for the page's reads and the poll's. */
+export interface PacedRunner {
+  /** For a page's request: it goes ahead of every waiting poll read. */
+  page: SwampRunner;
+  /** For the poll. */
+  poll: SwampRunner;
+  /** When the wait after a rate limit ends, in ms, or 0 when there is none. */
+  waitUntil(): number;
+  /**
+   * How many reads the rate limit has refused so far, so a clean poll after
+   * them can tell the page to read again. Other failures do not count: a read
+   * that always fails must not keep the poll from backing off.
+   */
+  refusals(): number;
+}
+
+interface Waiting {
+  args: string[];
+  page: boolean;
+  resolve: (answer: unknown) => void;
+  reject: (e: unknown) => void;
+}
+
+export function pacedRunner(
+  run: SwampRunner,
+  server: string,
+  options: {
+    perWindow?: number;
+    windowMs?: number;
+    rateLimitWaitMs?: number;
+    signal?: AbortSignal;
+  } = {},
+): PacedRunner {
+  const perWindow = options.perWindow ?? REMOTE_CALLS_PER_MINUTE;
+  const windowMs = options.windowMs ?? 60_000;
+  const rateLimitWaitMs = options.rateLimitWaitMs ?? RATE_LIMIT_WAIT_MS;
+  const signal = options.signal;
+  // The start of each command in the last window, oldest first.
+  const started: number[] = [];
+  // Each read waiting or running, by its arguments, so an identical read
+  // shares it.
+  const shared = new Map<
+    string,
+    { promise: Promise<unknown>; job?: Waiting }
+  >();
+  const queue: Waiting[] = [];
+  let working = false;
+  let waitUntil = 0;
+  let refusals = 0;
+
+  const refusal = () => new RateLimitedError(server, waitUntil);
+  const stopped = () =>
+    signal?.reason ?? new DOMException("the studio stopped", "AbortError");
+
+  // Waits ms, or less when the shutdown signal comes first.
+  const sleep = (ms: number) =>
+    new Promise<void>((resolve) => {
+      const done = () => {
+        clearTimeout(timer);
+        signal?.removeEventListener("abort", done);
+        resolve();
+      };
+      const timer = setTimeout(done, ms);
+      signal?.addEventListener("abort", done);
+    });
+
+  async function work() {
+    working = true;
+    try {
+      while (queue.length > 0) {
+        if (signal?.aborted) {
+          for (const job of queue.splice(0)) job.reject(stopped());
+          return;
+        }
+        // A page's read first, else the oldest.
+        const at = Math.max(0, queue.findIndex((j) => j.page));
+        const job = queue[at];
+        if (Date.now() < waitUntil) {
+          queue.splice(at, 1);
+          refusals++;
+          job.reject(refusal());
+          continue;
+        }
+        while (started.length > 0 && started[0] <= Date.now() - windowMs) {
+          started.shift();
+        }
+        if (started.length >= perWindow) {
+          // Over the budget: wait for the oldest start to leave the window,
+          // then choose again, since a page's read may have come meanwhile.
+          await sleep(started[0] + windowMs - Date.now());
+          continue;
+        }
+        queue.splice(at, 1);
+        started.push(Date.now());
+        try {
+          job.resolve(await run(job.args));
+        } catch (e) {
+          if (isRateLimited(e)) {
+            refusals++;
+            waitUntil = Date.now() + rateLimitWaitMs;
+            job.reject(refusal());
+          } else {
+            job.reject(e);
+          }
+        }
+      }
+    } finally {
+      working = false;
+    }
+  }
+
+  const runner = (page: boolean): SwampRunner => (args) => {
+    if (signal?.aborted) return Promise.reject(stopped());
+    if (Date.now() < waitUntil) {
+      refusals++;
+      return Promise.reject(refusal());
+    }
+    const key = JSON.stringify(args);
+    const held = shared.get(key);
+    if (held !== undefined) {
+      // A page joining a poll's waiting read moves it up with it.
+      if (page && held.job !== undefined) held.job.page = true;
+      return held.promise;
+    }
+    const entry: { promise: Promise<unknown>; job?: Waiting } = {
+      promise: Promise.resolve(),
+    };
+    entry.promise = new Promise<unknown>((resolve, reject) => {
+      entry.job = { args, page, resolve, reject };
+      queue.push(entry.job);
+    }).finally(() => shared.delete(key));
+    shared.set(key, entry);
+    if (!working) void work();
+    return entry.promise;
+  };
+
+  return {
+    page: runner(true),
+    poll: runner(false),
+    waitUntil: () => waitUntil,
+    refusals: () => refusals,
+  };
+}
+
 /**
  * Why a command failed: the error of the JSON envelope swamp writes to
  * stderr with --json, after the lines it prints first (the server it is
@@ -257,6 +440,8 @@ export function remoteFactories(
   server: string,
   emit: (event: StudioEvent) => void,
   onError: (message: string) => void = () => {},
+  // The poll's reads, when they go through the paced runner's poll side.
+  pollRun: SwampRunner = run,
 ): RemoteFactories {
   let listed: FactoryEntry[] | null = null;
   // Each definition read, by factory: the ones the page opened.
@@ -271,8 +456,8 @@ export function remoteFactories(
       ? { name, path: null, error: dashed(name) }
       : { name, path: remotePath(server, name) };
 
-  async function relist(): Promise<FactoryEntry[]> {
-    const next = (await remoteFactoryNames(run)).map(entryOf);
+  async function relist(by: SwampRunner): Promise<FactoryEntry[]> {
+    const next = (await remoteFactoryNames(by)).map(entryOf);
     if (
       listed !== null && JSON.stringify(next) !== JSON.stringify(listed)
     ) emit({ kind: "factories" });
@@ -285,7 +470,7 @@ export function remoteFactories(
 
   return {
     async list() {
-      return listed ?? await relist();
+      return listed ?? await relist(run);
     },
     async definition(entry) {
       const held = read.get(entry.name);
@@ -303,7 +488,7 @@ export function remoteFactories(
     },
     async poll() {
       try {
-        await relist();
+        await relist(pollRun);
       } catch (e) {
         onError(message(e));
         return false;
@@ -318,14 +503,17 @@ export function remoteFactories(
         // read that fails keeps that model's last copy until the next poll.
         let names: Set<string> | null = null;
         try {
-          names = await remoteModelNames(run);
+          names = await remoteModelNames(pollRun);
         } catch (e) {
           onError(message(e));
           ok = false;
         }
         for (const name of names === null ? [] : models.keys()) {
           try {
-            models.set(name, await remoteModel(run, name, names ?? undefined));
+            models.set(
+              name,
+              await remoteModel(pollRun, name, names ?? undefined),
+            );
           } catch (e) {
             onError(message(e));
             ok = false;
@@ -335,7 +523,7 @@ export function remoteFactories(
       for (const [name, before] of read) {
         let now: DefinitionText;
         try {
-          now = await remoteDefinition(run, server, name);
+          now = await remoteDefinition(pollRun, server, name);
         } catch (e) {
           onError(message(e));
           ok = false;

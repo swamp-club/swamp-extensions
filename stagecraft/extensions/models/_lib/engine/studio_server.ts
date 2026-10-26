@@ -135,7 +135,12 @@ export type StudioEvent =
   /** One work item's run record was written. */
   | { kind: "work-item"; key: string }
   /** A ticket or claim record on a factory's tracker instance was written. */
-  | { kind: "tickets"; factory: string };
+  | { kind: "tickets"; factory: string }
+  /**
+   * A remote serve answers again after its rate limit refused reads
+   * (swamp-club #3906): the page reads again whatever it shows.
+   */
+  | { kind: "readable" };
 
 export interface StudioEvents {
   /** Returns the unsubscribe function. */

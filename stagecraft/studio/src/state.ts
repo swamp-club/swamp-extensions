@@ -88,7 +88,8 @@ export type StudioEvent =
   | { kind: "definition"; factory: string }
   | { kind: "work-items"; factory: string }
   | { kind: "work-item"; key: string }
-  | { kind: "tickets"; factory: string };
+  | { kind: "tickets"; factory: string }
+  | { kind: "readable" };
 
 type OkLoaded = Extract<Loaded, { ok: true }>;
 
@@ -1298,18 +1299,22 @@ export async function copyWalk() {
 export function listen() {
   const events = new EventSource("/api/events");
   // A change while the stream was down sent nothing, so a reconnect reads
-  // the list and the definition again.
-  let dropped = false;
-  events.addEventListener("open", () => {
-    live.value = true;
-    if (!dropped) return;
-    dropped = false;
+  // the list and the definition again; so does a remote serve answering
+  // again after its rate limit refused reads, since those were never read.
+  const readAgain = () => {
     reloadFactories().then(() => loadDefinitionFile()).catch((e) => {
       sourceError.value = message(e);
     });
     if (mode.value === "board") void loadBoard();
     if (mode.value === "work-item") void loadWorkItem();
     if (mode.value === "ticket") void loadTicketPage();
+  };
+  let dropped = false;
+  events.addEventListener("open", () => {
+    live.value = true;
+    if (!dropped) return;
+    dropped = false;
+    readAgain();
   });
   events.addEventListener("error", () => {
     live.value = false;
@@ -1321,6 +1326,10 @@ export function listen() {
       event = JSON.parse(m.data) as StudioEvent;
     } catch {
       return; // Not an event the page knows; the next one reloads.
+    }
+    if (event.kind === "readable") {
+      readAgain();
+      return;
     }
     if (event.kind === "factories") {
       flash("factories reloaded");

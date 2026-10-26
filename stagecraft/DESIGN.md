@@ -1763,7 +1763,18 @@ and the work items it watches, one poll at a time. Each read starts swamp, so it
 polls only while a page holds the event stream (swamp-club #3658): the first
 page after a quiet spell gets a poll at once, and the last to leave stops it.
 Polls run every 15 seconds, doubling to 60 while a poll tells the page nothing,
-and back to 15 on a change. The factory
+and back to 15 on a change. Each swamp command opens its own WebSocket, and
+serve allows 50 per source IP a minute (#3399), a budget everyone behind one NAT
+address shares, so every remote read, the poll's and the page's, goes through
+one paced runner (swamp-club #3906): one command at a time, a page's read ahead
+of the poll's, a read already waiting or running shared by whoever asks again,
+and at most 20 commands started in any minute (failed ones count). When swamp
+says serve rate-limited it, no command starts for 60 seconds, every read in
+that time is refused with the same message (logged once), and the next poll
+waits it out; the first clean poll after reads it refused sends the page a
+`readable` event, so a board or list it could not read is read again. swamp
+gives a rate limit no error code yet, so its message is matched until #3963. One
+long-lived connection instead of a command per read also waits on #3963. The factory
 routes answer from the last poll's reads, so a page load starts no swamp command
 once a factory has been read. A failed poll keeps the last reads and is logged
 once. The first read happens before the server binds, so a wrong URL, no login
