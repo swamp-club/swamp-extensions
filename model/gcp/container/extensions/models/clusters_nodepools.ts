@@ -267,6 +267,9 @@ const GlobalArgsSchema = z.object({
           gpuDriverVersion: z.unknown().describe(
             "Mode for how the GPU driver is installed.",
           ).optional(),
+          specificVersion: z.unknown().describe(
+            "Optional. The specific version of the GPU driver to install. Use this field only with gpu_driver_version set to SPECIFIC. Otherwise, an error will be returned.",
+          ).optional(),
         }).describe("The configuration for auto installation of GPU driver.")
           .optional(),
         gpuPartitionSize: z.string().describe(
@@ -382,6 +385,9 @@ const GlobalArgsSchema = z.object({
         dataCacheCount: z.number().int().describe(
           "Number of local SSDs to use for GKE Data Cache.",
         ).optional(),
+        ephemeralCapacityGb: z.string().describe(
+          "Capacity set aside for Ephemeral Storage if using mixed Local SSD modes. The remaining capacity is Raw Block.",
+        ).optional(),
         localSsdCount: z.number().int().describe(
           "Number of local SSDs to use to back ephemeral storage. Uses NVMe interfaces. A zero (or unset) value has different meanings depending on machine type being used: 1. For pre-Gen3 machines, which support flexible numbers of local ssds, zero (or unset) means to disable using local SSDs as ephemeral storage. The limit for this value is dependent upon the maximum number of disk available on a machine per zone. See: https://cloud.google.com/compute/docs/disks/local-ssd for more information. 2. For Gen3 machines which dictate a specific number of local ssds, zero (or unset) means to use the default number of local ssds that goes with that machine type. For example, for a c3-standard-8-lssd machine, 2 local ssds would be provisioned. For c3-standard-8 (which doesn't support local ssds), 0 will be provisioned. See https://cloud.google.com/compute/docs/disks/local-ssd#choose_number_local_ssds for more info.",
         ).optional(),
@@ -424,6 +430,12 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         containerLogMaxSize: z.string().describe(
           "Optional. Defines the maximum size of the container log file before it is rotated. See https://kubernetes.io/docs/concepts/cluster-administration/logging/#log-rotation Valid format is positive number + unit, e.g. 100Ki, 10Mi. Valid units are Ki, Mi, Gi. The value must be between 10Mi and 500Mi, inclusive. Note that the total container log size (container_log_max_size * container_log_max_files) cannot exceed 1% of the total storage of the node, to avoid disk pressure caused by log files. The default value is 10Mi if unspecified.",
+        ).optional(),
+        containerLogMaxWorkers: z.number().int().describe(
+          "Optional. Defines the maximum number of concurrent workers to rotate container log files. See https://kubernetes.io/docs/concepts/cluster-administration/logging/#log-rotation The value must be an integer between 1 and 10, inclusive. The default value is 1 if unspecified.",
+        ).optional(),
+        containerLogMonitorInterval: z.string().describe(
+          'Optional. Specifies the interval at which the container logs are monitored for performing the log rotate operation. The value must be a positive interval between 3s and 300s, inclusive. The default value is "10s" if unspecified.',
         ).optional(),
         cpuCfsQuota: z.boolean().describe(
           "Enable CPU CFS quota enforcement for containers that specify CPU limits. This option is enabled by default which makes kubelet use CFS quota (https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt) to enforce container CPU limits. Otherwise, CPU limits will not be enforced at all. Disable this option to mitigate CPU throttling problems while still having your pods to be in Guaranteed QoS class by specifying the CPU limits. The default value is 'true' if unspecified.",
@@ -553,6 +565,9 @@ const GlobalArgsSchema = z.object({
           ).optional(),
         }).describe(
           "Optional. Controls the reserved resources on the node. Only included if any fields are specified.",
+        ).optional(),
+        reservedSystemCpus: z.string().describe(
+          'Optional. The reserved_system_cpus option specifies the CPU list reserved for the host system services. Format: a list of CPU IDs (e.g. "0-3", "0,1") that can be parsed as a cpuset.',
         ).optional(),
         shutdownGracePeriodCriticalPodsSeconds: z.number().int().describe(
           "Optional. shutdown_grace_period_critical_pods_seconds is the maximum allowed grace period (in seconds) used to terminate critical pods during a node shutdown. This value should be <= shutdown_grace_period_seconds, and is only valid if shutdown_grace_period_seconds is set. https://kubernetes.io/docs/concepts/cluster-administration/node-shutdown/ Range: [0, 120].",
@@ -978,6 +993,13 @@ const GlobalArgsSchema = z.object({
       createPodRange: z.boolean().describe(
         "Input only. Whether to create a new range for pod IPs in this node pool. Defaults are provided for `pod_range` and `pod_ipv4_cidr_block` if they are not specified. If neither `create_pod_range` or `pod_range` are specified, the cluster-level default (`ip_allocation_policy.cluster_ipv4_cidr_block`) is used. Only applicable if `ip_allocation_policy.use_ip_aliases` is true. This field cannot be changed after the node pool has been created.",
       ).optional(),
+      datapathProvider: z.enum([
+        "DATAPATH_PROVIDER_UNSPECIFIED",
+        "LEGACY_DATAPATH",
+        "ADVANCED_DATAPATH",
+        "MIGRATE_TO_ADVANCED_DATAPATH",
+        "MIGRATE_TO_LEGACY_DATAPATH",
+      ]).describe("The datapath provider for this node pool.").optional(),
       enablePrivateNodes: z.boolean().describe(
         "Whether nodes have internal IP addresses only. If enable_private_nodes is not specified, then the value is derived from Cluster.NetworkConfig.default_enable_private_nodes",
       ).optional(),
@@ -1155,7 +1177,11 @@ const GlobalArgsSchema = z.object({
         "INSTALLATION_DISABLED",
         "DEFAULT",
         "LATEST",
+        "SPECIFIC",
       ]).describe("Mode for how the GPU driver is installed.").optional(),
+      specificVersion: z.string().describe(
+        "Optional. The specific version of the GPU driver to install. Use this field only with gpu_driver_version set to SPECIFIC. Otherwise, an error will be returned.",
+      ).optional(),
     }).describe("The configuration for auto installation of GPU driver.")
       .optional(),
     gpuPartitionSize: z.string().describe(
@@ -1310,6 +1336,12 @@ const GlobalArgsSchema = z.object({
     containerLogMaxSize: z.string().describe(
       "Optional. Defines the maximum size of the container log file before it is rotated. See https://kubernetes.io/docs/concepts/cluster-administration/logging/#log-rotation Valid format is positive number + unit, e.g. 100Ki, 10Mi. Valid units are Ki, Mi, Gi. The value must be between 10Mi and 500Mi, inclusive. Note that the total container log size (container_log_max_size * container_log_max_files) cannot exceed 1% of the total storage of the node, to avoid disk pressure caused by log files. The default value is 10Mi if unspecified.",
     ).optional(),
+    containerLogMaxWorkers: z.number().int().describe(
+      "Optional. Defines the maximum number of concurrent workers to rotate container log files. See https://kubernetes.io/docs/concepts/cluster-administration/logging/#log-rotation The value must be an integer between 1 and 10, inclusive. The default value is 1 if unspecified.",
+    ).optional(),
+    containerLogMonitorInterval: z.string().describe(
+      'Optional. Specifies the interval at which the container logs are monitored for performing the log rotate operation. The value must be a positive interval between 3s and 300s, inclusive. The default value is "10s" if unspecified.',
+    ).optional(),
     cpuCfsQuota: z.boolean().describe(
       "Enable CPU CFS quota enforcement for containers that specify CPU limits. This option is enabled by default which makes kubelet use CFS quota (https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt) to enforce container CPU limits. Otherwise, CPU limits will not be enforced at all. Disable this option to mitigate CPU throttling problems while still having your pods to be in Guaranteed QoS class by specifying the CPU limits. The default value is 'true' if unspecified.",
     ).optional(),
@@ -1438,6 +1470,9 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     }).describe(
       "Optional. Controls the reserved resources on the node. Only included if any fields are specified.",
+    ).optional(),
+    reservedSystemCpus: z.string().describe(
+      'Optional. The reserved_system_cpus option specifies the CPU list reserved for the host system services. Format: a list of CPU IDs (e.g. "0-3", "0,1") that can be parsed as a cpuset.',
     ).optional(),
     shutdownGracePeriodCriticalPodsSeconds: z.number().int().describe(
       "Optional. shutdown_grace_period_critical_pods_seconds is the maximum allowed grace period (in seconds) used to terminate critical pods during a node shutdown. This value should be <= shutdown_grace_period_seconds, and is only valid if shutdown_grace_period_seconds is set. https://kubernetes.io/docs/concepts/cluster-administration/node-shutdown/ Range: [0, 120].",
@@ -1627,6 +1662,12 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "The name (project, location, cluster, node pool) of the node pool to update. Specified in the format `projects/*/locations/*/clusters/*/nodePools/*`.",
   ).optional(),
+  nodeConfigUpdateMode: z.enum([
+    "NODE_CONFIG_UPDATE_MODE_UNSPECIFIED",
+    "LIVE_UPDATE_WITHOUT_DRAIN",
+  ]).describe(
+    "Optional. Option to specify the rollout strategy to apply node pool configuration updates. If unspecified, standard rolling update strategy with VM recreation is used as the default behavior.",
+  ).optional(),
   nodeDrainConfig: z.object({
     graceTerminationDuration: z.string().describe(
       "The duration of the grace termination period for node drain.",
@@ -1677,6 +1718,13 @@ const GlobalArgsSchema = z.object({
     createPodRange: z.boolean().describe(
       "Input only. Whether to create a new range for pod IPs in this node pool. Defaults are provided for `pod_range` and `pod_ipv4_cidr_block` if they are not specified. If neither `create_pod_range` or `pod_range` are specified, the cluster-level default (`ip_allocation_policy.cluster_ipv4_cidr_block`) is used. Only applicable if `ip_allocation_policy.use_ip_aliases` is true. This field cannot be changed after the node pool has been created.",
     ).optional(),
+    datapathProvider: z.enum([
+      "DATAPATH_PROVIDER_UNSPECIFIED",
+      "LEGACY_DATAPATH",
+      "ADVANCED_DATAPATH",
+      "MIGRATE_TO_ADVANCED_DATAPATH",
+      "MIGRATE_TO_LEGACY_DATAPATH",
+    ]).describe("The datapath provider for this node pool.").optional(),
     enablePrivateNodes: z.boolean().describe(
       "Whether nodes have internal IP addresses only. If enable_private_nodes is not specified, then the value is derived from Cluster.NetworkConfig.default_enable_private_nodes",
     ).optional(),
@@ -1853,6 +1901,7 @@ const StateSchema = z.object({
       acceleratorType: z.string(),
       gpuDriverInstallationConfig: z.object({
         gpuDriverVersion: z.string(),
+        specificVersion: z.string(),
       }),
       gpuPartitionSize: z.string(),
       gpuSharingConfig: z.object({
@@ -1899,6 +1948,7 @@ const StateSchema = z.object({
     enableConfidentialStorage: z.boolean(),
     ephemeralStorageLocalSsdConfig: z.object({
       dataCacheCount: z.number(),
+      ephemeralCapacityGb: z.string(),
       localSsdCount: z.number(),
     }),
     fastSocket: z.object({
@@ -1919,6 +1969,8 @@ const StateSchema = z.object({
       allowedUnsafeSysctls: z.array(z.string()),
       containerLogMaxFiles: z.number(),
       containerLogMaxSize: z.string(),
+      containerLogMaxWorkers: z.number(),
+      containerLogMonitorInterval: z.string(),
       cpuCfsQuota: z.boolean(),
       cpuCfsQuotaPeriod: z.string(),
       cpuManagerPolicy: z.string(),
@@ -1966,6 +2018,7 @@ const StateSchema = z.object({
         effectiveMemoryReservedMib: z.string(),
         memoryReservedMib: z.string(),
       }),
+      reservedSystemCpus: z.string(),
       shutdownGracePeriodCriticalPodsSeconds: z.number(),
       shutdownGracePeriodSeconds: z.number(),
       singleProcessOomKill: z.boolean(),
@@ -2134,6 +2187,7 @@ const StateSchema = z.object({
       subnetwork: z.string(),
     })),
     createPodRange: z.boolean(),
+    datapathProvider: z.string(),
     enablePrivateNodes: z.boolean(),
     network: z.string(),
     networkPerformanceConfig: z.object({
@@ -2296,6 +2350,9 @@ const InputsSchema = z.object({
           gpuDriverVersion: z.unknown().describe(
             "Mode for how the GPU driver is installed.",
           ).optional(),
+          specificVersion: z.unknown().describe(
+            "Optional. The specific version of the GPU driver to install. Use this field only with gpu_driver_version set to SPECIFIC. Otherwise, an error will be returned.",
+          ).optional(),
         }).describe("The configuration for auto installation of GPU driver.")
           .optional(),
         gpuPartitionSize: z.string().describe(
@@ -2411,6 +2468,9 @@ const InputsSchema = z.object({
         dataCacheCount: z.number().int().describe(
           "Number of local SSDs to use for GKE Data Cache.",
         ).optional(),
+        ephemeralCapacityGb: z.string().describe(
+          "Capacity set aside for Ephemeral Storage if using mixed Local SSD modes. The remaining capacity is Raw Block.",
+        ).optional(),
         localSsdCount: z.number().int().describe(
           "Number of local SSDs to use to back ephemeral storage. Uses NVMe interfaces. A zero (or unset) value has different meanings depending on machine type being used: 1. For pre-Gen3 machines, which support flexible numbers of local ssds, zero (or unset) means to disable using local SSDs as ephemeral storage. The limit for this value is dependent upon the maximum number of disk available on a machine per zone. See: https://cloud.google.com/compute/docs/disks/local-ssd for more information. 2. For Gen3 machines which dictate a specific number of local ssds, zero (or unset) means to use the default number of local ssds that goes with that machine type. For example, for a c3-standard-8-lssd machine, 2 local ssds would be provisioned. For c3-standard-8 (which doesn't support local ssds), 0 will be provisioned. See https://cloud.google.com/compute/docs/disks/local-ssd#choose_number_local_ssds for more info.",
         ).optional(),
@@ -2453,6 +2513,12 @@ const InputsSchema = z.object({
         ).optional(),
         containerLogMaxSize: z.string().describe(
           "Optional. Defines the maximum size of the container log file before it is rotated. See https://kubernetes.io/docs/concepts/cluster-administration/logging/#log-rotation Valid format is positive number + unit, e.g. 100Ki, 10Mi. Valid units are Ki, Mi, Gi. The value must be between 10Mi and 500Mi, inclusive. Note that the total container log size (container_log_max_size * container_log_max_files) cannot exceed 1% of the total storage of the node, to avoid disk pressure caused by log files. The default value is 10Mi if unspecified.",
+        ).optional(),
+        containerLogMaxWorkers: z.number().int().describe(
+          "Optional. Defines the maximum number of concurrent workers to rotate container log files. See https://kubernetes.io/docs/concepts/cluster-administration/logging/#log-rotation The value must be an integer between 1 and 10, inclusive. The default value is 1 if unspecified.",
+        ).optional(),
+        containerLogMonitorInterval: z.string().describe(
+          'Optional. Specifies the interval at which the container logs are monitored for performing the log rotate operation. The value must be a positive interval between 3s and 300s, inclusive. The default value is "10s" if unspecified.',
         ).optional(),
         cpuCfsQuota: z.boolean().describe(
           "Enable CPU CFS quota enforcement for containers that specify CPU limits. This option is enabled by default which makes kubelet use CFS quota (https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt) to enforce container CPU limits. Otherwise, CPU limits will not be enforced at all. Disable this option to mitigate CPU throttling problems while still having your pods to be in Guaranteed QoS class by specifying the CPU limits. The default value is 'true' if unspecified.",
@@ -2582,6 +2648,9 @@ const InputsSchema = z.object({
           ).optional(),
         }).describe(
           "Optional. Controls the reserved resources on the node. Only included if any fields are specified.",
+        ).optional(),
+        reservedSystemCpus: z.string().describe(
+          'Optional. The reserved_system_cpus option specifies the CPU list reserved for the host system services. Format: a list of CPU IDs (e.g. "0-3", "0,1") that can be parsed as a cpuset.',
         ).optional(),
         shutdownGracePeriodCriticalPodsSeconds: z.number().int().describe(
           "Optional. shutdown_grace_period_critical_pods_seconds is the maximum allowed grace period (in seconds) used to terminate critical pods during a node shutdown. This value should be <= shutdown_grace_period_seconds, and is only valid if shutdown_grace_period_seconds is set. https://kubernetes.io/docs/concepts/cluster-administration/node-shutdown/ Range: [0, 120].",
@@ -3007,6 +3076,13 @@ const InputsSchema = z.object({
       createPodRange: z.boolean().describe(
         "Input only. Whether to create a new range for pod IPs in this node pool. Defaults are provided for `pod_range` and `pod_ipv4_cidr_block` if they are not specified. If neither `create_pod_range` or `pod_range` are specified, the cluster-level default (`ip_allocation_policy.cluster_ipv4_cidr_block`) is used. Only applicable if `ip_allocation_policy.use_ip_aliases` is true. This field cannot be changed after the node pool has been created.",
       ).optional(),
+      datapathProvider: z.enum([
+        "DATAPATH_PROVIDER_UNSPECIFIED",
+        "LEGACY_DATAPATH",
+        "ADVANCED_DATAPATH",
+        "MIGRATE_TO_ADVANCED_DATAPATH",
+        "MIGRATE_TO_LEGACY_DATAPATH",
+      ]).describe("The datapath provider for this node pool.").optional(),
       enablePrivateNodes: z.boolean().describe(
         "Whether nodes have internal IP addresses only. If enable_private_nodes is not specified, then the value is derived from Cluster.NetworkConfig.default_enable_private_nodes",
       ).optional(),
@@ -3184,7 +3260,11 @@ const InputsSchema = z.object({
         "INSTALLATION_DISABLED",
         "DEFAULT",
         "LATEST",
+        "SPECIFIC",
       ]).describe("Mode for how the GPU driver is installed.").optional(),
+      specificVersion: z.string().describe(
+        "Optional. The specific version of the GPU driver to install. Use this field only with gpu_driver_version set to SPECIFIC. Otherwise, an error will be returned.",
+      ).optional(),
     }).describe("The configuration for auto installation of GPU driver.")
       .optional(),
     gpuPartitionSize: z.string().describe(
@@ -3339,6 +3419,12 @@ const InputsSchema = z.object({
     containerLogMaxSize: z.string().describe(
       "Optional. Defines the maximum size of the container log file before it is rotated. See https://kubernetes.io/docs/concepts/cluster-administration/logging/#log-rotation Valid format is positive number + unit, e.g. 100Ki, 10Mi. Valid units are Ki, Mi, Gi. The value must be between 10Mi and 500Mi, inclusive. Note that the total container log size (container_log_max_size * container_log_max_files) cannot exceed 1% of the total storage of the node, to avoid disk pressure caused by log files. The default value is 10Mi if unspecified.",
     ).optional(),
+    containerLogMaxWorkers: z.number().int().describe(
+      "Optional. Defines the maximum number of concurrent workers to rotate container log files. See https://kubernetes.io/docs/concepts/cluster-administration/logging/#log-rotation The value must be an integer between 1 and 10, inclusive. The default value is 1 if unspecified.",
+    ).optional(),
+    containerLogMonitorInterval: z.string().describe(
+      'Optional. Specifies the interval at which the container logs are monitored for performing the log rotate operation. The value must be a positive interval between 3s and 300s, inclusive. The default value is "10s" if unspecified.',
+    ).optional(),
     cpuCfsQuota: z.boolean().describe(
       "Enable CPU CFS quota enforcement for containers that specify CPU limits. This option is enabled by default which makes kubelet use CFS quota (https://www.kernel.org/doc/Documentation/scheduler/sched-bwc.txt) to enforce container CPU limits. Otherwise, CPU limits will not be enforced at all. Disable this option to mitigate CPU throttling problems while still having your pods to be in Guaranteed QoS class by specifying the CPU limits. The default value is 'true' if unspecified.",
     ).optional(),
@@ -3467,6 +3553,9 @@ const InputsSchema = z.object({
       ).optional(),
     }).describe(
       "Optional. Controls the reserved resources on the node. Only included if any fields are specified.",
+    ).optional(),
+    reservedSystemCpus: z.string().describe(
+      'Optional. The reserved_system_cpus option specifies the CPU list reserved for the host system services. Format: a list of CPU IDs (e.g. "0-3", "0,1") that can be parsed as a cpuset.',
     ).optional(),
     shutdownGracePeriodCriticalPodsSeconds: z.number().int().describe(
       "Optional. shutdown_grace_period_critical_pods_seconds is the maximum allowed grace period (in seconds) used to terminate critical pods during a node shutdown. This value should be <= shutdown_grace_period_seconds, and is only valid if shutdown_grace_period_seconds is set. https://kubernetes.io/docs/concepts/cluster-administration/node-shutdown/ Range: [0, 120].",
@@ -3656,6 +3745,12 @@ const InputsSchema = z.object({
   name: z.string().describe(
     "The name (project, location, cluster, node pool) of the node pool to update. Specified in the format `projects/*/locations/*/clusters/*/nodePools/*`.",
   ).optional(),
+  nodeConfigUpdateMode: z.enum([
+    "NODE_CONFIG_UPDATE_MODE_UNSPECIFIED",
+    "LIVE_UPDATE_WITHOUT_DRAIN",
+  ]).describe(
+    "Optional. Option to specify the rollout strategy to apply node pool configuration updates. If unspecified, standard rolling update strategy with VM recreation is used as the default behavior.",
+  ).optional(),
   nodeDrainConfig: z.object({
     graceTerminationDuration: z.string().describe(
       "The duration of the grace termination period for node drain.",
@@ -3706,6 +3801,13 @@ const InputsSchema = z.object({
     createPodRange: z.boolean().describe(
       "Input only. Whether to create a new range for pod IPs in this node pool. Defaults are provided for `pod_range` and `pod_ipv4_cidr_block` if they are not specified. If neither `create_pod_range` or `pod_range` are specified, the cluster-level default (`ip_allocation_policy.cluster_ipv4_cidr_block`) is used. Only applicable if `ip_allocation_policy.use_ip_aliases` is true. This field cannot be changed after the node pool has been created.",
     ).optional(),
+    datapathProvider: z.enum([
+      "DATAPATH_PROVIDER_UNSPECIFIED",
+      "LEGACY_DATAPATH",
+      "ADVANCED_DATAPATH",
+      "MIGRATE_TO_ADVANCED_DATAPATH",
+      "MIGRATE_TO_LEGACY_DATAPATH",
+    ]).describe("The datapath provider for this node pool.").optional(),
     enablePrivateNodes: z.boolean().describe(
       "Whether nodes have internal IP addresses only. If enable_private_nodes is not specified, then the value is derived from Cluster.NetworkConfig.default_enable_private_nodes",
     ).optional(),
@@ -3880,7 +3982,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Kubernetes Engine Clusters.NodePools. Registered at `@swamp/gcp/container/clusters-nodepools`. */
 export const model = {
   type: "@swamp/gcp/container/clusters-nodepools",
-  version: "2026.10.23.1",
+  version: "2026.10.26.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -4122,6 +4224,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.26.1",
+      description: "Added: nodeConfigUpdateMode",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -4316,6 +4423,9 @@ export const model = {
         }
         if (g["maxRunDuration"] !== undefined) {
           body["maxRunDuration"] = g["maxRunDuration"];
+        }
+        if (g["nodeConfigUpdateMode"] !== undefined) {
+          body["nodeConfigUpdateMode"] = g["nodeConfigUpdateMode"];
         }
         if (g["nodeDrainConfig"] !== undefined) {
           body["nodeDrainConfig"] = g["nodeDrainConfig"];

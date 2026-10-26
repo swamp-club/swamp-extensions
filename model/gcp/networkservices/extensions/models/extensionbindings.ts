@@ -217,9 +217,8 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Identifier. Name of the `ExtensionBinding` resource in the following format: `projects/{project}/locations/{location}/extensionBindings/{extension_binding}`.",
   ).optional(),
-  priority: z.number().int().describe(
-    "Optional. Priority of the extension binding. Lower numbers indicate higher priority. The priority determines the order in which extension bindings are applied to a request.",
-  ).optional(),
+  priority: z.number().int().describe("Optional. This field is not supported.")
+    .optional(),
   producerExtension: z.string().describe(
     "Required. The name of the extension that this binding should attach to target resources. Format: For Google-provided extensions, specify the service endpoint, for example `modelarmor.us-central1.rep.googleapis.com`.",
   ).optional(),
@@ -366,9 +365,8 @@ const InputsSchema = z.object({
   name: z.string().describe(
     "Identifier. Name of the `ExtensionBinding` resource in the following format: `projects/{project}/locations/{location}/extensionBindings/{extension_binding}`.",
   ).optional(),
-  priority: z.number().int().describe(
-    "Optional. Priority of the extension binding. Lower numbers indicate higher priority. The priority determines the order in which extension bindings are applied to a request.",
-  ).optional(),
+  priority: z.number().int().describe("Optional. This field is not supported.")
+    .optional(),
   producerExtension: z.string().describe(
     "Required. The name of the extension that this binding should attach to target resources. Format: For Google-provided extensions, specify the service endpoint, for example `modelarmor.us-central1.rep.googleapis.com`.",
   ).optional(),
@@ -432,7 +430,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Services ExtensionBindings. Registered at `@swamp/gcp/networkservices/extensionbindings`. */
 export const model = {
   type: "@swamp/gcp/networkservices/extensionbindings",
-  version: "2026.10.23.1",
+  version: "2026.10.26.1",
   upgrades: [
     {
       toVersion: "2026.08.22.1",
@@ -451,6 +449,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

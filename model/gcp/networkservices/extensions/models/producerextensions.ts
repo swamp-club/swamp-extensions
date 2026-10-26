@@ -146,7 +146,7 @@ const GlobalArgsSchema = z.object({
       "Optional. The `:authority` header in the request sent to the extension service.",
     ).optional(),
     observabilityMode: z.boolean().describe(
-      "Optional. Whether the extension should function in observability mode.",
+      "Optional. This field is not supported.",
     ).optional(),
     service: z.string().describe("Required. URI of the PSC attachment.")
       .optional(),
@@ -215,7 +215,7 @@ const InputsSchema = z.object({
       "Optional. The `:authority` header in the request sent to the extension service.",
     ).optional(),
     observabilityMode: z.boolean().describe(
-      "Optional. Whether the extension should function in observability mode.",
+      "Optional. This field is not supported.",
     ).optional(),
     service: z.string().describe("Required. URI of the PSC attachment.")
       .optional(),
@@ -277,7 +277,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Services ProducerExtensions. Registered at `@swamp/gcp/networkservices/producerextensions`. */
 export const model = {
   type: "@swamp/gcp/networkservices/producerextensions",
-  version: "2026.10.23.1",
+  version: "2026.10.26.1",
   upgrades: [
     {
       toVersion: "2026.08.22.1",
@@ -291,6 +291,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.26.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

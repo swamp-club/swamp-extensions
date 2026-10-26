@@ -257,12 +257,21 @@ const GlobalArgsSchema = z.object({
   ).describe(
     "Required. The map of cluster node types in this cluster, where the key is canonical identifier of the node type (corresponds to the `NodeType`).",
   ).optional(),
+  placementGroup: z.string().describe(
+    "Optional. The identifier of the placement group for cluster nodes. A placement group is an internal Google identifier for a group of resources that are physically located within the same fault domain. If provided, nodes for this cluster are placed within the specified placement group. If this field is omitted, the system selects an appropriate placement group.",
+  ).optional(),
   stretchedClusterConfig: z.object({
     preferredLocation: z.string().describe(
       "Required. Zone that will remain operational when connection between the two zones is lost. Specify the resource name or ID of a zone that belongs to the region of the private cloud. For example: `projects/{project}/locations/europe-west3-a` or `europe-west3-a`, where `{project}` can either be a project number or a project ID.",
     ).optional(),
+    preferredLocationPlacementGroup: z.string().describe(
+      "Optional. The identifier of the placement group for preferred location cluster nodes. A placement group is an internal Google identifier for a group of resources that are physically located within the same fault domain. If provided, nodes for this cluster are placed within the specified placement group. If this field is omitted, the system selects an appropriate placement group.",
+    ).optional(),
     secondaryLocation: z.string().describe(
       "Required. Additional zone for a higher level of availability and load balancing. Specify the resource name or ID of a zone that belongs to the region of the private cloud. For example: `projects/{project}/locations/europe-west3-b` or `europe-west3-b`, where `{project}` can either be a project number or a project ID.",
+    ).optional(),
+    secondaryLocationPlacementGroup: z.string().describe(
+      "Optional. The identifier of the placement group for secondary location cluster nodes. A placement group is an internal Google identifier for a group of resources that are physically located within the same fault domain. If provided, nodes for this cluster are placed within the specified placement group. If this field is omitted, the system selects an appropriate placement group.",
     ).optional(),
   }).describe(
     "Optional. Configuration of a stretched cluster. Required for clusters that belong to a STRETCHED private cloud.",
@@ -305,10 +314,13 @@ const StateSchema = z.object({
   management: z.boolean().optional(),
   name: z.string(),
   nodeTypeConfigs: z.record(z.string(), z.unknown()).optional(),
+  placementGroup: z.string().optional(),
   state: z.string().optional(),
   stretchedClusterConfig: z.object({
     preferredLocation: z.string(),
+    preferredLocationPlacementGroup: z.string(),
     secondaryLocation: z.string(),
+    secondaryLocationPlacementGroup: z.string(),
   }).optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
@@ -403,12 +415,21 @@ const InputsSchema = z.object({
   ).describe(
     "Required. The map of cluster node types in this cluster, where the key is canonical identifier of the node type (corresponds to the `NodeType`).",
   ).optional(),
+  placementGroup: z.string().describe(
+    "Optional. The identifier of the placement group for cluster nodes. A placement group is an internal Google identifier for a group of resources that are physically located within the same fault domain. If provided, nodes for this cluster are placed within the specified placement group. If this field is omitted, the system selects an appropriate placement group.",
+  ).optional(),
   stretchedClusterConfig: z.object({
     preferredLocation: z.string().describe(
       "Required. Zone that will remain operational when connection between the two zones is lost. Specify the resource name or ID of a zone that belongs to the region of the private cloud. For example: `projects/{project}/locations/europe-west3-a` or `europe-west3-a`, where `{project}` can either be a project number or a project ID.",
     ).optional(),
+    preferredLocationPlacementGroup: z.string().describe(
+      "Optional. The identifier of the placement group for preferred location cluster nodes. A placement group is an internal Google identifier for a group of resources that are physically located within the same fault domain. If provided, nodes for this cluster are placed within the specified placement group. If this field is omitted, the system selects an appropriate placement group.",
+    ).optional(),
     secondaryLocation: z.string().describe(
       "Required. Additional zone for a higher level of availability and load balancing. Specify the resource name or ID of a zone that belongs to the region of the private cloud. For example: `projects/{project}/locations/europe-west3-b` or `europe-west3-b`, where `{project}` can either be a project number or a project ID.",
+    ).optional(),
+    secondaryLocationPlacementGroup: z.string().describe(
+      "Optional. The identifier of the placement group for secondary location cluster nodes. A placement group is an internal Google identifier for a group of resources that are physically located within the same fault domain. If provided, nodes for this cluster are placed within the specified placement group. If this field is omitted, the system selects an appropriate placement group.",
     ).optional(),
   }).describe(
     "Optional. Configuration of a stretched cluster. Required for clusters that belong to a STRETCHED private cloud.",
@@ -453,7 +474,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud VMware Engine PrivateClouds.Clusters. Registered at `@swamp/gcp/vmwareengine/privateclouds-clusters`. */
 export const model = {
   type: "@swamp/gcp/vmwareengine/privateclouds-clusters",
-  version: "2026.10.23.1",
+  version: "2026.10.26.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -642,6 +663,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.26.1",
+      description: "Added: placementGroup",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -675,6 +701,9 @@ export const model = {
         }
         if (g["nodeTypeConfigs"] !== undefined) {
           body["nodeTypeConfigs"] = g["nodeTypeConfigs"];
+        }
+        if (g["placementGroup"] !== undefined) {
+          body["placementGroup"] = g["placementGroup"];
         }
         if (g["stretchedClusterConfig"] !== undefined) {
           body["stretchedClusterConfig"] = g["stretchedClusterConfig"];
@@ -804,6 +833,9 @@ export const model = {
         }
         if (g["nodeTypeConfigs"] !== undefined) {
           body["nodeTypeConfigs"] = g["nodeTypeConfigs"];
+        }
+        if (g["placementGroup"] !== undefined) {
+          body["placementGroup"] = g["placementGroup"];
         }
         if (g["stretchedClusterConfig"] !== undefined) {
           body["stretchedClusterConfig"] = g["stretchedClusterConfig"];
