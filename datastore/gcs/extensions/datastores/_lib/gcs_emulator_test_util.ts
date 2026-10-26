@@ -26,12 +26,8 @@ import { GcsClient } from "./gcs_client.ts";
 export interface GcsEmulatorOptions {
   /** Answers an object request with this response, when it returns one. */
   respondTo?: (method: string, name: string) => Response | undefined;
-  /**
-   * A media upload waits for the returned promise before reading its body.
-   * A request the client gave up on in the meantime commits nothing, as GCS
-   * does for a simple upload.
-   */
-  holdUpload?: (name: string) => Promise<void> | undefined;
+  /** Called with each request once the emulator has answered it. */
+  onRecorded?: (request: GcsEmulatorRequest) => void;
   /** Every request answers as for a bucket that does not exist. */
   missingBucket?: boolean;
   /** Most items a list page holds. Default: 1000. */
@@ -130,11 +126,8 @@ export function createGcsEmulatorHandler(
       if (url.searchParams.get("uploadType") !== "media") {
         return jsonError(400, "only uploadType=media is emulated");
       }
-      // Held before the body is read, so the upload is still in flight. A
-      // request the client gave up on in the meantime commits nothing, as
-      // GCS does with a simple upload it never received whole.
-      const hold = state.options.holdUpload?.(name);
-      if (hold) await hold;
+      // A body that ends early commits nothing, as GCS does with a simple
+      // upload it never received whole.
       let body: Uint8Array;
       try {
         body = new Uint8Array(await req.arrayBuffer());
@@ -284,6 +277,7 @@ export function createGcsEmulatorHandler(
     if (entry) {
       entry.status = response.status;
       state.requests.push(entry);
+      state.options.onRecorded?.(entry);
     }
     return response;
   };
@@ -316,5 +310,152 @@ export async function withGcsEmulator(
     await fn(gcs, state, endpoint);
   } finally {
     await server.shutdown();
+  }
+}
+
+/**
+ * Bytes a stalling relay forwards before it stops: enough for the request
+ * headers, far short of a 16 MiB chunk.
+ */
+export const RELAY_FORWARD_BYTES = 256 * 1024;
+
+/** A TCP relay in front of an emulator; see `startStallingRelay`. */
+export interface StallingRelay {
+  /** Base URL to send requests through the relay. */
+  endpoint: string;
+  /**
+   * Resolves once the relay has forwarded its limit. Rejects if that takes
+   * longer than 30 s, so a client that never sends its body fails the test
+   * instead of hanging it.
+   */
+  stalled: Promise<void>;
+  /** Closes every socket and waits for the relay to wind down. */
+  close(): Promise<void>;
+}
+
+/**
+ * Starts a TCP relay to `target` that forwards the first `limit` bytes a
+ * client sends and drops the rest, passing every response byte back. When
+ * the client disconnects, the relay closes its connection to the target, so
+ * the target sees a request body that ends early. A test that aborts after
+ * `stalled` thereby aborts mid-upload for certain: the target never receives
+ * the body whole, however much of it the loopback had already buffered.
+ */
+export function startStallingRelay(
+  target: string,
+  limit = RELAY_FORWARD_BYTES,
+): StallingRelay {
+  const { hostname, port } = new URL(target);
+  const listener = Deno.listen({ hostname: "127.0.0.1", port: 0 });
+  const open = new Set<Deno.Conn>();
+  const relays: Promise<void>[] = [];
+  const shut = (conn: Deno.Conn) => {
+    if (!open.delete(conn)) return;
+    try {
+      conn.close();
+    } catch {
+      // Already closed by the peer.
+    }
+  };
+  const writeAll = async (conn: Deno.Conn, bytes: Uint8Array) => {
+    for (let at = 0; at < bytes.length;) {
+      at += await conn.write(bytes.subarray(at));
+    }
+  };
+
+  let markStalled!: () => void;
+  let timeout!: (error: Error) => void;
+  const stalled = new Promise<void>((resolve, reject) => {
+    markStalled = resolve;
+    timeout = reject;
+  });
+  const deadline = setTimeout(
+    () => timeout(new Error(`relay never forwarded ${limit} bytes`)),
+    30_000,
+  );
+  stalled.then(() => clearTimeout(deadline), () => {});
+
+  const relay = async (client: Deno.Conn) => {
+    let upstream: Deno.Conn;
+    try {
+      upstream = await Deno.connect({ hostname, port: Number(port) });
+    } catch {
+      shut(client);
+      return;
+    }
+    open.add(upstream);
+    const forward = async () => {
+      const buf = new Uint8Array(64 * 1024);
+      let sent = 0;
+      try {
+        for (let n; (n = await client.read(buf)) !== null;) {
+          if (sent >= limit) continue;
+          const take = Math.min(n, limit - sent);
+          await writeAll(upstream, buf.subarray(0, take));
+          sent += take;
+          if (sent >= limit) markStalled();
+        }
+      } catch {
+        // The client reset the connection.
+      }
+      shut(upstream);
+    };
+    const back = async () => {
+      const buf = new Uint8Array(64 * 1024);
+      try {
+        for (let n; (n = await upstream.read(buf)) !== null;) {
+          await writeAll(client, buf.subarray(0, n));
+        }
+      } catch {
+        // Either side went away.
+      }
+      shut(client);
+    };
+    await Promise.all([forward(), back()]);
+  };
+
+  const accepting = (async () => {
+    try {
+      for await (const client of listener) {
+        open.add(client);
+        relays.push(relay(client));
+      }
+    } catch {
+      // The listener was closed.
+    }
+  })();
+
+  return {
+    endpoint: `http://127.0.0.1:${(listener.addr as Deno.NetAddr).port}`,
+    stalled,
+    close: async () => {
+      clearTimeout(deadline);
+      listener.close();
+      for (const conn of [...open]) shut(conn);
+      await accepting;
+      await Promise.all(relays);
+    },
+  };
+}
+
+/**
+ * Settles as `promise` does, or rejects with `message` after `ms`, so a test
+ * waiting on an emulator event fails instead of hanging.
+ */
+export async function within<T>(
+  promise: Promise<T>,
+  ms: number,
+  message: string,
+): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error(message)), ms);
+      }),
+    ]);
+  } finally {
+    clearTimeout(timer);
   }
 }

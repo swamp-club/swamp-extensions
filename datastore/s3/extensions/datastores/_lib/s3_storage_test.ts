@@ -32,8 +32,11 @@ import {
   MAX_CHUNK_BYTES,
   S3ChunkStorage,
 } from "./s3_storage.ts";
+import { S3Client } from "./s3_client.ts";
 import {
   type S3EmulatorState,
+  startStallingRelay,
+  within,
   withS3Emulator,
 } from "./s3_emulator_test_util.ts";
 
@@ -104,42 +107,57 @@ Deno.test({
   name: "put: an abort mid-upload leaves no object and no multipart upload",
   sanitizeResources: false,
   fn: async () => {
-    let arrived!: () => void;
-    const arrival = new Promise<void>((r) => arrived = r);
-    let release!: () => void;
-    const held = new Promise<void>((r) => release = r);
+    let recorded!: () => void;
+    const answered = new Promise<void>((r) => recorded = r);
     await withS3Emulator({
-      holdPut: () => {
-        arrived();
-        return held;
+      onRecorded: (r) => {
+        if (r.method === "PUT") recorded();
       },
-    }, async (s3, state) => {
-      const storage = new S3ChunkStorage(s3);
-      const sha256 = hashIn("ab", 1);
-      const controller = new AbortController();
-      const put = storage.put(
-        NS,
-        sha256,
-        new Uint8Array(MAX_CHUNK_BYTES),
-        controller.signal,
-      );
-      await arrival;
-      controller.abort();
-      await assertRejects(() => put);
-      release();
-      // Let the emulator finish the request it was holding.
-      await new Promise((r) => setTimeout(r, 50));
-      assertEquals(state.objects.has(chunkKey(sha256)), false);
-      // One PutObject was attempted, and nothing else: no
-      // CreateMultipartUpload (POST ?uploads) and no UploadPart.
-      assertEquals(
-        state.requests.filter((r) => r.method === "POST").length,
-        0,
-      );
-      assertEquals(
-        state.requests.filter((r) => r.method === "PUT").length,
-        1,
-      );
+    }, async (_s3, state, endpoint) => {
+      // The relay forwards only the start of the body, so the abort lands
+      // mid-upload for certain: the emulator never receives the chunk whole,
+      // however much of it the loopback had already buffered.
+      const relay = startStallingRelay(endpoint);
+      try {
+        const storage = new S3ChunkStorage(
+          new S3Client({
+            bucket: "test-bucket",
+            region: "us-east-1",
+            endpoint: relay.endpoint,
+            forcePathStyle: true,
+          }),
+        );
+        const sha256 = hashIn("ab", 1);
+        const controller = new AbortController();
+        const put = storage.put(
+          NS,
+          sha256,
+          new Uint8Array(MAX_CHUNK_BYTES),
+          controller.signal,
+        );
+        await relay.stalled;
+        controller.abort();
+        await assertRejects(() => put);
+        // The emulator answers once the relay closes the cut-short request.
+        await within(
+          answered,
+          30_000,
+          "the emulator never answered the cut-short upload",
+        );
+        assertEquals(state.objects.has(chunkKey(sha256)), false);
+        // One PutObject was attempted, and nothing else: no
+        // CreateMultipartUpload (POST ?uploads) and no UploadPart.
+        assertEquals(
+          state.requests.filter((r) => r.method === "POST").length,
+          0,
+        );
+        assertEquals(
+          state.requests.filter((r) => r.method === "PUT").length,
+          1,
+        );
+      } finally {
+        await relay.close();
+      }
     });
   },
 });

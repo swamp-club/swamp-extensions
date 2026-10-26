@@ -32,9 +32,12 @@ import {
   LIST_THRESHOLD,
   MAX_CHUNK_BYTES,
 } from "./gcs_storage.ts";
+import { GcsClient } from "./gcs_client.ts";
 import {
   type GcsEmulatorState,
+  startStallingRelay,
   withGcsEmulator,
+  within,
 } from "./gcs_emulator_test_util.ts";
 
 const NS = "test-ns";
@@ -101,43 +104,47 @@ Deno.test({
   name: "put: an abort mid-upload leaves no object and no resumable session",
   sanitizeResources: false,
   fn: async () => {
-    let arrived!: () => void;
-    const arrival = new Promise<void>((r) => arrived = r);
-    let release!: () => void;
-    const held = new Promise<void>((r) => release = r);
+    let recorded!: () => void;
+    const answered = new Promise<void>((r) => recorded = r);
     await withGcsEmulator({
-      holdUpload: () => {
-        arrived();
-        return held;
-      },
-    }, async (gcs, state) => {
-      const storage = new GcsChunkStorage(gcs);
-      const sha256 = hashIn("ab", 1);
-      const controller = new AbortController();
-      const put = storage.put(
-        NS,
-        sha256,
-        new Uint8Array(MAX_CHUNK_BYTES),
-        controller.signal,
-      );
-      await arrival;
-      controller.abort();
-      await assertRejects(() => put);
-      // Give the emulator time to see the connection close before the held
-      // request resumes: where the loopback buffers the whole body (Windows),
-      // it would otherwise read the complete upload and commit it.
-      await new Promise((r) => setTimeout(r, 50));
-      release();
-      // Let the emulator finish the request it was holding.
-      await new Promise((r) => setTimeout(r, 50));
-      assertEquals(state.objects.has(chunkKey(sha256)), false);
-      // One simple upload was attempted, and nothing else: the emulator
-      // refuses any upload that is not uploadType=media, so no resumable
-      // session was opened.
-      assertEquals(
-        state.requests.map((r) => `${r.kind} ${r.status}`),
-        ["upload 499"],
-      );
+      onRecorded: () => recorded(),
+    }, async (_gcs, state, endpoint) => {
+      // The relay forwards only the start of the body, so the abort lands
+      // mid-upload for certain: the emulator never receives the chunk whole,
+      // however much of it the loopback had already buffered.
+      const relay = startStallingRelay(endpoint);
+      try {
+        const storage = new GcsChunkStorage(
+          new GcsClient({ bucket: "test-bucket", apiEndpoint: relay.endpoint }),
+        );
+        const sha256 = hashIn("ab", 1);
+        const controller = new AbortController();
+        const put = storage.put(
+          NS,
+          sha256,
+          new Uint8Array(MAX_CHUNK_BYTES),
+          controller.signal,
+        );
+        await relay.stalled;
+        controller.abort();
+        await assertRejects(() => put);
+        // The emulator answers once the relay closes the cut-short request.
+        await within(
+          answered,
+          30_000,
+          "the emulator never answered the cut-short upload",
+        );
+        assertEquals(state.objects.has(chunkKey(sha256)), false);
+        // One simple upload was attempted, and nothing else: the emulator
+        // refuses any upload that is not uploadType=media, so no resumable
+        // session was opened.
+        assertEquals(
+          state.requests.map((r) => `${r.kind} ${r.status}`),
+          ["upload 499"],
+        );
+      } finally {
+        await relay.close();
+      }
     });
   },
 });
