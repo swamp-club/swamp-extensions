@@ -15,10 +15,11 @@
 
 import { assertEquals } from "@std/assert";
 import {
+  BUILTIN_FIRST_STATUS,
   TRACKER_KINDS,
   TRACKER_TYPES,
 } from "../_lib/engine/tracker_testing.ts";
-import { BUILTIN } from "../_lib/tracker/backends/builtin.ts";
+import { BUILTIN, DEFAULT_STATUSES } from "../_lib/tracker/backends/builtin.ts";
 import { LINEAR } from "../_lib/tracker/backends/linear.ts";
 import { SWAMP_CLUB } from "../_lib/tracker/backends/swamp_club.ts";
 import { model as builtin } from "./builtin.ts";
@@ -40,4 +41,8 @@ Deno.test("tracker kinds: each kind is an adapter's tracker name, and its type t
   for (const kind of TRACKER_KINDS) {
     assertEquals(TRACKER_TYPES[kind], adapters[kind], kind);
   }
+});
+
+Deno.test("tracker kinds: the studio's first built-in status is the built-in tracker's", () => {
+  assertEquals(BUILTIN_FIRST_STATUS, DEFAULT_STATUSES[0]);
 });

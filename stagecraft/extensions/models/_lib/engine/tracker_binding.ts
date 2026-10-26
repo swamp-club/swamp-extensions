@@ -75,6 +75,14 @@ export const TRACKER_TYPES: Readonly<Record<TrackerKind, string>> = {
   "linear": "@swamp/stagecraft/linear",
 };
 
+/**
+ * The status a built-in ticket is filed in when its tracker instance names
+ * no statuses: the first of the built-in tracker's defaults. The studio's
+ * Board reads it to tell an open ticket (studio_tickets.ts); kinds_test
+ * keeps it equal to the tracker's own.
+ */
+export const BUILTIN_FIRST_STATUS = "open";
+
 /** The tracker a work item was started against: pinned in its run record. */
 export const TrackerBindingSchema = z.strictObject({
   /** The tracker instance's name. */

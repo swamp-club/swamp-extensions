@@ -13,7 +13,8 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// The Board view: a column per stage, a card per work item, filters above.
+// The Board view: a column per stage, a card per work item, filters above;
+// before the first stage, the tickets no work item has taken yet.
 // Keyboard: each column is one tab stop. Up and Down move between its
 // cards, Left and Right to the neighbouring column's, Home and End to the
 // column's first and last; Enter opens the work item. A card is a link, so
@@ -24,17 +25,24 @@ import type { JSX } from "preact";
 import { useRef } from "preact/hooks";
 import type {
   BoardCard,
+  ClaimedCard,
   Park,
+  TicketCard,
 } from "../../extensions/models/_lib/engine/studio_cards.ts";
 import {
   boardColumns,
   cardHead,
+  CLAIMED,
   COLUMN_PAGE,
   durationText,
+  isClaimed,
   isStale,
   keyAsShown,
+  relationText,
   since,
   stageOrder,
+  type TicketColumn,
+  ticketColumns,
 } from "./board.ts";
 import { routeHref } from "./route.ts";
 import {
@@ -46,9 +54,12 @@ import {
   go,
   good,
   graph,
+  showClaimed,
   showFinished,
   shown,
   sourceError,
+  tickets,
+  ticketsError,
 } from "./state.ts";
 
 /** Which card of each column holds the column's tab stop. */
@@ -153,6 +164,118 @@ function Card(props: {
   );
 }
 
+/** A ticket no work item has taken: opens the ticket's page. */
+function TicketCardView(props: {
+  card: TicketCard | ClaimedCard;
+  column: string;
+  factory: string;
+  row: number;
+  tabStop: boolean;
+}) {
+  const { card, column, factory, row, tabStop } = props;
+  const filed = since(card.createdAt, clock.value);
+  const route = { view: "ticket", factory, id: card.id } as const;
+  const open = (e: JSX.TargetedMouseEvent<HTMLAnchorElement>) => {
+    if (e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+      return;
+    }
+    e.preventDefault();
+    void go(route);
+  };
+  const meta = [
+    card.type,
+    filed === null ? null : `filed ${durationText(filed)} ago`,
+  ].filter((m) => m !== null).join(" · ");
+  return (
+    <li>
+      <a
+        class="card ticket-card"
+        href={routeHref(route)}
+        data-stage={column}
+        data-row={row}
+        tabIndex={tabStop ? 0 : -1}
+        onClick={open}
+        onFocus={() => active.set(column, row)}
+      >
+        <span class="card-title">{card.title}</span>
+        <span class="card-head">
+          <span class="card-key" title={card.display}>{card.display}</span>
+        </span>
+        {meta !== "" && <span class="card-meta">{meta}</span>}
+        {card.relations.length > 0 && (
+          <span class="card-rel">
+            {card.relations.map((r) => `${relationText(r)} ${r.display}`)
+              .join(" · ")}
+          </span>
+        )}
+        {isClaimed(card) && (
+          <span class="badge b-claim">
+            CLAIMED as {card.key}
+            {card.factory !== factory && ` for ${card.factory}`}: start not run
+          </span>
+        )}
+        {card.previous !== null && (
+          <span class="card-meta">
+            earlier: {card.previous.key} ({card.previous.stage})
+          </span>
+        )}
+      </a>
+    </li>
+  );
+}
+
+/** One of the ticket columns before the first stage. */
+function TicketColumnView(
+  { col, factory }: { col: TicketColumn; factory: string },
+) {
+  // "tickets-": a stage column's heading is col-<stage>, so never this.
+  const id = `tickets-${col.id.slice(1)}`;
+  return (
+    <section class="col tickets" aria-labelledby={id}>
+      <h2 id={id} class="col-head">
+        <span class="col-name">{col.name}</span>
+        <span class="col-count">
+          {col.total}
+          <span class="sr-only">&nbsp;ticket(s)</span>
+        </span>
+      </h2>
+      {col.total === 0 && (
+        <p class="col-note">
+          {col.id === CLAIMED
+            ? "no ticket is claimed and waiting to start"
+            : "no tickets waiting"}
+        </p>
+      )}
+      <ul class="col-cards">
+        {col.cards.map((card, row, all) => (
+          <TicketCardView
+            key={card.id}
+            card={card}
+            column={col.id}
+            factory={factory}
+            row={row}
+            tabStop={row ===
+              Math.min(active.get(col.id) ?? 0, all.length - 1)}
+          />
+        ))}
+      </ul>
+      {col.cards.length < col.total && (
+        <button
+          type="button"
+          class="more"
+          onClick={() =>
+            shown.value = {
+              ...shown.value,
+              [col.id]: col.cards.length + COLUMN_PAGE,
+            }}
+        >
+          Show more ({col.total - col.cards.length} more)
+        </button>
+      )}
+    </section>
+  );
+}
+
 /** Arrow keys over the cards: within a column, and across columns. */
 function onBoardKey(e: JSX.TargetedKeyboardEvent<HTMLDivElement>) {
   const from = (e.target as HTMLElement).closest<HTMLAnchorElement>(
@@ -236,6 +359,16 @@ function Filters() {
         />
       </label>
       <span class="sep" />
+      {tickets.value?.data.supported && (
+        <label class="filter">
+          <input
+            type="checkbox"
+            checked={showClaimed.value}
+            onChange={(e) => (showClaimed.value = e.currentTarget.checked)}
+          />
+          Show claimed
+        </label>
+      )}
       <label class="filter">
         <input
           type="checkbox"
@@ -266,6 +399,14 @@ export function BoardMode() {
   });
   const total = read?.items.length ?? 0;
   const matching = columns.reduce((n, c) => n + c.total, 0);
+  const waiting = tickets.value?.factory === factory.value
+    ? tickets.value?.data ?? null
+    : null;
+  const ticketCols = ticketColumns(waiting, {
+    filter: boardFilter.value,
+    showClaimed: showClaimed.value,
+    shown: shown.value,
+  });
   return (
     <section class="board-mode" id="mode-panel" aria-label="Board">
       <Filters />
@@ -289,6 +430,24 @@ export function BoardMode() {
           </ul>
         </div>
       )}
+      {ticketsError.value !== null && (
+        <div class="problem">
+          The tickets with no work item could not be read: {ticketsError.value}
+        </div>
+      )}
+      {waiting !== null && waiting.supported && waiting.problems.length > 0 && (
+        <div class="problem">
+          {waiting.problems.length} ticket record(s) on {waiting.tracker}{" "}
+          could not be read:
+          <ul>
+            {waiting.problems.map((p) => (
+              <li key={p.key}>
+                <code>{p.key}</code>: {p.error}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
       <p class="board-count" role="status" aria-live="polite">
         {read === null
           ? factory.value === null ? "" : "Reading work items…"
@@ -299,6 +458,10 @@ export function BoardMode() {
           : `${matching} of ${total} work item(s) match`}
       </p>
       <div class="board" ref={box} onKeyDown={onBoardKey}>
+        {factory.value !== null &&
+          ticketCols.map((col) => (
+            <TicketColumnView key={col.id} col={col} factory={factory.value!} />
+          ))}
         {columns.map((col) => {
           const id = `col-${col.stage}`;
           const finished = col.terminal && !showFinished.value;

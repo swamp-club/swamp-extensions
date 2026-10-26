@@ -39,6 +39,7 @@ import {
   VIEW_NAMES,
 } from "./route.ts";
 import { reveal, Tabs } from "./ui.tsx";
+import { TicketMode } from "./ticket_view.tsx";
 import { GoToItem, ItemHead, ItemPanel } from "./work_item_view.tsx";
 import {
   changed,
@@ -54,6 +55,7 @@ import {
   live,
   loaded,
   loadFactories,
+  loadTicketPage,
   loadWorkItem,
   markStagesSeen,
   mode,
@@ -115,7 +117,8 @@ function Bar() {
 
 /**
  * The views, as links: each is an address, and the one shown is marked with
- * aria-current ("page"; a work item marks Board, which it is under, "true").
+ * aria-current ("page"; a work item or a ticket marks Board, which it is
+ * under, "true").
  * The browser tab's title says the same. Simulate and Board wait for a
  * factory to be picked.
  */
@@ -367,6 +370,8 @@ function View() {
       return <BoardMode />;
     case "work-item":
       return <WorkItemMode />;
+    case "ticket":
+      return <TicketMode />;
   }
 }
 
@@ -396,6 +401,7 @@ async function main() {
     // list is in; any other view, or an item that cannot be read, the one
     // the list picked.
     if (start.view === "work-item") await loadWorkItem();
+    if (start.view === "ticket") await loadTicketPage();
     if (pick !== null && factory.value === null) await selectFactory(pick);
   } catch (e) {
     sourceError.value = e instanceof Error ? e.message : String(e);

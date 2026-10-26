@@ -20,19 +20,28 @@ import {
   contextStore,
   loadRun,
 } from "../../extensions/models/_lib/engine/run_store.ts";
-import type { BoardCard } from "../../extensions/models/_lib/engine/studio_cards.ts";
+import type {
+  BoardCard,
+  TicketCard,
+  TicketsResponse,
+} from "../../extensions/models/_lib/engine/studio_cards.ts";
 import { model as workItem } from "../../extensions/models/engine/work_item.ts";
 import {
   boardColumns,
   type BoardStage,
   cardHead,
+  claimCommand,
+  CLAIMED,
   COLUMN_PAGE,
   durationText,
   isStale,
   keyAsShown,
   NO_FILTER,
+  NOT_STARTED,
   refOtherThanKey,
+  relationText,
   stageOrder,
+  ticketColumns,
 } from "./board.ts";
 import { layout } from "./layout.ts";
 import { exampleText, loadOk } from "./test_support.ts";
@@ -281,5 +290,120 @@ Deno.test("board: an untitled card shows its key as the title, not in its head",
   assertEquals(
     cardHead(card("blog-12", "plan", { trackerRef: "blog-12" })),
     { key: "", ref: null },
+  );
+});
+
+function waitingTicket(n: number, title = `Ticket ${n}`): TicketCard {
+  return {
+    id: `ts-${n}`,
+    display: `ts-${n}`,
+    title,
+    type: "feature",
+    createdAt: null,
+    relations: [],
+    previous: null,
+  };
+}
+
+const TICKETS: TicketsResponse = {
+  supported: true,
+  tracker: "ts",
+  kind: "builtin",
+  notStarted: [waitingTicket(1, "Add a board"), waitingTicket(2)],
+  claimed: [{
+    ...waitingTicket(3),
+    key: "ts-3",
+    factory: "team",
+    claimedAt: "2026-10-01T00:00:00.000Z",
+  }],
+  problems: [],
+};
+
+Deno.test("board: Not started is always there, Claimed only when asked for", () => {
+  const off = ticketColumns(TICKETS, { filter: NO_FILTER, showClaimed: false });
+  assertEquals(off.map((c) => [c.id, c.name, c.total]), [
+    [NOT_STARTED, "Not started", 2],
+  ]);
+  const on = ticketColumns(TICKETS, { filter: NO_FILTER, showClaimed: true });
+  assertEquals(on.map((c) => [c.id, c.total]), [[NOT_STARTED, 2], [
+    CLAIMED,
+    1,
+  ]]);
+  const empty = ticketColumns({ ...TICKETS, notStarted: [] }, {
+    filter: NO_FILTER,
+    showClaimed: false,
+  });
+  assertEquals(empty.map((c) => [c.id, c.total]), [[NOT_STARTED, 0]]);
+});
+
+Deno.test("board: no ticket columns before the tickets are read, or for a tracker they are not read from", () => {
+  const options = { filter: NO_FILTER, showClaimed: true };
+  assertEquals(ticketColumns(null, options), []);
+  assertEquals(
+    ticketColumns({ supported: false, reason: "linear" }, options),
+    [],
+  );
+});
+
+Deno.test("board: search finds tickets by display id and title; work-item filters find none", () => {
+  const cols = (filter: typeof NO_FILTER) =>
+    ticketColumns(TICKETS, { filter, showClaimed: false })[0].cards.map((c) =>
+      c.id
+    );
+  assertEquals(cols({ ...NO_FILTER, text: "BOARD" }), ["ts-1"]);
+  assertEquals(cols({ ...NO_FILTER, text: "ts-2" }), ["ts-2"]);
+  assertEquals(cols({ ...NO_FILTER, waiting: true }), []);
+  assertEquals(cols({ ...NO_FILTER, parked: true }), []);
+  assertEquals(cols({ ...NO_FILTER, stalePin: true }), []);
+});
+
+Deno.test("board: a ticket column pages like a stage column", () => {
+  const many: TicketsResponse = {
+    ...TICKETS,
+    notStarted: Array.from(
+      { length: COLUMN_PAGE + 3 },
+      (_, i) => waitingTicket(i),
+    ),
+  };
+  const [col] = ticketColumns(many, { filter: NO_FILTER, showClaimed: false });
+  assertEquals([col.total, col.cards.length], [COLUMN_PAGE + 3, COLUMN_PAGE]);
+  const [more] = ticketColumns(many, {
+    filter: NO_FILTER,
+    showClaimed: false,
+    shown: { [NOT_STARTED]: COLUMN_PAGE + 50 },
+  });
+  assertEquals(more.cards.length, COLUMN_PAGE + 3);
+});
+
+Deno.test("board: a relation reads from the ticket's own side", () => {
+  assertEquals(
+    relationText({ type: "blocked_by", direction: "outgoing" }),
+    "blocked by",
+  );
+  assertEquals(
+    relationText({ type: "blocked_by", direction: "incoming" }),
+    "blocks",
+  );
+  assertEquals(
+    relationText({ type: "parent_of", direction: "outgoing" }),
+    "parent of",
+  );
+  assertEquals(
+    relationText({ type: "parent_of", direction: "incoming" }),
+    "child of",
+  );
+  assertEquals(relationText({ type: "odd", direction: "incoming" }), "odd");
+});
+
+Deno.test("board: the claim command names the tracker, the ticket and the factory, quoted for a shell", () => {
+  assertEquals(
+    claimCommand("ts", "ts-1", "team"),
+    "swamp workflow run @swamp/stagecraft/claim --input tracker=ts " +
+      "--input issue=ts-1 --input factory=team",
+  );
+  assertEquals(
+    claimCommand("ts", "it's", "a b"),
+    "swamp workflow run @swamp/stagecraft/claim --input tracker=ts " +
+      `--input issue='it'"'"'s' --input factory='a b'`,
   );
 });

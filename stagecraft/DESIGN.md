@@ -1560,7 +1560,10 @@ read commands against it (below).
 | `GET /api/work-items?factory=<factory>`                | the Board's card for each work item of the factory, and what could not be read                                           |
 | `GET /api/work-items/<key>`                            | one work item: its run, pinned definition, status and readiness, and its ticket; `?payloads=1` adds its product payloads |
 | `GET /api/work-items/<key>/ticket`                     | the work item's ticket as its tracker instance last recorded it: content, comments and lifecycle entries, relations      |
+| `GET /api/tickets?factory=<factory>`                   | the Board's ticket columns: the factory's tracker's open tickets with no work item, and the claimed ones not started     |
+| `GET /api/tickets/<factory>/<id>`                      | one ticket on the factory's tracker, as the Ticket tab reads a work item's                                               |
 | `GET /f/<factory>/{design,simulate,board}`, `/w/<key>` | the page, at each view's own address                                                                                     |
+| `GET /f/<factory>/ticket/<id>`                         | the page, at a ticket's address                                                                                          |
 
 The page reads the definition at `globalArguments.definition` in that text and
 the saved scenarios at `globalArguments.scenarios`; there is no scenario route
@@ -1618,6 +1621,59 @@ newer copy comes from running the tracker's `fetch_issue`; the tab says when its
 copy was recorded. Because the read is local, there is no cache: the tab reads
 when it opens and on Refresh, and no poll watches it.
 
+**Tickets with no work item** (`GET /api/tickets?factory=<factory>`,
+`_lib/engine/studio_tickets.ts`, swamp-club #3828). Before the first stage the
+Board has a **Not started** column: the open tickets on the factory's tracker
+that no work item has taken. A **Claimed** column, shown when asked for, holds
+those `claim` reserved a key for whose `start` has not run; claiming is a step
+on the way to starting, so it is hidden by default. Opening either card goes to
+the ticket's page, `/f/<factory>/ticket/<id>`, which shows the ticket as the
+Ticket tab does (`GET /api/tickets/<factory>/<id>`, the same read) and the
+`@swamp/stagecraft/claim` command for this factory.
+
+- **Which tracker.** The instance the factory's `tracker` argument names, as
+  validate and start resolve it, read through the definition repository (or
+  `model get` on a remote serve). Only the built-in tracker is read for now;
+  for any other the route answers `supported: false` with the reason, and the
+  Board shows no ticket columns. Every factory bound to an instance shows the
+  same queue: a ticket has no factory until it is claimed.
+- **What is open.** A built-in ticket in the instance's first status, where
+  `create` files it: the first of its `statuses` argument, or `open`, the
+  tracker's default, which the engine keeps its own copy of
+  (`BUILTIN_FIRST_STATUS`) and `kinds_test.ts` keeps equal to the tracker's. A
+  ticket moved off it by hand with no work item is not shown. A `statuses` the
+  studio cannot read (a swamp expression, say) is reported, and no ticket is
+  called open.
+- **What has a work item.** Every run bound to the instance is read and matched
+  by `externalRefs`, as the Ticket tab's relations are, so a work item started
+  without `claim` counts too, and the instance's `ticket-<id>` claim records say
+  which are reserved. A ticket whose newest work item is active is on the Board
+  already and is left out. Of the open ones, one whose reserved key has no run
+  is Claimed, and the rest are Not started, naming the work item that finished
+  if there was one; a claimed ticket closed by hand before it started is in
+  neither. A claim's run counts only while it still names the ticket: a
+  retarget moves the work item and leaves the old ticket's claim naming it.
+- **Read, never called.** Like the Ticket tab, the route reads the records the
+  tracker instance keeps, through the data query; a record that does not parse
+  is listed as a problem rather than dropped. The card shows the display id,
+  title, type, how long since it was filed, and its relations in words
+  ("blocked by ts-2 · parent of ts-3"); the ticket page links each related
+  ticket to its work item or its own page.
+- **An external tracker later.** Records are read by `origin`, so a Linear
+  backlog needs only a snapshot of each open ticket on the instance, written by
+  a tracker-side read the studio does not make; the column and card stay as
+  they are. A snapshot's status is the tracker's name, so what counts as open
+  would come from the instance's `statuses` map.
+- **Live.** The page watches the instance's `issue` and `ticket` records, and
+  every work item's run, since a work item started in another factory on the
+  same tracker takes its ticket off this factory's columns too; it hears
+  `{"kind":"tickets","factory":...}`. It reads the tickets with the work items
+  whichever changed, since a `start` writes only a run. Where they are read
+  from is watched too: the factory's `tracker` argument and the instance's
+  `statuses` are model definitions, not records, so each poll works the source
+  out again and tells the page when it differs. On a remote serve that reads
+  the model copies the poll has just refreshed, so it costs no extra call.
+
 **Live updates by poll.** Run records may be in S3 or GCS, not files a watch can
 follow, so while a page has a board open, `serve` reads each watched set's
 `[modelName, version]` pairs every 3 seconds, a projection rather than whole
@@ -1628,7 +1684,8 @@ no change after it is missed. A set not asked for in five minutes is dropped;
 the page reads the board again every two minutes, and on returning to a hidden
 tab, which keeps it alive.
 
-**Addresses.** Each view has its own path (`/f/<factory>/<view>`, `/w/<key>`),
+**Addresses.** Each view has its own path (`/f/<factory>/<view>`, `/w/<key>`,
+`/f/<factory>/ticket/<id>`),
 which the server answers with the page and the page routes by
 (`studio/src/route.ts`), so a view can be reloaded, bookmarked or shared, and
 back and forward move between views.
@@ -1636,8 +1693,9 @@ back and forward move between views.
 **Where you are** (#2969). The bar's views are links, one tab stop each, to
 those addresses; the one shown carries `aria-current="page"`, and a work item's
 page marks Board, which it is under, `aria-current="true"`. Until a factory is
-picked only Design has an address; Simulate and Board are `aria-disabled`. The
-work-item page opens with a breadcrumb, "Board › <key>", its key
+picked only Design has an address; Simulate and Board are `aria-disabled`. A
+ticket's page marks Board the same way. The work-item page opens with a
+breadcrumb, "Board › <key>", its key
 `aria-current="page"`, and every route sets the browser tab's title, most
 specific first ("blog-12 · Board · blog · Stagecraft Studio"; `titleFor`).
 
@@ -2993,6 +3051,29 @@ Scenarios have no includes: variants of one late path each repeat the walk that
 reaches it. An include step would be its own change.
 
 ## Decision log
+
+### 2026-10-23: the Board shows tickets no work item has taken (swamp-club #3828)
+
+**Decision.** See "Tickets with no work item" under "The studio server". A
+Not started column before the first stage, a Claimed column on request, and a
+ticket page with the claim command, read from the tracker instance's records.
+
+**Why.** The Board showed nothing of the queue of work waiting to start: a
+ticket filed with `@swamp/stagecraft/create` did not appear until it was claimed
+and started. Seth scoped the first version to the built-in tracker, with an
+approach that could later show a Linear backlog; no prefix filter, and factories
+that share a tracker share its queue; claimed is mostly an implementation
+detail, so its column is optional.
+
+- **Not a backlog stage.** Starting every ticket into a do-nothing stage would
+  move the backlog from the tracker into the factory, pin each waiting item to
+  the definition of the day, and need a claim and start just to be visible.
+- **Not live.** As with the Ticket tab, the studio calls no tracker. Showing
+  tickets filed directly in an external tracker needs a tracker-side read that
+  records them; that is left for when an external tracker is wanted.
+- **Relations as words.** A card is a link, so its relations are text; the
+  ticket page links them. Lines drawn between columns would not survive a
+  phone's width, or a layout of the stages for small screens (#3380).
 
 ### 2026-10-12: trackers written as separate extensions (swamp-club #3274)
 

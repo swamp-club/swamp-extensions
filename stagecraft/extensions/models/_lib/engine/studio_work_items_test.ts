@@ -572,3 +572,25 @@ Deno.test("studio work items: a poll whose read fails tells nothing and tries ag
   await watch.tick();
   assertEquals(told.length, 1);
 });
+
+Deno.test("studio work items: a watch on a read tells when what it reads differs, and takes what the caller just read as where it stands", async () => {
+  let now = "a";
+  let reads = 0;
+  const read = () => {
+    reads++;
+    return Promise.resolve(now);
+  };
+  const told: unknown[] = [];
+  const watch = watchWorkItems(() => Promise.resolve([]), (e) => told.push(e));
+  const event = { kind: "tickets" as const, factory: "team" };
+  await watch.askRead(event, "source", read, "a");
+  assertEquals(reads, 0);
+  await watch.tick();
+  assertEquals(told, []);
+  now = "b";
+  await watch.tick();
+  assertEquals(told, [event]);
+  // Asked again under the same id: one watch.
+  await watch.askRead(event, "source", read);
+  assertEquals(watch.size(), 1);
+});

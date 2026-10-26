@@ -86,7 +86,8 @@ const BuiltinSchema = z.object({
   updatedAt: z.string(),
 });
 
-const IssueSchema = z.discriminatedUnion("origin", [
+/** A ticket's issue-<id> record, by who owns its facts. */
+export const IssueSchema = z.discriminatedUnion("origin", [
   SnapshotSchema,
   BuiltinSchema,
 ]);
@@ -113,7 +114,7 @@ const DeliverySchema = z.object({
 });
 
 /** The newest version of each record a query found, by record name. */
-function latestByName(records: unknown[]): unknown[] {
+export function latestByName(records: unknown[]): unknown[] {
   const latest = new Map<string, { version: number; record: unknown }>();
   records.forEach((record, i) => {
     const r = record as { name?: unknown; version?: unknown } | null;
@@ -128,7 +129,7 @@ function latestByName(records: unknown[]): unknown[] {
 }
 
 /** One spec's records on the tracker instance, as objects, newest of each. */
-async function specRecords(
+export async function specRecords(
   query: QueryData,
   instance: string,
   spec: string,
@@ -194,20 +195,25 @@ async function postedIds(
   return ids;
 }
 
+/** Every work item bound to a tracker instance, by key and by ticket. */
+export interface InstanceRuns {
+  byKey: Map<string, RunRecord>;
+  /** Each ticket's newest work item, by when it started. */
+  byTicket: Map<string, RunRecord>;
+}
+
 /**
- * The work item on each related ticket: the newest run, in any factory, bound
- * to the same tracker instance with that ticket in its externalRefs.
- * externalRefs is not something the query can match, so every work item's
- * run is read and matched here; only when the ticket has relations.
+ * Every work item's run, in any factory, bound to the tracker instance: the
+ * newest per ticket in its externalRefs, and each by key. externalRefs is not
+ * something the query can match, so every work item's run is read and
+ * matched here.
  */
-async function relatedWorkItems(
+export async function instanceRuns(
   query: QueryData,
   instance: string,
-  ids: string[],
-): Promise<Map<string, string>> {
-  const wanted = new Set(ids);
-  const newest = new Map<string, RunRecord>();
-  if (wanted.size === 0) return new Map();
+): Promise<InstanceRuns> {
+  const byKey = new Map<string, RunRecord>();
+  const byTicket = new Map<string, RunRecord>();
   const found = await query(
     `modelType == "${WORK_ITEM_TYPE}" && name == "${RUN_NAME}"`,
   );
@@ -216,18 +222,48 @@ async function relatedWorkItems(
     if (!parsed.ok) continue;
     const run = parsed.value;
     if (run.tracker.instance !== instance) continue;
-    const ticket = run.externalRefs[run.tracker.kind];
-    if (ticket === undefined || !wanted.has(ticket)) continue;
-    const held = newest.get(ticket);
-    if (held === undefined || startedAt(run) > startedAt(held)) {
-      newest.set(ticket, run);
+    const kept = byKey.get(run.key);
+    if (kept === undefined || lastAt(run) > lastAt(kept)) {
+      byKey.set(run.key, run);
     }
   }
-  return new Map([...newest].map(([ticket, run]) => [ticket, run.key]));
+  for (const run of byKey.values()) {
+    const ticket = run.externalRefs[run.tracker.kind];
+    if (ticket === undefined) continue;
+    const held = byTicket.get(ticket);
+    if (held === undefined || startedAt(run) > startedAt(held)) {
+      byTicket.set(ticket, run);
+    }
+  }
+  return { byKey, byTicket };
+}
+
+/**
+ * The work item on each related ticket: the newest run, in any factory, bound
+ * to the same tracker instance with that ticket in its externalRefs. Read
+ * only when the ticket has relations.
+ */
+async function relatedWorkItems(
+  query: QueryData,
+  instance: string,
+  ids: string[],
+): Promise<Map<string, string>> {
+  if (ids.length === 0) return new Map();
+  const { byTicket } = await instanceRuns(query, instance);
+  return new Map(
+    ids.flatMap((id) => {
+      const run = byTicket.get(id);
+      return run === undefined ? [] : [[id, run.key] as const];
+    }),
+  );
 }
 
 function startedAt(run: RunRecord): string {
   return run.journal[0]?.at ?? "";
+}
+
+function lastAt(run: RunRecord): string {
+  return run.journal.at(-1)?.at ?? "";
 }
 
 /**
@@ -243,10 +279,24 @@ export async function readTicket(
   const { kind } = run.tracker;
   const id = run.externalRefs[kind];
   if (id === undefined) return { state: "none" };
+  return await readTicketRecord(query, run.tracker.instance, kind, id);
+}
+
+/**
+ * A ticket on a tracker instance, as readTicket gives it: "none" when the
+ * instance or the id is not a path-safe name, "missing" when the instance
+ * has no record of it. Throws when the record is there but does not parse.
+ */
+export async function readTicketRecord(
+  query: QueryData,
+  tracker: string,
+  kind: string,
+  id: string,
+): Promise<TicketResponse> {
   let instance: string;
   let name: string;
   try {
-    instance = safePart("tracker", run.tracker.instance);
+    instance = safePart("tracker", tracker);
     name = `issue-${safePart("issue id", id)}`;
   } catch {
     return { state: "none" };

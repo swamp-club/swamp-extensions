@@ -35,7 +35,9 @@ export type FactoryView = typeof FACTORY_VIEWS[number];
 export type Route =
   /** A factory view; factory null at /, until the page picks one. */
   | { view: FactoryView; factory: string | null }
-  | { view: "work-item"; key: string };
+  | { view: "work-item"; key: string }
+  /** A ticket on the factory's tracker that no work item has taken. */
+  | { view: "ticket"; factory: string; id: string };
 
 function decode(part: string): string | null {
   try {
@@ -52,6 +54,9 @@ export function parseRoute(pathname: string): Route | null {
   if (parts.some((p) => p === null || p === "")) return null;
   const [head, name, view] = parts as string[];
   if (parts.length === 0) return { view: "design", factory: null };
+  if (head === "f" && parts.length === 4 && view === "ticket") {
+    return { view: "ticket", factory: name, id: parts[3] as string };
+  }
   if (head === "f" && parts.length === 3) {
     return (FACTORY_VIEWS as readonly string[]).includes(view)
       ? { view: view as FactoryView, factory: name }
@@ -67,6 +72,11 @@ export function parseRoute(pathname: string): Route | null {
 export function routeHref(route: Route): string {
   if (route.view === "work-item") {
     return `/w/${encodeURIComponent(route.key)}`;
+  }
+  if (route.view === "ticket") {
+    return `/f/${encodeURIComponent(route.factory)}/ticket/${
+      encodeURIComponent(route.id)
+    }`;
   }
   if (route.factory === null) return "/";
   return `/f/${encodeURIComponent(route.factory)}/${route.view}`;
@@ -86,14 +96,16 @@ export const VIEW_NAMES: Record<FactoryView, string> = {
 
 /**
  * How the nav marks a view's link on a route: "page" when the link is the
- * page shown, "true" when the page is under it (a work item is under the
- * Board), and nothing otherwise.
+ * page shown, "true" when the page is under it (a work item or a ticket is
+ * under the Board), and nothing otherwise.
  */
 export function navCurrent(
   route: Route,
   view: FactoryView,
 ): "page" | "true" | undefined {
-  if (route.view === "work-item") return view === "board" ? "true" : undefined;
+  if (route.view === "work-item" || route.view === "ticket") {
+    return view === "board" ? "true" : undefined;
+  }
   return route.view === view ? "page" : undefined;
 }
 
@@ -115,6 +127,9 @@ export function titleFor(route: Route, factory: string | null): string {
   if (route.view === "work-item") {
     return [route.key, "Board", factory, app].filter((p) => p !== null)
       .join(" · ");
+  }
+  if (route.view === "ticket") {
+    return [route.id, "Board", route.factory, app].join(" · ");
   }
   const name = route.factory ?? factory;
   return [VIEW_NAMES[route.view], name, app].filter((p) => p !== null)

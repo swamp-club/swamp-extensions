@@ -47,6 +47,7 @@ import {
 import type { ScenarioStep } from "../../extensions/models/_lib/engine/scenario.ts";
 import type {
   BoardCard,
+  TicketsResponse,
   WorkItemProblem,
 } from "../../extensions/models/_lib/engine/studio_cards.ts";
 import { type BoardFilter, NO_FILTER } from "./board.ts";
@@ -86,11 +87,12 @@ export type StudioEvent =
   | { kind: "factories" }
   | { kind: "definition"; factory: string }
   | { kind: "work-items"; factory: string }
-  | { kind: "work-item"; key: string };
+  | { kind: "work-item"; key: string }
+  | { kind: "tickets"; factory: string };
 
 type OkLoaded = Extract<Loaded, { ok: true }>;
 
-/** The view shown: a factory view, or one work item. */
+/** The view shown: a factory view, one work item, or one ticket. */
 export type Mode = Route["view"];
 export type PanelTab = "inspect" | "findings" | "source";
 export type SimTab = "run" | "journal" | "metrics" | "scenarios";
@@ -110,6 +112,8 @@ export const flashText = signal<string | null>(null);
 export const mode = signal<Mode>("design");
 /** The work item a /w/<key> address names. */
 export const workItemKey = signal<string | null>(null);
+/** The ticket a /f/<factory>/ticket/<id> address names. */
+export const ticketAt = signal<{ factory: string; id: string } | null>(null);
 
 // The work-item page.
 /** The work item as last read; null before the first read, or for another
@@ -150,6 +154,21 @@ export const board = signal<
 export const boardError = signal<string | null>(null);
 export const boardFilter = signal<BoardFilter>(NO_FILTER);
 export const showFinished = signal(false);
+/** The factory's tickets with no work item, read with the board; null
+ * before the first read. */
+export const tickets = signal<
+  { factory: string; data: TicketsResponse } | null
+>(null);
+export const ticketsError = signal<string | null>(null);
+/** Whether the Board shows the Claimed column. */
+export const showClaimed = signal(false);
+
+// The ticket page.
+/** The ticket as last read; null before the first read, or for another. */
+export const ticketPage = signal<
+  { factory: string; id: string; data: TicketResponse } | null
+>(null);
+export const ticketPageError = signal<string | null>(null);
 /** How many cards each column shows, where Show more was pressed. */
 export const shown = signal<Record<string, number>>({});
 /** The time cards measure against; ticks so durations stay current. */
@@ -397,7 +416,7 @@ export function select(target: Target | null) {
 }
 
 /** Put a line on the clipboard, and say so. */
-async function copyLine(line: string) {
+export async function copyLine(line: string) {
   try {
     await navigator.clipboard.writeText(line);
     flash(`Copied: ${line}`);
@@ -617,6 +636,10 @@ async function readDefinition(): Promise<boolean> {
 /** The route the page shows now. */
 export function currentRoute(): Route {
   const view = mode.value;
+  if (view === "ticket") {
+    const at = ticketAt.value;
+    return { view, factory: at?.factory ?? "", id: at?.id ?? "" };
+  }
   return view === "work-item"
     ? { view, key: workItemKey.value ?? "" }
     : { view, factory: factory.value };
@@ -648,9 +671,16 @@ async function showRoute(next: Route) {
   batch(() => {
     mode.value = next.view;
     workItemKey.value = next.view === "work-item" ? next.key : null;
+    ticketAt.value = next.view === "ticket"
+      ? { factory: next.factory, id: next.id }
+      : null;
   });
   if (next.view === "work-item") {
     void loadWorkItem();
+    return;
+  }
+  if (next.view === "ticket") {
+    void loadTicketPage();
     return;
   }
   if (next.factory === null) return;
@@ -678,6 +708,7 @@ export function keepBoardCurrent() {
     if (document.hidden) return;
     if (mode.value === "board") void loadBoard();
     if (mode.value === "work-item") void loadWorkItem();
+    if (mode.value === "ticket") void loadTicketPage();
   };
   setInterval(reread, 2 * 60 * 1000);
   // A tab hidden for a while may have outlived the poll: read on return.
@@ -701,6 +732,9 @@ export function startRoute(): Route {
   batch(() => {
     mode.value = start.view;
     workItemKey.value = start.view === "work-item" ? start.key : null;
+    ticketAt.value = start.view === "ticket"
+      ? { factory: start.factory, id: start.id }
+      : null;
   });
   return start;
 }
@@ -731,6 +765,8 @@ export async function selectFactory(
     copyEntry.value = null;
     board.value = null;
     boardError.value = null;
+    tickets.value = null;
+    ticketsError.value = null;
     shown.value = {};
   });
   setPlaying(false);
@@ -860,9 +896,11 @@ let boardLoading: Promise<void> | null = null;
 let boardAgain = false;
 
 /**
- * Read the factory's work items. Asking also keeps the server's poll of
- * them alive, which tells the page when one changes. A read while one is in
- * flight asks for one more after it, never more.
+ * Read the factory's work items, and its tickets with no work item. Asking
+ * also keeps the server's polls of them alive, which tell the page when one
+ * changes. Both are read whichever changed: a work item starting changes no
+ * ticket record, but takes its ticket off the ticket columns. A read while
+ * one is in flight asks for one more after it, never more.
  */
 export function loadBoard(): Promise<void> {
   if (boardLoading !== null) {
@@ -874,24 +912,90 @@ export function loadBoard(): Promise<void> {
       boardAgain = false;
       const name = factory.value;
       if (name === null) return;
-      try {
-        const read = await getJson<{
+      const [items, waiting] = await Promise.allSettled([
+        getJson<{
           factory: string;
           items: BoardCard[];
           problems: WorkItemProblem[];
-        }>(`/api/work-items?factory=${encodeURIComponent(name)}`);
-        if (factory.value !== name) continue;
-        batch(() => {
-          board.value = read;
+        }>(`/api/work-items?factory=${encodeURIComponent(name)}`),
+        getJson<TicketsResponse>(
+          `/api/tickets?factory=${encodeURIComponent(name)}`,
+        ),
+      ]);
+      if (factory.value !== name) continue;
+      batch(() => {
+        if (items.status === "fulfilled") {
+          board.value = items.value;
           boardError.value = null;
           clock.value = Date.now();
-        });
-      } catch (e) {
-        if (factory.value === name) boardError.value = message(e);
-      }
+        } else boardError.value = message(items.reason);
+        // The tickets failing costs their columns, never the board.
+        if (waiting.status === "fulfilled") {
+          tickets.value = { factory: name, data: waiting.value };
+          ticketsError.value = null;
+        } else ticketsError.value = message(waiting.reason);
+      });
     } while (boardAgain);
   })().finally(() => (boardLoading = null));
   return boardLoading;
+}
+
+// --- the ticket page ----------------------------------------------------------------
+
+let ticketPageLoading: Promise<void> | null = null;
+let ticketPageAgain = false;
+
+/**
+ * Read the ticket the address names, on its factory's tracker, and pick the
+ * factory. The factory's tickets are read too, so the page knows whether the
+ * ticket is claimed. A read while one is in flight asks for one more after
+ * it, never more.
+ */
+export function loadTicketPage(): Promise<void> {
+  if (ticketPageLoading !== null) {
+    ticketPageAgain = true;
+    return ticketPageLoading;
+  }
+  ticketPageLoading = (async () => {
+    do {
+      ticketPageAgain = false;
+      const at = ticketAt.value;
+      if (at === null) return;
+      const same = (p: { factory: string; id: string } | null) =>
+        p !== null && p.factory === at.factory && p.id === at.id;
+      if (!same(ticketPage.value)) {
+        batch(() => {
+          ticketPage.value = null;
+          ticketPageError.value = null;
+        });
+      }
+      if (
+        factory.value !== at.factory &&
+        factories.value.some((f) => f.name === at.factory)
+      ) {
+        await selectFactory(at.factory).catch((e) => {
+          sourceError.value = message(e);
+        });
+      }
+      // The board's read, for the claim; its failure is the Board's to show.
+      if (factory.value === at.factory) void loadBoard();
+      try {
+        const data = await getJson<TicketResponse>(
+          `/api/tickets/${encodeURIComponent(at.factory)}/${
+            encodeURIComponent(at.id)
+          }`,
+        );
+        if (!same(ticketAt.value)) continue;
+        batch(() => {
+          ticketPage.value = { ...at, data };
+          ticketPageError.value = null;
+        });
+      } catch (e) {
+        if (same(ticketAt.value)) ticketPageError.value = message(e);
+      }
+    } while (ticketPageAgain);
+  })().finally(() => (ticketPageLoading = null));
+  return ticketPageLoading;
 }
 
 /** The factory list again; the selection is kept, or reloaded if it moved. */
@@ -1205,6 +1309,7 @@ export function listen() {
     });
     if (mode.value === "board") void loadBoard();
     if (mode.value === "work-item") void loadWorkItem();
+    if (mode.value === "ticket") void loadTicketPage();
   });
   events.addEventListener("error", () => {
     live.value = false;
@@ -1229,8 +1334,9 @@ export function listen() {
       return;
     }
     if (event.factory !== factory.value) return;
-    if (event.kind === "work-items") {
+    if (event.kind === "work-items" || event.kind === "tickets") {
       if (mode.value === "board") void loadBoard();
+      if (mode.value === "ticket") void loadTicketPage();
       return;
     }
     flash("definition reloaded");

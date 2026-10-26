@@ -27,6 +27,7 @@ import {
   remoteDefinition,
   remoteFactories,
   remoteFactoryNames,
+  remoteModel,
   remoteQuery,
   swampBinary,
   type SwampRunner,
@@ -261,4 +262,91 @@ Deno.test("remote: a factory gone from the list is forgotten", async () => {
   await remote.poll();
   await remote.poll();
   assertEquals(calls.filter((c) => c[1] === "get").length, 1);
+});
+
+Deno.test("remote: a factory's tracker instance is read with model get, null when the serve has no such model, and kept until the next poll", async () => {
+  let statuses = ["new"];
+  const { run, calls } = fakeSwamp({
+    "model search": search({ name: "ts", type: "@swamp/stagecraft/tracker" }),
+    "model get ts": () => ({
+      type: "@swamp/stagecraft/tracker",
+      name: "ts",
+      globalArguments: { statuses },
+    }),
+  });
+  assertEquals(await remoteModel(run, "nobody"), null);
+  const remote = remoteFactories(run, SERVER, () => {});
+  assertEquals(await remote.model("ts"), {
+    type: "@swamp/stagecraft/tracker",
+    globalArguments: { statuses: ["new"] },
+  });
+  const before = calls.length;
+  await remote.model("ts");
+  assertEquals(calls.length, before);
+  statuses = ["todo"];
+  await remote.poll();
+  assertEquals((await remote.model("ts"))?.globalArguments, {
+    statuses: ["todo"],
+  });
+  await assertRejects(() => remoteModel(run, "-x"), Error, "starting with '-'");
+});
+
+Deno.test("remote: a poll reads the models asked for with one search, and forgets one no page asked for since", async () => {
+  const model = (name: string) => () => ({
+    type: name === "team" ? FACTORY_TYPE : "@swamp/stagecraft/tracker",
+    name,
+    globalArguments: {},
+  });
+  const { run, calls } = fakeSwamp({
+    "model search": search(
+      { name: "team", type: FACTORY_TYPE },
+      { name: "ts", type: "@swamp/stagecraft/tracker" },
+    ),
+    "model get team": model("team"),
+    "model get ts": model("ts"),
+  });
+  const remote = remoteFactories(run, SERVER, () => {});
+  await remote.model("team");
+  await remote.model("ts");
+  calls.length = 0;
+  await remote.poll();
+  const searches = () => calls.filter((c) => c[1] === "search").length;
+  const gets = () => calls.filter((c) => c[1] === "get").length;
+  // relist's search, then one for both models.
+  assertEquals([searches(), gets()], [2, 2]);
+  calls.length = 0;
+  // Nothing asked since: both are forgotten, and read only when asked again.
+  await remote.poll();
+  assertEquals([searches(), gets()], [1, 0]);
+});
+
+Deno.test("remote: a model get that fails in a poll keeps that model's copy, and still reads the others", async () => {
+  let failing = false;
+  let statuses = ["new"];
+  const errors: string[] = [];
+  const { run } = fakeSwamp({
+    "model search": search(
+      { name: "a", type: "@swamp/stagecraft/tracker" },
+      { name: "b", type: "@swamp/stagecraft/tracker" },
+    ),
+    "model get a": () => {
+      if (failing) throw new Error("swamp model get failed: no grant");
+      return { type: "@swamp/stagecraft/tracker", globalArguments: {} };
+    },
+    "model get b": () => ({
+      type: "@swamp/stagecraft/tracker",
+      globalArguments: { statuses },
+    }),
+  });
+  const remote = remoteFactories(run, SERVER, () => {}, (e) => errors.push(e));
+  await remote.model("a");
+  await remote.model("b");
+  failing = true;
+  statuses = ["todo"];
+  assertEquals(await remote.poll(), false);
+  assertEquals(errors, ["swamp model get failed: no grant"]);
+  assertEquals((await remote.model("a"))?.globalArguments, {});
+  assertEquals((await remote.model("b"))?.globalArguments, {
+    statuses: ["todo"],
+  });
 });

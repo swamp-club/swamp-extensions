@@ -451,6 +451,21 @@ the page shows them as the agent saves.
   **Keyboard:** each column is one tab stop; ↑ and ↓ move between its cards, ←
   and → to the next column's, Home and End to the first and last, and Enter
   opens the work item.
+- **Not started**, before the first stage, lists the open tickets on the
+  factory's tracker that no work item has taken yet (built-in tracker only for
+  now): those in the tracker's first status (`open` by default), oldest first,
+  each with its display id, title, type, how long since it was filed, and its
+  relations in words ("blocked by ts-2 · parent of ts-3"). A ticket whose last
+  work item finished, and which is open again, names that work item.
+  **Show claimed** adds a **Claimed** column: tickets `claim` reserved a key for
+  whose `start` has not run. Search matches a ticket's display id or title; the
+  work-item filters leave the ticket columns empty. Every factory bound to the
+  same tracker shows the same tickets. Opening a card goes to the ticket's page
+  (`/f/<factory>/ticket/<id>`): the ticket as the **Ticket** tab shows it, with
+  its related tickets linked, and the `swamp workflow run
+  @swamp/stagecraft/claim` command for this factory, with **Copy**. The columns
+  read what the tracker recorded, never the tracker, and update as tickets are
+  filed, claimed and started.
 - **Work item** (`/w/<key>`, from a Board card or the bar's **go to work item**
   box, which takes a key) draws one work item on the definition it pinned, which
   may be older than the file's; a notice says so. A copy pinned at an older

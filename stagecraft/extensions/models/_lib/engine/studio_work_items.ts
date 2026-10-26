@@ -477,6 +477,18 @@ export interface WorkItemWatch {
    */
   ask(event: StudioEvent, predicate: string): Promise<void>;
   /**
+   * Like ask, for what is not run records: watch what `read` gives, under
+   * `id`, telling `event` when it differs. A read that fails is tried again
+   * on the next poll. `current`, what read gives now, saves the first read
+   * when the caller has just made it.
+   */
+  askRead(
+    event: StudioEvent,
+    id: string,
+    read: () => Promise<string>,
+    current?: string,
+  ): Promise<void>;
+  /**
    * One poll: read each watch's versions and tell each that changed. A watch
    * not asked for in the expiry is dropped, so a closed page costs nothing.
    */
@@ -502,22 +514,30 @@ export function watchWorkItems(
     string,
     {
       event: StudioEvent;
-      predicate: string;
+      read: () => Promise<string>;
       signature: string;
       askedAt: number;
     }
   >();
+  const askRead = async (
+    event: StudioEvent,
+    id: string,
+    read: () => Promise<string>,
+    current?: string,
+  ) => {
+    const key = JSON.stringify([event, id]);
+    const held = watches.get(key);
+    if (held !== undefined) {
+      held.askedAt = now();
+      return;
+    }
+    const signature = current ?? await read();
+    watches.set(key, { event, read, signature, askedAt: now() });
+  };
   return {
-    async ask(event, predicate) {
-      const id = JSON.stringify([event, predicate]);
-      const held = watches.get(id);
-      if (held !== undefined) {
-        held.askedAt = now();
-        return;
-      }
-      const signature = await versionSignature(query, predicate);
-      watches.set(id, { event, predicate, signature, askedAt: now() });
-    },
+    ask: (event, predicate) =>
+      askRead(event, predicate, () => versionSignature(query, predicate)),
+    askRead,
     async tick() {
       for (const [id, watch] of watches) {
         if (now() - watch.askedAt > expiryMs) {
@@ -526,7 +546,7 @@ export function watchWorkItems(
         }
         let signature: string;
         try {
-          signature = await versionSignature(query, watch.predicate);
+          signature = await watch.read();
         } catch {
           // A read that failed (a datastore hiccup); the next poll tries again.
           continue;

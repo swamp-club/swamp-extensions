@@ -71,3 +71,55 @@ export interface BoardCard {
   /** Why some of the card could not be worked out, if so. */
   problem?: string;
 }
+
+/** A relation on a ticket card, with the work item on the other ticket. */
+export interface TicketCardRelation {
+  type: string;
+  direction: "outgoing" | "incoming";
+  issue: string;
+  display: string;
+  /** The newest work item on that ticket, in any factory, or null. */
+  workItem: string | null;
+}
+
+/** A ticket with no work item on the board, as its card shows it. */
+export interface TicketCard {
+  id: string;
+  display: string;
+  title: string;
+  /** The ticket's type; null where the record names none. */
+  type: string | null;
+  /** When the ticket was filed; null where the record does not say. */
+  createdAt: string | null;
+  relations: TicketCardRelation[];
+  /** The ticket's last work item, finished, and the stage it ended in. */
+  previous: { key: string; stage: string } | null;
+}
+
+/** A ticket claim reserved a key for, whose work item has not started. */
+export interface ClaimedCard extends TicketCard {
+  key: string;
+  /** The factory the key was reserved under. */
+  factory: string;
+  claimedAt: string;
+}
+
+/** What GET /api/tickets?factory=<name> answers. */
+export type TicketsResponse =
+  | {
+    supported: false;
+    /** Why the factory's tracker is not read for tickets. */
+    reason: string;
+  }
+  | {
+    supported: true;
+    /** The tracker instance and its kind. */
+    tracker: string;
+    kind: string;
+    /** Open tickets with no work item, oldest first. */
+    notStarted: TicketCard[];
+    /** Tickets claimed but not started, oldest claim first. */
+    claimed: ClaimedCard[];
+    /** Records that could not be read, by ticket, and why. */
+    problems: WorkItemProblem[];
+  };

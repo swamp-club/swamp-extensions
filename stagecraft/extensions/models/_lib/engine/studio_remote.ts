@@ -21,6 +21,7 @@ import {
   sha256,
   type StudioEvent,
 } from "./studio_server.ts";
+import type { ModelArguments } from "./studio_tickets.ts";
 import type { QueryData } from "./studio_work_items.ts";
 import { FACTORY_TYPE } from "./work_item_ops.ts";
 
@@ -196,6 +197,44 @@ export async function remoteDefinition(
   };
 }
 
+/**
+ * Any model's type and globalArguments, from `model get` on the serve, or
+ * null when the serve has no model of that name.
+ */
+export async function remoteModel(
+  run: SwampRunner,
+  name: string,
+  names?: Set<string>,
+): Promise<ModelArguments | null> {
+  if (name.startsWith("-")) throw new Error(dashed(name));
+  if (!(names ?? await remoteModelNames(run)).has(name)) return null;
+  const got = await run(["model", "get", name]);
+  const d = (got ?? {}) as Record<string, unknown>;
+  if (typeof d.type !== "string") {
+    throw new Error(`swamp model get ${name} gave no model definition`);
+  }
+  const args = d.globalArguments;
+  return {
+    type: d.type,
+    globalArguments: args !== null && typeof args === "object" &&
+        !Array.isArray(args)
+      ? args as Record<string, unknown>
+      : {},
+  };
+}
+
+/** The name of every model the serve holds. */
+export async function remoteModelNames(run: SwampRunner): Promise<Set<string>> {
+  const names = new Set<string>();
+  for (
+    const found of resultsOf(await run(["model", "search"]), "model search")
+  ) {
+    const { name } = (found ?? {}) as { name?: unknown };
+    if (typeof name === "string" && name !== "") names.add(name);
+  }
+  return names;
+}
+
 /** Why a factory named with a leading dash is not read. */
 function dashed(name: string): string {
   return `factory '${name}': a name starting with '-' is not passed to ` +
@@ -222,6 +261,10 @@ export function remoteFactories(
   let listed: FactoryEntry[] | null = null;
   // Each definition read, by factory: the ones the page opened.
   const read = new Map<string, DefinitionText>();
+  // Each other model read, by name: a factory and its tracker instance.
+  // Only those a page asked for since the last poll are read again.
+  const models = new Map<string, ModelArguments | null>();
+  const asked = new Set<string>();
 
   const entryOf = (name: string): FactoryEntry =>
     name.startsWith("-")
@@ -251,6 +294,13 @@ export function remoteFactories(
       read.set(entry.name, text);
       return text;
     },
+    async model(name) {
+      asked.add(name);
+      if (models.has(name)) return models.get(name) ?? null;
+      const got = await remoteModel(run, name);
+      models.set(name, got);
+      return got;
+    },
     async poll() {
       try {
         await relist();
@@ -259,6 +309,29 @@ export function remoteFactories(
         return false;
       }
       let ok = true;
+      for (const name of models.keys()) {
+        if (!asked.has(name)) models.delete(name);
+      }
+      asked.clear();
+      if (models.size > 0) {
+        // One search for every name, then a model get for each one held; a
+        // read that fails keeps that model's last copy until the next poll.
+        let names: Set<string> | null = null;
+        try {
+          names = await remoteModelNames(run);
+        } catch (e) {
+          onError(message(e));
+          ok = false;
+        }
+        for (const name of names === null ? [] : models.keys()) {
+          try {
+            models.set(name, await remoteModel(run, name, names ?? undefined));
+          } catch (e) {
+            onError(message(e));
+            ok = false;
+          }
+        }
+      }
       for (const [name, before] of read) {
         let now: DefinitionText;
         try {

@@ -71,7 +71,11 @@ your agent makes the edits, and you watch them land.
   (highlighted, with how long), whether a limit has parked it, and whether
   it runs an older version of the factory than the current one. Filter by
   any of those, or search by key or title. A work item started by hand, with
-  no ticket, is on the Board too.
+  no ticket, is on the Board too. With the built-in tracker, a **Not started**
+  column before the first stage lists the open tickets no work item has taken
+  yet, with their type, how long since they were filed, and what blocks or
+  contains them; open one to see the ticket and the `claim` command that starts
+  work on it. **Show claimed** adds the tickets claimed but not yet started.
 - **Work item** (open a Board card, or type a key in the bar) shows one work
   item on its factory's graph: the stages it has been through, how often, the
   path it took, where it is now and what it waits on, in the same words as

@@ -35,6 +35,7 @@ Deno.test("route: each view's path parses to its route and back", () => {
       view: "work-item",
       key: "team-add-board-k3xq",
     }],
+    ["/f/team/ticket/ts-1", { view: "ticket", factory: "team", id: "ts-1" }],
   ];
   for (const [path, route] of routes) {
     assertEquals(parseRoute(path), route, path);
@@ -59,7 +60,9 @@ Deno.test("route: the server serves the page on exactly the paths the page route
     assert(parseRoute(path) !== null, path);
     assert(isPagePath(path.split("/").filter((s) => s !== "")), path);
   }
-  for (const path of ["/f/team/nope", "/w/a/b", "/f/team"]) {
+  const ticket = routeHref({ view: "ticket", factory: "team", id: "ts-1" });
+  assert(isPagePath(ticket.split("/").filter((s) => s !== "")), ticket);
+  for (const path of ["/f/team/nope", "/w/a/b", "/f/team", "/f/team/board/x"]) {
     assertEquals(parseRoute(path), null, path);
     assert(!isPagePath(path.split("/").filter((s) => s !== "")), path);
   }
@@ -82,7 +85,7 @@ Deno.test("route: a path the page does not know is null", () => {
   }
 });
 
-Deno.test("route: every route marks its place in the nav, and a work item is under Board", () => {
+Deno.test("route: every route marks its place in the nav, and a work item or a ticket is under Board", () => {
   const marks = (route: Route) =>
     FACTORY_VIEWS.map((v) => [v, navCurrent(route, v) ?? null]);
   for (const view of FACTORY_VIEWS) {
@@ -97,6 +100,11 @@ Deno.test("route: every route marks its place in the nav, and a work item is und
     ["board", null],
   ]);
   assertEquals(marks({ view: "work-item", key: "blog-12" }), [
+    ["design", null],
+    ["simulate", null],
+    ["board", "true"],
+  ]);
+  assertEquals(marks({ view: "ticket", factory: "team", id: "ts-1" }), [
     ["design", null],
     ["simulate", null],
     ["board", "true"],
@@ -132,5 +140,9 @@ Deno.test("route: the browser tab's title says where you are", () => {
   assertEquals(
     titleFor({ view: "work-item", key: "blog-12" }, null),
     "blog-12 · Board · Stagecraft Studio",
+  );
+  assertEquals(
+    titleFor({ view: "ticket", factory: "blog", id: "blog-3" }, null),
+    "blog-3 · Board · blog · Stagecraft Studio",
   );
 });

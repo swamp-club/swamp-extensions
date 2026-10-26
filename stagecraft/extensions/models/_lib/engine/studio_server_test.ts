@@ -19,6 +19,7 @@ import {
   type FactoryEntry,
   type FactorySource,
   handleStudioRequest,
+  isPagePath,
   parsePublicOrigin,
   type StudioDeps,
   type StudioEvent,
@@ -321,6 +322,175 @@ Deno.test("studio: /api/work-items needs a factory the repo lists, and a query t
     assertEquals(res.status, status, path);
     await res.body?.cancel();
   }
+});
+
+/** The repo's factories, with team bound to a built-in tracker, ts, holding
+ * one open ticket. */
+function ticketSetup() {
+  const it = setup();
+  (it.definitions[0].definition as { globalArguments: unknown })
+    .globalArguments = { tracker: "ts" };
+  it.definitions.push({
+    definition: { id: "id-ts", name: "ts", globalArguments: {} },
+    type: "@swamp/stagecraft/tracker",
+  });
+  const store = recordStore();
+  store.put(
+    "ts",
+    "issue-ts-1",
+    {
+      origin: "builtin",
+      tracker: "builtin",
+      id: "ts-1",
+      display: "ts-1",
+      title: "First",
+      body: "Do it.",
+      type: "feature",
+      status: { id: "open", name: "open" },
+      relations: [],
+      createdAt: "2026-10-01T00:00:00.000Z",
+      updatedAt: "2026-10-01T00:00:00.000Z",
+    },
+    "@swamp/stagecraft/tracker",
+    "issue",
+  );
+  return { ...it, store };
+}
+
+Deno.test("studio: /api/tickets gives the factory's open tickets with no work item, and watches its tracker", async () => {
+  const { deps, store } = ticketSetup();
+  const told: StudioEvent[] = [];
+  deps.query = store.query;
+  deps.workItems = watchWorkItems(store.query, (e) => told.push(e));
+  const res = await handleStudioRequest(get("/api/tickets?factory=team"), deps);
+  assertEquals(res.status, 200);
+  assertSecurityHeaders(res);
+  const answer = await body(res);
+  assertEquals(answer.supported, true);
+  assertEquals(answer.tracker, "ts");
+  assertEquals(
+    (answer.notStarted as { display: string }[]).map((t) => t.display),
+    ["ts-1"],
+  );
+  assertEquals(deps.workItems.size(), 4);
+  store.put(
+    "ts",
+    "ticket-ts-1",
+    {
+      tracker: "builtin",
+      issue: "ts-1",
+      display: "ts-1",
+      key: "ts-1",
+      factory: "team",
+      claimedAt: "2026-10-02T00:00:00.000Z",
+      previous: [],
+    },
+    "@swamp/stagecraft/tracker",
+    "ticket",
+  );
+  await deps.workItems.tick();
+  assertEquals(told, [{ kind: "tickets", factory: "team" }]);
+});
+
+Deno.test("studio: /api/tickets lists the repo's definitions once, and tells when the tracker's statuses change", async () => {
+  const { deps, store, definitions } = ticketSetup();
+  const told: StudioEvent[] = [];
+  deps.query = store.query;
+  deps.workItems = watchWorkItems(store.query, (e) => told.push(e));
+  let listings = 0;
+  const findAllGlobal = deps.factories.findAllGlobal;
+  deps.factories.findAllGlobal = () => {
+    listings++;
+    return findAllGlobal();
+  };
+  const res = await handleStudioRequest(get("/api/tickets?factory=team"), deps);
+  assertEquals(res.status, 200);
+  await res.body?.cancel();
+  assertEquals(listings, 1);
+  await deps.workItems.tick();
+  assertEquals(told, []);
+  // A model definition, not a record: seen by reading the source again.
+  (definitions[definitions.length - 1].definition as {
+    globalArguments: unknown;
+  }).globalArguments = { statuses: ["triage", "open"] };
+  await deps.workItems.tick();
+  assertEquals(told, [{ kind: "tickets", factory: "team" }]);
+  const again = await body(
+    await handleStudioRequest(get("/api/tickets?factory=team"), deps),
+  );
+  assertEquals(again.notStarted, []);
+});
+
+Deno.test("studio: /api/tickets says when the factory's tracker is not one it reads", async () => {
+  const { deps, store } = ticketSetup();
+  deps.query = store.query;
+  const res = await handleStudioRequest(
+    get("/api/tickets?factory=pathless"),
+    deps,
+  );
+  assertEquals(res.status, 200);
+  assertEquals(await body(res), {
+    supported: false,
+    reason: "factory 'pathless' names no tracker",
+  });
+});
+
+Deno.test("studio: /api/tickets needs a factory the repo lists, and a query to read with", async () => {
+  const { deps, store } = ticketSetup();
+  for (
+    const [path, status] of [
+      ["/api/tickets", 400],
+      ["/api/tickets?factory=team", 422],
+    ] as [string, number][]
+  ) {
+    const res = await handleStudioRequest(get(path), deps);
+    assertEquals(res.status, status, path);
+    await res.body?.cancel();
+  }
+  deps.query = store.query;
+  const res = await handleStudioRequest(
+    get("/api/tickets?factory=nobody"),
+    deps,
+  );
+  assertEquals(res.status, 404);
+  await res.body?.cancel();
+});
+
+Deno.test("studio: /api/tickets/<factory>/<id> gives one ticket on the factory's tracker", async () => {
+  const { deps, store } = ticketSetup();
+  deps.query = store.query;
+  let res = await handleStudioRequest(get("/api/tickets/team/ts-1"), deps);
+  assertEquals(res.status, 200);
+  const answer = await body(res) as {
+    state: string;
+    ticket: { display: string; description: string; tracker: string };
+  };
+  assertEquals(answer.state, "ok");
+  assertEquals(answer.ticket.display, "ts-1");
+  assertEquals(answer.ticket.description, "Do it.");
+  assertEquals(answer.ticket.tracker, "ts");
+  res = await handleStudioRequest(get("/api/tickets/team/ts-9"), deps);
+  assertEquals((await body(res)).state, "missing");
+  store.asked.length = 0;
+  res = await handleStudioRequest(
+    get(`/api/tickets/team/${encodeURIComponent('x" || true')}`),
+    deps,
+  );
+  assertEquals(res.status, 404);
+  await res.body?.cancel();
+  assertEquals(store.asked, []);
+  res = await handleStudioRequest(get("/api/tickets/pathless/ts-1"), deps);
+  assertEquals(res.status, 422);
+  await res.body?.cancel();
+  res = await handleStudioRequest(get("/api/tickets/nobody/ts-1"), deps);
+  assertEquals(res.status, 404);
+  await res.body?.cancel();
+});
+
+Deno.test("studio: the page is served at a ticket's address", () => {
+  assert(isPagePath(["f", "team", "ticket", "ts-1"]));
+  assert(!isPagePath(["f", "team", "tickets", "ts-1"]));
+  assert(!isPagePath(["f", "team", "ticket", ""]));
 });
 
 const ITEM = "team-looped-review-abcd";
@@ -1079,6 +1249,7 @@ function remoteSource(): FactorySource & { read: string[] } {
   return {
     read,
     list: () => Promise.resolve(entries),
+    model: () => Promise.resolve(null),
     definition(entry) {
       read.push(entry.name);
       if (entry.name === "broken") {

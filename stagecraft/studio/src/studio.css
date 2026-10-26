@@ -2218,6 +2218,52 @@ button.finding:hover,
   margin: 4px 0 0;
   padding-left: 18px;
 }
+/* The ticket columns before the first stage: tickets no work item has
+   taken yet, so no stage edge; the dashed edge says they are not work. */
+.col.tickets {
+  background: var(--canvas);
+}
+.card.ticket-card {
+  border-left-style: dashed;
+  border-left-color: var(--cyan);
+}
+.card-rel {
+  font: 11px var(--mono);
+  color: var(--cyan);
+}
+.b-claim {
+  color: var(--cyan);
+  background: rgba(34, 211, 238, .08);
+}
+
+/* The ticket page: the ticket and the command that claims it. */
+.ticket-mode {
+  min-height: 0;
+  overflow: auto;
+  background: var(--canvas);
+}
+.ticket-mode .insp {
+  max-width: 860px;
+  padding: 12px 14px 24px;
+}
+.claim {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.claim .wide {
+  margin-top: 0;
+}
+.claim-command {
+  flex: 1 1 32ch;
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--rule-2);
+  background: var(--panel);
+  font: 12px var(--mono);
+  overflow-wrap: anywhere;
+}
 
 /* The work-item page: the graph of the definition the item pinned, with
    the exits it took drawn solid and the rest faint; the current stage glows

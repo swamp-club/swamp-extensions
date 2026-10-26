@@ -22,7 +22,13 @@
 //
 // Pure: it lays out cards the server sent; it reads nothing.
 
-import type { BoardCard } from "../../extensions/models/_lib/engine/studio_cards.ts";
+import type {
+  BoardCard,
+  ClaimedCard,
+  TicketCard,
+  TicketCardRelation,
+  TicketsResponse,
+} from "../../extensions/models/_lib/engine/studio_cards.ts";
 import { ANY_ID, type Layout } from "./layout.ts";
 
 /** How many cards a column shows before Show more. */
@@ -190,4 +196,105 @@ export function since(at: string | null, now: number): number | null {
   if (at === null) return null;
   const t = Date.parse(at);
   return Number.isNaN(t) ? null : now - t;
+}
+
+/** The ticket columns, by the id their tab stop and Show more are kept
+ * under. A stage id has no "@", so these never meet one. */
+export const NOT_STARTED = "@not-started";
+export const CLAIMED = "@claimed";
+
+export interface TicketColumn {
+  id: typeof NOT_STARTED | typeof CLAIMED;
+  name: string;
+  /** Every matching card, before Show more. */
+  total: number;
+  cards: (TicketCard | ClaimedCard)[];
+}
+
+/** Whether a ticket matches the filters. The waiting, parked and stale-pin
+ * filters are about work items, so a ticket matches none of them. */
+export function ticketMatches(card: TicketCard, filter: BoardFilter): boolean {
+  if (filter.waiting || filter.parked || filter.stalePin) return false;
+  const text = filter.text.trim().toLowerCase();
+  if (text === "") return true;
+  return [card.display, card.id, card.title].some((s) =>
+    s.toLowerCase().includes(text)
+  );
+}
+
+/**
+ * The ticket columns before the first stage: Not started always, once the
+ * factory's tracker is one the tickets are read from, and Claimed when asked
+ * for. None when the tickets are not read.
+ */
+export function ticketColumns(
+  data: TicketsResponse | null,
+  options: {
+    filter: BoardFilter;
+    showClaimed: boolean;
+    shown?: Record<string, number>;
+  },
+): TicketColumn[] {
+  if (data === null || !data.supported) return [];
+  const column = (
+    id: TicketColumn["id"],
+    name: string,
+    all: (TicketCard | ClaimedCard)[],
+  ): TicketColumn => {
+    const found = all.filter((c) => ticketMatches(c, options.filter));
+    return {
+      id,
+      name,
+      total: found.length,
+      cards: found.slice(0, options.shown?.[id] ?? COLUMN_PAGE),
+    };
+  };
+  const columns = [column(NOT_STARTED, "Not started", data.notStarted)];
+  if (options.showClaimed) {
+    columns.push(column(CLAIMED, "Claimed", data.claimed));
+  }
+  return columns;
+}
+
+/** How a relation reads from this ticket: outgoing (this ticket is the
+ * subject, X in X parent_of Y), then incoming. */
+const RELATION_TEXT: Record<string, [string, string]> = {
+  parent_of: ["parent of", "child of"],
+  blocked_by: ["blocked by", "blocks"],
+  duplicate_of: ["duplicate of", "duplicated by"],
+  related_to: ["related to", "related to"],
+};
+
+/** A relation in words, from this ticket's side: "blocked by", "child of". */
+export function relationText(
+  r: Pick<TicketCardRelation, "type" | "direction">,
+): string {
+  const [out, inc] = RELATION_TEXT[r.type] ?? [r.type, r.type];
+  return r.direction === "outgoing" ? out : inc;
+}
+
+/** Whether a ticket card is a claimed one. */
+export function isClaimed(card: TicketCard | ClaimedCard): card is ClaimedCard {
+  return "key" in card;
+}
+
+/** The command that claims a ticket for the factory, as a person runs it. */
+export function claimCommand(
+  tracker: string,
+  display: string,
+  factory: string,
+): string {
+  return [
+    "swamp workflow run @swamp/stagecraft/claim",
+    `--input tracker=${shellWord(tracker)}`,
+    `--input issue=${shellWord(display)}`,
+    `--input factory=${shellWord(factory)}`,
+  ].join(" ");
+}
+
+/** A word as a POSIX shell reads it: bare when it is plain, else quoted. */
+function shellWord(word: string): string {
+  return /^[A-Za-z0-9._@%+=:,/-]+$/.test(word)
+    ? word
+    : `'${word.replaceAll("'", `'"'"'`)}'`;
 }

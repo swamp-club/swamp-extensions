@@ -25,9 +25,22 @@ import {
   runsPredicate,
   type WorkItemWatch,
 } from "./studio_work_items.ts";
-import { readTicket } from "./studio_ticket.ts";
+import { readTicket, readTicketRecord } from "./studio_ticket.ts";
+import {
+  type ModelArguments,
+  type ModelLookup,
+  readTickets,
+  ticketSource,
+} from "./studio_tickets.ts";
 import { readWorkItem } from "./studio_work_item.ts";
-import { FACTORY_TYPE, safePart, typeNameOf } from "./work_item_ops.ts";
+import {
+  FACTORY_TYPE,
+  factoryArguments,
+  safePart,
+  typeNameOf,
+  WORK_ITEM_TYPE,
+} from "./work_item_ops.ts";
+import { RUN_NAME } from "./run_store.ts";
 
 // ---------------------------------------------------------------------------
 // The studio's HTTP handler (DESIGN.md, "The studio server"). The studio
@@ -42,7 +55,8 @@ import { FACTORY_TYPE, safePart, typeNameOf } from "./work_item_ops.ts";
 //
 // The page is served on each view's path, so every view has an address a
 // person can reload, bookmark or share: / and /f/<factory>/<view> for the
-// factory views, /w/<key> for a work item.
+// factory views, /w/<key> for a work item, /f/<factory>/ticket/<id> for a
+// ticket on the factory's tracker that no work item has taken.
 //
 // A request is refused before routing when:
 // - its Host is not 127.0.0.1:<port> or localhost:<port>, nor the host of
@@ -101,6 +115,8 @@ export interface DefinitionText {
 export interface FactorySource {
   list(): Promise<FactoryEntry[]>;
   definition(entry: FactoryEntry): Promise<DefinitionText>;
+  /** Any model's definition by name, for a factory's tracker instance. */
+  model(name: string): Promise<ModelArguments | null>;
 }
 
 /** One file of the page: text, or base64 for binary files. */
@@ -117,7 +133,9 @@ export type StudioEvent =
   /** A run record of a factory's work items was written, added or removed. */
   | { kind: "work-items"; factory: string }
   /** One work item's run record was written. */
-  | { kind: "work-item"; key: string };
+  | { kind: "work-item"; key: string }
+  /** A ticket or claim record on a factory's tracker instance was written. */
+  | { kind: "tickets"; factory: string };
 
 export interface StudioEvents {
   /** Returns the unsubscribe function. */
@@ -204,12 +222,15 @@ function error(status: number, message: string): Response {
 
 /**
  * Whether a path is one the page is served on: /, a factory view
- * (/f/<factory>/<view>), or a work item (/w/<key>). The page reads the rest
- * of the address itself.
+ * (/f/<factory>/<view>), a ticket (/f/<factory>/ticket/<id>), or a work item
+ * (/w/<key>). The page reads the rest of the address itself.
  */
 export function isPagePath(parts: string[]): boolean {
   if (parts.length === 0) return true;
   if (parts[0] === "f") {
+    if (parts.length === 4) {
+      return parts[1] !== "" && parts[2] === "ticket" && parts[3] !== "";
+    }
     return parts.length === 3 && parts[1] !== "" &&
       (FACTORY_VIEWS as readonly string[]).includes(parts[2]);
   }
@@ -523,6 +544,145 @@ async function workItems(
 }
 
 /**
+ * The repo's definitions, listed once however often they are asked for: one
+ * request's factory list and model lookups share a listing.
+ */
+function listedOnce(lister: FactoryLister): FactoryLister {
+  let listed: ReturnType<FactoryLister["findAllGlobal"]> | null = null;
+  return {
+    findAllGlobal: () => (listed ??= lister.findAllGlobal()),
+    getPath: (type, id) => lister.getPath(type, id),
+  };
+}
+
+/** Every model definition by name, from the repo or the remote serve. */
+function modelLookup(deps: StudioDeps, lister: FactoryLister): ModelLookup {
+  if (deps.remote !== undefined) {
+    const remote = deps.remote;
+    return (name) => remote.model(name);
+  }
+  return async (name) => {
+    for (const found of await lister.findAllGlobal()) {
+      if ((found.definition as { name?: unknown }).name !== name) continue;
+      return {
+        type: typeNameOf(found.type),
+        globalArguments: factoryArguments(found.definition),
+      };
+    }
+    return null;
+  };
+}
+
+/**
+ * The predicates for what decides a factory's ticket columns: its tracker
+ * instance's ticket and claim records, and every work item's run, since a
+ * work item started in another factory on the same tracker takes its ticket
+ * off this one's columns too.
+ */
+function ticketPredicates(instance: string): string[] {
+  return [
+    ...["issue", "ticket"].map((spec) =>
+      `modelName == "${instance}" && specName == "${spec}"`
+    ),
+    `modelType == "${WORK_ITEM_TYPE}" && name == "${RUN_NAME}"`,
+  ];
+}
+
+/**
+ * Every factory listed, by the remote serve or from `lister`.
+ */
+async function factoryEntries(
+  deps: StudioDeps,
+  lister: FactoryLister,
+): Promise<FactoryEntry[]> {
+  return deps.remote !== undefined
+    ? await deps.remote.list()
+    : (await listFactories(lister, deps.repoDir)).entries;
+}
+
+/**
+ * GET /api/tickets?factory=<name>: the Board's ticket columns, the tickets on
+ * the factory's tracker with no work item (studio_tickets.ts). Asking keeps
+ * a poll of the instance's ticket and claim records alive, and of where they
+ * are read from: the factory's tracker argument and the instance's statuses
+ * are model definitions, not records, so a change to one is seen by reading
+ * the source again.
+ */
+async function tickets(
+  deps: StudioDeps,
+  factory: string | null,
+): Promise<Response> {
+  if (factory === null || factory === "") {
+    return error(400, "name a factory: /api/tickets?factory=<name>");
+  }
+  if (deps.query === undefined) {
+    return error(422, "this studio cannot read tickets");
+  }
+  try {
+    const lister = listedOnce(deps.factories);
+    if (!(await factoryEntries(deps, lister)).some((f) => f.name === factory)) {
+      return error(404, `no factory named '${factory}'`);
+    }
+    const source = await ticketSource(modelLookup(deps, lister), factory);
+    const sourceNow = async () =>
+      JSON.stringify(
+        await ticketSource(
+          modelLookup(deps, listedOnce(deps.factories)),
+          factory,
+        ),
+      );
+    await deps.workItems?.askRead(
+      { kind: "tickets", factory },
+      "source",
+      sourceNow,
+      JSON.stringify(source),
+    ).catch(() => {});
+    if (source.supported) {
+      for (const predicate of ticketPredicates(source.instance)) {
+        await deps.workItems?.ask({ kind: "tickets", factory }, predicate)
+          .catch(() => {});
+      }
+    }
+    return json(await readTickets(deps.query, source));
+  } catch (e) {
+    return error(422, message(e));
+  }
+}
+
+/**
+ * GET /api/tickets/<factory>/<id>: one ticket on the factory's tracker, as
+ * the Ticket tab reads a work item's (studio_ticket.ts), for the ticket page.
+ */
+async function ticket(
+  deps: StudioDeps,
+  factory: string,
+  id: string,
+): Promise<Response> {
+  try {
+    safePart("factory", factory);
+    safePart("issue id", id);
+  } catch {
+    return error(404, `no ticket '${id}'`);
+  }
+  if (deps.query === undefined) {
+    return error(422, "this studio cannot read tickets");
+  }
+  try {
+    const lister = listedOnce(deps.factories);
+    if (!(await factoryEntries(deps, lister)).some((f) => f.name === factory)) {
+      return error(404, `no factory named '${factory}'`);
+    }
+    const source = await ticketSource(modelLookup(deps, lister), factory);
+    if (!source.supported) return error(422, source.reason);
+    return json(
+      await readTicketRecord(deps.query, source.instance, source.kind, id),
+    );
+  } catch (e) {
+    return error(422, message(e));
+  }
+}
+
+/**
  * GET /api/work-items/<key>: one work item, as the work-item view draws it;
  * ?payloads=1 adds its product payloads, for Copy as scenario. Asking also
  * keeps its poll alive, so the page hears when it moves.
@@ -632,6 +792,12 @@ export async function handleStudioRequest(
     parts.length === 4 && parts[1] === "work-items" && parts[3] === "ticket"
   ) {
     return await workItemTicket(deps, parts[2]);
+  }
+  if (parts.length === 2 && parts[1] === "tickets") {
+    return await tickets(deps, url.searchParams.get("factory"));
+  }
+  if (parts.length === 4 && parts[1] === "tickets") {
+    return await ticket(deps, parts[2], parts[3]);
   }
   if (parts[1] !== "factories") return error(404, "not found");
   if (deps.remote !== undefined) {

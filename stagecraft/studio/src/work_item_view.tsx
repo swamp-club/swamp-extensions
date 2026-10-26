@@ -21,9 +21,9 @@
 // Home and End to its ends, Enter or Space picks an entry and selects its
 // stage on the graph. Every state is written as text, never colour alone.
 
-import type { JSX } from "preact";
+import type { ComponentChildren, JSX } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
-import { durationText } from "./board.ts";
+import { durationText, relationText } from "./board.ts";
 import { EXIT_LABELS, exitState } from "./simulate.ts";
 import { MetricsTab } from "./simulate_view.tsx";
 import {
@@ -65,7 +65,9 @@ const when = (at: string) => new Date(at).toLocaleString();
 
 /** Where the page is: under its factory's Board. Board waits for the
  * factory to be known. */
-function Crumbs({ board, itemKey }: { board: string | null; itemKey: string }) {
+export function Crumbs(
+  { board, itemKey }: { board: string | null; itemKey: string },
+) {
   return (
     <nav class="crumbs" aria-label="Breadcrumb">
       <ol>
@@ -328,15 +330,6 @@ function TimelineTab() {
   );
 }
 
-/** How a relation reads from this ticket: outgoing (this ticket is the
- * subject, X in X parent_of Y), then incoming. */
-const RELATION_TEXT: Record<string, [string, string]> = {
-  parent_of: ["parent of", "child of"],
-  blocked_by: ["blocked by", "blocks"],
-  duplicate_of: ["duplicate of", "duplicated by"],
-  related_to: ["related to", "related to"],
-};
-
 /** What a person calls the tracker a ticket lives on, for its link out. */
 function trackerName(kind: string): string {
   return kind === "linear"
@@ -404,13 +397,47 @@ function TicketTab() {
   );
 }
 
-function TicketBody({ ticket }: { ticket: TicketView }) {
+/** A link to a ticket's page under a factory. */
+export function TicketLink(
+  { factory, id, children }: {
+    factory: string;
+    id: string;
+    children: ComponentChildren;
+  },
+) {
+  const route = { view: "ticket", factory, id } as const;
+  return (
+    <a
+      href={routeHref(route)}
+      onClick={(e) => {
+        if (
+          e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey
+        ) return;
+        e.preventDefault();
+        void go(route);
+      }}
+    >
+      {children}
+    </a>
+  );
+}
+
+/**
+ * A ticket as its tracker recorded it. With `factory`, a related ticket that
+ * no work item has taken links to its own page under that factory, and the
+ * page's own heading names the ticket, so it has no heading of its own.
+ */
+export function TicketBody(
+  { ticket, factory }: { ticket: TicketView; factory?: string },
+) {
   const external = ticket.origin === "snapshot" && webLink(ticket.url);
   return (
     <>
-      <h3>
-        <span class="key">{ticket.display}</span> {ticket.title}
-      </h3>
+      {factory === undefined && (
+        <h3>
+          <span class="key">{ticket.display}</span> {ticket.title}
+        </h3>
+      )}
       {external && (
         <p>
           <a href={ticket.url} target="_blank" rel="noopener noreferrer">
@@ -473,23 +500,29 @@ function TicketBody({ ticket }: { ticket: TicketView }) {
           <h4>Relations</h4>
           <ul class="relations">
             {ticket.relations.map((r, i) => {
-              const [out, inc] = RELATION_TEXT[r.type] ?? [r.type, r.type];
               const key = r.workItem;
               return (
                 <li key={i}>
-                  {r.direction === "outgoing" ? out : inc}{" "}
-                  {key === null ? r.display : (
-                    <a
-                      href={routeHref({ view: "work-item", key })}
-                      onClick={(e) => {
-                        if (e.button !== 0 || e.metaKey || e.ctrlKey) return;
-                        e.preventDefault();
-                        void go({ view: "work-item", key });
-                      }}
-                    >
-                      {r.display} (work item {key})
-                    </a>
-                  )}
+                  {relationText(r)} {key === null
+                    ? factory === undefined
+                      ? r.display
+                      : (
+                        <TicketLink factory={factory} id={r.issue}>
+                          {r.display}
+                        </TicketLink>
+                      )
+                    : (
+                      <a
+                        href={routeHref({ view: "work-item", key })}
+                        onClick={(e) => {
+                          if (e.button !== 0 || e.metaKey || e.ctrlKey) return;
+                          e.preventDefault();
+                          void go({ view: "work-item", key });
+                        }}
+                      >
+                        {r.display} (work item {key})
+                      </a>
+                    )}
                 </li>
               );
             })}
