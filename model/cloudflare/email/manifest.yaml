@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/cloudflare/email"
-version: "2026.10.23.2"
+version: "2026.10.27.1"
 license: "AGPL-3.0-or-later"
 description: "Cloudflare email infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -11,12 +11,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: domains
-  - Updated: addresses
-  - Updated: rules
-  - Updated: suppression
   - Updated: subdomains
-  - Updated: suppressions
 models:
   - addresses.ts
   - domains.ts

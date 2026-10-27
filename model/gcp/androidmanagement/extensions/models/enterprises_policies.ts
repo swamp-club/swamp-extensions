@@ -383,6 +383,13 @@ const GlobalArgsSchema = z.object({
       "Optional. ID of the preferential network the application uses. There must be a configuration for the specified network ID in preferentialNetworkServiceConfigs. If set to PREFERENTIAL_NETWORK_ID_UNSPECIFIED, the application will use the default network ID specified in defaultPreferentialNetworkId. See the documentation of defaultPreferentialNetworkId for the list of apps excluded from this defaulting. This applies on both work profiles and fully managed devices on Android 13 and above.",
     ).optional(),
     roles: z.array(z.object({
+      extraCapabilities: z.object({
+        localDeviceWipeCommand: z.unknown().describe(
+          "Optional. Controls whether the companion app can perform local device wipe (https://developers.google.com/android/management/sdk-local-commands) using AMAPI SDK (https://developers.google.com/android/management/sdk-integration).",
+        ).optional(),
+      }).describe(
+        "Optional. Extra capabilities configured specifically for this role. Not all role types support or utilize extra capabilities.",
+      ).optional(),
       roleType: z.enum([
         "ROLE_TYPE_UNSPECIFIED",
         "COMPANION_APP",
@@ -1628,6 +1635,9 @@ const StateSchema = z.object({
     })),
     preferentialNetworkId: z.string(),
     roles: z.array(z.object({
+      extraCapabilities: z.object({
+        localDeviceWipeCommand: z.unknown(),
+      }),
       roleType: z.string(),
     })),
     signingKeyCerts: z.array(z.object({
@@ -2230,6 +2240,13 @@ const InputsSchema = z.object({
       "Optional. ID of the preferential network the application uses. There must be a configuration for the specified network ID in preferentialNetworkServiceConfigs. If set to PREFERENTIAL_NETWORK_ID_UNSPECIFIED, the application will use the default network ID specified in defaultPreferentialNetworkId. See the documentation of defaultPreferentialNetworkId for the list of apps excluded from this defaulting. This applies on both work profiles and fully managed devices on Android 13 and above.",
     ).optional(),
     roles: z.array(z.object({
+      extraCapabilities: z.object({
+        localDeviceWipeCommand: z.unknown().describe(
+          "Optional. Controls whether the companion app can perform local device wipe (https://developers.google.com/android/management/sdk-local-commands) using AMAPI SDK (https://developers.google.com/android/management/sdk-integration).",
+        ).optional(),
+      }).describe(
+        "Optional. Extra capabilities configured specifically for this role. Not all role types support or utilize extra capabilities.",
+      ).optional(),
       roleType: z.enum([
         "ROLE_TYPE_UNSPECIFIED",
         "COMPANION_APP",
@@ -3444,7 +3461,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Management Enterprises.Policies. Registered at `@swamp/gcp/androidmanagement/enterprises-policies`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-policies",
-  version: "2026.10.23.1",
+  version: "2026.10.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3658,6 +3675,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -51,42 +51,41 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
+  Actions: z.array(z.enum(["SHARE"])).describe(
+    "List of governed actions a policy applies to.",
+  ),
   ApplicableTo: z.object({
+    Type: z.enum(["GROUP"]),
     GroupArns: z.array(z.string()).describe(
       "Required when type = GROUP. One or more group ARNs.",
     ).optional(),
-    Type: z.unknown(),
-  }).describe(
-    "Scoping: who the policy applies to. GROUP: `groupArns` required (one or more group ARNs).",
-  ),
-  AssetTypes: z.array(z.unknown()).describe(
-    "List of asset types a policy applies to. At least one asset type is required.",
-  ),
-  Description: z.string().min(0).max(1024).optional(),
-  Actions: z.array(z.unknown()).describe(
-    "List of governed actions a policy applies to.",
-  ),
+  }).describe("Scoping: who the policy applies to."),
   ApprovalGroups: z.array(z.string()).describe(
-    "List of approval group ARNs (e.g. QuickSight group ARNs). At least one approval group is required; the upper bound is enforced per-account at the service layer via the configurable approver-group limit.",
+    "List of approval group ARNs (e.g. QuickSight group ARNs). At least one approval group is required.",
   ),
-  PolicyId: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9\\-_]+$")),
+  AssetTypes: z.array(z.enum(["AGENT", "SPACE", "KNOWLEDGE_BASE", "FLOW"]))
+    .describe(
+      "List of asset types a policy applies to. At least one asset type is required.",
+    ),
+  Description: z.string().min(0).max(1024).optional(),
   Name: z.string().min(1).max(256),
+  PolicyId: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9\\-_]+$")),
 });
 
 const StateSchema = z.object({
+  Actions: z.array(z.string()).optional(),
   ApplicableTo: z.object({
+    Type: z.string(),
     GroupArns: z.array(z.string()),
-    Type: z.unknown(),
   }).optional(),
-  AssetTypes: z.array(z.unknown()).optional(),
-  Description: z.string().optional(),
-  Actions: z.array(z.unknown()).optional(),
-  PolicyArn: z.string().optional(),
-  CreatedAt: z.string().optional(),
   ApprovalGroups: z.array(z.string()).optional(),
-  UpdatedAt: z.string().optional(),
-  PolicyId: z.string(),
+  AssetTypes: z.array(z.string()).optional(),
+  CreatedAt: z.string().optional(),
+  Description: z.string().optional(),
   Name: z.string().optional(),
+  PolicyArn: z.string().optional(),
+  PolicyId: z.string(),
+  UpdatedAt: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -96,27 +95,26 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
+  Actions: z.array(z.enum(["SHARE"])).describe(
+    "List of governed actions a policy applies to.",
+  ).optional(),
   ApplicableTo: z.object({
+    Type: z.enum(["GROUP"]).optional(),
     GroupArns: z.array(z.string()).describe(
       "Required when type = GROUP. One or more group ARNs.",
     ).optional(),
-    Type: z.unknown().optional(),
-  }).describe(
-    "Scoping: who the policy applies to. GROUP: `groupArns` required (one or more group ARNs).",
-  ).optional(),
-  AssetTypes: z.array(z.unknown()).describe(
-    "List of asset types a policy applies to. At least one asset type is required.",
-  ).optional(),
-  Description: z.string().min(0).max(1024).optional(),
-  Actions: z.array(z.unknown()).describe(
-    "List of governed actions a policy applies to.",
-  ).optional(),
+  }).describe("Scoping: who the policy applies to.").optional(),
   ApprovalGroups: z.array(z.string()).describe(
-    "List of approval group ARNs (e.g. QuickSight group ARNs). At least one approval group is required; the upper bound is enforced per-account at the service layer via the configurable approver-group limit.",
+    "List of approval group ARNs (e.g. QuickSight group ARNs). At least one approval group is required.",
   ).optional(),
+  AssetTypes: z.array(z.enum(["AGENT", "SPACE", "KNOWLEDGE_BASE", "FLOW"]))
+    .describe(
+      "List of asset types a policy applies to. At least one asset type is required.",
+    ).optional(),
+  Description: z.string().min(0).max(1024).optional(),
+  Name: z.string().min(1).max(256).optional(),
   PolicyId: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9\\-_]+$"))
     .optional(),
-  Name: z.string().min(1).max(256).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -138,7 +136,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight ApprovalPolicy. Registered at `@swamp/aws/quicksight/approval-policy`. */
 export const model = {
   type: "@swamp/aws/quicksight/approval-policy",
-  version: "2026.10.23.1",
+  version: "2026.10.27.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -157,6 +155,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/cloudwatch"
-version: "2026.10.25.1"
+version: "2026.10.27.1"
 license: "AGPL-3.0-or-later"
 description: "AWS CLOUDWATCH infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -10,12 +10,15 @@ labels:
   - cloudwatch
   - cloud
   - infrastructure
+releaseNotes: |
+  - Added: domain_access_grant_for_organization, space
 models:
   - access_profile.ts
   - alarm.ts
   - alarm_mute_rule.ts
   - composite_alarm.ts
   - dashboard.ts
+  - domain_access_grant_for_organization.ts
   - domain_for_organization.ts
   - insight_rule.ts
   - integration.ts
@@ -24,6 +27,7 @@ models:
   - omni_dashboard.ts
   - otel_enrichment.ts
   - resource_metrics_configuration.ts
+  - space.ts
   - view.ts
 additionalFiles:
   - LICENSE.txt

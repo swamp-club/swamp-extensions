@@ -290,6 +290,13 @@ const GlobalArgsSchema = z.object({
   TerminationHookEnabled: z.boolean().describe(
     "Indicates whether the deployment group was configured to have CodeDeploy install a termination hook into an Auto Scaling group.",
   ).optional(),
+  Ec2DeploymentOptions: z.object({
+    AutoScalingGroupProcessesToSuspend: z.array(z.string()).describe(
+      "The Amazon EC2 Auto Scaling processes to suspend during an in-place deployment. CodeDeploy suspends these processes before it deploys to instances in an Auto Scaling group, and resumes them when the deployment succeeds, fails, or is stopped. Valid values are Terminate, AZRebalance, InstanceRefresh, and ScheduledActions. Process names are case sensitive. To stop suspending processes, remove the property.",
+    ).optional(),
+  }).describe(
+    "Options that control how CodeDeploy manages Amazon EC2 Auto Scaling groups during deployments to the deployment group. Applies only to in-place deployment groups on the EC2/On-premises compute platform that include at least one Auto Scaling group.",
+  ).optional(),
   ECSServices: z.array(ECSServiceSchema).describe(
     "The target Amazon ECS services in the deployment group. This applies only to deployment groups that use the Amazon ECS compute platform. A target Amazon ECS service is specified as an Amazon ECS cluster and service name pair using the format :.",
   ).optional(),
@@ -361,6 +368,9 @@ const StateSchema = z.object({
   }).optional(),
   Ec2TagFilters: z.array(EC2TagFilterSchema).optional(),
   TerminationHookEnabled: z.boolean().optional(),
+  Ec2DeploymentOptions: z.object({
+    AutoScalingGroupProcessesToSuspend: z.array(z.string()),
+  }).optional(),
   ECSServices: z.array(ECSServiceSchema).optional(),
   AutoRollbackConfiguration: z.object({
     Events: z.array(z.string()),
@@ -471,6 +481,13 @@ const InputsSchema = z.object({
   TerminationHookEnabled: z.boolean().describe(
     "Indicates whether the deployment group was configured to have CodeDeploy install a termination hook into an Auto Scaling group.",
   ).optional(),
+  Ec2DeploymentOptions: z.object({
+    AutoScalingGroupProcessesToSuspend: z.array(z.string()).describe(
+      "The Amazon EC2 Auto Scaling processes to suspend during an in-place deployment. CodeDeploy suspends these processes before it deploys to instances in an Auto Scaling group, and resumes them when the deployment succeeds, fails, or is stopped. Valid values are Terminate, AZRebalance, InstanceRefresh, and ScheduledActions. Process names are case sensitive. To stop suspending processes, remove the property.",
+    ).optional(),
+  }).describe(
+    "Options that control how CodeDeploy manages Amazon EC2 Auto Scaling groups during deployments to the deployment group. Applies only to in-place deployment groups on the EC2/On-premises compute platform that include at least one Auto Scaling group.",
+  ).optional(),
   ECSServices: z.array(ECSServiceSchema).describe(
     "The target Amazon ECS services in the deployment group. This applies only to deployment groups that use the Amazon ECS compute platform. A target Amazon ECS service is specified as an Amazon ECS cluster and service name pair using the format :.",
   ).optional(),
@@ -526,7 +543,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CodeDeploy DeploymentGroup. Registered at `@swamp/aws/codedeploy/deployment-group`. */
 export const model = {
   type: "@swamp/aws/codedeploy/deployment-group",
-  version: "2026.10.23.1",
+  version: "2026.10.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -586,6 +603,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.27.1",
+      description: "Added: Ec2DeploymentOptions",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

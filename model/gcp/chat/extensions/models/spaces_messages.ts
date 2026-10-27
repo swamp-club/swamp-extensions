@@ -625,6 +625,64 @@ const GlobalArgsSchema = z.object({
   clientAssignedMessageId: z.string().describe(
     "Optional. A custom ID for the message. You can use field to identify a message, or to get, delete, or update a message. To set a custom ID, specify the [`messageId`](https://developers.google.com/workspace/chat/api/reference/rest/v1/spaces.messages/create#body.QUERY_PARAMETERS.message_id) field when you create the message. For details, see [Name a message](https://developers.google.com/workspace/chat/create-messages#name_a_created_message).",
   ).optional(),
+  elements: z.object({
+    citations: z.array(z.object({
+      citedSources: z.array(z.object({
+        footer: z.unknown().describe(
+          "Optional. Additional information to show alongside the snippet in the form of a footer.",
+        ).optional(),
+        snippet: z.unknown().describe(
+          "Optional. Snippet containing information directly from the source.",
+        ).optional(),
+        title: z.unknown().describe(
+          "Required. The plaintext title of the `CitedSource`. Does not support markdown format.",
+        ).optional(),
+        uri: z.unknown().describe(
+          "Required. The URI pointing to the resource referenced by this `CitedSource`.",
+        ).optional(),
+      })).describe(
+        "Optional. A list of sources that are relevant to the citation. Sources are displayed in the citation hover card.",
+      ).optional(),
+      id: z.string().describe(
+        "Required. The ID of the citation. This ID is defined by the app creating the citation and must match the `data-id` attribute of the `` tag in the message text. Must contain only ASCII letters and numbers, and less than 63 characters.",
+      ).optional(),
+    })).describe(
+      "Optional. A list of inline citations referenced within the message text (via `` tags) that render as interactive hover cards.",
+    ).optional(),
+    citedSources: z.array(z.object({
+      footer: z.object({
+        text: z.string().describe(
+          "Optional. The plaintext to display in the footer. Does not support markdown format.",
+        ).optional(),
+      }).describe(
+        "Optional. Additional information to show alongside the snippet in the form of a footer.",
+      ).optional(),
+      snippet: z.object({
+        imagePreview: z.object({
+          imageUri: z.unknown().describe(
+            "Required. The URI of the image. Must be a publicly accessible URI so that Chat can fetch and display it.",
+          ).optional(),
+        }).describe(
+          "Optional. Image preview of the snippet provided as an input when creating the citation.",
+        ).optional(),
+        text: z.string().describe(
+          "Optional. A short plaintext excerpt directly from the corpus that is rendered in the citation hover card or source preview. When footer sources are automatically populated from inline `citations` (because `Elements.cited_sources` is not set), snippets are omitted from the deduplicated footer sources. Does not support markdown format, and must not exceed 1,000 characters.",
+        ).optional(),
+      }).describe(
+        "Optional. Snippet containing information directly from the source.",
+      ).optional(),
+      title: z.string().describe(
+        "Required. The plaintext title of the `CitedSource`. Does not support markdown format.",
+      ).optional(),
+      uri: z.string().describe(
+        "Required. The URI pointing to the resource referenced by this `CitedSource`.",
+      ).optional(),
+    })).describe(
+      "Optional. A list of sources to be displayed under the message as footer links. These are not referenced inline. For inline references, use `citations`.",
+    ).optional(),
+  }).describe(
+    "Optional. Additional message components, including inline `citations` (where each citation is associated with a specific portion of the message text) and `cited_sources` (which are general references used to generate the response and are not directly linked to specific segments of the text). On input, provide `elements` when creating or updating a message. On output, both `citations` and `cited_sources` are populated when reading a message that contains them. Callers can read structured citation metadata from `elements`, while `formatted_text` also includes inline citation tags or source links depending on `markup_syntax`. These differ from `annotations`, which are output-only and offer supplementary information tied to message fragments or the entire message text.",
+  ).optional(),
   fallbackText: z.string().describe(
     "Optional. A plain-text description of the message's cards, used when the actual cards can't be displayed—for example, mobile notifications.",
   ).optional(),
@@ -1040,6 +1098,30 @@ const StateSchema = z.object({
   deleteTime: z.string().optional(),
   deletionMetadata: z.object({
     deletionType: z.string(),
+  }).optional(),
+  elements: z.object({
+    citations: z.array(z.object({
+      citedSources: z.array(z.object({
+        footer: z.unknown(),
+        snippet: z.unknown(),
+        title: z.unknown(),
+        uri: z.unknown(),
+      })),
+      id: z.string(),
+    })),
+    citedSources: z.array(z.object({
+      footer: z.object({
+        text: z.string(),
+      }),
+      snippet: z.object({
+        imagePreview: z.object({
+          imageUri: z.unknown(),
+        }),
+        text: z.string(),
+      }),
+      title: z.string(),
+      uri: z.string(),
+    })),
   }).optional(),
   emojiReactionSummaries: z.array(z.object({
     emoji: z.object({
@@ -1643,6 +1725,64 @@ const InputsSchema = z.object({
   clientAssignedMessageId: z.string().describe(
     "Optional. A custom ID for the message. You can use field to identify a message, or to get, delete, or update a message. To set a custom ID, specify the [`messageId`](https://developers.google.com/workspace/chat/api/reference/rest/v1/spaces.messages/create#body.QUERY_PARAMETERS.message_id) field when you create the message. For details, see [Name a message](https://developers.google.com/workspace/chat/create-messages#name_a_created_message).",
   ).optional(),
+  elements: z.object({
+    citations: z.array(z.object({
+      citedSources: z.array(z.object({
+        footer: z.unknown().describe(
+          "Optional. Additional information to show alongside the snippet in the form of a footer.",
+        ).optional(),
+        snippet: z.unknown().describe(
+          "Optional. Snippet containing information directly from the source.",
+        ).optional(),
+        title: z.unknown().describe(
+          "Required. The plaintext title of the `CitedSource`. Does not support markdown format.",
+        ).optional(),
+        uri: z.unknown().describe(
+          "Required. The URI pointing to the resource referenced by this `CitedSource`.",
+        ).optional(),
+      })).describe(
+        "Optional. A list of sources that are relevant to the citation. Sources are displayed in the citation hover card.",
+      ).optional(),
+      id: z.string().describe(
+        "Required. The ID of the citation. This ID is defined by the app creating the citation and must match the `data-id` attribute of the `` tag in the message text. Must contain only ASCII letters and numbers, and less than 63 characters.",
+      ).optional(),
+    })).describe(
+      "Optional. A list of inline citations referenced within the message text (via `` tags) that render as interactive hover cards.",
+    ).optional(),
+    citedSources: z.array(z.object({
+      footer: z.object({
+        text: z.string().describe(
+          "Optional. The plaintext to display in the footer. Does not support markdown format.",
+        ).optional(),
+      }).describe(
+        "Optional. Additional information to show alongside the snippet in the form of a footer.",
+      ).optional(),
+      snippet: z.object({
+        imagePreview: z.object({
+          imageUri: z.unknown().describe(
+            "Required. The URI of the image. Must be a publicly accessible URI so that Chat can fetch and display it.",
+          ).optional(),
+        }).describe(
+          "Optional. Image preview of the snippet provided as an input when creating the citation.",
+        ).optional(),
+        text: z.string().describe(
+          "Optional. A short plaintext excerpt directly from the corpus that is rendered in the citation hover card or source preview. When footer sources are automatically populated from inline `citations` (because `Elements.cited_sources` is not set), snippets are omitted from the deduplicated footer sources. Does not support markdown format, and must not exceed 1,000 characters.",
+        ).optional(),
+      }).describe(
+        "Optional. Snippet containing information directly from the source.",
+      ).optional(),
+      title: z.string().describe(
+        "Required. The plaintext title of the `CitedSource`. Does not support markdown format.",
+      ).optional(),
+      uri: z.string().describe(
+        "Required. The URI pointing to the resource referenced by this `CitedSource`.",
+      ).optional(),
+    })).describe(
+      "Optional. A list of sources to be displayed under the message as footer links. These are not referenced inline. For inline references, use `citations`.",
+    ).optional(),
+  }).describe(
+    "Optional. Additional message components, including inline `citations` (where each citation is associated with a specific portion of the message text) and `cited_sources` (which are general references used to generate the response and are not directly linked to specific segments of the text). On input, provide `elements` when creating or updating a message. On output, both `citations` and `cited_sources` are populated when reading a message that contains them. Callers can read structured citation metadata from `elements`, while `formatted_text` also includes inline citation tags or source links depending on `markup_syntax`. These differ from `annotations`, which are output-only and offer supplementary information tied to message fragments or the entire message text.",
+  ).optional(),
   fallbackText: z.string().describe(
     "Optional. A plain-text description of the message's cards, used when the actual cards can't be displayed—for example, mobile notifications.",
   ).optional(),
@@ -1839,7 +1979,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Chat Spaces.Messages. Registered at `@swamp/gcp/chat/spaces-messages`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces-messages",
-  version: "2026.10.23.1",
+  version: "2026.10.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2053,6 +2193,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.27.1",
+      description: "Added: elements",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -2088,6 +2233,7 @@ export const model = {
         if (g["clientAssignedMessageId"] !== undefined) {
           body["clientAssignedMessageId"] = g["clientAssignedMessageId"];
         }
+        if (g["elements"] !== undefined) body["elements"] = g["elements"];
         if (g["fallbackText"] !== undefined) {
           body["fallbackText"] = g["fallbackText"];
         }
@@ -2234,6 +2380,7 @@ export const model = {
         if (g["clientAssignedMessageId"] !== undefined) {
           body["clientAssignedMessageId"] = g["clientAssignedMessageId"];
         }
+        if (g["elements"] !== undefined) body["elements"] = g["elements"];
         if (g["fallbackText"] !== undefined) {
           body["fallbackText"] = g["fallbackText"];
         }

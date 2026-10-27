@@ -318,6 +318,10 @@ const StateSchema = z.object({
         deletionMetadata: z.object({
           deletionType: z.unknown(),
         }),
+        elements: z.object({
+          citations: z.unknown(),
+          citedSources: z.unknown(),
+        }),
         emojiReactionSummaries: z.array(z.unknown()),
         fallbackText: z.string(),
         formattedText: z.string(),
@@ -410,6 +414,10 @@ const StateSchema = z.object({
         deletionMetadata: z.object({
           deletionType: z.unknown(),
         }),
+        elements: z.object({
+          citations: z.unknown(),
+          citedSources: z.unknown(),
+        }),
         emojiReactionSummaries: z.array(z.unknown()),
         fallbackText: z.string(),
         formattedText: z.string(),
@@ -501,6 +509,10 @@ const StateSchema = z.object({
         deleteTime: z.string(),
         deletionMetadata: z.object({
           deletionType: z.unknown(),
+        }),
+        elements: z.object({
+          citations: z.unknown(),
+          citedSources: z.unknown(),
         }),
         emojiReactionSummaries: z.array(z.unknown()),
         fallbackText: z.string(),
@@ -683,6 +695,18 @@ const StateSchema = z.object({
       deleteTime: z.string(),
       deletionMetadata: z.object({
         deletionType: z.string(),
+      }),
+      elements: z.object({
+        citations: z.array(z.object({
+          citedSources: z.unknown(),
+          id: z.unknown(),
+        })),
+        citedSources: z.array(z.object({
+          footer: z.unknown(),
+          snippet: z.unknown(),
+          title: z.unknown(),
+          uri: z.unknown(),
+        })),
       }),
       emojiReactionSummaries: z.array(z.object({
         emoji: z.object({
@@ -940,6 +964,18 @@ const StateSchema = z.object({
       deletionMetadata: z.object({
         deletionType: z.string(),
       }),
+      elements: z.object({
+        citations: z.array(z.object({
+          citedSources: z.unknown(),
+          id: z.unknown(),
+        })),
+        citedSources: z.array(z.object({
+          footer: z.unknown(),
+          snippet: z.unknown(),
+          title: z.unknown(),
+          uri: z.unknown(),
+        })),
+      }),
       emojiReactionSummaries: z.array(z.object({
         emoji: z.object({
           customEmoji: z.unknown(),
@@ -1195,6 +1231,18 @@ const StateSchema = z.object({
       deleteTime: z.string(),
       deletionMetadata: z.object({
         deletionType: z.string(),
+      }),
+      elements: z.object({
+        citations: z.array(z.object({
+          citedSources: z.unknown(),
+          id: z.unknown(),
+        })),
+        citedSources: z.array(z.object({
+          footer: z.unknown(),
+          snippet: z.unknown(),
+          title: z.unknown(),
+          uri: z.unknown(),
+        })),
       }),
       emojiReactionSummaries: z.array(z.object({
         emoji: z.object({
@@ -1616,7 +1664,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Chat Spaces.SpaceEvents. Registered at `@swamp/gcp/chat/spaces-spaceevents`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces-spaceevents",
-  version: "2026.10.23.1",
+  version: "2026.10.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -1805,6 +1853,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

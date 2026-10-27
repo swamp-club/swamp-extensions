@@ -204,7 +204,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/networkmanagement/networkmonitoringproviders-monitoringpoints",
-  version: "2026.10.23.1",
+  version: "2026.10.27.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -233,6 +233,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -398,6 +403,7 @@ export const model = {
       description: "download install script",
       arguments: z.object({
         _password: z.any().optional(),
+        cloudDeploymentType: z.any().optional(),
         hostname: z.any().optional(),
         monitoringPointType: z.any().optional(),
         ntpServerAddress: z.any().optional(),
@@ -423,6 +429,9 @@ export const model = {
         if (g["parent"] !== undefined) params["parent"] = String(g["parent"]);
         if (args["_password"] !== undefined) {
           params["_password"] = String(args["_password"]);
+        }
+        if (args["cloudDeploymentType"] !== undefined) {
+          params["cloudDeploymentType"] = String(args["cloudDeploymentType"]);
         }
         if (args["hostname"] !== undefined) {
           params["hostname"] = String(args["hostname"]);
@@ -492,6 +501,7 @@ export const model = {
             "parameterOrder": ["parent"],
             "parameters": {
               "_password": { "location": "query" },
+              "cloudDeploymentType": { "location": "query" },
               "hostname": { "location": "query" },
               "monitoringPointType": { "location": "query" },
               "ntpServerAddress": { "location": "query" },

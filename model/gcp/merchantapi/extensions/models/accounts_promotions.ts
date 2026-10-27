@@ -347,6 +347,7 @@ const GlobalArgsSchema = z.object({
         "SIGNUP_FOR_EMAIL",
         "SIGNUP_FOR_TEXT",
         "CUSTOM",
+        "FORMS_OF_PAYMENT",
       ]).describe(
         "Optional. A restriction customers must meet before they can redeem the promotion.",
       ).optional(),
@@ -848,6 +849,7 @@ const InputsSchema = z.object({
         "SIGNUP_FOR_EMAIL",
         "SIGNUP_FOR_TEXT",
         "CUSTOM",
+        "FORMS_OF_PAYMENT",
       ]).describe(
         "Optional. A restriction customers must meet before they can redeem the promotion.",
       ).optional(),
@@ -1037,7 +1039,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Merchant Accounts.Promotions. Registered at `@swamp/gcp/merchantapi/accounts-promotions`. */
 export const model = {
   type: "@swamp/gcp/merchantapi/accounts-promotions",
-  version: "2026.10.23.1",
+  version: "2026.10.27.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -1061,6 +1063,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

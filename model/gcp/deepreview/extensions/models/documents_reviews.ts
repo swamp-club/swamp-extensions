@@ -109,10 +109,6 @@ const LIST_CONFIG = {
   },
 } as const;
 
-const _defaultOAuthScopes: string[] = [
-  "https://www.googleapis.com/auth/drive.file",
-];
-
 const GlobalArgsSchema = z.object({
   accessToken: z.string().meta({ sensitive: true }).describe(
     "GCP OAuth2 access token; overrides GCP_ACCESS_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -315,7 +311,7 @@ function _buildGcpCredentials(
     project: g.project as string | undefined,
     scopes: typeof g.scopes === "string"
       ? g.scopes.split(",").map((s: string) => s.trim())
-      : _defaultOAuthScopes,
+      : undefined,
     quotaProject: g.quotaProject as string | undefined,
   };
 }
@@ -323,10 +319,15 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Deep Review Documents.Reviews. Registered at `@swamp/gcp/deepreview/documents-reviews`. */
 export const model = {
   type: "@swamp/gcp/deepreview/documents-reviews",
-  version: "2026.10.23.1",
+  version: "2026.10.27.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

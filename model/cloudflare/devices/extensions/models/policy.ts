@@ -90,6 +90,7 @@ const GlobalArgsSchema = z.object({
     "Whether to add Microsoft IPs to Split Tunnel exclusions.",
   ).optional(),
   global_acceleration: z.object({
+    allow_manual_override: z.boolean().optional(),
     api_endpoints: z.array(z.string()),
     autoswitch: z.boolean().optional(),
     enabled: z.boolean(),
@@ -191,6 +192,7 @@ const ResourceSchema = z.object({
   })).optional(),
   gateway_unique_id: z.string().optional(),
   global_acceleration: z.object({
+    allow_manual_override: z.boolean().optional(),
     api_endpoints: z.array(z.string()).optional(),
     autoswitch: z.boolean().optional(),
     enabled: z.boolean().optional(),
@@ -259,6 +261,7 @@ const InputsSchema = z.object({
   })).optional(),
   exclude_office_ips: z.boolean().optional(),
   global_acceleration: z.object({
+    allow_manual_override: z.boolean().optional(),
     api_endpoints: z.array(z.string()),
     autoswitch: z.boolean().optional(),
     enabled: z.boolean(),
@@ -298,7 +301,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Policy. Registered at `@swamp/cloudflare/devices/policy`. */
 export const model = {
   type: "@swamp/cloudflare/devices/policy",
-  version: "2026.10.23.1",
+  version: "2026.10.27.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -377,6 +380,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -148,7 +148,7 @@ const GlobalArgsSchema = z.object({
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
   domain: z.string().describe(
-    "Required. The DNS suffix for the zone. Ex: abc.example.com.",
+    "Required. Immutable. The DNS suffix for the zone. Ex: abc.example.com.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. Labels or tags associated with the resource.",
@@ -188,7 +188,7 @@ const InputsSchema = z.object({
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
   domain: z.string().describe(
-    "Required. The DNS suffix for the zone. Ex: abc.example.com.",
+    "Required. Immutable. The DNS suffix for the zone. Ex: abc.example.com.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. Labels or tags associated with the resource.",
@@ -236,10 +236,15 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud OdbNetworks.OdbDnsZones. Registered at `@swamp/gcp/oracledatabase/odbnetworks-odbdnszones`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/odbnetworks-odbdnszones",
-  version: "2026.10.23.1",
+  version: "2026.10.27.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

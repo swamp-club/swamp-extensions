@@ -138,7 +138,9 @@ const GlobalArgsSchema = z.object({
   apiEndpoint: z.string().describe(
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
-  id: z.string().describe("Task list identifier.").optional(),
+  id: z.string().describe(
+    'Task list identifier. In requests, the authenticated user\'s default task list can also be referred to as "@default".',
+  ).optional(),
   title: z.string().describe(
     "Title of the task list. Maximum length allowed: 1024 characters.",
   ).optional(),
@@ -163,7 +165,9 @@ const InputsSchema = z.object({
   scopes: z.string().optional(),
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
-  id: z.string().describe("Task list identifier.").optional(),
+  id: z.string().describe(
+    'Task list identifier. In requests, the authenticated user\'s default task list can also be referred to as "@default".',
+  ).optional(),
   title: z.string().describe(
     "Title of the task list. Maximum length allowed: 1024 characters.",
   ).optional(),
@@ -195,7 +199,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Tasks Tasklists. Registered at `@swamp/gcp/tasks/tasklists`. */
 export const model = {
   type: "@swamp/gcp/tasks/tasklists",
-  version: "2026.10.23.1",
+  version: "2026.10.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -329,6 +333,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -589,7 +598,7 @@ export const model = {
       description: "List tasklists resources",
       arguments: z.object({
         maxResults: z.number().describe(
-          "Maximum number of task lists returned on one page. Optional. The default is 1000 (max allowed: 1000).",
+          "Optional. Maximum number of task lists returned on one page. The default is 1000 (max allowed: 1000).",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",

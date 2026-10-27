@@ -71,6 +71,9 @@ const INSERT_CONFIG = {
     "tasklist",
   ],
   "parameters": {
+    "hidden": {
+      "location": "query",
+    },
     "parent": {
       "location": "query",
     },
@@ -223,7 +226,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   tasklist: z.string().describe("Task list identifier."),
   previous: z.string().describe(
-    "Previous sibling task identifier. If the task is created at the first position among its siblings, this parameter is omitted. Optional.",
+    "Optional. Previous sibling task identifier. If the task is created at the first position among its siblings, this parameter is omitted.",
   ).optional(),
 });
 
@@ -295,7 +298,7 @@ const InputsSchema = z.object({
   ).optional(),
   tasklist: z.string().describe("Task list identifier.").optional(),
   previous: z.string().describe(
-    "Previous sibling task identifier. If the task is created at the first position among its siblings, this parameter is omitted. Optional.",
+    "Optional. Previous sibling task identifier. If the task is created at the first position among its siblings, this parameter is omitted.",
   ).optional(),
 });
 
@@ -325,7 +328,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Tasks Tasks. Registered at `@swamp/gcp/tasks/tasks`. */
 export const model = {
   type: "@swamp/gcp/tasks/tasks",
-  version: "2026.10.23.1",
+  version: "2026.10.27.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -470,6 +473,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.27.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -499,7 +507,7 @@ export const model = {
         if (g["completed"] !== undefined) body["completed"] = g["completed"];
         if (g["deleted"] !== undefined) body["deleted"] = g["deleted"];
         if (g["due"] !== undefined) body["due"] = g["due"];
-        if (g["hidden"] !== undefined) body["hidden"] = g["hidden"];
+        if (g["hidden"] !== undefined) params["hidden"] = String(g["hidden"]);
         if (g["id"] !== undefined) body["id"] = g["id"];
         if (g["notes"] !== undefined) body["notes"] = g["notes"];
         if (g["status"] !== undefined) body["status"] = g["status"];
@@ -762,34 +770,34 @@ export const model = {
       description: "List tasks resources",
       arguments: z.object({
         completedMax: z.string().describe(
-          "Upper bound for a task's completion date (as a RFC 3339 timestamp) to filter by. Optional. The default is not to filter by completion date.",
+          "Optional. Upper bound for a task's completion date (as a RFC 3339 timestamp) to filter by. The default is not to filter by completion date.",
         ).optional(),
         completedMin: z.string().describe(
-          "Lower bound for a task's completion date (as a RFC 3339 timestamp) to filter by. Optional. The default is not to filter by completion date.",
+          "Optional. Lower bound for a task's completion date (as a RFC 3339 timestamp) to filter by. The default is not to filter by completion date.",
         ).optional(),
         dueMax: z.string().describe(
-          "Upper bound for a task's due date (as a RFC 3339 timestamp) to filter by. Optional. The default is not to filter by due date.",
+          "Optional. Upper bound for a task's due date (as a RFC 3339 timestamp) to filter by. The default is not to filter by due date.",
         ).optional(),
         dueMin: z.string().describe(
-          "Lower bound for a task's due date (as a RFC 3339 timestamp) to filter by. Optional. The default is not to filter by due date.",
+          "Optional. Lower bound for a task's due date (as a RFC 3339 timestamp) to filter by. The default is not to filter by due date.",
         ).optional(),
         maxResults: z.number().describe(
-          "Maximum number of tasks returned on one page. Optional. The default is 20 (max allowed: 100).",
+          "Optional. Maximum number of tasks returned on one page. The default is 20 (max allowed: 100).",
         ).optional(),
         showAssigned: z.boolean().describe(
-          "Optional. Flag indicating whether tasks assigned to the current user are returned in the result. Optional. The default is False.",
+          "Optional. Flag indicating whether tasks assigned to the current user are returned in the result. The default is False.",
         ).optional(),
         showCompleted: z.boolean().describe(
-          "Flag indicating whether completed tasks are returned in the result. Note that showHidden must also be True to show tasks completed in first party clients, such as the web UI and Google's mobile apps. Optional. The default is True.",
+          "Optional. Flag indicating whether completed tasks are returned in the result. Note that showHidden must also be True to show tasks completed in first party clients, such as the web UI and Google's mobile apps. The default is True.",
         ).optional(),
         showDeleted: z.boolean().describe(
-          "Flag indicating whether deleted tasks are returned in the result. Optional. The default is False.",
+          "Optional. Flag indicating whether deleted tasks are returned in the result. The default is False.",
         ).optional(),
         showHidden: z.boolean().describe(
-          "Flag indicating whether hidden tasks are returned in the result. Optional. The default is False.",
+          "Optional. Flag indicating whether hidden tasks are returned in the result. The default is False.",
         ).optional(),
         updatedMin: z.string().describe(
-          "Lower bound for a task's last modification time (as a RFC 3339 timestamp) to filter by. Optional. The default is not to filter by last modification time.",
+          "Optional. Lower bound for a task's last modification time (as a RFC 3339 timestamp) to filter by. The default is not to filter by last modification time.",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",

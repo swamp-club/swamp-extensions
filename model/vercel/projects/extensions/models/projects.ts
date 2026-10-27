@@ -999,6 +999,7 @@ const ResourceSchema = z.object({
     edgeConfigItem: z.array(z.string()).optional(),
     edgeConfigSchema: z.array(z.string()).optional(),
     edgeConfigToken: z.array(z.string()).optional(),
+    emaSetup: z.array(z.string()).optional(),
     endpointVerification: z.array(z.string()).optional(),
     environments: z.array(z.string()).optional(),
     event: z.array(z.string()).optional(),
@@ -1379,6 +1380,9 @@ const ResourceSchema = z.object({
   }).nullable().optional(),
   v0: z.boolean().nullable().optional(),
   v0Created: z.boolean().nullable().optional(),
+  vercelFlags: z.object({
+    enabledAt: z.number().optional(),
+  }).nullable().optional(),
   webAnalytics: z.object({
     canceledAt: z.number().optional(),
     disabledAt: z.number().optional(),
@@ -1727,7 +1731,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.10.23.2",
+  version: "2026.10.27.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -1971,6 +1975,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

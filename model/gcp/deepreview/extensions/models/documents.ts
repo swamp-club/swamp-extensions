@@ -31,6 +31,7 @@
 
 import { z } from "npm:zod@4.6.7";
 import {
+  createResource,
   deleteResource,
   type ExplicitGcpCredentials,
   getProjectId,
@@ -97,10 +98,6 @@ const LIST_CONFIG = {
     },
   },
 } as const;
-
-const _defaultOAuthScopes: string[] = [
-  "https://www.googleapis.com/auth/drive.file",
-];
 
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
@@ -173,7 +170,7 @@ function _buildGcpCredentials(
     project: g.project as string | undefined,
     scopes: typeof g.scopes === "string"
       ? g.scopes.split(",").map((s: string) => s.trim())
-      : _defaultOAuthScopes,
+      : undefined,
     quotaProject: g.quotaProject as string | undefined,
   };
 }
@@ -181,10 +178,15 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Deep Review Documents. Registered at `@swamp/gcp/deepreview/documents`. */
 export const model = {
   type: "@swamp/gcp/deepreview/documents",
-  version: "2026.10.23.1",
+  version: "2026.10.27.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.27.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -381,6 +383,55 @@ export const model = {
           dataHandles.push(handle);
         }
         return { dataHandles, result: { count: items.length, nextPageToken } };
+      },
+    },
+    estimate_review_cost: {
+      description: "estimate review cost",
+      arguments: z.object({
+        review: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["document"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["review"] !== undefined) body["review"] = args["review"];
+        const result = await createResource(
+          baseUrl,
+          {
+            "id": "deepreview.documents.estimateReviewCost",
+            "path": "v1/{+document}:estimateReviewCost",
+            "httpMethod": "POST",
+            "parameterOrder": ["document"],
+            "parameters": {
+              "document": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
       },
     },
   },
