@@ -30,7 +30,7 @@
  * verified commit.
  */
 
-import { z } from "zod";
+import { z } from "npm:zod@4.6.7";
 
 /** Critical and high findings block the merge; medium and low do not. */
 export const Severity = z.enum(["critical", "high", "medium", "low"]);

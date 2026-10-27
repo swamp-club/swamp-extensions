@@ -14,8 +14,8 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { assertEquals } from "@std/assert";
-import fc from "fast-check";
+import { assertEquals } from "jsr:@std/assert@1.0.19";
+import fc from "npm:fast-check@3.23.2";
 import {
   type ForwardStatus,
   STATUS_ORDER,

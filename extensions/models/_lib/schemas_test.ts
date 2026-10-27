@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { assertEquals } from "@std/assert";
+import { assertEquals } from "jsr:@std/assert@1.0.19";
 import { Phase, PullRequestSchema, TRANSITIONS } from "./schemas.ts";
 
 Deno.test("Phase: includes pr_open, pr_failed, releasing, notify, summarizing between implementing and done", () => {

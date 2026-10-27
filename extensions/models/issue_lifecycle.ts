@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { z } from "zod";
+import { z } from "npm:zod@4.6.7";
 import {
   AdversarialFindingSchema,
   type AdversarialReviewData,

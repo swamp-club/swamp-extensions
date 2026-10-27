@@ -19,7 +19,7 @@ import {
   assertEquals,
   assertRejects,
   assertStringIncludes,
-} from "@std/assert";
+} from "jsr:@std/assert@1.0.19";
 import {
   consistencyProblem,
   decideReview,

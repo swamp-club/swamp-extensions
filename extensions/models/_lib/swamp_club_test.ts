@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU Affero General Public License along
 // with Swamp. If not, see <https://www.gnu.org/licenses/>.
 
-import { assertEquals, assertRejects } from "@std/assert";
+import { assertEquals, assertRejects } from "jsr:@std/assert@1.0.19";
 import {
   LIFECYCLE_SUMMARY_MAX_CHARS,
   statusAtOrBeyond,
