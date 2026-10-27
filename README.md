@@ -62,6 +62,8 @@ end-to-end with a single `swamp workflow run`.
 | Extension                                  | Description                                                                                                                                                  | Dependencies                              |
 | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
 | [`@swamp/typesafe-ai`](typesafe-ai/) | Ask TypeSafe System One models (Jev) typed Noul, Choice, and Score questions and branch workflows on the calibrated answers stored as swamp resources. | None (TypeSafe REST API via `fetch`) |
+| [`@swamp/cloudflare/clef`](model/cloudflare/clef/) | Ask Cloudflare's Clef and Clef-flash decision models on Workers AI typed Noul, Choice, and Score questions (with optional images); answers are stored in the same shape as `@swamp/typesafe-ai`. Packaged by the Cloudflare codegen as a standalone model. | None (Workers AI REST API via `fetch`) |
+| [`@swamp/cloudflare/clairic`](model/cloudflare/clairic/) | Extract typed values (text spans, numbers, dates, durations, lists, estimates, forecasts) from text and images with Cloudflare's Clairic model on Workers AI (preview); undetermined values are stored as null. Packaged by the Cloudflare codegen as a standalone model. | None (Workers AI REST API via `fetch`) |
 
 ## Model Extensions (Auto-Generated)
 

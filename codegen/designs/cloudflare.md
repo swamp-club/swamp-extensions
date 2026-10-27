@@ -1310,6 +1310,7 @@ const STANDALONE_MODELS: StandaloneModelConfig[] = [
     service: "analytics",        // creates model/cloudflare/analytics/
     models: [{ outputPath, sourcePath }],
     libFiles: [{ outputPath, sourcePath }],
+    readmePath: "...",           // optional hand-written README
     description: "...",
     labels: [...],
   },
@@ -1319,11 +1320,18 @@ const STANDALONE_MODELS: StandaloneModelConfig[] = [
 During `generateCloudflareModels()`, after processing OpenAPI-derived services,
 the pipeline processes each standalone config:
 
-1. Reads the source file from `codegen/cloudflare/standalone/<service>/`
+1. Reads the source files named by `sourcePath` (normally under
+   `codegen/cloudflare/standalone/<service>/`)
 2. Substitutes `VERSION_PLACEHOLDER` with the computed CalVer version
 3. Writes the model to `model/cloudflare/<service>/extensions/models/`
 4. Writes lib files to `extensions/models/_lib/`
-5. Generates manifest, README, LICENSE, and deno.json
+5. Generates manifest, LICENSE, and deno.json, and writes the README: the file
+   at `readmePath` when set, otherwise the generated CRUD README template
+
+Set `readmePath` for any standalone model whose methods are not
+create/get/update/delete. The CRUD template lists those methods, so it would
+describe a model that does not exist. Only the first `libFiles` entry is written
+to the output, so a standalone service has exactly one lib file.
 
 The standalone model files appear in `generatedFileNames`, so they survive the
 orphan-removal step that deletes stale `.ts` files from service directories.
@@ -1342,6 +1350,23 @@ codegen/cloudflare/standalone/<service>/
 The directory structure mirrors the output layout so that import paths (e.g.,
 `./_lib/graphql.ts`) resolve correctly in both the source and output locations.
 
+Several standalone services may share one source directory. `workers-ai/` holds
+the Clef and Clairic models and their shared `_lib/workers_ai.ts`. Each
+service's config points at its own model file and the same lib file, so the lib
+is copied into both outputs and `./_lib/workers_ai.ts` resolves in the source
+and in each output:
+
+```
+codegen/cloudflare/standalone/workers-ai/
+├── deno.json
+├── decision.ts            # -> model/cloudflare/clef/   (@swamp/cloudflare/clef/decision)
+├── extraction.ts          # -> model/cloudflare/clairic/ (@swamp/cloudflare/clairic/extraction)
+├── README.clef.md         # readmePath for clef
+├── README.clairic.md      # readmePath for clairic
+└── _lib/
+    └── workers_ai.ts      # Workers AI transport, copied into both services
+```
+
 ### When to use standalone models
 
 Use a standalone model when the API:
@@ -1350,12 +1375,15 @@ Use a standalone model when the API:
 - Does not follow the CRUD pattern (POST create + GET read)
 - Uses a different protocol (GraphQL vs REST)
 - Is read-only or query-oriented
+- Runs a model rather than managing a resource (e.g., Workers AI `/ai/run`)
 
 ### Current standalone models
 
-| Service     | Model                  | API                                                  |
-| ----------- | ---------------------- | ---------------------------------------------------- |
-| `analytics` | `graphql_analytics.ts` | GraphQL Analytics (all zone-level adaptive datasets) |
+| Service     | Model                  | API                                                                      |
+| ----------- | ---------------------- | ------------------------------------------------------------------------ |
+| `analytics` | `graphql_analytics.ts` | GraphQL Analytics (all zone-level adaptive datasets)                     |
+| `clef`      | `decision.ts`          | Workers AI `@cf/cloudflare/clef` and `clef-flash` (System One decisions) |
+| `clairic`   | `extraction.ts`        | Workers AI `@cf/cloudflare/clairic` (System One extraction, preview)     |
 
 ### Adding a new standalone model
 
@@ -1365,4 +1393,9 @@ Use a standalone model when the API:
 4. Add tests alongside the source
 5. Add a `deno.json` with lint/import config
 6. Register in `STANDALONE_MODELS` in `pipeline.ts`
-7. Run `deno task generate:cloudflare <service>` and verify output
+7. Write a README and set `readmePath` unless the model has CRUD methods
+8. Add the source directory as a target in `verification/checks.yaml` (codegen
+   group, like `codegen/cloudflare/standalone/analytics`)
+9. Run `deno task generate:cloudflare <service>` and verify output, then run
+   `deno install` in the new `model/cloudflare/<service>/` to create its
+   lockfile

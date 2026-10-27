@@ -1,5 +1,5 @@
 import { assertEquals } from "@std/assert";
-import { parseResources } from "./pipeline.ts";
+import { generateCloudflareModels, parseResources } from "./pipeline.ts";
 
 type OApiSpec = Parameters<typeof parseResources>[0];
 
@@ -196,4 +196,41 @@ Deno.test("parseResources records create-required fields, dropping scope args an
 
   assertEquals(resources.length, 1);
   assertEquals(resources[0].createRequiredProperties, ["name", "alert_type"]);
+});
+
+Deno.test("standalone services with a readmePath ship that README, not the CRUD template", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const schemaPath = `${dir}/spec.json`;
+    await Deno.writeTextFile(schemaPath, JSON.stringify({ paths: {} }));
+    const { services, errors } = await generateCloudflareModels({
+      services: ["clef", "clairic"],
+      outputDir: `${dir}/model`,
+      schemaPath,
+    });
+    assertEquals(errors, []);
+    assertEquals([...services.keys()].sort(), ["clairic", "clef"]);
+    for (const service of ["clef", "clairic"]) {
+      const expected = await Deno.readTextFile(
+        new URL(
+          `./standalone/workers-ai/README.${service}.md`,
+          import.meta.url,
+        ),
+      );
+      const result = services.get(service)!;
+      assertEquals(result.readmeFile.sourceCode, expected);
+      assertEquals(
+        result.libFile.filePath,
+        "extensions/models/_lib/workers_ai.ts",
+      );
+      assertEquals(
+        result.manifest.sourceCode.includes(
+          `name: "@swamp/cloudflare/${service}"`,
+        ),
+        true,
+      );
+    }
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
 });

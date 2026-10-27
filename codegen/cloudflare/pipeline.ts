@@ -41,6 +41,12 @@ interface StandaloneModelConfig {
   models: StandaloneModelFile[];
   /** Lib files to copy (replaces the standard cloudflare.ts for this service) */
   libFiles: StandaloneModelFile[];
+  /**
+   * Absolute path to a hand-written README to ship instead of the generated
+   * CRUD template. Use it when the model's methods are not create/get/update/
+   * delete, since the template would describe methods the model lacks.
+   */
+  readmePath?: string;
   /** Description for the manifest */
   description: string;
   /** Labels for the manifest */
@@ -70,6 +76,65 @@ const STANDALONE_MODELS: StandaloneModelConfig[] = [
     ],
     description: "Cloudflare GraphQL Analytics models",
     labels: ["cloudflare", "analytics", "graphql", "cloud", "infrastructure"],
+  },
+  // Clef and Clairic are Cloudflare's System One models on Workers AI. The
+  // OpenAPI spec only has a generic POST /ai/run/{model_name}, which the CRUD
+  // generator skips, so both are hand-written and share one Workers AI client.
+  {
+    service: "clef",
+    models: [
+      {
+        outputPath: "extensions/models/decision.ts",
+        sourcePath: new URL(
+          "./standalone/workers-ai/decision.ts",
+          import.meta.url,
+        ).pathname,
+      },
+    ],
+    libFiles: [
+      {
+        outputPath: "extensions/models/_lib/workers_ai.ts",
+        sourcePath: new URL(
+          "./standalone/workers-ai/_lib/workers_ai.ts",
+          import.meta.url,
+        ).pathname,
+      },
+    ],
+    readmePath: new URL(
+      "./standalone/workers-ai/README.clef.md",
+      import.meta.url,
+    ).pathname,
+    description:
+      "Cloudflare Clef decision models on Workers AI: typed Noul, Choice, and Score questions with calibrated answers",
+    labels: ["cloudflare", "workers-ai", "ai", "classification", "clef"],
+  },
+  {
+    service: "clairic",
+    models: [
+      {
+        outputPath: "extensions/models/extraction.ts",
+        sourcePath: new URL(
+          "./standalone/workers-ai/extraction.ts",
+          import.meta.url,
+        ).pathname,
+      },
+    ],
+    libFiles: [
+      {
+        outputPath: "extensions/models/_lib/workers_ai.ts",
+        sourcePath: new URL(
+          "./standalone/workers-ai/_lib/workers_ai.ts",
+          import.meta.url,
+        ).pathname,
+      },
+    ],
+    readmePath: new URL(
+      "./standalone/workers-ai/README.clairic.md",
+      import.meta.url,
+    ).pathname,
+    description:
+      "Cloudflare Clairic extraction model on Workers AI: typed values extracted from text and images, null when undetermined",
+    labels: ["cloudflare", "workers-ai", "ai", "extraction", "clairic"],
   },
 ];
 
@@ -636,13 +701,23 @@ export async function generateCloudflareModels(options: {
     const firstSlug = standalone.models[0]?.outputPath
       .split("/").pop()?.replace(".ts", "") ?? standalone.service;
     const firstType = `${extensionName}/${firstSlug.replace(/_/g, "-")}`;
-    const readmeCode = generateCloudflareReadme(
-      standalone.service,
-      extensionName,
-      firstSlug.replace(/_/g, "-"),
-      firstType,
-      false,
-    );
+    let readmeCode: string;
+    try {
+      readmeCode = standalone.readmePath
+        ? await Deno.readTextFile(standalone.readmePath)
+        : generateCloudflareReadme(
+          standalone.service,
+          extensionName,
+          firstSlug.replace(/_/g, "-"),
+          firstType,
+          false,
+        );
+    } catch (err) {
+      errors.push(
+        `standalone/${standalone.service}/README.md: ${(err as Error).message}`,
+      );
+      continue;
+    }
     const readmePath = `${serviceOutputDir}/README.md`;
     try {
       const existingReadme = await Deno.readTextFile(readmePath);

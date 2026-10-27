@@ -1,0 +1,21 @@
+# Auto-generated manifest. Re-generate with the appropriate deno task.
+manifestVersion: 1
+name: "@swamp/cloudflare/clairic"
+version: "2026.10.27.1"
+license: "AGPL-3.0-or-later"
+description: "Cloudflare Clairic extraction model on Workers AI: typed values extracted from text and images, null when undetermined"
+repository: "https://github.com/swamp-club/swamp-extensions"
+labels:
+  - cloudflare
+  - workers-ai
+  - ai
+  - extraction
+  - clairic
+releaseNotes: |
+  - Added: extraction
+models:
+  - extraction.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []
