@@ -1,0 +1,133 @@
+manifestVersion: 1
+name: "@swamp/cfgmgmt"
+version: "2026.10.27.1"
+license: "AGPL-3.0-or-later"
+description: |
+  SSH-based configuration management for Linux, with package and command
+  models for macOS.
+
+  Manage remote systems over SSH using the check/apply pattern — every model
+  is idempotent and reports whether resources are compliant, non-compliant,
+  applied, or failed. Convergence failures propagate as step failures so
+  workflow orchestration can detect and react to errors.
+
+  Includes 36 model types:
+  - **@swamp/cfgmgmt/node** — Gather system facts (OS, arch, package managers)
+  - **@swamp/cfgmgmt/file** — Create, update, or remove files
+  - **@swamp/cfgmgmt/template** — Render EJS templates and deploy to remote hosts.
+    Uses `<%= var %>` for plain string interpolation (HTML escaping is disabled).
+    Whitespace control: `-%>` strips the trailing newline (use on loop/conditional
+    lines to avoid blank lines in output), `<%_ %>` strips leading whitespace,
+    `_%>` strips all trailing whitespace.
+  - **@swamp/cfgmgmt/directory** — Create or remove directories
+  - **@swamp/cfgmgmt/link** — Manage symbolic links
+  - **@swamp/cfgmgmt/line** — Edit individual lines in files using regex matching
+  - **@swamp/cfgmgmt/exec** — Run commands with onlyIf/notIf guards
+  - **@swamp/cfgmgmt/systemd** — Manage systemd services and unit files
+  - **@swamp/cfgmgmt/dnf** — Manage packages on Fedora/RHEL (with version pinning)
+  - **@swamp/cfgmgmt/apt** — Manage packages on Debian/Ubuntu (with version pinning)
+  - **@swamp/cfgmgmt/pacman** — Manage packages on Arch Linux
+  - **@swamp/cfgmgmt/homebrew** — Manage packages on macOS
+  - **@swamp/cfgmgmt/apt_repository** — Manage apt sources and GPG keys
+  - **@swamp/cfgmgmt/dnf_repository** — Manage dnf/yum repository files
+  - **@swamp/cfgmgmt/hostname** — Set system hostname
+  - **@swamp/cfgmgmt/timezone** — Set system timezone
+  - **@swamp/cfgmgmt/user** — Manage system users
+  - **@swamp/cfgmgmt/group** — Manage system groups
+  - **@swamp/cfgmgmt/authorized_key** — Manage SSH authorized keys
+  - **@swamp/cfgmgmt/host_entry** — Manage /etc/hosts entries
+  - **@swamp/cfgmgmt/sysctl** — Manage kernel parameters
+  - **@swamp/cfgmgmt/kernel_module** — Load/unload kernel modules with persistence
+  - **@swamp/cfgmgmt/cron** — Manage cron jobs
+  - **@swamp/cfgmgmt/mount** — Manage filesystem mounts and fstab
+  - **@swamp/cfgmgmt/firewall** — Manage firewall rules (ufw/firewalld/iptables)
+  - **@swamp/cfgmgmt/selinux** — Manage SELinux mode and booleans
+  - **@swamp/cfgmgmt/docker_image** — Manage Docker images
+  - **@swamp/cfgmgmt/docker_container** — Manage Docker containers
+  - **@swamp/cfgmgmt/git** — Manage git repository checkouts
+  - **@swamp/cfgmgmt/archive** — Extract archives idempotently
+  - **@swamp/cfgmgmt/copy_file** — Copy a local file to remote hosts via SCP
+  - **@swamp/cfgmgmt/fetch** — Download files from URLs with checksum verification
+  - **@swamp/cfgmgmt/reboot** — Reboot hosts and wait for SSH reconnection
+  - **@swamp/cfgmgmt/debug_exec** — Run a command on a remote host and capture stdout, stderr, and exit code as data
+  - **@swamp/cfgmgmt/debug_file** — Fetch a remote file's content and store it as data
+  - **@swamp/cfgmgmt/certificate** — Deploy SSL/TLS certificates with validation
+
+  Every model is a factory across hosts — a single definition can target
+  multiple hosts via workflow forEach, with per-host data stored separately.
+
+  Connections are multiplexed via OpenSSH ControlMaster sockets. All models
+  (except node and homebrew) support sudo privilege escalation.
+
+  ## Requirements
+
+  - OpenSSH client (`ssh`, `scp`) on the runner.
+  - `sudo` on the target for any model run with `become: true`.
+  - GNU coreutils (`stat`, `readlink -f`) on targets managed by the file
+    models (file, template, directory, copy_file, line, fetch, certificate,
+    authorized_key): these models support Linux targets.
+
+  ## Moving from @adam/cfgmgmt
+
+  This extension was previously published as `@adam/cfgmgmt`. The models are
+  the same; only the type prefix changed. Update existing definitions with:
+
+  ```bash
+  grep -rl '@adam/cfgmgmt/' models/ | xargs sed -i.bak 's#@adam/cfgmgmt/#@swamp/cfgmgmt/#g'
+  swamp extension pull @swamp/cfgmgmt
+  ```
+repository: "https://github.com/swamp-club/swamp-extensions"
+models:
+  - node.ts
+  - file.ts
+  - template.ts
+  - directory.ts
+  - link.ts
+  - exec.ts
+  - systemd.ts
+  - dnf.ts
+  - apt.ts
+  - pacman.ts
+  - homebrew.ts
+  - hostname.ts
+  - timezone.ts
+  - user.ts
+  - group.ts
+  - authorized_key.ts
+  - host_entry.ts
+  - sysctl.ts
+  - cron.ts
+  - mount.ts
+  - firewall.ts
+  - selinux.ts
+  - docker_image.ts
+  - docker_container.ts
+  - git.ts
+  - archive.ts
+  - line.ts
+  - copy_file.ts
+  - fetch.ts
+  - apt_repository.ts
+  - dnf_repository.ts
+  - kernel_module.ts
+  - reboot.ts
+  - debug_exec.ts
+  - debug_file.ts
+  - certificate.ts
+reports:
+  - state.ts
+  - node_state.ts
+  - workflow_summary.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms: []
+labels:
+  - cfgmgmt
+  - ssh
+  - linux
+  - macos
+  - fedora
+  - debian
+  - ubuntu
+  - archlinux
