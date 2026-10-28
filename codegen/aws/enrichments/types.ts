@@ -47,6 +47,15 @@ export interface AwsEnrichmentCustomMethod {
   returnsArray: boolean;
   /** Resource the method's result is written to */
   output: AwsEnrichmentMethodOutput;
+  /**
+   * When true, the function writes its own output instead of returning it.
+   * It is called as `fn(args, credentials, io)`, where `io.write(data)` and
+   * `io.read()` are bound to the declared output resource and an instance
+   * named `<resourceName>-<instanceKey>`. `io.read()` resolves vault
+   * references, so a method that stores a sensitive field can read it back.
+   * The method may write nothing. Single-result methods only.
+   */
+  ownsResourceWrite?: boolean;
 }
 
 export interface AwsEnrichment {

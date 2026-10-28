@@ -7,6 +7,7 @@ import { enrichment as eventsEventbus } from "./events-eventbus/config.ts";
 import { enrichment as certificatemanagerCertificate } from "./certificatemanager-certificate/config.ts";
 import { enrichment as amplifyBranch } from "./amplify-branch/config.ts";
 import { enrichment as amplifyDomain } from "./amplify-domain/config.ts";
+import { enrichment as iamUser } from "./iam-user/config.ts";
 
 export type { AwsEnrichment };
 
@@ -18,6 +19,7 @@ const ENRICHMENTS: AwsEnrichment[] = [
   certificatemanagerCertificate,
   amplifyBranch,
   amplifyDomain,
+  iamUser,
 ];
 
 export function getEnrichment(

@@ -365,6 +365,7 @@ export async function generateAwsModels(options: {
               functionExport: m.functionExport,
               returnsArray: m.returnsArray,
               output: m.output,
+              ...(m.ownsResourceWrite ? { ownsResourceWrite: true } : {}),
             })),
           }
           : undefined;

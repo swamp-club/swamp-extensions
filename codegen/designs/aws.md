@@ -741,15 +741,16 @@ result payload, never in the instance name.
 
 ### Current enrichments
 
-| Resource                               | Strategy | Data added                                                                                                                                               | Output resources                                     |
-| -------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------- |
-| `AWS::RDS::DBCluster`                  | SDK      | `DBClusterMembers` with instance class, AZ, writer status                                                                                                | —                                                    |
-| `AWS::CertificateManager::Certificate` | SDK      | `NotAfter`, `NotBefore`, `Type`, `Status`, `RenewalEligibility`, `InUseBy`, `RenewalSummary` via `DescribeCertificate` (needs `acm:DescribeCertificate`) | —                                                    |
-| `AWS::Bedrock::KnowledgeBase`          | SDK      | `retrieve` method                                                                                                                                        | `retrieval` (7d)                                     |
-| `AWS::Events::EventBus`                | SDK      | `put_events` method                                                                                                                                      | `putEventsResult` (7d)                               |
-| `AWS::CloudFormation::StackSet`        | SDK      | `listInstances`, `listOperations`, `describeOperation`, `detectDrift` methods                                                                            | `stackInstance`, `operation`, `driftDetection` (30d) |
-| `AWS::Amplify::Branch`                 | SDK      | `listJobs`, `getJob` methods                                                                                                                             | `jobHistory`, `job` (30d)                            |
-| `AWS::Amplify::Domain`                 | SDK      | `getDomainAssociation` method                                                                                                                            | `domainAssociation` (30d)                            |
+| Resource                               | Strategy | Data added                                                                                                                                               | Output resources                                           |
+| -------------------------------------- | -------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `AWS::RDS::DBCluster`                  | SDK      | `DBClusterMembers` with instance class, AZ, writer status                                                                                                | —                                                          |
+| `AWS::CertificateManager::Certificate` | SDK      | `NotAfter`, `NotBefore`, `Type`, `Status`, `RenewalEligibility`, `InUseBy`, `RenewalSummary` via `DescribeCertificate` (needs `acm:DescribeCertificate`) | —                                                          |
+| `AWS::Bedrock::KnowledgeBase`          | SDK      | `retrieve` method                                                                                                                                        | `retrieval` (7d)                                           |
+| `AWS::Events::EventBus`                | SDK      | `put_events` method                                                                                                                                      | `putEventsResult` (7d)                                     |
+| `AWS::CloudFormation::StackSet`        | SDK      | `listInstances`, `listOperations`, `describeOperation`, `detectDrift` methods                                                                            | `stackInstance`, `operation`, `driftDetection` (30d)       |
+| `AWS::Amplify::Branch`                 | SDK      | `listJobs`, `getJob` methods                                                                                                                             | `jobHistory`, `job` (30d)                                  |
+| `AWS::Amplify::Domain`                 | SDK      | `getDomainAssociation` method                                                                                                                            | `domainAssociation` (30d)                                  |
+| `AWS::IAM::User`                       | SDK      | `provisionAccessKey`, `verifyAccessKey` methods                                                                                                          | `observerAccessKey` (infinite), `accessVerification` (30d) |
 
 ### List method enrichment
 
@@ -880,6 +881,7 @@ globalArgs) and method-specific arguments (e.g. `operationId`).
 | `AWS::Events::EventBus`         | `put_events`                                                          | `@aws-sdk/client-eventbridge`           |
 | `AWS::Amplify::Branch`          | `listJobs`, `getJob`                                                  | `@aws-sdk/client-amplify`               |
 | `AWS::Amplify::Domain`          | `getDomainAssociation`                                                | `@aws-sdk/client-amplify`               |
+| `AWS::IAM::User`                | `provisionAccessKey`, `verifyAccessKey`                               | `@aws-sdk/client-iam`, `client-sts`     |
 
 ### Bounded observation methods
 
@@ -904,6 +906,91 @@ so they bound their cost and what they persist:
   because nothing here verifies the revision a job built. Steps BUILD, DEPLOY
   and VERIFY are reported as `MISSING` when absent, never assumed to have
   succeeded.
+
+### Methods that write their own output (`ownsResourceWrite`)
+
+By default the generated `execute` block writes whatever the custom function
+returns. A method that sets `ownsResourceWrite: true` instead receives a third
+argument, `io`, and decides what to write:
+
+```typescript
+async function provisionAccessKey(
+  args: Record<string, unknown>,
+  credentials: AwsCredentials,
+  io: {
+    write(data): Promise<unknown>;
+    read(): Promise<Record<string, unknown> | null>;
+  },
+): Promise<void>;
+```
+
+- `io.write(data)` writes the method's declared output resource; `io.read()`
+  reads the latest version back, resolving vault references.
+- The instance is named `<resourceName>-<instanceKey>` (for example
+  `observerAccessKey-observer`), so it never shares a name with the CloudControl
+  `state` instance, which is keyed by the same identifier.
+- The method may write nothing; the run then returns no data handles.
+- Only single-result methods may set it; generation fails for array methods.
+  Methods without the flag generate exactly as before.
+
+The `CustomMethodResourceIO` interface is declared in the enrichment's
+`methods.ts` and inlined with the method body, so the shared `_lib/aws.ts`
+template is unchanged.
+
+### Vault-backed secret output (IAM user access keys)
+
+`provisionAccessKey` gives a dedicated, read-only observer identity one
+long-lived access key without ever persisting the secret:
+
+- **Ownership checks first.** It refuses unless the caller's account equals
+  `expectedAccountId`, the user's path equals the declared `Path` (default `/`),
+  every declared tag matches (at least one tag is required), and every inline
+  policy, managed policy and group on the user is either declared in the
+  definition or listed in `allowedInlinePolicyNames`, `allowedManagedPolicyArns`
+  or `allowedGroups`. Inline policies attached through the `user_policy` model
+  go in `allowedInlinePolicyNames`. Every listing follows `IsTruncated`/`Marker`
+  to the last page.
+- **Owned key.** A key is swamp's when its id is in the user tag
+  `swamp-owned-access-key-id` or in this model's stored `observerAccessKey`
+  record. The record matters because the generated `update` rewrites `Tags` to
+  the declared set and drops the tag; a verified reuse puts the tag back. Any
+  other key on the user is foreign: the method refuses and never deletes it. If
+  the tag and the record name two different live keys, it refuses.
+- **Secret only in a vault.** `ObserverAccessKeyOutputSchema` marks
+  `secretAccessKey` with `.meta({ sensitive: true })`, so swamp stores it in the
+  default vault and persists only a vault reference. The secret is never logged,
+  put in an error, or accepted as an argument.
+- **Write, then read back.** After `CreateAccessKey` and tagging, it re-lists
+  keys and tags (backing out if a concurrent run added a key or retagged the
+  user, and retrying briefly when IAM's eventually consistent listings lag the
+  writes), writes the record, and reads it back. If tagging, the write or the
+  read-back fails, it deletes the new key, removes the tag and fails with a
+  retry-safe error. If the key cannot be deleted, the tag is kept and the error
+  names the stranded key.
+- **Reuse is verified.** On a re-run with the owned key present, it reads the
+  stored record and succeeds without writing only when the key is `Active`, the
+  stored `accessKeyId` matches, and the secret reads back from the vault.
+  Otherwise it refuses and asks for `replaceOwnedKey=true`, which deletes only
+  the owned key and creates a new one.
+- **Known gap.** If the process dies between `CreateAccessKey` and the write, no
+  rollback runs; the next run's reuse check refuses with the same
+  `replaceOwnedKey` advice.
+
+`verifyAccessKey` takes the key id through `observerAccessKeyId` (not secret,
+recorded in the evidence) and the secret through the sensitive
+`observerSecretAccessKey` argument, which should be wired from the
+`observerAccessKey` resource rather than typed. It retries `GetCallerIdentity`
+while a new key returns `InvalidClientTokenId`, requires the caller ARN to equal
+the user's ARN, and runs `SimulatePrincipalPolicy` on the user for
+`permittedActions` (must be `allowed`) and `deniedActions` (must be
+`implicitDeny` or `explicitDeny`). One `timeoutMs` deadline covers the call. It
+writes the evidence to `accessVerification`, then fails the run if any check
+failed. Every failure after the inputs are valid also writes a failing record:
+`identityError` when the key cannot authenticate, `error` when the user lookup,
+the simulation or the deadline fails. An earlier passing record is never left as
+the latest. For a read-only observer, a useful `deniedActions` set is
+`iam:CreateAccessKey`, `iam:PutUserPolicy`, `iam:AttachUserPolicy`,
+`s3:PutObject` and `ec2:RunInstances`.
 
 ---
 

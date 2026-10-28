@@ -776,6 +776,58 @@ Deno.test("generateAwsExtensionModel - modelMethods output validation", () => {
   );
 });
 
+Deno.test("generateAwsExtensionModel - ownsResourceWrite hands the function an io handle", async (t) => {
+  const input = buildModelMethodsInput();
+  input.modelMethods!.methods[1].ownsResourceWrite = true;
+  const code = generateAwsExtensionModel(input);
+  await assertGenerated(t, code);
+
+  assertStringIncludes(
+    code,
+    `await describeOp(mergedArgs, credentials, io);`,
+  );
+  assertStringIncludes(
+    code,
+    `context.writeResource("operation", instanceName, data)`,
+  );
+  assertStringIncludes(code, `context.readResource(instanceName)`);
+  // The function's result is never written for it
+  assert(
+    !code.includes(`context.writeResource("operation", instanceName, result)`),
+  );
+  // The array method keeps the default emission
+  assertStringIncludes(
+    code,
+    `context.writeResource("stackInstance", instanceName, item)`,
+  );
+
+  // Instance name is prefixed with the resource name so it never collides
+  // with the state instance
+  const nameLine = code.split("\n").map((l) => l.trim()).find((l) =>
+    l.startsWith(`const instanceName = ("operation-"`)
+  );
+  assert(nameLine, "no prefixed instance name emitted");
+  const name = new Function(
+    "mergedArgs",
+    `${
+      emittedLine(code, "const instanceKey = ")
+    } ${nameLine} return instanceName;`,
+  );
+  assertEquals(name({ operationId: "op-1" }), "operation-op-1");
+  assertEquals(name({ operationId: "a/../b" }), "operation-a___b");
+  assertEquals(name({}), "operation-describeOperation");
+});
+
+Deno.test("generateAwsExtensionModel - ownsResourceWrite is rejected on array methods", () => {
+  const input = buildModelMethodsInput();
+  input.modelMethods!.methods[0].ownsResourceWrite = true;
+  assertThrows(
+    () => generateAwsExtensionModel(input),
+    Error,
+    "cannot use ownsResourceWrite with an array result",
+  );
+});
+
 // Generated models must import with explicit npm:/jsr: or relative
 // specifiers: the registry scorer cannot resolve bare names.
 async function assertGenerated(

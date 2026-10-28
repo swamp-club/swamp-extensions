@@ -46,6 +46,8 @@ export interface ParsedModelMethod {
   returnsArray: boolean;
   /** Resource the method's result is written to */
   output: AwsEnrichmentMethodOutput;
+  /** Whether the function writes its own output through an io handle */
+  ownsResourceWrite?: boolean;
 }
 
 export interface ParsedModelMethods {
@@ -880,7 +882,52 @@ export function generateAwsExtensionModel(
       lines.push(
         `        const mergedArgs = { ...context.globalArgs, ...args };`,
       );
-      if (method.returnsArray) {
+      if (method.ownsResourceWrite) {
+        // The function writes (or skips writing) its own output. The
+        // instance is prefixed with the resource name so it never shares a
+        // name with the CloudControl state instance.
+        const resourceName = method.output.resourceName;
+        lines.push(
+          `        const instanceKey = mergedArgs[${
+            JSON.stringify(argKey(method))
+          }];`,
+        );
+        lines.push(
+          `        const instanceName = ${
+            wrapWithSanitize(
+              `${
+                JSON.stringify(resourceName + "-")
+              } + (instanceKey === undefined || instanceKey === null || String(instanceKey) === "" ? ${
+                JSON.stringify(method.methodName)
+              } : String(instanceKey))`,
+            )
+          };`,
+        );
+        lines.push(`        const dataHandles: unknown[] = [];`);
+        lines.push(`        const io = {`);
+        lines.push(
+          `          write: async (data: Record<string, unknown>) => {`,
+        );
+        lines.push(
+          `            const handle = await context.writeResource(${
+            JSON.stringify(resourceName)
+          }, instanceName, data);`,
+        );
+        lines.push(`            dataHandles.push(handle);`);
+        lines.push(`            return handle;`);
+        lines.push(`          },`);
+        lines.push(
+          `          read: async (): Promise<Record<string, unknown> | null> =>`,
+        );
+        lines.push(
+          `            (await context.readResource(instanceName)) as Record<string, unknown> | null,`,
+        );
+        lines.push(`        };`);
+        lines.push(
+          `        await ${method.functionExport}(mergedArgs, credentials, io);`,
+        );
+        lines.push(`        return { dataHandles };`);
+      } else if (method.returnsArray) {
         lines.push(
           `        const items = await ${method.functionExport}(mergedArgs, credentials);`,
         );
@@ -990,6 +1037,11 @@ function collectMethodOutputs(
       ("itemFields" in key && key.itemFields.length === 0)
     ) {
       throw new Error(`${where} has an empty output instanceKey`);
+    }
+    if (method.ownsResourceWrite && method.returnsArray) {
+      throw new Error(
+        `${where} cannot use ownsResourceWrite with an array result`,
+      );
     }
     if (method.returnsArray !== "itemFields" in key) {
       throw new Error(
