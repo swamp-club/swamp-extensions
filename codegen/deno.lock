@@ -23,6 +23,7 @@
     "npm:@apidevtools/json-schema-ref-parser@11.9.3": "11.9.3",
     "npm:@aws-sdk/client-acm@3.1147.0": "3.1147.0",
     "npm:@aws-sdk/client-acm@3.1156.0": "3.1156.0",
+    "npm:@aws-sdk/client-amplify@3.1156.0": "3.1156.0",
     "npm:@aws-sdk/client-bedrock-agent-runtime@3.1090.0": "3.1090.0",
     "npm:@aws-sdk/client-bedrock-agent-runtime@3.1127.0": "3.1127.0",
     "npm:@aws-sdk/client-bedrock-agent-runtime@3.1147.0": "3.1147.0",
@@ -191,6 +192,19 @@
     },
     "@aws-sdk/client-acm@3.1156.0": {
       "integrity": "sha512-vRy8mVgYOO1E/YXDlBuXCUKsmNKkVjKFIW2ZS30kWZydbS6CnqFxNkMajDzqJcm+PZ74rwgnhNHsJkc+UIEMzQ==",
+      "dependencies": [
+        "@aws-sdk/core",
+        "@aws-sdk/credential-provider-node",
+        "@aws-sdk/types",
+        "@smithy/core",
+        "@smithy/fetch-http-handler",
+        "@smithy/node-http-handler@4.12.1",
+        "@smithy/types",
+        "tslib"
+      ]
+    },
+    "@aws-sdk/client-amplify@3.1156.0": {
+      "integrity": "sha512-lMBT3DlEci6AY4sxD4ipFoZp4xiJ7wWkgzdVV5JnaUhiDIEcTayxCP5lsy/83+ivkJ6eWvEG2KfCD1q4ivd32g==",
       "dependencies": [
         "@aws-sdk/core",
         "@aws-sdk/credential-provider-node",

@@ -5,6 +5,8 @@ import { enrichment as cfnStackset } from "./cfn-stackset/config.ts";
 import { enrichment as bedrockKnowledgebase } from "./bedrock-knowledgebase/config.ts";
 import { enrichment as eventsEventbus } from "./events-eventbus/config.ts";
 import { enrichment as certificatemanagerCertificate } from "./certificatemanager-certificate/config.ts";
+import { enrichment as amplifyBranch } from "./amplify-branch/config.ts";
+import { enrichment as amplifyDomain } from "./amplify-domain/config.ts";
 
 export type { AwsEnrichment };
 
@@ -14,6 +16,8 @@ const ENRICHMENTS: AwsEnrichment[] = [
   bedrockKnowledgebase,
   eventsEventbus,
   certificatemanagerCertificate,
+  amplifyBranch,
+  amplifyDomain,
 ];
 
 export function getEnrichment(

@@ -748,6 +748,8 @@ result payload, never in the instance name.
 | `AWS::Bedrock::KnowledgeBase`          | SDK      | `retrieve` method                                                                                                                                        | `retrieval` (7d)                                     |
 | `AWS::Events::EventBus`                | SDK      | `put_events` method                                                                                                                                      | `putEventsResult` (7d)                               |
 | `AWS::CloudFormation::StackSet`        | SDK      | `listInstances`, `listOperations`, `describeOperation`, `detectDrift` methods                                                                            | `stackInstance`, `operation`, `driftDetection` (30d) |
+| `AWS::Amplify::Branch`                 | SDK      | `listJobs`, `getJob` methods                                                                                                                             | `jobHistory`, `job` (30d)                            |
+| `AWS::Amplify::Domain`                 | SDK      | `getDomainAssociation` method                                                                                                                            | `domainAssociation` (30d)                            |
 
 ### List method enrichment
 
@@ -831,6 +833,8 @@ codegen/aws/enrichments/
     config.ts, enrich.ts, list.enrich.ts
   cfn-stackset/                             — customMethods only
     config.ts, methods.ts, methods_test.ts
+  amplify-branch/, amplify-domain/          — customMethods only (bounded)
+    config.ts, methods.ts, methods_test.ts
 ```
 
 ### How custom methods differ from enrichState
@@ -874,6 +878,32 @@ globalArgs) and method-specific arguments (e.g. `operationId`).
 | `AWS::CloudFormation::StackSet` | `listInstances`, `listOperations`, `describeOperation`, `detectDrift` | `@aws-sdk/client-cloudformation`        |
 | `AWS::Bedrock::KnowledgeBase`   | `retrieve`                                                            | `@aws-sdk/client-bedrock-agent-runtime` |
 | `AWS::Events::EventBus`         | `put_events`                                                          | `@aws-sdk/client-eventbridge`           |
+| `AWS::Amplify::Branch`          | `listJobs`, `getJob`                                                  | `@aws-sdk/client-amplify`               |
+| `AWS::Amplify::Domain`          | `getDomainAssociation`                                                | `@aws-sdk/client-amplify`               |
+
+### Bounded observation methods
+
+The Amplify methods are read-only observations meant to feed evidence pipelines,
+so they bound their cost and what they persist:
+
+- **One deadline per call.** A single `AbortController` covers every request the
+  method makes, and the call settles when it expires even if the SDK is waiting
+  out a retry backoff. Once at least one page has arrived, `listJobs` returns
+  the jobs fetched so far with `coverage.complete: false` and
+  `stopReason: "deadline"`; if no page arrived, it rejects, as the single-result
+  methods do. Only the deadline timer firing counts as a deadline stop, so an
+  API error that arrives first still rejects.
+- **Bounded pagination.** `listJobs` stops at `maxPages` and records
+  `stopReason: "maxPages"`. Any other error on any page rejects the whole call
+  rather than returning a partial list.
+- **Fields copied by allowlist.** SDK objects are never spread into output, so
+  log URLs, artifact URLs, screenshots, source URLs (which can be pre-signed)
+  and commit messages never reach a resource.
+- **No inferred provenance.** Amplify can report a job's `commitId` as `HEAD`.
+  It is kept as `reportedCommitId`, and `sourceResolution` is always `unknown`
+  because nothing here verifies the revision a job built. Steps BUILD, DEPLOY
+  and VERIFY are reported as `MISSING` when absent, never assumed to have
+  succeeded.
 
 ---
 
