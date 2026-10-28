@@ -78,6 +78,9 @@ const INSERT_CONFIG = {
       "location": "path",
       "required": true,
     },
+    "requestId": {
+      "location": "query",
+    },
   },
 } as const;
 
@@ -92,6 +95,9 @@ const PATCH_CONFIG = {
     "name": {
       "location": "path",
       "required": true,
+    },
+    "requestId": {
+      "location": "query",
     },
     "updateMask": {
       "location": "query",
@@ -113,6 +119,9 @@ const DELETE_CONFIG = {
     "name": {
       "location": "path",
       "required": true,
+    },
+    "requestId": {
+      "location": "query",
     },
   },
 } as const;
@@ -145,6 +154,9 @@ const LIST_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
+  name: z.string().describe(
+    "Instance name for this resource (used as the unique identifier in the factory pattern)",
+  ),
   accessToken: z.string().meta({ sensitive: true }).describe(
     "GCP OAuth2 access token; overrides GCP_ACCESS_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -188,13 +200,14 @@ const GlobalArgsSchema = z.object({
       "Required. A list of matching conditions that a resource must meet to be protected by the policy.",
     ).optional(),
   }).describe("Required. The criteria for matching resources.").optional(),
-  description: z.string().describe("Optional. A description of the policy.")
-    .optional(),
-  name: z.string().describe(
-    "Identifier. The resource name of the AutoProtectionPolicy. Format: `projects/{project}/locations/{location}/autoProtectionPolicies/{auto_protection_policy}`",
+  description: z.string().describe(
+    "Optional. A description of the policy. The description must be at most 2048 characters.",
   ).optional(),
   autoProtectionPolicyId: z.string().describe(
-    "Required. The ID to use for the policy. This will become the final component of the policy's resource name.",
+    "Required. The ID to use for the policy. This will become the final component of the policy's resource name. This value must start with a lowercase letter followed by up to 62 lowercase letters, numbers, or hyphens, and cannot end with a hyphen.",
+  ).optional(),
+  requestId: z.string().describe(
+    "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
   ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
@@ -233,6 +246,7 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
+  name: z.string().optional(),
   accessToken: z.string().meta({ sensitive: true }).optional(),
   credentialsJson: z.string().meta({ sensitive: true }).optional(),
   project: z.string().optional(),
@@ -264,13 +278,14 @@ const InputsSchema = z.object({
       "Required. A list of matching conditions that a resource must meet to be protected by the policy.",
     ).optional(),
   }).describe("Required. The criteria for matching resources.").optional(),
-  description: z.string().describe("Optional. A description of the policy.")
-    .optional(),
-  name: z.string().describe(
-    "Identifier. The resource name of the AutoProtectionPolicy. Format: `projects/{project}/locations/{location}/autoProtectionPolicies/{auto_protection_policy}`",
+  description: z.string().describe(
+    "Optional. A description of the policy. The description must be at most 2048 characters.",
   ).optional(),
   autoProtectionPolicyId: z.string().describe(
-    "Required. The ID to use for the policy. This will become the final component of the policy's resource name.",
+    "Required. The ID to use for the policy. This will become the final component of the policy's resource name. This value must start with a lowercase letter followed by up to 62 lowercase letters, numbers, or hyphens, and cannot end with a hyphen.",
+  ).optional(),
+  requestId: z.string().describe(
+    "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
   ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
@@ -303,11 +318,16 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Backup and DR Service AutoProtectionPolicies. Registered at `@swamp/gcp/backupdr/autoprotectionpolicies`. */
 export const model = {
   type: "@swamp/gcp/backupdr/autoprotectionpolicies",
-  version: "2026.10.23.1",
+  version: "2026.10.28.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.28.1",
+      description: "Added: requestId",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -348,11 +368,13 @@ export const model = {
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
         }
-        if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["autoProtectionPolicyId"] !== undefined) {
           params["autoProtectionPolicyId"] = String(
             g["autoProtectionPolicyId"],
           );
+        }
+        if (g["requestId"] !== undefined) {
+          params["requestId"] = String(g["requestId"]);
         }
         if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
@@ -373,20 +395,13 @@ export const model = {
               "failedValues": [],
             }
             : undefined,
-          {
-            listConfig: LIST_CONFIG,
-            listParams: {
-              "parent": `projects/${projectId}/locations/${
-                String(g["location"] ?? "")
-              }`,
-            },
-            matchField: "name",
-            matchValue: String(g["name"] ?? ""),
-          },
+          undefined,
           credentials,
         ) as StateData;
-        const instanceName = ((g.name ?? result.name)?.toString() ?? "current")
-          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = (g.name?.toString() ?? "current").replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -419,11 +434,10 @@ export const model = {
           params,
           credentials,
         ) as StateData;
-        const instanceName =
-          ((g.name ?? result.name)?.toString() ?? args.identifier).replace(
-            /[\/\\]/g,
-            "_",
-          ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = (g.name?.toString() ?? args.identifier).replace(
+          /[\/\\]/g,
+          "_",
+        ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,

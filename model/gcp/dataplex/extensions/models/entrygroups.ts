@@ -186,6 +186,9 @@ const GlobalArgsSchema = z.object({
   labels: z.record(z.string(), z.string()).describe(
     "Optional. User-defined labels for the EntryGroup.",
   ).optional(),
+  type: z.string().describe(
+    "Optional. Immutable. The type of this EntryGroup. The default value is an empty string. Recognised values include: * context-set: EntryGroup containing context set data assets.",
+  ).optional(),
   entryGroupId: z.string().describe("Required. EntryGroup identifier.")
     .optional(),
   location: z.string().describe(
@@ -204,6 +207,7 @@ const StateSchema = z.object({
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   transferStatus: z.string().optional(),
+  type: z.string().optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
 }).passthrough();
@@ -231,6 +235,9 @@ const InputsSchema = z.object({
     .optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. User-defined labels for the EntryGroup.",
+  ).optional(),
+  type: z.string().describe(
+    "Optional. Immutable. The type of this EntryGroup. The default value is an empty string. Recognised values include: * context-set: EntryGroup containing context set data assets.",
   ).optional(),
   entryGroupId: z.string().describe("Required. EntryGroup identifier.")
     .optional(),
@@ -265,7 +272,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex EntryGroups. Registered at `@swamp/gcp/dataplex/entrygroups`. */
 export const model = {
   type: "@swamp/gcp/dataplex/entrygroups",
-  version: "2026.10.23.1",
+  version: "2026.10.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -417,6 +424,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.28.1",
+      description: "Added: type",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -454,6 +466,7 @@ export const model = {
           body["displayName"] = g["displayName"];
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        if (g["type"] !== undefined) body["type"] = g["type"];
         if (g["entryGroupId"] !== undefined) {
           params["entryGroupId"] = String(g["entryGroupId"]);
         }

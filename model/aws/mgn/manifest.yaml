@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/mgn"
-version: "2026.10.25.1"
+version: "2026.10.28.1"
 license: "AGPL-3.0-or-later"
 description: "AWS MGN infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -10,10 +10,13 @@ labels:
   - mgn
   - cloud
   - infrastructure
+releaseNotes: |
+  - Added: wave
 models:
   - connector.ts
   - launch_configuration_template.ts
   - network_migration_definition.ts
+  - wave.ts
 additionalFiles:
   - LICENSE.txt
   - README.md

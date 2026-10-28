@@ -361,7 +361,7 @@ const GlobalArgsSchema = z.object({
             "Contains a collection of widgets. Each section has its own, optional header. Sections are visually separated by a line divider. For an example in Google Chat apps, see [Define a section of a card](https://developers.google.com/workspace/chat/design-components-card-dialog#define_a_section_of_a_card).",
           ).optional(),
         }).describe(
-          "Input only. Body of the dialog, which is rendered in a modal. Google Chat apps don't support the following card entities: `DateTimePicker`, `OnChangeAction`.",
+          "Input only. Body of the dialog, which is rendered in a modal.",
         ).optional(),
       }).describe(
         "Input only. [Dialog](https://developers.google.com/workspace/chat/dialogs) for the request.",
@@ -1461,7 +1461,7 @@ const InputsSchema = z.object({
             "Contains a collection of widgets. Each section has its own, optional header. Sections are visually separated by a line divider. For an example in Google Chat apps, see [Define a section of a card](https://developers.google.com/workspace/chat/design-components-card-dialog#define_a_section_of_a_card).",
           ).optional(),
         }).describe(
-          "Input only. Body of the dialog, which is rendered in a modal. Google Chat apps don't support the following card entities: `DateTimePicker`, `OnChangeAction`.",
+          "Input only. Body of the dialog, which is rendered in a modal.",
         ).optional(),
       }).describe(
         "Input only. [Dialog](https://developers.google.com/workspace/chat/dialogs) for the request.",
@@ -1979,7 +1979,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Chat Spaces.Messages. Registered at `@swamp/gcp/chat/spaces-messages`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces-messages",
-  version: "2026.10.27.1",
+  version: "2026.10.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2196,6 +2196,11 @@ export const model = {
     {
       toVersion: "2026.10.27.1",
       description: "Added: elements",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.28.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

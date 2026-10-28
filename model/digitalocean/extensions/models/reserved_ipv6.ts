@@ -117,6 +117,7 @@ const ResourceSchema = z.object({
       })).optional(),
       gpu_info: z.object({
         count: z.number().optional(),
+        fabric: z.boolean().optional(),
         model: z.string().optional(),
         vram: z.object({
           amount: z.number().optional(),
@@ -151,6 +152,7 @@ const ResourceSchema = z.object({
     subnet_uuid: z.string().optional(),
     gpu_info: z.object({
       count: z.number().optional(),
+      fabric: z.boolean().optional(),
       model: z.string().optional(),
       vram: z.object({
         amount: z.number().optional(),
@@ -171,7 +173,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean reserved ipv6. Registered at `@swamp/digitalocean/reserved-ipv6`. */
 export const model = {
   type: "@swamp/digitalocean/reserved-ipv6",
-  version: "2026.10.23.1",
+  version: "2026.10.28.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -245,6 +247,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

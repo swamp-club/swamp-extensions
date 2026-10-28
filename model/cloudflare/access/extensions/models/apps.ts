@@ -398,6 +398,7 @@ const GlobalArgsSchema = z.object({
       }).optional(),
     })),
     name: z.string(),
+    policy_resolution_account_id: z.string().optional(),
     require: z.array(z.object({
       group: z.object({
         id: z.string(),
@@ -907,6 +908,7 @@ const ResourceSchema = z.object({
         }).optional(),
       })).optional(),
       name: z.string().optional(),
+      policy_resolution_account_id: z.string().optional(),
       require: z.array(z.object({
         group: z.object({
           id: z.string().optional(),
@@ -1395,6 +1397,7 @@ const InputsSchema = z.object({
       }).optional(),
     })),
     name: z.string(),
+    policy_resolution_account_id: z.string().optional(),
     require: z.array(z.object({
       group: z.object({
         id: z.string(),
@@ -1594,7 +1597,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Apps. Registered at `@swamp/cloudflare/access/apps`. */
 export const model = {
   type: "@swamp/cloudflare/access/apps",
-  version: "2026.10.23.1",
+  version: "2026.10.28.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -1683,6 +1686,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

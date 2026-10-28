@@ -580,6 +580,23 @@ const ResourceSchema = z.object({
           command: z.array(z.string()).optional(),
           entrypoint: z.string().optional(),
           instances: z.record(z.string(), z.unknown()).optional(),
+          livenessProbe: z.object({
+            failureThreshold: z.number().optional(),
+            httpGet: z.object({
+              host: z.string().optional(),
+              httpHeaders: z.array(z.object({
+                name: z.string().optional(),
+                value: z.string().optional(),
+              })).optional(),
+              path: z.string().optional(),
+              port: z.number().optional(),
+              scheme: z.string().optional(),
+            }).optional(),
+            initialDelaySeconds: z.number().optional(),
+            periodSeconds: z.number().optional(),
+            successThreshold: z.number().optional(),
+            timeoutSeconds: z.number().optional(),
+          }).optional(),
           replicas: z.record(z.string(), z.unknown()).optional(),
           resources: z.object({
             requests: z.object({
@@ -821,7 +838,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Deployments. Registered at `@swamp/vercel/deployments/deployments`. */
 export const model = {
   type: "@swamp/vercel/deployments/deployments",
-  version: "2026.10.27.1",
+  version: "2026.10.28.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -935,6 +952,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.27.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

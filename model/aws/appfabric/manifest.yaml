@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/appfabric"
-version: "2026.10.25.1"
+version: "2026.10.28.1"
 license: "AGPL-3.0-or-later"
 description: "AWS APPFABRIC infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -10,8 +10,11 @@ labels:
   - appfabric
   - cloud
   - infrastructure
+releaseNotes: |
+  - Added: ingestion
 models:
   - app_authorization.ts
+  - ingestion.ts
   - ingestion_destination.ts
 additionalFiles:
   - LICENSE.txt

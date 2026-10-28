@@ -54,10 +54,10 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   MasterId: z.string().describe(
-    "ID of the account used as the master account.",
+    "ID of the account used as the administrator account.",
   ),
   InvitationId: z.string().describe(
-    "Value used to validate the master account to the member account.",
+    "Value used to validate the administrator account to the member account.",
   ).optional(),
   DetectorId: z.string().describe(
     "Unique ID of the detector of the GuardDuty member account.",
@@ -78,10 +78,11 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  MasterId: z.string().describe("ID of the account used as the master account.")
-    .optional(),
+  MasterId: z.string().describe(
+    "ID of the account used as the administrator account.",
+  ).optional(),
   InvitationId: z.string().describe(
-    "Value used to validate the master account to the member account.",
+    "Value used to validate the administrator account to the member account.",
   ).optional(),
   DetectorId: z.string().describe(
     "Unique ID of the detector of the GuardDuty member account.",
@@ -107,7 +108,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GuardDuty Master. Registered at `@swamp/aws/guardduty/master`. */
 export const model = {
   type: "@swamp/aws/guardduty/master",
-  version: "2026.10.23.1",
+  version: "2026.10.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -166,6 +167,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

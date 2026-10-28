@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Deep Review Documents.Reviews.
  *
- * Review Sub-Resource Model representing an evaluation run of a document.
+ * An evaluation run of a document.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -139,7 +139,7 @@ const GlobalArgsSchema = z.object({
       "Output only. Indicates whether a developer Bring-Your-Own-Key Gemini API key was provided for this review run.",
     ).optional(),
     model: z.string().describe(
-      'Optional. The Gemini model name/version to use (e.g., "gemini-1.5-pro", "gemini-2.0-flash").',
+      "Optional. The Gemini model identifier to use for the review. If omitted, the server uses its default model. Unsupported values return INVALID_ARGUMENT.",
     ).optional(),
     topology: z.enum([
       "TOPOLOGY_UNSPECIFIED",
@@ -267,7 +267,7 @@ const InputsSchema = z.object({
       "Output only. Indicates whether a developer Bring-Your-Own-Key Gemini API key was provided for this review run.",
     ).optional(),
     model: z.string().describe(
-      'Optional. The Gemini model name/version to use (e.g., "gemini-1.5-pro", "gemini-2.0-flash").',
+      "Optional. The Gemini model identifier to use for the review. If omitted, the server uses its default model. Unsupported values return INVALID_ARGUMENT.",
     ).optional(),
     topology: z.enum([
       "TOPOLOGY_UNSPECIFIED",
@@ -319,7 +319,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Deep Review Documents.Reviews. Registered at `@swamp/gcp/deepreview/documents-reviews`. */
 export const model = {
   type: "@swamp/gcp/deepreview/documents-reviews",
-  version: "2026.10.27.1",
+  version: "2026.10.28.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
@@ -331,13 +331,17 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description:
-        "Review Sub-Resource Model representing an evaluation run of a document.",
+      description: "An evaluation run of a document.",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -512,13 +516,13 @@ export const model = {
       description: "List reviews resources",
       arguments: z.object({
         filter: z.string().describe(
-          "Optional. Supported AIP-160 filter expressions.",
+          "Optional. Custom filter expressions are not currently supported; non-empty values return INVALID_ARGUMENT.",
         ).optional(),
         orderBy: z.string().describe(
-          "Optional. Supported AIP-132 order_by field.",
+          "Optional. Custom order_by expressions are not currently supported; non-empty values return INVALID_ARGUMENT.",
         ).optional(),
         pageSize: z.number().describe(
-          "Optional. The maximum number of reviews to return in a single page. The server may return fewer than this value. If unspecified, at most 50 reviews will be returned. The maximum value is 1000; values above 1000 will be coerced to 1000.",
+          "Optional. The maximum number of reviews to return in a single page. The server may return fewer than this value. If unspecified, at most 50 reviews will be returned. The maximum value is 100; values above 100 will be coerced to 100.",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",

@@ -54,7 +54,13 @@ const GlobalArgsSchema = z.object({
     "Location to create the Volume in (can be omitted if Server is specified).",
   ).optional(),
   server: z.number().int().describe(
-    "Server to which to attach the Volume once it's created (Volume will be created in the same Location as the server).",
+    "This field is deprecated, use the `assignee` field with `server` as the `type` instead.\n\nServer to which to attach the Volume once it's created (Volume will be created in the same Location as the server).\n",
+  ).optional(),
+  assignee: z.object({
+    id: z.number().int().min(1).max(9007199254740991),
+    type: z.string(),
+  }).describe(
+    "Resource to which to attach the Volume once it's created (Volume will be created in the same Location as the resource).",
   ).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "Hetzner API token; overrides the HETZNER_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
@@ -66,6 +72,7 @@ const ResourceSchema = z.object({
   created: z.string().optional(),
   name: z.string().optional(),
   server: z.unknown().optional(),
+  assignee: z.unknown().optional(),
   location: z.object({
     id: z.number().optional(),
     name: z.string().optional(),
@@ -96,13 +103,17 @@ const InputsSchema = z.object({
   format: z.string().optional(),
   location: z.string().optional(),
   server: z.number().int().optional(),
+  assignee: z.object({
+    id: z.number().int().min(1).max(9007199254740991),
+    type: z.string(),
+  }).optional(),
   token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for Hetzner Cloud volume. Registered at `@swamp/hetzner-cloud/volumes`. */
 export const model = {
   type: "@swamp/hetzner-cloud/volumes",
-  version: "2026.10.23.1",
+  version: "2026.10.28.1",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -189,6 +200,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.28.1",
+      description: "Added: assignee",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -232,6 +248,7 @@ export const model = {
         if (g.format !== undefined) body.format = g.format;
         if (g.location !== undefined) body.location = g.location;
         if (g.server !== undefined) body.server = g.server;
+        if (g.assignee !== undefined) body.assignee = g.assignee;
         const result = await create("/volumes", body, g.token) as ResourceData;
         const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,

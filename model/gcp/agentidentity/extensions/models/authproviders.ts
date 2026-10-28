@@ -181,6 +181,15 @@ const GlobalArgsSchema = z.object({
         "Optional. Input only. The API key for this auth provider.",
       ).optional(),
     }).describe("Parameters for API key authentication.").optional(),
+    connectorReferenceAuthProvider: z.object({
+      authorizationDetails: z.array(z.record(z.string(), z.string())).describe(
+        "Optional. Rich Authorization Requests (RFC 9396) detailing targeted OAuth resources/scopes, formatted as a JSON array of JSON objects.",
+      ).optional(),
+      connector: z.string().describe(
+        "Required. The name of the referenced connector.",
+      ).optional(),
+    }).describe("Parameters for Connector Reference authentication.")
+      .optional(),
     geAuthProvider: z.object({}).describe(
       "Parameters for Gemini Enterprise authentication.",
     ).optional(),
@@ -220,6 +229,57 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     }).describe("Parameters for 2-legged OAuth (2LO) authentication.")
       .optional(),
+    xaaAuthProvider: z.object({
+      additionalParameters: z.record(z.string(), z.string()).describe(
+        "Optional. Additional parameters to be passed to the token endpoint.",
+      ).optional(),
+      clientAssertionJwtAuth: z.object({
+        clientId: z.string().describe("Required. The client identifier.")
+          .optional(),
+      }).describe(
+        "Option 2: Authenticate using a standard `client_id` and a Client Assertion JWT.",
+      ).optional(),
+      clientSecretAuth: z.object({
+        clientId: z.string().describe("Required. The client identifier.")
+          .optional(),
+        clientSecret: z.string().describe(
+          "Required. Input only. The client secret.",
+        ).optional(),
+      }).describe(
+        "Option 1: Authenticate using a standard `client_id` and `client_secret`.",
+      ).optional(),
+      customIssuer: z.object({
+        issuer: z.string().describe(
+          "Optional. The issuer identifier of the target Authorization Server.",
+        ).optional(),
+        tokenUrl: z.string().describe(
+          "Required. The token endpoint of the target OAuth authorization server to retrieve resource tokens.",
+        ).optional(),
+      }).describe(
+        "Configuration when using a custom or third-party authorization server as the issuer.",
+      ).optional(),
+      googleAccount: z.object({}).describe(
+        "Configuration when using Google Accounts as the issuer.",
+      ).optional(),
+      idJagInput: z.object({}).describe(
+        "Configuration for when the input is already an ID-JAG.",
+      ).optional(),
+      idTokenInput: z.object({
+        agentIdentityPool: z.object({}).describe(
+          "Indicates the managed Agent Identity pool should be used to fetch the ID-JAG.",
+        ).optional(),
+        idJagAdditionalClaims: z.record(z.string(), z.string()).describe(
+          "Optional. Optional additional claims to include when fetching an ID-JAG.",
+        ).optional(),
+        idJagAuthProvider: z.string().describe(
+          'The resource name of the ID-JAG auth provider. Format: "projects/{project}/locations/{location}/authProviders/{auth_provider}"',
+        ).optional(),
+      }).describe("Configuration for when the input is an ID token.")
+        .optional(),
+      workforceIdentityFederation: z.object({}).describe(
+        "Configuration when using Workforce Identity Federation as the issuer.",
+      ).optional(),
+    }).describe("Parameters for Cross-App Access authentication.").optional(),
   }).describe("Required. Parameters specific to the auth provider type.")
     .optional(),
   blockedScopes: z.array(z.string()).describe(
@@ -254,6 +314,10 @@ const StateSchema = z.object({
     apiKey: z.object({
       apiKey: z.string(),
     }),
+    connectorReferenceAuthProvider: z.object({
+      authorizationDetails: z.array(z.record(z.string(), z.unknown())),
+      connector: z.string(),
+    }),
     geAuthProvider: z.object({}),
     threeLeggedOauth: z.object({
       authorizationUrl: z.string(),
@@ -268,6 +332,28 @@ const StateSchema = z.object({
       clientId: z.string(),
       clientSecret: z.string(),
       tokenUrl: z.string(),
+    }),
+    xaaAuthProvider: z.object({
+      additionalParameters: z.record(z.string(), z.unknown()),
+      clientAssertionJwtAuth: z.object({
+        clientId: z.string(),
+      }),
+      clientSecretAuth: z.object({
+        clientId: z.string(),
+        clientSecret: z.string(),
+      }),
+      customIssuer: z.object({
+        issuer: z.string(),
+        tokenUrl: z.string(),
+      }),
+      googleAccount: z.object({}),
+      idJagInput: z.object({}),
+      idTokenInput: z.object({
+        agentIdentityPool: z.object({}),
+        idJagAdditionalClaims: z.record(z.string(), z.unknown()),
+        idJagAuthProvider: z.string(),
+      }),
+      workforceIdentityFederation: z.object({}),
     }),
   }).optional(),
   blockedScopes: z.array(z.string()).optional(),
@@ -300,6 +386,15 @@ const InputsSchema = z.object({
         "Optional. Input only. The API key for this auth provider.",
       ).optional(),
     }).describe("Parameters for API key authentication.").optional(),
+    connectorReferenceAuthProvider: z.object({
+      authorizationDetails: z.array(z.record(z.string(), z.string())).describe(
+        "Optional. Rich Authorization Requests (RFC 9396) detailing targeted OAuth resources/scopes, formatted as a JSON array of JSON objects.",
+      ).optional(),
+      connector: z.string().describe(
+        "Required. The name of the referenced connector.",
+      ).optional(),
+    }).describe("Parameters for Connector Reference authentication.")
+      .optional(),
     geAuthProvider: z.object({}).describe(
       "Parameters for Gemini Enterprise authentication.",
     ).optional(),
@@ -339,6 +434,57 @@ const InputsSchema = z.object({
       ).optional(),
     }).describe("Parameters for 2-legged OAuth (2LO) authentication.")
       .optional(),
+    xaaAuthProvider: z.object({
+      additionalParameters: z.record(z.string(), z.string()).describe(
+        "Optional. Additional parameters to be passed to the token endpoint.",
+      ).optional(),
+      clientAssertionJwtAuth: z.object({
+        clientId: z.string().describe("Required. The client identifier.")
+          .optional(),
+      }).describe(
+        "Option 2: Authenticate using a standard `client_id` and a Client Assertion JWT.",
+      ).optional(),
+      clientSecretAuth: z.object({
+        clientId: z.string().describe("Required. The client identifier.")
+          .optional(),
+        clientSecret: z.string().describe(
+          "Required. Input only. The client secret.",
+        ).optional(),
+      }).describe(
+        "Option 1: Authenticate using a standard `client_id` and `client_secret`.",
+      ).optional(),
+      customIssuer: z.object({
+        issuer: z.string().describe(
+          "Optional. The issuer identifier of the target Authorization Server.",
+        ).optional(),
+        tokenUrl: z.string().describe(
+          "Required. The token endpoint of the target OAuth authorization server to retrieve resource tokens.",
+        ).optional(),
+      }).describe(
+        "Configuration when using a custom or third-party authorization server as the issuer.",
+      ).optional(),
+      googleAccount: z.object({}).describe(
+        "Configuration when using Google Accounts as the issuer.",
+      ).optional(),
+      idJagInput: z.object({}).describe(
+        "Configuration for when the input is already an ID-JAG.",
+      ).optional(),
+      idTokenInput: z.object({
+        agentIdentityPool: z.object({}).describe(
+          "Indicates the managed Agent Identity pool should be used to fetch the ID-JAG.",
+        ).optional(),
+        idJagAdditionalClaims: z.record(z.string(), z.string()).describe(
+          "Optional. Optional additional claims to include when fetching an ID-JAG.",
+        ).optional(),
+        idJagAuthProvider: z.string().describe(
+          'The resource name of the ID-JAG auth provider. Format: "projects/{project}/locations/{location}/authProviders/{auth_provider}"',
+        ).optional(),
+      }).describe("Configuration for when the input is an ID token.")
+        .optional(),
+      workforceIdentityFederation: z.object({}).describe(
+        "Configuration when using Workforce Identity Federation as the issuer.",
+      ).optional(),
+    }).describe("Parameters for Cross-App Access authentication.").optional(),
   }).describe("Required. Parameters specific to the auth provider type.")
     .optional(),
   blockedScopes: z.array(z.string()).describe(
@@ -393,7 +539,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Identity AuthProviders. Registered at `@swamp/gcp/agentidentity/authproviders`. */
 export const model = {
   type: "@swamp/gcp/agentidentity/authproviders",
-  version: "2026.10.23.1",
+  version: "2026.10.28.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -444,6 +590,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1066,6 +1217,48 @@ export const model = {
           },
           params,
           undefined,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    resolve_authorization: {
+      description: "resolve authorization",
+      arguments: z.object({
+        clientUserId: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["name"]),
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (args["clientUserId"] !== undefined) {
+          body["clientUserId"] = args["clientUserId"];
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "agentidentity.projects.locations.authProviders.resolveAuthorization",
+            "path": "v1/{+name}:resolveAuthorization",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
           undefined,
           undefined,
           undefined,

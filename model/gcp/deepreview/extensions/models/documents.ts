@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Deep Review Documents.
  *
- * Document Resource Model representing an uploaded document for review. Documents are immutable post-creation; to review a new version, create a new Document.
+ * A document uploaded for automated review. Documents are immutable post-creation; to review a new version, create a new Document.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -178,7 +178,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Deep Review Documents. Registered at `@swamp/gcp/deepreview/documents`. */
 export const model = {
   type: "@swamp/gcp/deepreview/documents",
-  version: "2026.10.27.1",
+  version: "2026.10.28.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
@@ -190,13 +190,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
       description:
-        "Document Resource Model representing an uploaded document for review. Documen...",
+        "A document uploaded for automated review. Documents are immutable post-creati...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -332,13 +337,13 @@ export const model = {
       description: "List documents resources",
       arguments: z.object({
         filter: z.string().describe(
-          'Optional. Supported AIP-160 filter expressions (e.g., `display_name = "..."`).',
+          "Optional. Custom filter expressions are not currently supported; non-empty values return INVALID_ARGUMENT.",
         ).optional(),
         orderBy: z.string().describe(
-          "Optional. Supported AIP-132 order_by field.",
+          "Optional. Custom order_by expressions are not currently supported; non-empty values return INVALID_ARGUMENT.",
         ).optional(),
         pageSize: z.number().describe(
-          "Optional. The maximum number of documents to return in a single page. The server may return fewer than this value. If unspecified, at most 50 documents will be returned. The maximum value is 1000; values above 1000 will be coerced to 1000.",
+          "Optional. The maximum number of documents to return in a single page. The server may return fewer than this value. If unspecified, at most 50 documents will be returned. The maximum value is 100; values above 100 will be coerced to 100.",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",

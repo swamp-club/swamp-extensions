@@ -28,13 +28,20 @@
  */
 
 import { z } from "npm:zod@4.6.7";
-import { create, listAll, read, remove, tryRead } from "./_lib/cloudflare.ts";
+import {
+  create,
+  listAll,
+  read,
+  remove,
+  tryRead,
+  update,
+} from "./_lib/cloudflare.ts";
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  name: z.string().describe(
-    "Instance name for this resource (used as the unique identifier in the factory pattern)",
-  ),
+  name: z.string().min(1).max(255).describe(
+    "Customer-defined name, unique within the account by exact string equality (case-sensitive, with no Unicode normalization). Must be valid UTF-8 and at most 255 UTF-8 bytes, not 255 characters. Only graphical Unicode characters are allowed; leading or trailing whitespace is rejected. The name can be changed without changing the set's nameservers or addresses.",
+  ).optional(),
   advanced: z.boolean().describe(
     "Whether to allocate the nameservers from distinct Advanced anycast groups.",
   ).optional(),
@@ -80,6 +87,7 @@ const ResourceSchema = z.object({
     created_on: z.string().optional(),
     id: z.string().optional(),
     ip_set: z.number().optional(),
+    name: z.string().optional(),
     advanced: z.boolean().optional(),
     nameservers: z.array(z.object({
       ipv4: z.array(z.string()).optional(),
@@ -94,7 +102,7 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
   account_id: z.string().optional(),
-  name: z.string().optional(),
+  name: z.string().min(1).max(255).optional(),
   advanced: z.boolean().optional(),
   ip_set: z.number().int().min(1).optional(),
   nameservers: z.array(z.object({
@@ -109,7 +117,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Nameserver Sets. Registered at `@swamp/cloudflare/dns/nameserver-sets`. */
 export const model = {
   type: "@swamp/cloudflare/dns/nameserver-sets",
-  version: "2026.10.23.1",
+  version: "2026.10.28.1",
   upgrades: [
     {
       toVersion: "2026.09.29.1",
@@ -133,6 +141,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -163,7 +176,9 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const missing = ["nameservers"].filter((k) => g[k] === undefined);
+        const missing = ["name", "nameservers"].filter((k) =>
+          g[k] === undefined
+        );
         if (missing.length > 0) {
           throw new Error(
             "create requires global arguments: " + missing.join(", "),
@@ -174,6 +189,7 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.advanced !== undefined) body.advanced = g.advanced;
         if (g.ip_set !== undefined) body.ip_set = g.ip_set;
+        if (g.name !== undefined) body.name = g.name;
         if (g.nameservers !== undefined) body.nameservers = g.nameservers;
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
@@ -231,6 +247,7 @@ export const model = {
         const endpoint = "/accounts/" + g.account_id +
           "/dns_settings/nameserver_sets";
         const filters: [string, string][] = [];
+        if (g.name !== undefined) filters.push(["name", String(g.name)]);
         if (g.advanced !== undefined) {
           filters.push(["advanced", String(g.advanced)]);
         }
@@ -326,6 +343,46 @@ export const model = {
             /[\/\\]/g,
             "_",
           ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+    update: {
+      description: "Update Nameserver Sets attributes",
+      arguments: z.object({
+        identifier: z.string().describe(
+          "Target a specific Nameserver Sets by id (e.g. one discovered by list)",
+        ).optional(),
+      }),
+      execute: async (args: { identifier?: string }, context: any) => {
+        const g = context.globalArgs;
+        const endpoint = "/accounts/" + g.account_id +
+          "/dns_settings/nameserver_sets";
+        const instanceName =
+          (g.name?.toString() ?? args.identifier ?? "current").replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          instanceName,
+        );
+        if (!content) {
+          throw new Error("No data found - run create, get, or list first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        const body: Record<string, unknown> = {};
+        if (g.name !== undefined) body.name = g.name;
+        const result = await update(endpoint, existing.id, body, "PATCH", {
+          apiToken: g.apiToken,
+          apiKey: g.apiKey,
+          email: g.email,
+        }) as ResourceData;
         const handle = await context.writeResource(
           "state",
           instanceName,

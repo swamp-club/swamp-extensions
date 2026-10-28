@@ -221,6 +221,9 @@ const GlobalArgsSchema = z.object({
     "Rules evaluated with an OR logical operator. A user needs to meet only one of the Include rules.",
   ).optional(),
   name: z.string().describe("The name of the Access policy.").optional(),
+  policy_resolution_account_id: z.string().describe(
+    "The account ID used to resolve policy resources and identity for cross-account WARP authentication. The account must be trusted by the account that owns this policy.",
+  ).optional(),
   require: z.array(z.object({
     group: z.object({
       id: z.string(),
@@ -500,6 +503,7 @@ const ResourceSchema = z.object({
     }).optional(),
   })).optional(),
   name: z.string().optional(),
+  policy_resolution_account_id: z.string().optional(),
   require: z.array(z.object({
     group: z.object({
       id: z.string().optional(),
@@ -773,6 +777,7 @@ const InputsSchema = z.object({
     }).optional(),
   })).optional(),
   name: z.string().optional(),
+  policy_resolution_account_id: z.string().optional(),
   require: z.array(z.object({
     group: z.object({
       id: z.string(),
@@ -868,7 +873,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Policies. Registered at `@swamp/cloudflare/access/policies`. */
 export const model = {
   type: "@swamp/cloudflare/access/policies",
-  version: "2026.10.23.1",
+  version: "2026.10.28.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -925,6 +930,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.28.1",
+      description: "Added: policy_resolution_account_id",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -966,6 +976,9 @@ export const model = {
         if (g.exclude !== undefined) body.exclude = g.exclude;
         if (g.include !== undefined) body.include = g.include;
         if (g.name !== undefined) body.name = g.name;
+        if (g.policy_resolution_account_id !== undefined) {
+          body.policy_resolution_account_id = g.policy_resolution_account_id;
+        }
         if (g.require !== undefined) body.require = g.require;
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
@@ -1025,6 +1038,12 @@ export const model = {
           filters.push(["decision", String(g.decision)]);
         }
         if (g.name !== undefined) filters.push(["name", String(g.name)]);
+        if (g.policy_resolution_account_id !== undefined) {
+          filters.push([
+            "policy_resolution_account_id",
+            String(g.policy_resolution_account_id),
+          ]);
+        }
         if (filters.length === 0) {
           throw new Error(
             "At least one global argument must be set to filter by",
@@ -1150,9 +1169,18 @@ export const model = {
         if (g.exclude !== undefined) body.exclude = g.exclude;
         if (g.include !== undefined) body.include = g.include;
         if (g.name !== undefined) body.name = g.name;
+        if (g.policy_resolution_account_id !== undefined) {
+          body.policy_resolution_account_id = g.policy_resolution_account_id;
+        }
         if (g.require !== undefined) body.require = g.require;
-        const unset = ["decision", "exclude", "include", "name", "require"]
-          .filter((k) => body[k] === undefined);
+        const unset = [
+          "decision",
+          "exclude",
+          "include",
+          "name",
+          "policy_resolution_account_id",
+          "require",
+        ].filter((k) => body[k] === undefined);
         if (unset.length > 0) {
           const live = await read(endpoint, existing.id, {
             apiToken: g.apiToken,

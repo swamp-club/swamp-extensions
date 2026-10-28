@@ -107,7 +107,9 @@ const GlobalArgsSchema = z.object({
   FifoThroughputScope: z.string().describe(
     "Specifies the throughput quota and deduplication behavior to apply for the FIFO topic. Valid values are Topic or MessageGroup.",
   ).optional(),
-  MaximumMessageSize: z.number().int().min(1024).max(1048576).optional(),
+  MaximumMessageSize: z.number().int().min(1024).max(1048576).describe(
+    "The maximum payload size, in bytes, for messages published to the topic. Valid values are 1024 to 1048576 (1 MiB). When this property is not specified, the topic uses the default SNS message size of 262144 bytes (256 KiB). A topic with MaximumMessageSize above 262144 supports a maximum of 100 subscriptions, all of which must use the SQS, AWS Lambda, or Amazon Data Firehose protocols. For more information, see [Publishing large messages with](https://docs.aws.amazon.com/sns/latest/dg/large-message-payloads.html) in the *Developer Guide*.",
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "The list of tags to add to a new topic. To be able to tag a topic on creation, you must have the sns:CreateTopic and sns:TagResource permissions.",
   ).optional(),
@@ -174,7 +176,9 @@ const InputsSchema = z.object({
   FifoThroughputScope: z.string().describe(
     "Specifies the throughput quota and deduplication behavior to apply for the FIFO topic. Valid values are Topic or MessageGroup.",
   ).optional(),
-  MaximumMessageSize: z.number().int().min(1024).max(1048576).optional(),
+  MaximumMessageSize: z.number().int().min(1024).max(1048576).describe(
+    "The maximum payload size, in bytes, for messages published to the topic. Valid values are 1024 to 1048576 (1 MiB). When this property is not specified, the topic uses the default SNS message size of 262144 bytes (256 KiB). A topic with MaximumMessageSize above 262144 supports a maximum of 100 subscriptions, all of which must use the SQS, AWS Lambda, or Amazon Data Firehose protocols. For more information, see [Publishing large messages with](https://docs.aws.amazon.com/sns/latest/dg/large-message-payloads.html) in the *Developer Guide*.",
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "The list of tags to add to a new topic. To be able to tag a topic on creation, you must have the sns:CreateTopic and sns:TagResource permissions.",
   ).optional(),
@@ -211,7 +215,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SNS Topic. Registered at `@swamp/aws/sns/topic`. */
 export const model = {
   type: "@swamp/aws/sns/topic",
-  version: "2026.10.23.1",
+  version: "2026.10.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -285,6 +289,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

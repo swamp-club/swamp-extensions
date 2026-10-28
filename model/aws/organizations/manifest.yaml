@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/organizations"
-version: "2026.10.25.1"
+version: "2026.10.28.1"
 license: "AGPL-3.0-or-later"
 description: "AWS ORGANIZATIONS infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -10,6 +10,8 @@ labels:
   - organizations
   - cloud
   - infrastructure
+releaseNotes: |
+  - Updated: policy
 models:
   - account.ts
   - organization.ts

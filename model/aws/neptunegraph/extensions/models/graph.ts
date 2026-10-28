@@ -84,9 +84,6 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  PublicConnectivity: z.boolean().describe(
-    "Specifies whether the Graph can be reached over the internet. Access to all graphs requires IAM authentication. When the Graph is publicly reachable, its Domain Name System (DNS) endpoint resolves to the public IP address from the internet. When the Graph isn't publicly reachable, you need to create a PrivateGraphEndpoint in a given VPC to ensure the DNS name resolves to a private IP address that is reachable from the VPC. _Default_: If not specified, the default value is false.",
-  ).optional(),
   KmsKeyIdentifier: z.string().min(1).max(1024).regex(
     new RegExp(
       "arn:aws(|-cn|-us-gov|-iso|-iso-b|-iso-e|-iso-f|-eusc):kms:[a-zA-Z0-9-]*:[0-9]{12}:key/[a-zA-Z0-9-]{36}",
@@ -98,6 +95,20 @@ const GlobalArgsSchema = z.object({
     new RegExp("^[a-zA-z][a-zA-Z0-9]*(-[a-zA-Z0-9]+)*$"),
   ).describe(
     "Contains a user-supplied name for the Graph. If you don't specify a name, we generate a unique Graph Name using a combination of Stack Name and a UUID comprising of 4 characters. _Important_: If you specify a name, you cannot perform updates that require replacement of this resource. You can perform updates that require no or some interruption. If you must replace the resource, specify a new name.",
+  ).optional(),
+  ReplicaCount: z.number().int().describe(
+    "Specifies the number of replicas you want when finished. All replicas will be provisioned in different availability zones. Replica Count should always be less than or equal to 2. _Default_: If not specified, the default value is 1.",
+  ).optional(),
+  DeletionProtection: z.boolean().describe(
+    "Value that indicates whether the Graph has deletion protection enabled. The graph can't be deleted when deletion protection is enabled. _Default_: If not specified, the default value is true.",
+  ).optional(),
+  VectorSearchConfiguration: z.object({
+    VectorSearchDimension: z.number().int().describe(
+      "The vector search dimension",
+    ),
+  }).describe("Vector Search Configuration").optional(),
+  PublicConnectivity: z.boolean().describe(
+    "Specifies whether the Graph can be reached over the internet. Access to all graphs requires IAM authentication. When the Graph is publicly reachable, its Domain Name System (DNS) endpoint resolves to the public IP address from the internet. When the Graph isn't publicly reachable, you need to create a PrivateGraphEndpoint in a given VPC to ensure the DNS name resolves to a private IP address that is reachable from the VPC. _Default_: If not specified, the default value is false.",
   ).optional(),
   ImportTask: z.object({
     Format: z.enum(["CSV", "OPEN_CYPHER", "PARQUET", "NTRIPLES"]).describe(
@@ -134,26 +145,23 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "The details of the import task to use to create the graph. When specified, the graph is created using CreateGraphUsingImportTask and data is imported from the supplied source.",
   ).optional(),
-  ReplicaCount: z.number().int().describe(
-    "Specifies the number of replicas you want when finished. All replicas will be provisioned in different availability zones. Replica Count should always be less than or equal to 2. _Default_: If not specified, the default value is 1.",
-  ).optional(),
   ProvisionedMemory: z.number().int().describe("Memory for the Graph."),
-  DeletionProtection: z.boolean().describe(
-    "Value that indicates whether the Graph has deletion protection enabled. The graph can't be deleted when deletion protection is enabled. _Default_: If not specified, the default value is true.",
-  ).optional(),
-  VectorSearchConfiguration: z.object({
-    VectorSearchDimension: z.number().int().describe(
-      "The vector search dimension",
-    ),
-  }).describe("Vector Search Configuration").optional(),
   Tags: z.array(TagSchema).describe("The tags associated with this graph.")
     .optional(),
 });
 
 const StateSchema = z.object({
-  PublicConnectivity: z.boolean().optional(),
+  Status: z.string().optional(),
   KmsKeyIdentifier: z.string().optional(),
   GraphName: z.string().optional(),
+  ReplicaCount: z.number().optional(),
+  GraphId: z.string(),
+  CreateTime: z.string().optional(),
+  DeletionProtection: z.boolean().optional(),
+  VectorSearchConfiguration: z.object({
+    VectorSearchDimension: z.number(),
+  }).optional(),
+  PublicConnectivity: z.boolean().optional(),
   ImportTask: z.object({
     Format: z.string(),
     BlankNodeHandling: z.string(),
@@ -167,13 +175,7 @@ const StateSchema = z.object({
   }).optional(),
   Endpoint: z.string().optional(),
   GraphArn: z.string().optional(),
-  ReplicaCount: z.number().optional(),
-  GraphId: z.string(),
   ProvisionedMemory: z.number().optional(),
-  DeletionProtection: z.boolean().optional(),
-  VectorSearchConfiguration: z.object({
-    VectorSearchDimension: z.number(),
-  }).optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
 
@@ -185,9 +187,6 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  PublicConnectivity: z.boolean().describe(
-    "Specifies whether the Graph can be reached over the internet. Access to all graphs requires IAM authentication. When the Graph is publicly reachable, its Domain Name System (DNS) endpoint resolves to the public IP address from the internet. When the Graph isn't publicly reachable, you need to create a PrivateGraphEndpoint in a given VPC to ensure the DNS name resolves to a private IP address that is reachable from the VPC. _Default_: If not specified, the default value is false.",
-  ).optional(),
   KmsKeyIdentifier: z.string().min(1).max(1024).regex(
     new RegExp(
       "arn:aws(|-cn|-us-gov|-iso|-iso-b|-iso-e|-iso-f|-eusc):kms:[a-zA-Z0-9-]*:[0-9]{12}:key/[a-zA-Z0-9-]{36}",
@@ -199,6 +198,20 @@ const InputsSchema = z.object({
     new RegExp("^[a-zA-z][a-zA-Z0-9]*(-[a-zA-Z0-9]+)*$"),
   ).describe(
     "Contains a user-supplied name for the Graph. If you don't specify a name, we generate a unique Graph Name using a combination of Stack Name and a UUID comprising of 4 characters. _Important_: If you specify a name, you cannot perform updates that require replacement of this resource. You can perform updates that require no or some interruption. If you must replace the resource, specify a new name.",
+  ).optional(),
+  ReplicaCount: z.number().int().describe(
+    "Specifies the number of replicas you want when finished. All replicas will be provisioned in different availability zones. Replica Count should always be less than or equal to 2. _Default_: If not specified, the default value is 1.",
+  ).optional(),
+  DeletionProtection: z.boolean().describe(
+    "Value that indicates whether the Graph has deletion protection enabled. The graph can't be deleted when deletion protection is enabled. _Default_: If not specified, the default value is true.",
+  ).optional(),
+  VectorSearchConfiguration: z.object({
+    VectorSearchDimension: z.number().int().describe(
+      "The vector search dimension",
+    ).optional(),
+  }).describe("Vector Search Configuration").optional(),
+  PublicConnectivity: z.boolean().describe(
+    "Specifies whether the Graph can be reached over the internet. Access to all graphs requires IAM authentication. When the Graph is publicly reachable, its Domain Name System (DNS) endpoint resolves to the public IP address from the internet. When the Graph isn't publicly reachable, you need to create a PrivateGraphEndpoint in a given VPC to ensure the DNS name resolves to a private IP address that is reachable from the VPC. _Default_: If not specified, the default value is false.",
   ).optional(),
   ImportTask: z.object({
     Format: z.enum(["CSV", "OPEN_CYPHER", "PARQUET", "NTRIPLES"]).describe(
@@ -235,19 +248,8 @@ const InputsSchema = z.object({
   }).describe(
     "The details of the import task to use to create the graph. When specified, the graph is created using CreateGraphUsingImportTask and data is imported from the supplied source.",
   ).optional(),
-  ReplicaCount: z.number().int().describe(
-    "Specifies the number of replicas you want when finished. All replicas will be provisioned in different availability zones. Replica Count should always be less than or equal to 2. _Default_: If not specified, the default value is 1.",
-  ).optional(),
   ProvisionedMemory: z.number().int().describe("Memory for the Graph.")
     .optional(),
-  DeletionProtection: z.boolean().describe(
-    "Value that indicates whether the Graph has deletion protection enabled. The graph can't be deleted when deletion protection is enabled. _Default_: If not specified, the default value is true.",
-  ).optional(),
-  VectorSearchConfiguration: z.object({
-    VectorSearchDimension: z.number().int().describe(
-      "The vector search dimension",
-    ).optional(),
-  }).describe("Vector Search Configuration").optional(),
   Tags: z.array(TagSchema).describe("The tags associated with this graph.")
     .optional(),
 });
@@ -271,7 +273,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NeptuneGraph Graph. Registered at `@swamp/aws/neptunegraph/graph`. */
 export const model = {
   type: "@swamp/aws/neptunegraph/graph",
-  version: "2026.10.23.1",
+  version: "2026.10.28.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -340,6 +342,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

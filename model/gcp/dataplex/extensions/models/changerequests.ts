@@ -189,6 +189,9 @@ const GlobalArgsSchema = z.object({
           createTime: z.unknown().describe(
             "Output only. The time when the entry was created in Dataplex Universal Catalog.",
           ).optional(),
+          entryGroupType: z.unknown().describe(
+            "Output only. The type of the EntryGroup that this entry belongs to. The default value is an empty string. Recognised values include: * context-set: EntryGroup containing context set data assets.",
+          ).optional(),
           entrySource: z.unknown().describe(
             "Optional. Information related to the source system of the data resource that is represented by the entry.",
           ).optional(),
@@ -269,6 +272,9 @@ const GlobalArgsSchema = z.object({
           ).optional(),
           createTime: z.unknown().describe(
             "Output only. The time when the entry was created in Dataplex Universal Catalog.",
+          ).optional(),
+          entryGroupType: z.unknown().describe(
+            "Output only. The type of the EntryGroup that this entry belongs to. The default value is an empty string. Recognised values include: * context-set: EntryGroup containing context set data assets.",
           ).optional(),
           entrySource: z.unknown().describe(
             "Optional. Information related to the source system of the data resource that is represented by the entry.",
@@ -393,6 +399,9 @@ const GlobalArgsSchema = z.object({
       ).optional(),
       createTime: z.string().describe(
         "Output only. The time when the entry was created in Dataplex Universal Catalog.",
+      ).optional(),
+      entryGroupType: z.string().describe(
+        "Output only. The type of the EntryGroup that this entry belongs to. The default value is an empty string. Recognised values include: * context-set: EntryGroup containing context set data assets.",
       ).optional(),
       entrySource: z.object({
         ancestors: z.array(z.object({
@@ -765,6 +774,9 @@ const GlobalArgsSchema = z.object({
       ).optional(),
       createTime: z.string().describe(
         "Output only. The time when the entry was created in Dataplex Universal Catalog.",
+      ).optional(),
+      entryGroupType: z.string().describe(
+        "Output only. The type of the EntryGroup that this entry belongs to. The default value is an empty string. Recognised values include: * context-set: EntryGroup containing context set data assets.",
       ).optional(),
       entrySource: z.object({
         ancestors: z.array(z.object({
@@ -961,6 +973,7 @@ const StateSchema = z.object({
         entry: z.object({
           aspects: z.unknown(),
           createTime: z.unknown(),
+          entryGroupType: z.unknown(),
           entrySource: z.unknown(),
           entryType: z.unknown(),
           fullyQualifiedName: z.unknown(),
@@ -996,6 +1009,7 @@ const StateSchema = z.object({
         entry: z.object({
           aspects: z.unknown(),
           createTime: z.unknown(),
+          entryGroupType: z.unknown(),
           entrySource: z.unknown(),
           entryType: z.unknown(),
           fullyQualifiedName: z.unknown(),
@@ -1023,6 +1037,7 @@ const StateSchema = z.object({
     entry: z.object({
       aspects: z.record(z.string(), z.unknown()),
       createTime: z.string(),
+      entryGroupType: z.string(),
       entrySource: z.object({
         ancestors: z.array(z.object({
           name: z.unknown(),
@@ -1147,6 +1162,7 @@ const StateSchema = z.object({
     entry: z.object({
       aspects: z.record(z.string(), z.unknown()),
       createTime: z.string(),
+      entryGroupType: z.string(),
       entrySource: z.object({
         ancestors: z.array(z.object({
           name: z.unknown(),
@@ -1268,6 +1284,9 @@ const InputsSchema = z.object({
           createTime: z.unknown().describe(
             "Output only. The time when the entry was created in Dataplex Universal Catalog.",
           ).optional(),
+          entryGroupType: z.unknown().describe(
+            "Output only. The type of the EntryGroup that this entry belongs to. The default value is an empty string. Recognised values include: * context-set: EntryGroup containing context set data assets.",
+          ).optional(),
           entrySource: z.unknown().describe(
             "Optional. Information related to the source system of the data resource that is represented by the entry.",
           ).optional(),
@@ -1348,6 +1367,9 @@ const InputsSchema = z.object({
           ).optional(),
           createTime: z.unknown().describe(
             "Output only. The time when the entry was created in Dataplex Universal Catalog.",
+          ).optional(),
+          entryGroupType: z.unknown().describe(
+            "Output only. The type of the EntryGroup that this entry belongs to. The default value is an empty string. Recognised values include: * context-set: EntryGroup containing context set data assets.",
           ).optional(),
           entrySource: z.unknown().describe(
             "Optional. Information related to the source system of the data resource that is represented by the entry.",
@@ -1472,6 +1494,9 @@ const InputsSchema = z.object({
       ).optional(),
       createTime: z.string().describe(
         "Output only. The time when the entry was created in Dataplex Universal Catalog.",
+      ).optional(),
+      entryGroupType: z.string().describe(
+        "Output only. The type of the EntryGroup that this entry belongs to. The default value is an empty string. Recognised values include: * context-set: EntryGroup containing context set data assets.",
       ).optional(),
       entrySource: z.object({
         ancestors: z.array(z.object({
@@ -1844,6 +1869,9 @@ const InputsSchema = z.object({
       ).optional(),
       createTime: z.string().describe(
         "Output only. The time when the entry was created in Dataplex Universal Catalog.",
+      ).optional(),
+      entryGroupType: z.string().describe(
+        "Output only. The type of the EntryGroup that this entry belongs to. The default value is an empty string. Recognised values include: * context-set: EntryGroup containing context set data assets.",
       ).optional(),
       entrySource: z.object({
         ancestors: z.array(z.object({
@@ -2045,7 +2073,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex ChangeRequests. Registered at `@swamp/gcp/dataplex/changerequests`. */
 export const model = {
   type: "@swamp/gcp/dataplex/changerequests",
-  version: "2026.10.23.1",
+  version: "2026.10.28.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -2125,6 +2153,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.28.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
