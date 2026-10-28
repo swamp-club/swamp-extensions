@@ -53,6 +53,7 @@ Deno.test("BuildArgsSchema - defaults context to '.'", () => {
   const result = BuildArgsSchema.parse({});
   assertEquals(result.context, ".");
   assertEquals(result.noCache, false);
+  assertEquals(result.pull, false);
 });
 
 Deno.test("BuildArgsSchema - accepts exportFormat oci", () => {
@@ -146,6 +147,7 @@ Deno.test("BuildxBuildArgsSchema - parses full input", () => {
   });
   assertEquals(result.platforms, ["linux/amd64", "linux/arm64"]);
   assertEquals(result.push, true);
+  assertEquals(result.pull, false);
 });
 
 Deno.test("BuildxBuildArgsSchema - rejects empty platforms", () => {

@@ -131,6 +131,7 @@ export function buildBuildArgv(binary: Binary, args: BuildArgs): string[] {
   if (args.dockerfile) argv.push("-f", args.dockerfile);
   if (args.target) argv.push("--target", args.target);
   if (args.noCache) argv.push("--no-cache");
+  if (args.pull) argv.push("--pull");
   if (args.platform) argv.push("--platform", args.platform);
   argv.push(...buildArgFlags(args.buildArgs));
   argv.push(...labelFlags(args.labels));
@@ -237,6 +238,7 @@ export function buildBuildxArgv(
     const argv: string[] = ["podman", "build", "--platform", platformStr];
     argv.push("--manifest", args.tags[0]);
     if (args.dockerfile) argv.push("-f", args.dockerfile);
+    if (args.pull) argv.push("--pull");
     argv.push(...buildArgFlags(args.buildArgs));
     argv.push(...labelFlags(args.labels));
     argv.push(...annotationFlags(args.annotations));
@@ -257,6 +259,7 @@ export function buildBuildxArgv(
     for (const platform of args.platforms) argv.push("--platform", platform);
     for (const tag of args.tags) argv.push("-t", tag);
     if (args.dockerfile) argv.push("-f", args.dockerfile);
+    if (args.pull) argv.push("--pull");
     argv.push(...buildArgFlags(args.buildArgs));
     argv.push(...labelFlags(args.labels));
     argv.push(args.context);
@@ -268,6 +271,7 @@ export function buildBuildxArgv(
   for (const tag of args.tags) argv.push("-t", tag);
   if (args.dockerfile) argv.push("-f", args.dockerfile);
   if (args.push) argv.push("--push");
+  if (args.pull) argv.push("--pull");
   argv.push(...buildArgFlags(args.buildArgs));
   argv.push(...labelFlags(args.labels));
   argv.push(...annotationFlags(args.annotations));

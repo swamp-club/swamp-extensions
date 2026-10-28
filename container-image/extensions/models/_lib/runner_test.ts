@@ -35,7 +35,11 @@ import {
 // ---------------------------------------------------------------------------
 
 Deno.test("buildBuildArgv - docker minimal", () => {
-  const argv = buildBuildArgv("docker", { context: ".", noCache: false });
+  const argv = buildBuildArgv("docker", {
+    context: ".",
+    noCache: false,
+    pull: false,
+  });
   assertEquals(argv, ["docker", "build", "."]);
 });
 
@@ -46,6 +50,7 @@ Deno.test("buildBuildArgv - docker full", () => {
     dockerfile: "Dockerfile.prod",
     target: "release",
     noCache: true,
+    pull: true,
     buildArgs: { NODE_ENV: "production" },
     labels: { version: "1.0" },
   });
@@ -59,6 +64,7 @@ Deno.test("buildBuildArgv - docker full", () => {
     "--target",
     "release",
     "--no-cache",
+    "--pull",
     "--build-arg",
     "NODE_ENV=production",
     "--label",
@@ -68,12 +74,20 @@ Deno.test("buildBuildArgv - docker full", () => {
 });
 
 Deno.test("buildBuildArgv - podman uses same subcommand", () => {
-  const argv = buildBuildArgv("podman", { context: ".", noCache: false });
+  const argv = buildBuildArgv("podman", {
+    context: ".",
+    noCache: false,
+    pull: false,
+  });
   assertEquals(argv, ["podman", "build", "."]);
 });
 
 Deno.test("buildBuildArgv - container (Apple) uses same subcommand", () => {
-  const argv = buildBuildArgv("container", { context: ".", noCache: false });
+  const argv = buildBuildArgv("container", {
+    context: ".",
+    noCache: false,
+    pull: false,
+  });
   assertEquals(argv, ["container", "build", "."]);
 });
 
@@ -83,6 +97,7 @@ for (const binary of ["docker", "podman", "container"] as const) {
       context: ".",
       tag: "app:amd64",
       noCache: false,
+      pull: false,
       platform: "linux/amd64",
     });
     assertEquals(argv, [
@@ -94,6 +109,24 @@ for (const binary of ["docker", "podman", "container"] as const) {
       "linux/amd64",
       ".",
     ]);
+  });
+}
+
+for (const binary of ["docker", "podman", "container"] as const) {
+  Deno.test(`buildBuildArgv - ${binary} passes --pull only when set`, () => {
+    const pulled = buildBuildArgv(binary, {
+      context: ".",
+      noCache: false,
+      pull: true,
+    });
+    assertEquals(pulled, [binary, "build", "--pull", "."]);
+
+    const unpulled = buildBuildArgv(binary, {
+      context: ".",
+      noCache: false,
+      pull: false,
+    });
+    assertEquals(unpulled.includes("--pull"), false);
   });
 }
 
@@ -355,6 +388,7 @@ Deno.test("buildBuildxArgv - docker uses buildx subcommand", () => {
     platforms: ["linux/amd64", "linux/arm64"],
     tags: ["registry.example.com/app:latest"],
     push: true,
+    pull: false,
   });
   assertEquals(argv, [
     "docker",
@@ -375,6 +409,7 @@ Deno.test("buildBuildxArgv - docker without push", () => {
     platforms: ["linux/amd64"],
     tags: ["app:latest"],
     push: false,
+    pull: false,
   });
   assertEquals(argv.includes("--push"), false);
 });
@@ -385,6 +420,7 @@ Deno.test("buildBuildxArgv - docker with cache flags", () => {
     platforms: ["linux/amd64"],
     tags: ["app:latest"],
     push: true,
+    pull: false,
     cacheFrom: ["type=registry,ref=app:cache"],
     cacheTo: ["type=inline"],
   });
@@ -398,6 +434,7 @@ Deno.test("buildBuildxArgv - podman maps to build --platform + --manifest", () =
     platforms: ["linux/amd64", "linux/arm64"],
     tags: ["registry.example.com/app:latest"],
     push: true,
+    pull: false,
   });
   assertEquals(argv[0], "podman");
   assertEquals(argv[1], "build");
@@ -415,6 +452,7 @@ Deno.test("buildBuildxArgv - container repeats --platform and -t", () => {
     platforms: ["linux/amd64", "linux/arm64"],
     tags: ["registry.example.com/app:latest", "registry.example.com/app:1.0"],
     push: true,
+    pull: false,
     buildArgs: { VERSION: "1.0" },
     labels: { team: "infra" },
   });
@@ -439,12 +477,30 @@ Deno.test("buildBuildxArgv - container repeats --platform and -t", () => {
   ]);
 });
 
+for (const binary of ["docker", "podman", "container"] as const) {
+  Deno.test(`buildBuildxArgv - ${binary} passes --pull only when set`, () => {
+    const base = {
+      context: ".",
+      platforms: ["linux/amd64", "linux/arm64"],
+      tags: ["app:latest"],
+      push: false,
+    };
+    const pulled = buildBuildxArgv(binary, { ...base, pull: true });
+    assertEquals(pulled.filter((a) => a === "--pull").length, 1);
+    assertEquals(pulled[pulled.length - 1], ".");
+
+    const unpulled = buildBuildxArgv(binary, { ...base, pull: false });
+    assertEquals(unpulled.includes("--pull"), false);
+  });
+}
+
 Deno.test("buildBuildxArgv - docker passes --annotation for every key", () => {
   const argv = buildBuildxArgv("docker", {
     context: ".",
     platforms: ["linux/amd64", "linux/arm64"],
     tags: ["app:latest"],
     push: true,
+    pull: false,
     annotations: {
       "index:org.opencontainers.image.base.name": "alpine:3.20",
       "manifest[linux/arm64]:fingerprint": "abc",
@@ -478,6 +534,7 @@ Deno.test("buildBuildxArgv - docker passes --metadata-file before context", () =
       platforms: ["linux/amd64"],
       tags: ["app:latest"],
       push: false,
+      pull: false,
     },
     "/tmp/meta.json",
   );
@@ -490,6 +547,7 @@ Deno.test("buildBuildxArgv - podman passes --annotation", () => {
     platforms: ["linux/amd64"],
     tags: ["app:latest"],
     push: false,
+    pull: false,
     annotations: { "org.example.plain": "yes" },
   });
   assertEquals(argv, [
@@ -654,6 +712,7 @@ const dockerBuildxArgs = {
   platforms: ["linux/amd64", "linux/arm64"],
   tags: ["registry.example.com/app:latest"],
   push: true,
+  pull: false,
 };
 
 /**

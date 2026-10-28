@@ -79,6 +79,7 @@ image as an OCI or Docker archive.
 | `buildArgs`    | Record<string,string> | No       | Build arguments (`--build-arg`) |
 | `labels`       | Record<string,string> | No       | Image labels (`--label`) |
 | `noCache`      | boolean               | No       | Disable build cache (default: `false`) |
+| `pull`         | boolean               | No       | Always pull newer base images before building (`--pull`, default: `false`); see [Refreshing base images](#refreshing-base-images) |
 | `platform`     | string                | No       | Target platform, e.g. `linux/amd64` (default: host platform) |
 | `exportFormat` | `"oci"` \| `"docker"` | No       | Export the image as a tar archive |
 | `exportPath`   | string                | No       | Destination path for the archive |
@@ -113,7 +114,27 @@ swamp model method run myapp build \
   --input tag=myapp:latest \
   --input exportFormat=docker \
   --input exportPath=./myapp-docker.tar --json
+
+# Production build: refresh base images and skip the layer cache
+swamp model method run myapp build \
+  --input tag=myapp:prod \
+  --input pull=true \
+  --input noCache=true --json
 ```
+
+#### Refreshing base images
+
+`noCache` alone does not refresh base images. It rebuilds every layer, but
+the `FROM` images still come from the local image store, so a stale or
+vulnerable base that was pulled earlier is reused. Set `pull: true` to pass
+`--pull`, which makes Docker, Podman and Apple Containers check the registry
+for a newer version of each base image before building. `multi-platform-build`
+accepts the same `pull` input.
+
+`pull` refreshes bases referenced by tag, such as `FROM golang:1.23`. A base
+pinned by digest (`FROM golang@sha256:...`) always resolves to exactly that
+digest, so `pull` cannot move it. To pick up a patched base, bump the digest
+in the Dockerfile.
 
 #### Image Export
 
@@ -246,6 +267,7 @@ All three runtimes are supported.
 | `platforms`  | string[]              | Yes      | Target platforms |
 | `tags`       | string[]              | Yes      | Image tags |
 | `push`       | boolean               | No       | Push after build (default: `true`) |
+| `pull`       | boolean               | No       | Always pull newer base images before building (`--pull`, default: `false`); see [Refreshing base images](#refreshing-base-images) |
 | `buildArgs`  | Record<string,string> | No       | Build arguments |
 | `labels`     | Record<string,string> | No       | Image labels |
 | `annotations` | Record<string,string> | No      | OCI annotations (`--annotation`); see below |
@@ -296,6 +318,13 @@ swamp model method run myapp multi-platform-build \
   --input platforms='["linux/amd64","linux/arm64"]' \
   --input tags='["ghcr.io/myorg/myapp:latest"]' \
   --input annotations='{"index:org.opencontainers.image.base.name":"docker.io/library/alpine:3.20"}' \
+  --input push=true --json
+
+# Refresh base images before a release build and push
+swamp model method run myapp multi-platform-build \
+  --input platforms='["linux/amd64","linux/arm64"]' \
+  --input tags='["ghcr.io/myorg/myapp:latest"]' \
+  --input pull=true \
   --input push=true --json
 
 # Build without pushing (local verification)

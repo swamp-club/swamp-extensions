@@ -65,7 +65,7 @@ import {
 
 export const model = {
   type: "@swamp/container-image",
-  version: "2026.10.24.1",
+  version: "2026.10.28.1",
   globalArguments: GlobalArgsSchema,
 
   upgrades: [
@@ -91,6 +91,12 @@ export const model = {
         "Docker the recorded digest now comes from the buildx metadata file " +
         "(the manifest or index digest, pushed or not) instead of the first " +
         "sha256 in the output.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.28.1",
+      description: "Add pull input to build and multi-platform-build to " +
+        "refresh base images before building.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -107,6 +107,11 @@ export const BuildArgsSchema = z.object({
   noCache: z.boolean().default(false).describe(
     "Disable build cache.",
   ),
+  pull: z.boolean().default(false).describe(
+    "Always attempt to pull newer versions of the base (FROM) images " +
+      "before building (--pull). Refreshes tag-referenced bases; a FROM " +
+      "pinned by digest always resolves to that exact digest.",
+  ),
   platform: safeOptionValue("platform").optional().describe(
     "Target platform (e.g. 'linux/amd64'). Defaults to the host platform.",
   ),
@@ -194,6 +199,11 @@ export const BuildxBuildArgsSchema = z.object({
   ),
   push: z.boolean().default(true).describe(
     "Push the image after building.",
+  ),
+  pull: z.boolean().default(false).describe(
+    "Always attempt to pull newer versions of the base (FROM) images " +
+      "before building (--pull). Refreshes tag-referenced bases; a FROM " +
+      "pinned by digest always resolves to that exact digest.",
   ),
   buildArgs: safeRecord("buildArgs").optional().describe(
     "Build arguments (--build-arg KEY=VALUE).",

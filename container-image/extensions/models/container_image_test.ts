@@ -96,7 +96,7 @@ Deno.test("build - writes buildResult resource on success", async () => {
 
   try {
     await runBuild(
-      { context: ".", tag: "myapp:latest", noCache: false },
+      { context: ".", tag: "myapp:latest", noCache: false, pull: false },
       h.ctx,
     );
   } finally {
@@ -117,7 +117,7 @@ Deno.test("build - throws on non-zero exit", async () => {
 
   try {
     await assertRejects(
-      () => runBuild({ context: ".", noCache: false }, h.ctx),
+      () => runBuild({ context: ".", noCache: false, pull: false }, h.ctx),
       Error,
       "docker build failed",
     );
@@ -127,6 +127,25 @@ Deno.test("build - throws on non-zero exit", async () => {
 
   assertEquals(h.writes.length, 1);
   assertEquals(h.writes[0].data.exitCode, 1);
+});
+
+Deno.test("build - pull passes --pull to the build command", async () => {
+  const h = makeHarness({ name: "myapp", binary: "docker" });
+  installMockExecutor(h);
+
+  try {
+    await runBuild(
+      { context: ".", tag: "myapp:latest", noCache: true, pull: true },
+      h.ctx,
+    );
+  } finally {
+    resetCommandExecutor();
+  }
+
+  assertEquals(h.execRequests.length, 1);
+  assertEquals(h.execRequests[0].args[0], "build");
+  assertEquals(h.execRequests[0].args.includes("--pull"), true);
+  assertEquals(h.execRequests[0].args.includes("--no-cache"), true);
 });
 
 Deno.test("build - exports when exportFormat and exportPath set", async () => {
@@ -139,6 +158,7 @@ Deno.test("build - exports when exportFormat and exportPath set", async () => {
         context: ".",
         tag: "myapp:latest",
         noCache: false,
+        pull: false,
         exportFormat: "oci",
         exportPath: "/tmp/myapp-oci.tar",
       },
@@ -166,6 +186,7 @@ Deno.test("build - records platform and passes it to the build", async () => {
         context: ".",
         tag: "myapp:amd64",
         noCache: false,
+        pull: false,
         platform: "linux/amd64",
       },
       h.ctx,
@@ -191,6 +212,7 @@ Deno.test("build - docker oci export passes platform to the re-export", async ()
         context: ".",
         tag: "myapp:amd64",
         noCache: false,
+        pull: false,
         platform: "linux/amd64",
         exportFormat: "oci",
         exportPath: "/tmp/myapp-oci.tar",
@@ -218,6 +240,7 @@ Deno.test("build - errors when exportFormat set without tag", async () => {
           {
             context: ".",
             noCache: false,
+            pull: false,
             exportFormat: "oci",
             exportPath: "/tmp/out.tar",
           },
@@ -428,6 +451,7 @@ Deno.test("multi-platform-build - docker writes multiPlatformBuildResult with di
         platforms: ["linux/amd64", "linux/arm64"],
         tags: ["registry.example.com/app:latest"],
         push: true,
+        pull: false,
       },
       h.ctx,
     );
@@ -467,6 +491,7 @@ Deno.test("multi-platform-build - podman issues manifest rm, build, then manifes
         platforms: ["linux/amd64"],
         tags: ["app:latest"],
         push: true,
+        pull: false,
       },
       h.ctx,
     );
@@ -486,6 +511,45 @@ Deno.test("multi-platform-build - podman issues manifest rm, build, then manifes
   assertEquals(h.execRequests[3].bin, "podman");
   assertEquals(h.execRequests[3].args[0], "manifest");
   assertEquals(h.execRequests[3].args[1], "push");
+});
+
+Deno.test("multi-platform-build - podman pull adds --pull to build only", async () => {
+  const h = makeHarness({ name: "myapp", binary: "podman" });
+  setCommandExecutor((req: ExecRequest) => {
+    h.execRequests.push(req);
+    if (req.args[0] === "manifest" && req.args[1] === "push") {
+      return Promise.resolve({
+        exitCode: 0,
+        stdout:
+          "sha256:abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789",
+        stderr: "",
+      });
+    }
+    return Promise.resolve({ exitCode: 0, stdout: "", stderr: "" });
+  });
+
+  try {
+    await runBuildxBuild(
+      {
+        context: ".",
+        platforms: ["linux/amd64"],
+        tags: ["app:latest"],
+        push: true,
+        pull: true,
+      },
+      h.ctx,
+    );
+  } finally {
+    resetCommandExecutor();
+  }
+
+  // rmi, manifest rm, build, manifest push — only the build pulls
+  assertEquals(h.execRequests.length, 4);
+  assertEquals(h.execRequests[2].args[0], "build");
+  assertEquals(
+    h.execRequests.map((r) => r.args.includes("--pull")),
+    [false, false, true, false],
+  );
 });
 
 const INDEX_DIGEST =
@@ -519,6 +583,7 @@ Deno.test("multi-platform-build - container builds then pushes each tag", async 
           "registry.example.com/app:1.0",
         ],
         push: true,
+        pull: false,
       },
       h.ctx,
     );
@@ -559,6 +624,7 @@ Deno.test("multi-platform-build - container with push=false only builds", async 
         platforms: ["linux/amd64", "linux/arm64"],
         tags: ["app:latest"],
         push: false,
+        pull: false,
       },
       h.ctx,
     );
@@ -589,6 +655,7 @@ Deno.test("multi-platform-build - container throws when a push fails", async () 
             platforms: ["linux/amd64", "linux/arm64"],
             tags: ["app:latest", "app:1.0"],
             push: true,
+            pull: false,
           },
           h.ctx,
         ),
@@ -617,6 +684,7 @@ Deno.test("multi-platform-build - container rejects cacheFrom before exec", asyn
             platforms: ["linux/amd64"],
             tags: ["app:latest"],
             push: false,
+            pull: false,
             cacheFrom: ["type=registry,ref=app:cache"],
           },
           h.ctx,
@@ -644,6 +712,7 @@ Deno.test("multi-platform-build - container rejects annotations before exec", as
             platforms: ["linux/amd64"],
             tags: ["app:latest"],
             push: false,
+            pull: false,
             annotations: { "org.example.plain": "yes" },
           },
           h.ctx,
@@ -678,6 +747,7 @@ for (
               platforms: ["linux/amd64"],
               tags: ["app:latest"],
               push: false,
+              pull: false,
               annotations: { "org.example.plain": "yes", [key]: "v" },
             },
             h.ctx,
@@ -704,6 +774,7 @@ Deno.test("multi-platform-build - container treats empty annotations as unset", 
         platforms: ["linux/amd64"],
         tags: ["app:latest"],
         push: false,
+        pull: false,
         annotations: {},
       },
       h.ctx,
@@ -726,6 +797,7 @@ Deno.test("multi-platform-build - podman passes unprefixed annotations", async (
         platforms: ["linux/amd64"],
         tags: ["app:latest"],
         push: false,
+        pull: false,
         annotations: { "org.example.plain": "yes" },
       },
       h.ctx,
@@ -752,6 +824,7 @@ Deno.test("multi-platform-build - throws on non-zero exit", async () => {
             platforms: ["linux/amd64"],
             tags: ["app:latest"],
             push: true,
+            pull: false,
           },
           h.ctx,
         ),
