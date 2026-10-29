@@ -939,3 +939,230 @@ Deno.test({
     }
   },
 });
+
+// ---------------------------------------------------------------------------
+// Usage on run and review, through a stub agent CLI
+// ---------------------------------------------------------------------------
+
+const STUB_ENVELOPE = {
+  type: "result",
+  subtype: "success",
+  is_error: false,
+  num_turns: 1,
+  result: "hi",
+  session_id: "claude-session-1",
+  total_cost_usd: 0.25,
+  modelUsage: {
+    "claude-haiku-5-5": {
+      inputTokens: 2,
+      outputTokens: 4,
+      cacheReadInputTokens: 10,
+      cacheCreationInputTokens: 20,
+      costUSD: 0.25,
+    },
+  },
+};
+
+// Puts a shell-script CLI where ensureBinary finds a cached binary, so the
+// method runs it without downloading, and runs fn from that working dir.
+async function withStubAgent(
+  binaryPath: string,
+  script: string,
+  fn: (dir: string) => Promise<void>,
+): Promise<void> {
+  const dir = await Deno.makeTempDir({ prefix: "agent-runner-usage-" });
+  const cwd = Deno.cwd();
+  try {
+    const path = `${dir}/.swamp/agent-runner/bin/${binaryPath}`;
+    await Deno.mkdir(path.slice(0, path.lastIndexOf("/")), { recursive: true });
+    await Deno.writeTextFile(path, `#!/bin/sh\n${script}`);
+    await Deno.chmod(path, 0o755);
+    Deno.chdir(dir);
+    await fn(dir);
+  } finally {
+    Deno.chdir(cwd);
+    await Deno.remove(dir, { recursive: true });
+  }
+}
+
+function catScript(stdout: string): string {
+  return `cat <<'STUB_EOF'\n${stdout}\nSTUB_EOF\n`;
+}
+
+const stubTest = (name: string, fn: () => Promise<void>) =>
+  Deno.test({ name, ignore: Deno.build.os === "windows", fn });
+
+stubTest(
+  "run records claude usage and keeps output as the reply text",
+  async () => {
+    await withStubAgent(
+      "claude/9.9.9/claude",
+      catScript(JSON.stringify(STUB_ENVELOPE)),
+      async () => {
+        const h = makeHarness({
+          provider: "claude",
+          version: "9.9.9",
+          auth: "cli",
+        });
+        await model.methods.run.execute(
+          { prompt: "say hi", readOnly: true },
+          h.ctx,
+        );
+
+        assertEquals(h.writes.length, 1);
+        const data = h.writes[0].data;
+        assertEquals(data.output, "hi");
+        assertEquals(data.exitCode, 0);
+        assertEquals(data.sessionId, "claude-session-1");
+        assertEquals(data.usage, {
+          model: "claude-haiku-5-5",
+          inputTokens: 2,
+          outputTokens: 4,
+          cacheReadTokens: 10,
+          cacheWriteTokens: 20,
+          costUsd: 0.25,
+          numTurns: 1,
+          byModel: {
+            "claude-haiku-5-5": {
+              inputTokens: 2,
+              outputTokens: 4,
+              cacheReadTokens: 10,
+              cacheWriteTokens: 20,
+              costUsd: 0.25,
+            },
+          },
+        });
+        model.resources.runResult.schema.parse(data);
+      },
+    );
+  },
+);
+
+stubTest(
+  "run succeeds without usage when the CLI prints plain text",
+  async () => {
+    await withStubAgent(
+      "claude/9.9.9/claude",
+      catScript("plain reply"),
+      async () => {
+        const h = makeHarness({
+          provider: "claude",
+          version: "9.9.9",
+          auth: "cli",
+        });
+        await model.methods.run.execute(
+          { prompt: "say hi", readOnly: true },
+          h.ctx,
+        );
+
+        const data = h.writes[0].data;
+        assertEquals(data.output, "plain reply\n");
+        assertEquals(data.exitCode, 0);
+        assertEquals("usage" in data, false);
+      },
+    );
+  },
+);
+
+stubTest(
+  "run records codex usage and takes output from the -o file",
+  async () => {
+    const events = [
+      '{"type":"thread.started","thread_id":"codex-thread-1"}',
+      '{"type":"item.completed","item":{"type":"agent_message","text":"from events"}}',
+      '{"type":"turn.completed","usage":{"input_tokens":30,"cached_input_tokens":10,"output_tokens":5}}',
+    ].join("\n");
+    const script = `while [ $# -gt 0 ]; do
+  if [ "$1" = "-o" ]; then printf 'from file' > "$2"; fi
+  shift
+done
+${catScript(events)}`;
+    await withStubAgent("codex/9.9.9/vendor/codex", script, async () => {
+      const h = makeHarness({
+        provider: "codex",
+        version: "9.9.9",
+        auth: "cli",
+      });
+      await model.methods.run.execute(
+        { prompt: "say hi", model: "gpt-5.5", readOnly: true },
+        h.ctx,
+      );
+
+      const data = h.writes[0].data;
+      assertEquals(data.output, "from file");
+      assertEquals(data.sessionId, "codex-thread-1");
+      assertEquals(data.usage, {
+        model: "gpt-5.5",
+        inputTokens: 20,
+        outputTokens: 5,
+        cacheReadTokens: 10,
+        numTurns: 1,
+      });
+    });
+  },
+);
+
+stubTest(
+  "run falls back to the codex events when no -o file is written",
+  async () => {
+    const events =
+      '{"type":"item.completed","item":{"type":"agent_message","text":"from events"}}';
+    await withStubAgent(
+      "codex/9.9.9/vendor/codex",
+      catScript(events),
+      async () => {
+        const h = makeHarness({
+          provider: "codex",
+          version: "9.9.9",
+          auth: "cli",
+        });
+        await model.methods.run.execute(
+          { prompt: "say hi", readOnly: true },
+          h.ctx,
+        );
+
+        const data = h.writes[0].data;
+        assertEquals(data.output, "from events");
+        assertEquals("usage" in data, false);
+      },
+    );
+  },
+);
+
+stubTest(
+  "review parses the verdict through the envelope and records usage",
+  async () => {
+    const verdict = {
+      verdict: "pass",
+      body: "Looks good.",
+      findings: [],
+      highestSeverity: "none",
+    };
+    await withStubAgent(
+      "claude/9.9.9/claude",
+      // No tee result file: the verdict comes from the reply text on stdout.
+      catScript(
+        JSON.stringify({ ...STUB_ENVELOPE, result: JSON.stringify(verdict) }),
+      ),
+      async (dir) => {
+        await Deno.writeTextFile(`${dir}/prompt.md`, "Review these files.");
+        const h = makeHarness({
+          provider: "claude",
+          version: "9.9.9",
+          auth: "cli",
+        });
+        await model.methods.review.execute(
+          { promptFile: `${dir}/prompt.md`, files: ["a.ts"] },
+          h.ctx,
+        );
+
+        const data = ReviewResultSchema.parse(h.writes[0].data);
+        assertEquals(data.verdict, "pass");
+        assertEquals(data.body, "Looks good.");
+        assertEquals(data.sessionId, "claude-session-1");
+        assertEquals(data.usage?.costUsd, 0.25);
+        assertEquals(data.usage?.outputTokens, 4);
+      },
+    );
+  },
+);

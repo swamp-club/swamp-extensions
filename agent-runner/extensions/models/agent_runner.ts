@@ -24,7 +24,7 @@ import type { AgentRunnerContext } from "./_lib/types.ts";
 /** Agent runner model — providers, review profiles, and execution methods. */
 export const model = {
   type: "@swamp/agent-runner",
-  version: "2026.10.22.1",
+  version: "2026.10.29.1",
 
   globalArguments: GlobalArgsSchema,
 
@@ -51,6 +51,12 @@ export const model = {
       toVersion: "2026.10.22.1",
       description:
         "Allow auth=cli for codex, add a codex modelProvider config for custom gateways, and send the codex approval policy as -c approval_policy",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
+      description:
+        "Record token usage, cost and the CLI session id (optional usage and sessionId) on runResult and reviewResult. Runs now pass claude --output-format json and codex exec --json, which need Claude Code 1.0.37+ and Codex 0.122.0+",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -100,6 +106,8 @@ export const model = {
         const globalArgs = GlobalArgsSchema.parse(ctx.globalArgs);
         const provider = getProvider(globalArgs.provider);
 
+        let outputDir: string | null = null;
+
         return await getTracer().startActiveSpan("run", async (span) => {
           span.setAttribute(Attr.METHOD, "run");
           span.setAttribute(Attr.PROVIDER, provider.name);
@@ -108,6 +116,13 @@ export const model = {
             const resolvedModel = args.model ?? globalArgs.defaultModel;
             const providerConfig = args.providerConfig ?? {};
 
+            // Codex writes its final message to a file (-o), since its
+            // stdout is JSON events.
+            if (provider.writesFinalMessage) {
+              outputDir = await Deno.makeTempDir({ prefix: "agent-runner-" });
+            }
+            const outputPath = outputDir ? `${outputDir}/output.txt` : "";
+
             const output = await runAgent({
               globalArgs,
               prompt: args.prompt,
@@ -115,7 +130,7 @@ export const model = {
               effort: args.effort,
               workingDir: Deno.cwd(),
               additionalDirs: [],
-              outputPath: "",
+              outputPath,
               readOnly: args.readOnly,
               providerConfig,
               logger: ctx.logger,
@@ -124,13 +139,19 @@ export const model = {
 
             span.setAttribute(Attr.EXIT_CODE, output.exitCode);
 
+            const finalMessage = outputPath
+              ? await readFinalMessage(outputPath)
+              : null;
+
             const handle = await ctx.writeResource(
               "runResult",
               `run-${crypto.randomUUID()}`,
               {
-                output: output.stdout,
+                output: finalMessage ?? output.stdout,
                 exitCode: output.exitCode,
                 ...(args.effort ? { effort: args.effort } : {}),
+                ...(output.sessionId ? { sessionId: output.sessionId } : {}),
+                ...(output.usage ? { usage: output.usage } : {}),
               },
               {
                 tags: {
@@ -151,9 +172,26 @@ export const model = {
             throw error;
           } finally {
             span.end();
+            if (outputDir) {
+              try {
+                await Deno.remove(outputDir, { recursive: true });
+              } catch {
+                // best-effort cleanup
+              }
+            }
           }
         });
       },
     },
   },
 };
+
+// The final message codex wrote with -o, or null when there is none.
+async function readFinalMessage(path: string): Promise<string | null> {
+  try {
+    const content = await Deno.readTextFile(path);
+    return content.length > 0 ? content : null;
+  } catch {
+    return null;
+  }
+}

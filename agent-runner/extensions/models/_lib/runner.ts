@@ -2,8 +2,8 @@ import type { AgentRunnerLogger, AgentRunRequest } from "./types.ts";
 import { detectPlatform } from "./platform.ts";
 import { resolveAuthKey } from "./auth.ts";
 import { Attr, getTracer } from "./tracing.ts";
-import { SpanStatusCode } from "npm:@opentelemetry/api@1.9.0";
-import type { Effort, GlobalArgs } from "./schemas.ts";
+import { type Span, SpanStatusCode } from "npm:@opentelemetry/api@1.9.0";
+import type { AgentUsage, Effort, GlobalArgs } from "./schemas.ts";
 import { getProvider } from "./providers/registry.ts";
 
 const CACHE_DIR_NAME = ".swamp/agent-runner/bin";
@@ -23,9 +23,12 @@ export interface RunAgentOptions {
 }
 
 export interface AgentOutput {
+  /** The agent's reply, unwrapped from the CLI's JSON output. */
   readonly stdout: string;
   readonly stderr: string;
   readonly exitCode: number;
+  readonly sessionId?: string;
+  readonly usage?: AgentUsage;
 }
 
 export async function runAgent(opts: RunAgentOptions): Promise<AgentOutput> {
@@ -94,11 +97,20 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentOutput> {
 
       const output = await command.output();
 
-      const stdout = new TextDecoder().decode(output.stdout);
+      const parsed = provider.parseOutput(
+        new TextDecoder().decode(output.stdout),
+        request,
+      );
       const stderr = new TextDecoder().decode(output.stderr);
       const exitCode = output.code;
 
       span.setAttribute(Attr.EXIT_CODE, exitCode);
+      if (parsed.sessionId) {
+        span.setAttribute(Attr.SESSION_ID, parsed.sessionId);
+      }
+      if (parsed.usage) {
+        setUsageAttributes(span, parsed.usage);
+      }
 
       if (exitCode !== 0) {
         opts.logger.warn(`Agent exited with code ${exitCode}`);
@@ -107,7 +119,13 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentOutput> {
         }
       }
 
-      return { stdout, stderr, exitCode };
+      return {
+        stdout: parsed.text,
+        stderr,
+        exitCode,
+        ...(parsed.sessionId ? { sessionId: parsed.sessionId } : {}),
+        ...(parsed.usage ? { usage: parsed.usage } : {}),
+      };
     } catch (error) {
       span.setStatus({
         code: SpanStatusCode.ERROR,
@@ -118,6 +136,28 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentOutput> {
       span.end();
     }
   });
+}
+
+function setUsageAttributes(span: Span, usage: AgentUsage): void {
+  const attributes: [string, number | undefined][] = [
+    [Attr.INPUT_TOKENS, usage.inputTokens],
+    [Attr.OUTPUT_TOKENS, usage.outputTokens],
+    [Attr.CACHE_READ_TOKENS, usage.cacheReadTokens],
+    [Attr.CACHE_WRITE_TOKENS, usage.cacheWriteTokens],
+    [Attr.REASONING_OUTPUT_TOKENS, usage.reasoningOutputTokens],
+    [Attr.COST_USD, usage.costUsd],
+    [Attr.NUM_TURNS, usage.numTurns],
+    [Attr.DURATION_MS, usage.durationMs],
+    [Attr.DURATION_API_MS, usage.durationApiMs],
+  ];
+  for (const [name, value] of attributes) {
+    if (value !== undefined) {
+      span.setAttribute(name, value);
+    }
+  }
+  if (usage.model) {
+    span.setAttribute(Attr.USAGE_MODEL, usage.model);
+  }
 }
 
 const FORWARDED_ENV_VARS = [

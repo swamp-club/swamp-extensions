@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/agent-runner"
-version: "2026.10.23.1"
+version: "2026.10.29.1"
 license: "AGPL-3.0-or-later"
 description: |
   Run AI coding agents (Claude, Codex) with structured output for CI
@@ -22,6 +22,11 @@ description: |
   Both methods accept optional `model` and `effort` arguments (`effort` is
   low, medium, high, xhigh or max, passed as claude `--effort` or codex
   `model_reasoning_effort`).
+
+  Both results carry a `usage` object with the token counts (and, for
+  claude, the cost in USD) that the agent CLI reported, per model and in
+  total, and the CLI's `sessionId`. Both are absent when the CLI reports
+  none. Needs Claude Code 1.0.37+ or Codex 0.122.0+.
 
   Runs on Linux, macOS and Windows (x64 and ARM64). On Windows the claude
   provider needs Git for Windows. The Codex provider downloads the

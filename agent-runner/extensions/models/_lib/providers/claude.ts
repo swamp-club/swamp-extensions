@@ -1,6 +1,20 @@
 import { z } from "npm:zod@4.6.7";
-import type { AgentProvider, AgentRunRequest, Platform } from "../types.ts";
+import type {
+  AgentProvider,
+  AgentRunRequest,
+  ParsedAgentOutput,
+  Platform,
+} from "../types.ts";
+import type { AgentUsage, ModelUsage } from "../schemas.ts";
 import { binaryFileName, isWindows } from "../platform.ts";
+import {
+  compact,
+  isObject,
+  type JsonObject,
+  nonNegative,
+  reportsUsage,
+  sumField,
+} from "../usage.ts";
 
 const DOWNLOAD_BASE = "https://downloads.claude.ai/claude-code-releases";
 
@@ -80,6 +94,7 @@ export const claudeProvider: AgentProvider = {
   name: "claude",
   defaultApiKeyEnvVar: "ANTHROPIC_API_KEY",
   supportsCliAuth: true,
+  writesFinalMessage: false,
   configSchema: ClaudeConfigSchema,
 
   async ensureBinary(
@@ -148,7 +163,9 @@ export const claudeProvider: AgentProvider = {
     providerConfig: Record<string, unknown>,
   ): string[] {
     const config = ClaudeConfigSchema.parse(providerConfig);
-    const args = ["-p", request.prompt];
+    // JSON output carries the token usage and cost; parseOutput unwraps the
+    // reply text from it.
+    const args = ["-p", request.prompt, "--output-format", "json"];
 
     if (request.model) {
       args.push("--model", request.model);
@@ -189,7 +206,106 @@ export const claudeProvider: AgentProvider = {
       "AGENT_RESULT_EOF",
     ].join("\n");
   },
+
+  parseOutput(stdout: string): ParsedAgentOutput {
+    return parseClaudeOutput(stdout);
+  },
 };
+
+/**
+ * Unwraps the result envelope that --output-format json prints. Anything that
+ * isn't one (an older CLI, a crash, partial output) is returned as raw text
+ * with no usage.
+ */
+export function parseClaudeOutput(stdout: string): ParsedAgentOutput {
+  let envelope: unknown;
+  try {
+    envelope = JSON.parse(stdout);
+  } catch {
+    return { text: stdout };
+  }
+  if (!isObject(envelope) || envelope.type !== "result") {
+    return { text: stdout };
+  }
+
+  // An error envelope may carry no result text, but its usage was still spent.
+  const text = typeof envelope.result === "string" ? envelope.result : "";
+  const usage = claudeUsage(envelope);
+  return {
+    text,
+    ...(typeof envelope.session_id === "string"
+      ? { sessionId: envelope.session_id }
+      : {}),
+    ...(usage ? { usage } : {}),
+  };
+}
+
+function claudeUsage(envelope: JsonObject): AgentUsage | undefined {
+  const byModel: Record<string, ModelUsage> = {};
+  if (isObject(envelope.modelUsage)) {
+    for (const [model, entry] of Object.entries(envelope.modelUsage)) {
+      if (!isObject(entry)) continue;
+      const usage = compact({
+        inputTokens: nonNegative(entry.inputTokens),
+        outputTokens: nonNegative(entry.outputTokens),
+        cacheReadTokens: nonNegative(entry.cacheReadInputTokens),
+        cacheWriteTokens: nonNegative(entry.cacheCreationInputTokens),
+        costUsd: nonNegative(entry.costUSD),
+      });
+      if (reportsUsage(usage)) {
+        byModel[model] = usage;
+      }
+    }
+  }
+
+  const models = Object.values(byModel);
+  // Without a per-model breakdown, fall back to the envelope's usage block.
+  const totals: ModelUsage = models.length > 0
+    ? {
+      inputTokens: sumField(models, "inputTokens"),
+      outputTokens: sumField(models, "outputTokens"),
+      cacheReadTokens: sumField(models, "cacheReadTokens"),
+      cacheWriteTokens: sumField(models, "cacheWriteTokens"),
+    }
+    : fromUsageBlock(envelope.usage);
+
+  const usage = compact({
+    model: mainModel(byModel),
+    ...totals,
+    costUsd: nonNegative(envelope.total_cost_usd) ??
+      sumField(models, "costUsd"),
+    numTurns: nonNegative(envelope.num_turns),
+    durationMs: nonNegative(envelope.duration_ms),
+    durationApiMs: nonNegative(envelope.duration_api_ms),
+    byModel: models.length > 0 ? byModel : undefined,
+  });
+  return reportsUsage(usage) ? usage : undefined;
+}
+
+function fromUsageBlock(block: unknown): ModelUsage {
+  if (!isObject(block)) return {};
+  return {
+    inputTokens: nonNegative(block.input_tokens),
+    outputTokens: nonNegative(block.output_tokens),
+    cacheReadTokens: nonNegative(block.cache_read_input_tokens),
+    cacheWriteTokens: nonNegative(block.cache_creation_input_tokens),
+  };
+}
+
+// The model that produced the most output tokens: the main loop's model,
+// rather than a subagent's or a background call's.
+function mainModel(byModel: Record<string, ModelUsage>): string | undefined {
+  let main: string | undefined;
+  let most = -1;
+  for (const [model, usage] of Object.entries(byModel)) {
+    const output = usage.outputTokens ?? 0;
+    if (output > most) {
+      main = model;
+      most = output;
+    }
+  }
+  return main;
+}
 
 // Quotes a path for the tee command. On Windows the agent's shell is Git Bash,
 // which strips the backslashes from an unquoted C:\... path; forward slashes

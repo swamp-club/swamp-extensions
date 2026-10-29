@@ -1,5 +1,5 @@
 import type { z } from "npm:zod@4.6.7";
-import type { Effort, GlobalArgs } from "./schemas.ts";
+import type { AgentUsage, Effort, GlobalArgs } from "./schemas.ts";
 
 export type Platform =
   | "linux-x64"
@@ -13,6 +13,8 @@ export interface AgentProvider {
   readonly name: string;
   readonly defaultApiKeyEnvVar: string;
   readonly supportsCliAuth: boolean;
+  /** Writes its final reply to the request's outputPath (codex -o). */
+  readonly writesFinalMessage: boolean;
   readonly configSchema: z.ZodType;
 
   ensureBinary(
@@ -30,6 +32,19 @@ export interface AgentProvider {
   apiKeyEnvName(providerConfig: Record<string, unknown>): string;
 
   outputInstructions(outputPath: string): string;
+
+  /**
+   * Reads the agent's reply text and usage out of the CLI's stdout. Never
+   * throws: output it can't read comes back as the raw text with no usage.
+   */
+  parseOutput(stdout: string, request: AgentRunRequest): ParsedAgentOutput;
+}
+
+export interface ParsedAgentOutput {
+  readonly text: string;
+  /** The CLI's session id, when it reported one. */
+  readonly sessionId?: string;
+  readonly usage?: AgentUsage;
 }
 
 export interface AgentRunRequest {
@@ -50,6 +65,8 @@ export interface ReviewResult {
   readonly findings: Finding[];
   readonly highestSeverity: "critical" | "high" | "medium" | "low" | "none";
   readonly effort?: Effort;
+  readonly sessionId?: string;
+  readonly usage?: AgentUsage;
 }
 
 export interface Finding {

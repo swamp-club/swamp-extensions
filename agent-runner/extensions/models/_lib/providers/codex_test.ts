@@ -8,6 +8,7 @@ import {
   CodexConfigSchema,
   codexProvider,
   extractTarball,
+  parseCodexOutput,
   tomlString,
 } from "./codex.ts";
 import type { AgentRunRequest } from "../types.ts";
@@ -691,4 +692,99 @@ Deno.test("codex: modelProvider schema rejects strings with lone surrogates", ()
     }).success,
     true,
   );
+});
+
+// ---------------------------------------------------------------------------
+// JSON events and usage
+// ---------------------------------------------------------------------------
+
+// Recorded from `codex exec --json` (codex-cli 0.165.0).
+const SUCCESS_EVENTS = [
+  '{"type":"thread.started","thread_id":"01a187f0-eb7e-77b1-afdd-77db285adbf7"}',
+  '{"type":"turn.started"}',
+  '{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"hi"}}',
+  '{"type":"turn.completed","usage":{"input_tokens":14845,"cached_input_tokens":12288,"cache_write_input_tokens":0,"output_tokens":5,"reasoning_output_tokens":0}}',
+].join("\n") + "\n";
+
+// Recorded from the same CLI without a login, trimmed to one retry.
+const FAILED_EVENTS = [
+  '{"type":"thread.started","thread_id":"01a187dd-1074-7fe0-88b1-540ae1b82032"}',
+  '{"type":"turn.started"}',
+  '{"type":"error","message":"Reconnecting... 2/5 (unexpected status 401 Unauthorized: Missing bearer or basic authentication in header, url: wss://api.openai.com/v1/responses)"}',
+  '{"type":"item.completed","item":{"id":"item_0","type":"error","message":"Falling back from WebSockets to HTTPS transport. unexpected status 401 Unauthorized"}}',
+  '{"type":"turn.failed","error":{"message":"unexpected status 401 Unauthorized: Missing bearer or basic authentication in header, url: https://api.openai.com/v1/responses"}}',
+].join("\n") + "\n";
+
+Deno.test("codex: buildArgs asks exec for JSON events", () => {
+  const args = codexProvider.buildArgs(
+    {
+      prompt: "test",
+      model: undefined,
+      workingDir: "/repo",
+      additionalDirs: [],
+      outputPath: "",
+      readOnly: true,
+    },
+    {},
+  );
+
+  assertEquals(args[0], "exec");
+  assertEquals(args.includes("--json"), true);
+});
+
+Deno.test("codex: parseOutput reads the reply and usage from the events", () => {
+  const parsed = parseCodexOutput(SUCCESS_EVENTS, "gpt-5.5");
+
+  assertEquals(parsed.text, "hi");
+  assertEquals(parsed.sessionId, "01a187f0-eb7e-77b1-afdd-77db285adbf7");
+  assertEquals(parsed.usage, {
+    model: "gpt-5.5",
+    // input_tokens includes the cached input; inputTokens is the rest.
+    inputTokens: 2557,
+    outputTokens: 5,
+    cacheReadTokens: 12288,
+    cacheWriteTokens: 0,
+    reasoningOutputTokens: 0,
+    numTurns: 1,
+  });
+});
+
+Deno.test("codex: parseOutput sums usage over turns and keeps the last reply", () => {
+  const stdout = [
+    '{"type":"item.completed","item":{"type":"agent_message","text":"first"}}',
+    '{"type":"turn.completed","usage":{"input_tokens":100,"cached_input_tokens":40,"output_tokens":10,"reasoning_output_tokens":3}}',
+    '{"type":"item.completed","item":{"type":"agent_message","text":"second"}}',
+    '{"type":"turn.completed","usage":{"input_tokens":50,"output_tokens":5}}',
+  ].join("\n");
+  const parsed = parseCodexOutput(stdout, undefined);
+
+  assertEquals(parsed.text, "second");
+  assertEquals(parsed.usage, {
+    inputTokens: 110,
+    outputTokens: 15,
+    cacheReadTokens: 40,
+    reasoningOutputTokens: 3,
+    numTurns: 2,
+  });
+});
+
+Deno.test("codex: parseOutput gives a failed turn empty text and no usage", () => {
+  assertEquals(parseCodexOutput(FAILED_EVENTS, "gpt-5.5"), {
+    text: "",
+    sessionId: "01a187dd-1074-7fe0-88b1-540ae1b82032",
+  });
+});
+
+Deno.test("codex: parseOutput skips lines that are not events", () => {
+  const stdout = "warning: something\n" + SUCCESS_EVENTS + "{truncated";
+  const parsed = parseCodexOutput(stdout, undefined);
+
+  assertEquals(parsed.text, "hi");
+  assertEquals(parsed.usage?.outputTokens, 5);
+});
+
+Deno.test("codex: parseOutput returns output with no events as raw text", () => {
+  for (const stdout of ["hi\n", "", '{"verdict":"pass"}', "[1, 2]"]) {
+    assertEquals(parseCodexOutput(stdout, "gpt-5.5"), { text: stdout });
+  }
 });

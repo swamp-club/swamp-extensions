@@ -32,6 +32,42 @@ export const EffortSchema = z.enum(["low", "medium", "high", "xhigh", "max"])
 
 export type Effort = z.infer<typeof EffortSchema>;
 
+const ModelUsageSchema = z.object({
+  inputTokens: z.number().optional()
+    .describe("Input tokens, excluding cached input"),
+  outputTokens: z.number().optional(),
+  cacheReadTokens: z.number().optional(),
+  cacheWriteTokens: z.number().optional(),
+  costUsd: z.number().optional(),
+});
+
+// Every field is optional: a CLI that reports only some of them still has
+// those recorded. Usage the CLI didn't report is absent, never zero.
+export const AgentUsageSchema = ModelUsageSchema.extend({
+  model: z.string().optional()
+    .describe(
+      "claude: the model that produced the most output tokens; codex: the " +
+        "model the run asked for, since codex doesn't report one",
+    ),
+  reasoningOutputTokens: z.number().optional(),
+  numTurns: z.number().optional(),
+  durationMs: z.number().optional(),
+  durationApiMs: z.number().optional(),
+  byModel: z.record(z.string(), ModelUsageSchema).optional()
+    .describe("Usage per model, when the CLI reports it"),
+}).describe(
+  "Token usage and cost the agent CLI reported for the run; absent when it " +
+    "reported none",
+);
+
+export type AgentUsage = z.infer<typeof AgentUsageSchema>;
+
+const SessionIdSchema = z.string().optional()
+  .describe(
+    "Session id the agent CLI reported (claude session_id, codex thread id)",
+  );
+export type ModelUsage = z.infer<typeof ModelUsageSchema>;
+
 export const FindingSchema = z.object({
   severity: z.enum(["critical", "high", "medium", "low"]),
   file: z.string(),
@@ -53,6 +89,8 @@ export const AgentReviewOutputSchema = z.object({
 export const ReviewResultSchema = AgentReviewOutputSchema.extend({
   effort: EffortSchema.optional()
     .describe("Effort the agent ran with, when one was set"),
+  sessionId: SessionIdSchema,
+  usage: AgentUsageSchema.optional(),
 });
 
 export const ReviewProfileSchema = z.object({
@@ -116,4 +154,6 @@ export const RunResultSchema = z.object({
   exitCode: z.number().int(),
   effort: EffortSchema.optional()
     .describe("Effort the agent ran with, when one was set"),
+  sessionId: SessionIdSchema,
+  usage: AgentUsageSchema.optional(),
 });

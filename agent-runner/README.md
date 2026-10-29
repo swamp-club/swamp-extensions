@@ -258,6 +258,79 @@ and (when set) `effort` for querying:
 swamp data query reviewer 'tags.verdict == "fail"'
 ```
 
+When the agent CLI reports token usage, the result also carries a `usage`
+object; see [Run Output](#run-output).
+
+## Run Output
+
+The `run` method writes a `runResult` resource:
+
+```json
+{
+  "output": "The authentication flow starts in src/auth.ts ...",
+  "exitCode": 0,
+  "sessionId": "ddd38c40-9c35-4615-9e54-ed2616359d50",
+  "usage": {
+    "model": "claude-sonnet-4-6",
+    "inputTokens": 12,
+    "outputTokens": 840,
+    "cacheReadTokens": 11693,
+    "cacheWriteTokens": 12687,
+    "costUsd": 0.0421,
+    "numTurns": 3,
+    "durationMs": 18234,
+    "durationApiMs": 17010,
+    "byModel": {
+      "claude-sonnet-4-6": {
+        "inputTokens": 12,
+        "outputTokens": 840,
+        "cacheReadTokens": 11693,
+        "cacheWriteTokens": 12687,
+        "costUsd": 0.0421
+      }
+    }
+  }
+}
+```
+
+`output` is the agent's reply text. The claude provider runs the CLI with
+`--output-format json` and takes `output` from the result's `result` field,
+without the trailing newline text output used to end with. The codex provider
+runs `codex exec --json` and takes `output` from its final message.
+
+`sessionId` is the session id the CLI reported: claude's `session_id`, or the
+codex thread id (codex runs with `--ephemeral`, so its session is not saved). It
+is on both `runResult` and `reviewResult`, and absent when the CLI reported
+none.
+
+The JSON output needs Claude Code 1.0.37 or later (the oldest release the
+extension can download) and Codex 0.122.0 or later (the oldest that accepts the
+`--ignore-user-config` and `--ignore-rules` flags the extension already passes).
+
+`usage` records what the CLI reported, on both `runResult` and `reviewResult`:
+
+- `inputTokens` counts input that was not read from the cache, for both
+  providers (codex's own count includes cached input; it is subtracted).
+- For claude, `model` is the model that produced the most output tokens, and
+  `byModel` breaks the totals down per model. Codex doesn't report which model
+  it ran, so for codex `model` is the model the run asked for (the `model`
+  argument or `defaultModel`) and is absent when neither was set; codex has no
+  `byModel`.
+- `costUsd` is claude only, and is the CLI's own estimate: codex reports no
+  price, and an older claude CLI may price a newer model wrongly.
+  `reasoningOutputTokens` is codex only.
+- Each field is present only when the CLI reported it, so an older CLI version
+  may give a partial `usage` (claude before the per-model breakdown has no
+  `model` or `byModel`). When the CLI reports no usage at all, or its output
+  can't be read, `usage` is absent and `output` is the CLI's raw output; the run
+  never fails because of it.
+
+The `agent.run` tracing span carries the session id as
+`agent_runner.session_id`, and every `usage` field except `byModel` as
+`agent_runner.usage.<field>` (`model`, `input_tokens`, `output_tokens`,
+`cache_read_tokens`, `cache_write_tokens`, `reasoning_output_tokens`,
+`cost_usd`, `num_turns`, `duration_ms`, `duration_api_ms`).
+
 ## Providers
 
 | Provider | CLI          | Env Var             | Permission Model                   |
@@ -406,11 +479,11 @@ result from the agent's output.
 
 ## Resources
 
-| Resource        | Description                                                |
-| --------------- | ---------------------------------------------------------- |
-| `reviewProfile` | Reusable review configuration (prompt, model, permissions) |
-| `reviewResult`  | Structured output from a review (verdict, findings, body)  |
-| `runResult`     | Raw output from an arbitrary prompt execution              |
+| Resource        | Description                                                      |
+| --------------- | ---------------------------------------------------------------- |
+| `reviewProfile` | Reusable review configuration (prompt, model, permissions)       |
+| `reviewResult`  | Structured output from a review (verdict, findings, body, usage) |
+| `runResult`     | Output from an arbitrary prompt execution, with token usage      |
 
 ## License
 

@@ -87,9 +87,12 @@ export async function executeReview(
       });
 
       const parsed = await parseResult(outputPath, output.stdout, ctx);
-      const result: ReviewResult = args.effort
-        ? { ...parsed, effort: args.effort }
-        : parsed;
+      const result: ReviewResult = {
+        ...parsed,
+        ...(args.effort ? { effort: args.effort } : {}),
+        ...(output.sessionId ? { sessionId: output.sessionId } : {}),
+        ...(output.usage ? { usage: output.usage } : {}),
+      };
 
       span.setAttribute(Attr.VERDICT, result.verdict);
       span.setAttribute(Attr.HIGHEST_SEVERITY, result.highestSeverity);

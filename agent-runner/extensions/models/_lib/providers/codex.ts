@@ -1,7 +1,21 @@
 import { z } from "npm:zod@4.6.7";
 import { UntarStream } from "jsr:@std/tar@0.1.10/untar-stream";
-import type { AgentProvider, AgentRunRequest, Platform } from "../types.ts";
+import type {
+  AgentProvider,
+  AgentRunRequest,
+  ParsedAgentOutput,
+  Platform,
+} from "../types.ts";
+import type { ModelUsage } from "../schemas.ts";
 import { binaryFileName, isWindows } from "../platform.ts";
+import {
+  compact,
+  isObject,
+  type JsonObject,
+  nonNegative,
+  reportsUsage,
+  sumField,
+} from "../usage.ts";
 
 const NPM_REGISTRY = "https://registry.npmjs.org";
 
@@ -73,6 +87,7 @@ export const codexProvider: AgentProvider = {
   name: "codex",
   defaultApiKeyEnvVar: CODEX_API_KEY_ENV,
   supportsCliAuth: true,
+  writesFinalMessage: true,
   configSchema: CodexConfigSchema,
 
   async ensureBinary(
@@ -165,6 +180,9 @@ export const codexProvider: AgentProvider = {
 
     const args = [
       "exec",
+      // JSON events carry the token usage; parseOutput reads the reply and
+      // usage out of them.
+      "--json",
       "--ephemeral",
       "--ignore-user-config",
       "--ignore-rules",
@@ -214,7 +232,88 @@ export const codexProvider: AgentProvider = {
       "The JSON will be captured automatically.",
     ].join("\n");
   },
+
+  parseOutput(stdout: string, request: AgentRunRequest): ParsedAgentOutput {
+    return parseCodexOutput(stdout, request.model);
+  },
 };
+
+/**
+ * Reads the JSON lines that `codex exec --json` prints. The reply is the last
+ * agent message (empty when the turn failed before one); usage is summed over
+ * the completed turns. Output with no events in it is returned as raw text.
+ */
+export function parseCodexOutput(
+  stdout: string,
+  model: string | undefined,
+): ParsedAgentOutput {
+  const events: JsonObject[] = [];
+  for (const line of stdout.split("\n")) {
+    if (!line.trim()) continue;
+    try {
+      const event: unknown = JSON.parse(line);
+      if (isObject(event) && typeof event.type === "string") {
+        events.push(event);
+      }
+    } catch {
+      // not an event line
+    }
+  }
+  if (events.length === 0) {
+    return { text: stdout };
+  }
+
+  let text = "";
+  let sessionId: string | undefined;
+  const turns: ModelUsage[] = [];
+  let reasoning: number | undefined;
+  for (const event of events) {
+    if (
+      event.type === "thread.started" && typeof event.thread_id === "string"
+    ) {
+      // The thread id is codex's session id.
+      sessionId = event.thread_id;
+    } else if (
+      event.type === "item.completed" && isObject(event.item) &&
+      event.item.type === "agent_message" &&
+      typeof event.item.text === "string"
+    ) {
+      text = event.item.text;
+    } else if (event.type === "turn.completed" && isObject(event.usage)) {
+      const input = nonNegative(event.usage.input_tokens);
+      const cached = nonNegative(event.usage.cached_input_tokens);
+      // Codex counts cached input inside input_tokens; inputTokens is the
+      // uncached part, as it is for Claude.
+      turns.push({
+        inputTokens: input === undefined
+          ? undefined
+          : Math.max(0, input - (cached ?? 0)),
+        outputTokens: nonNegative(event.usage.output_tokens),
+        cacheReadTokens: cached,
+        cacheWriteTokens: nonNegative(event.usage.cache_write_input_tokens),
+      });
+      const turnReasoning = nonNegative(event.usage.reasoning_output_tokens);
+      if (turnReasoning !== undefined) {
+        reasoning = (reasoning ?? 0) + turnReasoning;
+      }
+    }
+  }
+
+  const usage = compact({
+    model,
+    inputTokens: sumField(turns, "inputTokens"),
+    outputTokens: sumField(turns, "outputTokens"),
+    cacheReadTokens: sumField(turns, "cacheReadTokens"),
+    cacheWriteTokens: sumField(turns, "cacheWriteTokens"),
+    reasoningOutputTokens: reasoning,
+    numTurns: turns.length > 0 ? turns.length : undefined,
+  });
+  return {
+    text,
+    ...(sessionId ? { sessionId } : {}),
+    ...(reportsUsage(usage) ? { usage } : {}),
+  };
+}
 
 /**
  * Builds the -c overrides that select a custom model provider. The provider

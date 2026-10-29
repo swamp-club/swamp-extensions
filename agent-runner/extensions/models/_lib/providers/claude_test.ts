@@ -1,5 +1,10 @@
 import { assertEquals, assertRejects } from "jsr:@std/assert@1.0.19";
-import { claudeProvider, shellPath, tryVerifyChecksum } from "./claude.ts";
+import {
+  claudeProvider,
+  parseClaudeOutput,
+  shellPath,
+  tryVerifyChecksum,
+} from "./claude.ts";
 
 // ---------------------------------------------------------------------------
 // Binary download + checksum verification against a local HTTP server
@@ -380,4 +385,249 @@ Deno.test("claude: outputInstructions tee a quoted Windows path", () => {
     ),
     true,
   );
+});
+
+// ---------------------------------------------------------------------------
+// JSON output and usage
+// ---------------------------------------------------------------------------
+
+// Recorded from `claude -p --output-format json` (Claude Code 2.1.312), with
+// the fields agent-runner doesn't read trimmed away.
+const SUCCESS_ENVELOPE = {
+  type: "result",
+  subtype: "success",
+  is_error: false,
+  duration_ms: 1317,
+  duration_api_ms: 1274,
+  num_turns: 1,
+  result: "hi",
+  stop_reason: "end_turn",
+  session_id: "ddd38c40-9c35-4615-9e54-ed2616359d50",
+  total_cost_usd: 0.0026565300000000003,
+  usage: {
+    input_tokens: 2,
+    cache_creation_input_tokens: 12687,
+    cache_read_input_tokens: 11693,
+    output_tokens: 4,
+  },
+  modelUsage: {
+    "claude-haiku-5-5": {
+      inputTokens: 2,
+      outputTokens: 4,
+      cacheReadInputTokens: 11693,
+      cacheCreationInputTokens: 12687,
+      webSearchRequests: 0,
+      costUSD: 0.0026565300000000003,
+      contextWindow: 1000000,
+      maxOutputTokens: 128000,
+    },
+  },
+};
+
+// Recorded from the same CLI run with an unknown --model (exit code 1).
+const ERROR_ENVELOPE = {
+  type: "result",
+  subtype: "success",
+  is_error: true,
+  duration_ms: 419,
+  duration_api_ms: 0,
+  num_turns: 1,
+  result:
+    "There's an issue with the selected model (claude-no-such-model). It may not exist or you may not have access to it. Run --model to pick a different model.",
+  total_cost_usd: 0,
+  usage: {
+    input_tokens: 0,
+    cache_creation_input_tokens: 0,
+    cache_read_input_tokens: 0,
+    output_tokens: 0,
+  },
+  modelUsage: {},
+};
+
+Deno.test("claude: buildArgs asks for JSON output", () => {
+  const args = claudeProvider.buildArgs(
+    {
+      prompt: "test",
+      model: undefined,
+      workingDir: "/repo",
+      additionalDirs: [],
+      outputPath: "",
+      readOnly: true,
+    },
+    {},
+  );
+
+  const idx = args.indexOf("--output-format");
+  assertEquals(args[idx + 1], "json");
+});
+
+Deno.test("claude: parseOutput unwraps the result and records usage", () => {
+  const parsed = parseClaudeOutput(JSON.stringify(SUCCESS_ENVELOPE) + "\n");
+
+  assertEquals(parsed.text, "hi");
+  assertEquals(parsed.sessionId, "ddd38c40-9c35-4615-9e54-ed2616359d50");
+  assertEquals(parsed.usage, {
+    model: "claude-haiku-5-5",
+    inputTokens: 2,
+    outputTokens: 4,
+    cacheReadTokens: 11693,
+    cacheWriteTokens: 12687,
+    costUsd: 0.0026565300000000003,
+    numTurns: 1,
+    durationMs: 1317,
+    durationApiMs: 1274,
+    byModel: {
+      "claude-haiku-5-5": {
+        inputTokens: 2,
+        outputTokens: 4,
+        cacheReadTokens: 11693,
+        cacheWriteTokens: 12687,
+        costUsd: 0.0026565300000000003,
+      },
+    },
+  });
+});
+
+Deno.test("claude: parseOutput sums several models and names the main one", () => {
+  const parsed = parseClaudeOutput(JSON.stringify({
+    ...SUCCESS_ENVELOPE,
+    total_cost_usd: 0.5,
+    modelUsage: {
+      "claude-haiku-5-5": {
+        inputTokens: 10,
+        outputTokens: 20,
+        cacheReadInputTokens: 0,
+        cacheCreationInputTokens: 5,
+        costUSD: 0.1,
+      },
+      "claude-opus-5-5": {
+        inputTokens: 100,
+        outputTokens: 200,
+        cacheReadInputTokens: 300,
+        cacheCreationInputTokens: 400,
+        costUSD: 0.4,
+      },
+    },
+  }));
+
+  assertEquals(parsed.usage?.model, "claude-opus-5-5");
+  assertEquals(parsed.usage?.inputTokens, 110);
+  assertEquals(parsed.usage?.outputTokens, 220);
+  assertEquals(parsed.usage?.cacheReadTokens, 300);
+  assertEquals(parsed.usage?.cacheWriteTokens, 405);
+  assertEquals(parsed.usage?.costUsd, 0.5);
+  assertEquals(Object.keys(parsed.usage?.byModel ?? {}).length, 2);
+});
+
+Deno.test("claude: parseOutput keeps the error text and the reported usage", () => {
+  const parsed = parseClaudeOutput(JSON.stringify(ERROR_ENVELOPE));
+
+  assertEquals(parsed.text, ERROR_ENVELOPE.result);
+  // The CLI reported zeros, so zeros are recorded; nothing is invented.
+  assertEquals(parsed.usage?.inputTokens, 0);
+  assertEquals(parsed.usage?.costUsd, 0);
+  assertEquals(parsed.usage?.byModel, undefined);
+  assertEquals(parsed.usage?.model, undefined);
+});
+
+Deno.test("claude: parseOutput records partial usage from an older envelope", () => {
+  const { modelUsage: _m, total_cost_usd: _c, ...older } = SUCCESS_ENVELOPE;
+  const parsed = parseClaudeOutput(JSON.stringify(older));
+
+  assertEquals(parsed.text, "hi");
+  assertEquals(parsed.usage, {
+    inputTokens: 2,
+    outputTokens: 4,
+    cacheReadTokens: 11693,
+    cacheWriteTokens: 12687,
+    numTurns: 1,
+    durationMs: 1317,
+    durationApiMs: 1274,
+  });
+});
+
+// Recorded from Claude Code 1.0.37, the oldest release agent-runner can
+// download: no modelUsage, so the totals come from the usage block.
+const OLDEST_ENVELOPE = {
+  type: "result",
+  subtype: "success",
+  is_error: false,
+  duration_api_ms: 547,
+  duration_ms: 561,
+  num_turns: 1,
+  result: "hi",
+  session_id: "c0559d5e-fdd0-4325-b11f-d29b1b605823",
+  total_cost_usd: 0.165744,
+  usage: {
+    input_tokens: 8,
+    cache_creation_input_tokens: 44160,
+    cache_read_input_tokens: 0,
+    output_tokens: 8,
+    service_tier: "standard",
+  },
+};
+
+Deno.test("claude: parseOutput reads the oldest supported CLI's envelope", () => {
+  assertEquals(parseClaudeOutput(JSON.stringify(OLDEST_ENVELOPE)), {
+    text: "hi",
+    sessionId: "c0559d5e-fdd0-4325-b11f-d29b1b605823",
+    usage: {
+      inputTokens: 8,
+      outputTokens: 8,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 44160,
+      costUsd: 0.165744,
+      numTurns: 1,
+      durationMs: 561,
+      durationApiMs: 547,
+    },
+  });
+});
+
+Deno.test("claude: parseOutput leaves usage absent when the envelope has none", () => {
+  const parsed = parseClaudeOutput(
+    JSON.stringify({ type: "result", result: "done", num_turns: 2 }),
+  );
+
+  assertEquals(parsed, { text: "done" });
+});
+
+Deno.test("claude: parseOutput keeps an error envelope without result text", () => {
+  const parsed = parseClaudeOutput(JSON.stringify({
+    type: "result",
+    subtype: "error_max_turns",
+    is_error: true,
+    total_cost_usd: 0.01,
+  }));
+
+  assertEquals(parsed.text, "");
+  assertEquals(parsed.usage, { costUsd: 0.01 });
+});
+
+Deno.test("claude: parseOutput returns output it can't read as raw text", () => {
+  for (
+    const stdout of [
+      "hi\n",
+      "",
+      '{"type":"result","result":"hi"',
+      '["not", "an", "envelope"]',
+      '{"verdict":"pass"}',
+      // A JSON reply with a result field is not the CLI's envelope.
+      '{"result":"x"}',
+      "null",
+    ]
+  ) {
+    assertEquals(parseClaudeOutput(stdout), { text: stdout });
+  }
+});
+
+Deno.test("claude: parseOutput skips usage fields of the wrong type", () => {
+  const parsed = parseClaudeOutput(JSON.stringify({
+    type: "result",
+    result: "hi",
+    total_cost_usd: "0.01",
+    usage: { input_tokens: -1, output_tokens: 7 },
+  }));
+
+  assertEquals(parsed, { text: "hi", usage: { outputTokens: 7 } });
 });
