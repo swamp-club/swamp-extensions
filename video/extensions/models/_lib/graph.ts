@@ -36,7 +36,6 @@ export const XFADE = 0.7;
 const DUCK = 0.2;
 /** Music level under fast-forwards (relative to the -16 LUFS intro). */
 const BED = 0.3;
-const BED_FADE = 0.4;
 export const VOICE_CLEANUP =
   "highpass=f=80,afftdn=nf=-25,acompressor=threshold=-21dB:ratio=3:attack=5:release=120:makeup=2";
 const CAPTION_STYLE =
@@ -86,6 +85,12 @@ export interface RenderPlan {
   music?: string;
   /** Quiet music under fast-forwards. */
   bed?: string;
+  /** Output seconds a bed stretch needs before the bed plays (default 0). */
+  bedMin?: number;
+  /** Seconds the bed fades in and out (default 0.4). */
+  bedFade?: number;
+  /** Fast-forwards closer than this share one bed (default 0: never). */
+  bedMerge?: number;
   voiceCleanup: boolean;
   /** Integrated loudness target, LUFS. */
   loudnessTarget: number;
@@ -149,6 +154,29 @@ export function selectExpr(spans: Span[], fps: number): string {
       (speed > 1 ? `*not(mod(round((t-${a.toFixed(4)})*${fps}),${speed}))` : "")
     ),
   );
+}
+
+/**
+ * Where the bed plays, in output seconds: one window per fast-forward
+ * (shifted past the intro), joined with the next when the gap is under
+ * `merge`, then dropped when shorter than `min`, gap included.
+ */
+export function bedStretches(
+  fast: { span: Span; i: number }[],
+  starts: number[],
+  shift: number,
+  merge: number,
+  min: number,
+): [number, number][] {
+  const windows: [number, number][] = [];
+  for (const { span: [s, e, speed], i } of fast) {
+    const start = starts[i] + shift;
+    const end = start + (e - s) / speed;
+    const last = windows.at(-1);
+    if (last && start - last[1] < merge) last[1] = end;
+    else windows.push([start, end]);
+  }
+  return windows.filter(([a, b]) => b - a >= min);
 }
 
 /** Seconds the intro shifts the take by. */
@@ -388,14 +416,21 @@ export function buildGraph(plan: RenderPlan): BuiltGraph {
       a = "amx";
     }
   }
-  if (plan.bed && fast.length) {
-    // Music fades up under each fast-forward (the voice is muted) and out.
+  const stretches = bedStretches(
+    fast,
+    starts,
+    shift,
+    plan.bedMerge ?? 0,
+    plan.bedMin ?? 0,
+  );
+  if (plan.bed && stretches.length) {
+    // Music fades up under each fast-forward (the voice is muted) and out;
+    // short ones stay silent, close ones share one stretch.
+    const fade = plan.bedFade ?? 0.4;
     const env = sumExpr(
-      fast.map(({ span: [s, e, speed], i }) =>
-        `clip((t-${(starts[i] + shift).toFixed(3)})/${BED_FADE},0,1)` +
-        `*clip((${
-          (starts[i] + shift + (e - s) / speed).toFixed(3)
-        }-t)/${BED_FADE},0,1)`
+      stretches.map(([a, b]) =>
+        `clip((t-${a.toFixed(3)})/${fade},0,1)` +
+        `*clip((${b.toFixed(3)}-t)/${fade},0,1)`
       ),
     );
     const k = addInput("-stream_loop", "-1", "-i", plan.bed);

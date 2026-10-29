@@ -38,6 +38,15 @@ export const MediaSettingsSchema = z.object({
   vaapiDevice: z.string().default("/dev/dri/renderD128"),
   music: z.string().optional().describe("Intro music under the title card"),
   bed: z.string().optional().describe("Quiet music under fast-forwarded waits"),
+  bedMinSeconds: z.number().min(0).default(0).describe(
+    "Output seconds a fast-forward needs before the bed plays; shorter ones stay silent",
+  ),
+  bedFadeSeconds: z.number().positive().default(0.4).describe(
+    "Seconds the bed fades in and out",
+  ),
+  bedMergeSeconds: z.number().min(0).default(0).describe(
+    "Fast-forwards closer than this (output seconds) share one bed; 0 never merges",
+  ),
   loudness: z.number().default(-14).describe(
     "Integrated loudness target, LUFS",
   ),
@@ -53,8 +62,16 @@ export type MediaSettings = z.infer<typeof MediaSettingsSchema>;
 
 export const model = {
   type: "@swamp/video/media",
-  version: "2026.10.29.1",
+  version: "2026.10.29.2",
   globalArguments: MediaSettingsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.10.29.2",
+      description:
+        "Add bedMinSeconds, bedFadeSeconds and bedMergeSeconds (defaults keep the old bed)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     settings: {
       description: "Render settings, as render reads them",

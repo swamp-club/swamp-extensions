@@ -106,6 +106,33 @@ Deno.test("render: none mode and media settings (vaapi, size, no burn)", async (
   }
 });
 
+Deno.test("render: the bed's fade and minimum come from media", async () => {
+  const env = await setup();
+  try {
+    await built(env);
+    const graphWith = async (settings: Record<string, unknown>) => {
+      await media.methods.show.execute(
+        {},
+        env.swamp.context("media", { bed: "bed.mp3", ...settings }),
+      );
+      await render.methods.render.execute(
+        renderArgs(env, {
+          media: "media",
+          cards: { mode: "none" },
+          burn: false,
+          twoPassLoudness: false,
+        }),
+        env.swamp.context("render", {}),
+      );
+      return await Deno.readTextFile(`${env.dir}/take.video/graph.txt`);
+    };
+    assertStringIncludes(await graphWith({ bedFadeSeconds: 1 }), "/1,0,1)");
+    assert(!(await graphWith({ bedMinSeconds: 100 })).includes("[bed]"));
+  } finally {
+    await teardown(env);
+  }
+});
+
 Deno.test("render: brand without the brand extension fails clearly; custom reads a cards resource", async () => {
   const env = await setup();
   try {

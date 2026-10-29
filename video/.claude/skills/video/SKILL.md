@@ -93,6 +93,12 @@ swamp workflow run @swamp/video/video-recut \
   --input recordingPath=<path> --input "title=<same headline>"
 ```
 
+The music under fast-forwards is not in edit.txt: "no music under the short
+ones", "softer fades" or "keep the music going between them" are the media
+instance's `bedMinSeconds`, `bedFadeSeconds` and `bedMergeSeconds` (README,
+Tuning the bed); change them there, run its `show`, then video-recut with
+`--input media=<instance>`.
+
 ## Describing it
 
 Draft the title, a two-to-three sentence summary and chapters from the

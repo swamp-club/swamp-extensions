@@ -20,6 +20,7 @@ import {
   assertThrows,
 } from "jsr:@std/assert@1.0.19";
 import {
+  bedStretches,
   buildGraph,
   chunkRate,
   encoderArgs,
@@ -203,4 +204,103 @@ Deno.test("an animated lower third plays once from at; an animated badge loops",
     "[2:v]fps=30,scale=1920:1080,format=rgba,setpts=PTS-STARTPTS+1.5/TB[lt];\n" +
       "[vbadge][lt]overlay=0:0:eof_action=pass:enable='between(t,1.5,7.5)'[vlt]",
   );
+});
+
+const bedOf = (graph: string) => graph.match(/volume='0\.3\*\(([^']*)\)'/)?.[1];
+
+Deno.test("the bed is unchanged by default: every fast-forward, 0.4s fades", () => {
+  // Captured from the renderer before the bed settings existed.
+  assertEquals(
+    bedOf(buildGraph({ ...plan, bed: "/m/bed.mp3" }).graph),
+    "clip((t-5.000)/0.4,0,1)*clip((9.000-t)/0.4,0,1)",
+  );
+  assertEquals(
+    bedOf(
+      buildGraph({
+        ...plan,
+        bed: "/m/bed.mp3",
+        cards: { intro: { path: "/c/intro.png", seconds: 4.5 } },
+      }).graph,
+    ),
+    "clip((t-8.800)/0.4,0,1)*clip((12.800-t)/0.4,0,1)",
+  );
+});
+
+// A 1s idle fast-forward (5-6 out) and a 4s one (11-15 out).
+const twoWaits: RenderPlan = {
+  ...plan,
+  bed: "/m/bed.mp3",
+  spans: [[0, 5, 1], [5, 25, 20], [25, 30, 1], [30, 70, 10], [70, 75, 1]],
+  cards: {
+    intro: { path: "/c/intro.png", seconds: 4.5 },
+    fastForwardBadge: { path: "/c/badge.png" },
+  },
+};
+
+Deno.test("fast-forwards under bedMin stay sped up but get no bed", () => {
+  const all = buildGraph(twoWaits);
+  const g = buildGraph({ ...twoWaits, bedMin: 2, bedFade: 1 });
+  // Only the 4s wait, shifted past the intro (3.8s), with the 1s fade.
+  assertEquals(
+    bedOf(g.graph),
+    "clip((t-14.800)/1,0,1)*clip((18.800-t)/1,0,1)",
+  );
+  // The cut, clock, badge and voice mute still cover both.
+  assertStringIncludes(
+    g.graph,
+    "volume=0:enable='(between(t,5.0000,25.0000))+(between(t,30.0000,70.0000))'",
+  );
+  assertStringIncludes(g.graph, "between(t,5.0000,6.0000)");
+  assertEquals(g.duration, all.duration);
+  assertEquals(
+    g.graph.replace(/volume='0\.3[^']*'/, ""),
+    all.graph.replace(/volume='0\.3[^']*'/, ""),
+  );
+});
+
+Deno.test("when no fast-forward reaches bedMin the bed is left out", () => {
+  const all = buildGraph(twoWaits);
+  const g = buildGraph({ ...twoWaits, bedMin: 10 });
+  assert(!g.graph.includes("[bed]"));
+  assert(!g.inputs.includes("/m/bed.mp3"));
+  assertEquals(g.duration, all.duration);
+});
+
+// Two 1s fast-forwards half a second apart (5-6 and 6.5-7.5 out).
+const closeWaits: RenderPlan = {
+  ...plan,
+  bed: "/m/bed.mp3",
+  spans: [[0, 5, 1], [5, 15, 10], [15, 15.5, 1], [15.5, 25.5, 10], [
+    25.5,
+    30,
+    1,
+  ]],
+};
+
+Deno.test("close fast-forwards share one bed, and count together for bedMin", () => {
+  assertEquals(
+    bedOf(buildGraph(closeWaits).graph),
+    "(clip((t-5.000)/0.4,0,1)*clip((6.000-t)/0.4,0,1))+" +
+      "(clip((t-6.500)/0.4,0,1)*clip((7.500-t)/0.4,0,1))",
+  );
+  assertEquals(
+    bedOf(buildGraph({ ...closeWaits, bedMerge: 1 }).graph),
+    "clip((t-5.000)/0.4,0,1)*clip((7.500-t)/0.4,0,1)",
+  );
+  assert(!buildGraph({ ...closeWaits, bedMin: 2 }).graph.includes("[bed]"));
+  assertEquals(
+    bedOf(buildGraph({ ...closeWaits, bedMin: 2, bedMerge: 1 }).graph),
+    "clip((t-5.000)/0.4,0,1)*clip((7.500-t)/0.4,0,1)",
+  );
+});
+
+Deno.test("bedStretches: a gap equal to merge stays apart; a window equal to min plays", () => {
+  const fast = [
+    { span: [0, 4, 2] as [number, number, number], i: 0 },
+    { span: [10, 14, 2] as [number, number, number], i: 2 },
+  ];
+  // Out: 0-2, then 3-5 (a 1s gap).
+  assertEquals(bedStretches(fast, [0, 2, 3], 0, 1, 2), [[0, 2], [3, 5]]);
+  assertEquals(bedStretches(fast, [0, 2, 3], 0, 1.01, 0), [[0, 5]]);
+  assertEquals(bedStretches(fast, [0, 2, 3], 0, 0, 2.01), []);
 });

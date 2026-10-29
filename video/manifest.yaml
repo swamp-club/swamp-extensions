@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/video"
-version: "2026.10.29.2"
+version: "2026.10.29.3"
 license: "AGPL-3.0-or-later"
 visibility: private
 description: |

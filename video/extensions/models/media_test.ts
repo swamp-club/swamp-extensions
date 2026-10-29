@@ -42,3 +42,23 @@ Deno.test("media: a font name the filter graph can't quote is rejected", () => {
     false,
   );
 });
+
+Deno.test("media: the bed defaults to every fast-forward with 0.4s fades", async () => {
+  const swamp = new FakeSwamp();
+  await media.methods.show.execute({}, swamp.context("media", {}));
+  const s = swamp.latest("media", "settings")!;
+  assertEquals([s.bedMinSeconds, s.bedFadeSeconds, s.bedMergeSeconds], [
+    0,
+    0.4,
+    0,
+  ]);
+});
+
+Deno.test("media: a zero fade or a negative bed length is rejected", () => {
+  const ok = (v: Record<string, number>) =>
+    media.globalArguments.safeParse(v).success;
+  assertEquals(ok({ bedFadeSeconds: 0 }), false);
+  assertEquals(ok({ bedMinSeconds: -1 }), false);
+  assertEquals(ok({ bedMergeSeconds: -1 }), false);
+  assertEquals(ok({ bedMinSeconds: 3, bedFadeSeconds: 1 }), true);
+});

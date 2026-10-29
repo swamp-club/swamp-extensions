@@ -171,7 +171,22 @@ swamp model method run media show
 and pass `--input media=media` to video-edit and video-recut, and `--input presenter=presenter` to video-describe.
 Media settings: `width`/`height` (default: the recording's), `encoder`
 (`libx264`, `vaapi`, `qsv`, `nvenc`), `quality`, `vaapiDevice`, `music`, `bed`,
-`loudness` (LUFS), `font`.
+`bedMinSeconds`, `bedFadeSeconds`, `bedMergeSeconds`, `loudness` (LUFS), `font`.
+
+### Tuning the bed
+
+The bed plays under every fast-forward by default, fading in and out over 0.4s.
+Three media settings change that, all in seconds of the finished video:
+
+| Setting           | Default | Effect                                                         |
+| ----------------- | ------- | -------------------------------------------------------------- |
+| `bedMinSeconds`   | `0`     | fast-forwards shorter than this stay sped up but silent        |
+| `bedFadeSeconds`  | `0.4`   | how long the bed fades in and out                              |
+| `bedMergeSeconds` | `0`     | fast-forwards closer than this share one bed, counted together |
+
+Only the bed changes: the cut, clock and badge stay as they are. Set them with
+`swamp model edit media`, then run `swamp model method run media show` and
+video-recut with `--input media=media`.
 
 ## Behaviors
 
