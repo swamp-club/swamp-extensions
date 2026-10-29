@@ -52,8 +52,23 @@ const EncryptionConfigSchema = z.object({
   ).optional(),
 });
 
+const GatewayApiCrdsSchema = z.object({
+  Managed: z.boolean().describe(
+    "Indicates whether EKS manages the lifecycle of the Gateway API CRDs on the cluster. If true, EKS installs and upgrades the Gateway API CRDs. Requires ElasticLoadBalancing to be enabled.",
+  ),
+});
+
+const GatewayApiSchema = z.object({
+  Crds: GatewayApiCrdsSchema.describe(
+    "The Gateway API Custom Resource Definition (CRD) configuration.",
+  ),
+});
+
 const ElasticLoadBalancingSchema = z.object({
   Enabled: z.boolean().describe("Todo: add description").optional(),
+  GatewayApi: GatewayApiSchema.describe(
+    "The Gateway API configuration for the cluster.",
+  ).optional(),
 });
 
 const LoggingTypeConfigSchema = z.object({
@@ -634,7 +649,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EKS Cluster. Registered at `@swamp/aws/eks/cluster`. */
 export const model = {
   type: "@swamp/aws/eks/cluster",
-  version: "2026.10.25.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -734,6 +749,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

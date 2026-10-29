@@ -14,8 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/mgn/connector` to see the full list of
-configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/aws/mgn/application` to see the full list
+of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -47,17 +47,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new connector model
-swamp model create @swamp/aws/mgn/connector my-connector
+# Create a new application model
+swamp model create @swamp/aws/mgn/application my-application
 
 # Edit the model to configure its properties
-swamp model edit my-connector
+swamp model edit my-application
 
 # Create the resource in AWS
-swamp model method run my-connector create
+swamp model method run my-application create
 
 # Sync current state from AWS
-swamp model method run my-connector sync
+swamp model method run my-application sync
 ```
 
 ## License

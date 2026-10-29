@@ -115,6 +115,22 @@ const ConfluenceCapabilitiesResourceSchema = z.object({
     .optional(),
 });
 
+const AzureDevOpsRepositoryResourceSchema = z.object({
+  Name: z.string().describe("Azure DevOps repository name"),
+  Project: z.string().describe("Azure DevOps project that owns the repository"),
+  Organization: z.string().describe(
+    "Read-only Azure DevOps organization that owns the repository, populated from service-side metadata",
+  ).optional(),
+});
+
+const AzureDevOpsCapabilitiesResourceSchema = z.object({
+  LeaveComments: z.boolean().describe("Enables Code Review in the repository")
+    .optional(),
+  RemediateCode: z.boolean().describe(
+    "Enables creation of pull requests with automated fixes",
+  ).optional(),
+});
+
 const ProviderResourceSchema = z.object({
   GitHubRepository: GitHubRepositoryResourceSchema.describe(
     "GitHub repository details",
@@ -139,6 +155,12 @@ const ProviderResourceSchema = z.object({
   ).optional(),
   ConfluenceCapabilities: ConfluenceCapabilitiesResourceSchema.describe(
     "Confluence document capabilities",
+  ).optional(),
+  AzureDevOpsRepository: AzureDevOpsRepositoryResourceSchema.describe(
+    "Azure DevOps repository details",
+  ).optional(),
+  AzureDevOpsCapabilities: AzureDevOpsCapabilitiesResourceSchema.describe(
+    "Azure DevOps repository capabilities",
   ).optional(),
 });
 
@@ -293,7 +315,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecurityAgent AgentSpace. Registered at `@swamp/aws/securityagent/agent-space`. */
 export const model = {
   type: "@swamp/aws/securityagent/agent-space",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -367,6 +389,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

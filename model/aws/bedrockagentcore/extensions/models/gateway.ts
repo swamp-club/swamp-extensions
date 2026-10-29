@@ -111,7 +111,7 @@ const CustomJWTAuthorizerConfigurationSchema = z.object({
 const LambdaInterceptorConfigurationSchema = z.object({
   Arn: z.string().min(1).max(170).regex(
     new RegExp(
-      "^arn:(aws[a-zA-Z-]*)?:lambda:([a-z]{2}(-gov)?-[a-z]+-\\d{1}):(\\d{12}):function:([a-zA-Z0-9-_.]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?$",
+      "^arn:(aws[a-zA-Z-]*)?:lambda:([a-z0-9-]+):(\\d{12}):function:([a-zA-Z0-9-_.]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?$",
     ),
   ),
 });
@@ -149,6 +149,7 @@ const MCPGatewayConfigurationSchema = z.object({
   SearchType: z.enum(["SEMANTIC"]).optional(),
   SessionConfiguration: SessionConfigurationSchema.optional(),
   StreamingConfiguration: StreamingConfigurationSchema.optional(),
+  DisableMcpListToolsPagination: z.boolean().optional(),
 });
 
 const GlobalArgsSchema = z.object({
@@ -182,14 +183,14 @@ const GlobalArgsSchema = z.object({
     .optional(),
   KmsKeyArn: z.string().min(1).max(2048).regex(
     new RegExp(
-      "^arn:aws(|-cn|-us-gov):kms:[a-zA-Z0-9-]*:[0-9]{12}:key/[a-zA-Z0-9-]{36}$",
+      "^arn:(aws(-[a-z]+)*):kms:[a-zA-Z0-9-]*:[0-9]{12}:key/[a-zA-Z0-9-]{36}$",
     ),
   ).optional(),
   Name: z.string().regex(new RegExp("^([0-9a-zA-Z][-]?){1,48}$")),
   PolicyEngineConfiguration: z.object({
     Arn: z.string().min(1).max(170).regex(
       new RegExp(
-        "^arn:aws:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:policy-engine\\/[a-zA-Z][a-zA-Z0-9-_]{0,99}-[a-zA-Z0-9_]{10}$",
+        "^arn:aws(-[^:]+)?:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:policy-engine\\/[a-zA-Z][a-zA-Z0-9-_]{0,99}-[a-zA-Z0-9_]{10}$",
       ),
     ),
     Mode: z.enum(["LOG_ONLY", "ENFORCE"]),
@@ -269,14 +270,14 @@ const InputsSchema = z.object({
     .optional(),
   KmsKeyArn: z.string().min(1).max(2048).regex(
     new RegExp(
-      "^arn:aws(|-cn|-us-gov):kms:[a-zA-Z0-9-]*:[0-9]{12}:key/[a-zA-Z0-9-]{36}$",
+      "^arn:(aws(-[a-z]+)*):kms:[a-zA-Z0-9-]*:[0-9]{12}:key/[a-zA-Z0-9-]{36}$",
     ),
   ).optional(),
   Name: z.string().regex(new RegExp("^([0-9a-zA-Z][-]?){1,48}$")).optional(),
   PolicyEngineConfiguration: z.object({
     Arn: z.string().min(1).max(170).regex(
       new RegExp(
-        "^arn:aws:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:policy-engine\\/[a-zA-Z][a-zA-Z0-9-_]{0,99}-[a-zA-Z0-9_]{10}$",
+        "^arn:aws(-[^:]+)?:bedrock-agentcore:[a-z0-9-]+:[0-9]{12}:policy-engine\\/[a-zA-Z][a-zA-Z0-9-_]{0,99}-[a-zA-Z0-9_]{10}$",
       ),
     ).optional(),
     Mode: z.enum(["LOG_ONLY", "ENFORCE"]).optional(),
@@ -319,7 +320,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Gateway. Registered at `@swamp/aws/bedrockagentcore/gateway`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/gateway",
-  version: "2026.10.25.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -434,6 +435,11 @@ export const model = {
     {
       toVersion: "2026.10.25.1",
       description: "Added: ProtocolType",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

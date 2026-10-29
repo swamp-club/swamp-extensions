@@ -290,7 +290,7 @@ const GlobalArgsSchema = z.object({
       dialog: z.object({
         body: z.object({
           cardActions: z.array(z.unknown()).describe(
-            'The card\'s actions. Actions are added to the card\'s toolbar menu. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "card_actions": [ { "actionLabel": "Settings", "onClick": { "action": { "functionName": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "LoadIndicator.SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
+            'The card\'s actions. Actions are added to the card\'s toolbar menu. Supports up to 10 `CardAction` items. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "card_actions": [ { "actionLabel": "Settings", "onClick": { "action": { "functionName": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "LoadIndicator.SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
           ).optional(),
           displayStyle: z.enum(["DISPLAY_STYLE_UNSPECIFIED", "PEEK", "REPLACE"])
             .describe(
@@ -452,7 +452,7 @@ const GlobalArgsSchema = z.object({
           "The `onClick` action for this action item.",
         ).optional(),
       })).describe(
-        'The card\'s actions. Actions are added to the card\'s toolbar menu. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "card_actions": [ { "actionLabel": "Settings", "onClick": { "action": { "functionName": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "LoadIndicator.SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
+        'The card\'s actions. Actions are added to the card\'s toolbar menu. Supports up to 10 `CardAction` items. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "card_actions": [ { "actionLabel": "Settings", "onClick": { "action": { "functionName": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "LoadIndicator.SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
       ).optional(),
       displayStyle: z.enum(["DISPLAY_STYLE_UNSPECIFIED", "PEEK", "REPLACE"])
         .describe(
@@ -588,7 +588,7 @@ const GlobalArgsSchema = z.object({
           "The number of uncollapsible widgets which remain visible even when a section is collapsed. For example, when a section contains five widgets and the `uncollapsibleWidgetsCount` is set to `2`, the first two widgets are always shown and the last three are collapsed by default. The `uncollapsibleWidgetsCount` is taken into account only when `collapsible` is `true`.",
         ).optional(),
         widgets: z.unknown().describe(
-          "All the widgets in the section. Must contain at least one widget.",
+          "All the widgets in the section. Must contain at least one widget. A card supports up to 100 widgets across all sections.",
         ).optional(),
       })).describe(
         "Contains a collection of widgets. Each section has its own, optional header. Sections are visually separated by a line divider. For an example in Google Chat apps, see [Define a section of a card](https://developers.google.com/workspace/chat/design-components-card-dialog#define_a_section_of_a_card).",
@@ -1390,7 +1390,7 @@ const InputsSchema = z.object({
       dialog: z.object({
         body: z.object({
           cardActions: z.array(z.unknown()).describe(
-            'The card\'s actions. Actions are added to the card\'s toolbar menu. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "card_actions": [ { "actionLabel": "Settings", "onClick": { "action": { "functionName": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "LoadIndicator.SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
+            'The card\'s actions. Actions are added to the card\'s toolbar menu. Supports up to 10 `CardAction` items. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "card_actions": [ { "actionLabel": "Settings", "onClick": { "action": { "functionName": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "LoadIndicator.SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
           ).optional(),
           displayStyle: z.enum(["DISPLAY_STYLE_UNSPECIFIED", "PEEK", "REPLACE"])
             .describe(
@@ -1552,7 +1552,7 @@ const InputsSchema = z.object({
           "The `onClick` action for this action item.",
         ).optional(),
       })).describe(
-        'The card\'s actions. Actions are added to the card\'s toolbar menu. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "card_actions": [ { "actionLabel": "Settings", "onClick": { "action": { "functionName": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "LoadIndicator.SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
+        'The card\'s actions. Actions are added to the card\'s toolbar menu. Supports up to 10 `CardAction` items. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "card_actions": [ { "actionLabel": "Settings", "onClick": { "action": { "functionName": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "LoadIndicator.SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
       ).optional(),
       displayStyle: z.enum(["DISPLAY_STYLE_UNSPECIFIED", "PEEK", "REPLACE"])
         .describe(
@@ -1688,7 +1688,7 @@ const InputsSchema = z.object({
           "The number of uncollapsible widgets which remain visible even when a section is collapsed. For example, when a section contains five widgets and the `uncollapsibleWidgetsCount` is set to `2`, the first two widgets are always shown and the last three are collapsed by default. The `uncollapsibleWidgetsCount` is taken into account only when `collapsible` is `true`.",
         ).optional(),
         widgets: z.unknown().describe(
-          "All the widgets in the section. Must contain at least one widget.",
+          "All the widgets in the section. Must contain at least one widget. A card supports up to 100 widgets across all sections.",
         ).optional(),
       })).describe(
         "Contains a collection of widgets. Each section has its own, optional header. Sections are visually separated by a line divider. For an example in Google Chat apps, see [Define a section of a card](https://developers.google.com/workspace/chat/design-components-card-dialog#define_a_section_of_a_card).",
@@ -1979,7 +1979,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Chat Spaces.Messages. Registered at `@swamp/gcp/chat/spaces-messages`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces-messages",
-  version: "2026.10.28.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2200,6 +2200,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

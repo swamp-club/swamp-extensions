@@ -65,7 +65,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   QuotaShareName: z.string().min(1).max(128).describe(
     "The name of the quota share. It can be up to 128 characters long. It can contain uppercase and lowercase letters, numbers, hyphens (-), and underscores (_).",
-  ),
+  ).optional(),
   JobQueue: z.string().describe(
     "The AWS Batch job queue associated with the quota share. This can be the job queue name or ARN. A job queue must be in the `VALID` state before you can associate it with a quota share.",
   ),
@@ -171,7 +171,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Batch QuotaShare. Registered at `@swamp/aws/batch/quota-share`. */
 export const model = {
   type: "@swamp/aws/batch/quota-share",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -235,6 +235,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

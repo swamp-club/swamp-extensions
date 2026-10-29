@@ -169,7 +169,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Developer Connect AccountConnectors.Users. Registered at `@swamp/gcp/developerconnect/accountconnectors-users`. */
 export const model = {
   type: "@swamp/gcp/developerconnect/accountconnectors-users",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -303,6 +303,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -454,9 +459,9 @@ export const model = {
     list: {
       description: "List users resources",
       arguments: z.object({
-        filter: z.string().describe("Optional. Filtering results").optional(),
+        filter: z.string().describe("Optional. Filtering results.").optional(),
         orderBy: z.string().describe(
-          "Optional. Hint for how to order the results",
+          "Optional. Hint for how to order the results.",
         ).optional(),
         pageSize: z.number().describe(
           "Optional. Requested page size. Server may return fewer items than requested. If unspecified, server will pick an appropriate default.",

@@ -431,7 +431,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Publishers.Models. Registered at `@swamp/gcp/aiplatform/publishers-models`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/publishers-models",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -590,6 +590,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -874,9 +879,11 @@ export const model = {
       arguments: z.object({
         cachedContent: z.any().optional(),
         contents: z.any().optional(),
+        continuationToken: z.any().optional(),
         generationConfig: z.any().optional(),
         labels: z.any().optional(),
         modelArmorConfig: z.any().optional(),
+        outputConfig: z.any().optional(),
         safetySettings: z.any().optional(),
         systemInstruction: z.any().optional(),
         toolConfig: z.any().optional(),
@@ -908,12 +915,18 @@ export const model = {
           body["cachedContent"] = args["cachedContent"];
         }
         if (args["contents"] !== undefined) body["contents"] = args["contents"];
+        if (args["continuationToken"] !== undefined) {
+          body["continuationToken"] = args["continuationToken"];
+        }
         if (args["generationConfig"] !== undefined) {
           body["generationConfig"] = args["generationConfig"];
         }
         if (args["labels"] !== undefined) body["labels"] = args["labels"];
         if (args["modelArmorConfig"] !== undefined) {
           body["modelArmorConfig"] = args["modelArmorConfig"];
+        }
+        if (args["outputConfig"] !== undefined) {
+          body["outputConfig"] = args["outputConfig"];
         }
         if (args["safetySettings"] !== undefined) {
           body["safetySettings"] = args["safetySettings"];
@@ -1063,9 +1076,11 @@ export const model = {
       arguments: z.object({
         cachedContent: z.any().optional(),
         contents: z.any().optional(),
+        continuationToken: z.any().optional(),
         generationConfig: z.any().optional(),
         labels: z.any().optional(),
         modelArmorConfig: z.any().optional(),
+        outputConfig: z.any().optional(),
         safetySettings: z.any().optional(),
         systemInstruction: z.any().optional(),
         toolConfig: z.any().optional(),
@@ -1097,12 +1112,18 @@ export const model = {
           body["cachedContent"] = args["cachedContent"];
         }
         if (args["contents"] !== undefined) body["contents"] = args["contents"];
+        if (args["continuationToken"] !== undefined) {
+          body["continuationToken"] = args["continuationToken"];
+        }
         if (args["generationConfig"] !== undefined) {
           body["generationConfig"] = args["generationConfig"];
         }
         if (args["labels"] !== undefined) body["labels"] = args["labels"];
         if (args["modelArmorConfig"] !== undefined) {
           body["modelArmorConfig"] = args["modelArmorConfig"];
+        }
+        if (args["outputConfig"] !== undefined) {
+          body["outputConfig"] = args["outputConfig"];
         }
         if (args["safetySettings"] !== undefined) {
           body["safetySettings"] = args["safetySettings"];

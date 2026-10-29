@@ -272,7 +272,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataplex EntryGroups. Registered at `@swamp/gcp/dataplex/entrygroups`. */
 export const model = {
   type: "@swamp/gcp/dataplex/entrygroups",
-  version: "2026.10.28.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -427,6 +427,11 @@ export const model = {
     {
       toVersion: "2026.10.28.1",
       description: "Added: type",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -881,6 +886,7 @@ export const model = {
       description: "request batch metadata change",
       arguments: z.object({
         changePayload: z.any().optional(),
+        deferredValidation: z.any().optional(),
         justification: z.any().optional(),
         labels: z.any().optional(),
       }),
@@ -900,6 +906,9 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (args["changePayload"] !== undefined) {
           body["changePayload"] = args["changePayload"];
+        }
+        if (args["deferredValidation"] !== undefined) {
+          body["deferredValidation"] = args["deferredValidation"];
         }
         if (args["justification"] !== undefined) {
           body["justification"] = args["justification"];

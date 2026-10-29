@@ -158,6 +158,16 @@ const GlobalArgsSchema = z.object({
         "To include access level information for users with [indirect access](https://support.google.com/vault/answer/6099459#metadata) to files, set to **true**.",
       ).optional(),
     }).describe("Options for Drive exports.").optional(),
+    geminiInWorkspaceOptions: z.object({
+      exportFormat: z.enum([
+        "EXPORT_FORMAT_UNSPECIFIED",
+        "MBOX",
+        "PST",
+        "ICS",
+        "XML",
+        "JSON",
+      ]).describe("The file format for exported messages.").optional(),
+    }).describe("Option available for Gemini in Workspace export.").optional(),
     geminiOptions: z.object({
       exportFormat: z.enum([
         "EXPORT_FORMAT_UNSPECIFIED",
@@ -167,7 +177,7 @@ const GlobalArgsSchema = z.object({
         "XML",
         "JSON",
       ]).describe("The file format for exported messages.").optional(),
-    }).describe("Option available for Gemini export.").optional(),
+    }).describe("Option available for Gemini app export.").optional(),
     groupsOptions: z.object({
       exportFormat: z.enum([
         "EXPORT_FORMAT_UNSPECIFIED",
@@ -263,6 +273,7 @@ const GlobalArgsSchema = z.object({
       "VOICE",
       "CALENDAR",
       "GEMINI",
+      "GEMINI_IN_WORKSPACE",
     ]).describe("The Google Workspace service to search.").optional(),
     dataScope: z.enum([
       "DATA_SCOPE_UNSPECIFIED",
@@ -308,8 +319,12 @@ const GlobalArgsSchema = z.object({
     endTime: z.string().describe(
       "The end time for the search query. Specify in GMT. The value is rounded to 12 AM on the specified date.",
     ).optional(),
-    geminiOptions: z.object({}).describe("Set Gemini search-specific options.")
-      .optional(),
+    geminiInWorkspaceOptions: z.object({}).describe(
+      "Set Gemini in Workspace search-specific options.",
+    ).optional(),
+    geminiOptions: z.object({}).describe(
+      "Set Gemini app search-specific options.",
+    ).optional(),
     hangoutsChatInfo: z.object({
       roomId: z.array(z.string()).describe(
         "A list of Chat spaces IDs, as provided by the [Chat API](https://developers.google.com/workspace/chat). There is a limit of exporting from 500 Chat spaces per request.",
@@ -416,6 +431,9 @@ const StateSchema = z.object({
     driveOptions: z.object({
       includeAccessInfo: z.boolean(),
     }),
+    geminiInWorkspaceOptions: z.object({
+      exportFormat: z.string(),
+    }),
     geminiOptions: z.object({
       exportFormat: z.string(),
     }),
@@ -466,6 +484,7 @@ const StateSchema = z.object({
       versionDate: z.string(),
     }),
     endTime: z.string(),
+    geminiInWorkspaceOptions: z.object({}),
     geminiOptions: z.object({}),
     hangoutsChatInfo: z.object({
       roomId: z.array(z.string()),
@@ -535,6 +554,16 @@ const InputsSchema = z.object({
         "To include access level information for users with [indirect access](https://support.google.com/vault/answer/6099459#metadata) to files, set to **true**.",
       ).optional(),
     }).describe("Options for Drive exports.").optional(),
+    geminiInWorkspaceOptions: z.object({
+      exportFormat: z.enum([
+        "EXPORT_FORMAT_UNSPECIFIED",
+        "MBOX",
+        "PST",
+        "ICS",
+        "XML",
+        "JSON",
+      ]).describe("The file format for exported messages.").optional(),
+    }).describe("Option available for Gemini in Workspace export.").optional(),
     geminiOptions: z.object({
       exportFormat: z.enum([
         "EXPORT_FORMAT_UNSPECIFIED",
@@ -544,7 +573,7 @@ const InputsSchema = z.object({
         "XML",
         "JSON",
       ]).describe("The file format for exported messages.").optional(),
-    }).describe("Option available for Gemini export.").optional(),
+    }).describe("Option available for Gemini app export.").optional(),
     groupsOptions: z.object({
       exportFormat: z.enum([
         "EXPORT_FORMAT_UNSPECIFIED",
@@ -640,6 +669,7 @@ const InputsSchema = z.object({
       "VOICE",
       "CALENDAR",
       "GEMINI",
+      "GEMINI_IN_WORKSPACE",
     ]).describe("The Google Workspace service to search.").optional(),
     dataScope: z.enum([
       "DATA_SCOPE_UNSPECIFIED",
@@ -685,8 +715,12 @@ const InputsSchema = z.object({
     endTime: z.string().describe(
       "The end time for the search query. Specify in GMT. The value is rounded to 12 AM on the specified date.",
     ).optional(),
-    geminiOptions: z.object({}).describe("Set Gemini search-specific options.")
-      .optional(),
+    geminiInWorkspaceOptions: z.object({}).describe(
+      "Set Gemini in Workspace search-specific options.",
+    ).optional(),
+    geminiOptions: z.object({}).describe(
+      "Set Gemini app search-specific options.",
+    ).optional(),
     hangoutsChatInfo: z.object({
       roomId: z.array(z.string()).describe(
         "A list of Chat spaces IDs, as provided by the [Chat API](https://developers.google.com/workspace/chat). There is a limit of exporting from 500 Chat spaces per request.",
@@ -802,7 +836,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Vault Matters.Exports. Registered at `@swamp/gcp/vault/matters-exports`. */
 export const model = {
   type: "@swamp/gcp/vault/matters-exports",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -954,6 +988,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -275,6 +275,9 @@ const GlobalArgsSchema = z.object({
     infoTypeCount: z.string().optional(),
     inspectJob: z.string().optional(),
   }).optional(),
+  cloudRun: z.object({
+    revisions: z.array(z.string()).optional(),
+  }).optional(),
   complianceDetails: z.object({
     cloudControl: z.object({
       cloudControlName: z.string().optional(),
@@ -1607,6 +1610,9 @@ const StateSchema = z.object({
       infoTypeCount: z.string(),
       inspectJob: z.string(),
     }),
+    cloudRun: z.object({
+      revisions: z.array(z.string()),
+    }),
     complianceDetails: z.object({
       cloudControl: z.object({
         cloudControlName: z.string(),
@@ -2334,6 +2340,9 @@ const InputsSchema = z.object({
     infoType: z.string().optional(),
     infoTypeCount: z.string().optional(),
     inspectJob: z.string().optional(),
+  }).optional(),
+  cloudRun: z.object({
+    revisions: z.array(z.string()).optional(),
   }).optional(),
   complianceDetails: z.object({
     cloudControl: z.object({
@@ -3346,7 +3355,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Security Command Center Sources.Findings. Registered at `@swamp/gcp/securitycenter/sources-findings`. */
 export const model = {
   type: "@swamp/gcp/securitycenter/sources-findings",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -3553,6 +3562,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.29.1",
+      description: "Added: cloudRun",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -3677,6 +3691,7 @@ export const model = {
         if (g["cloudDlpInspection"] !== undefined) {
           body["cloudDlpInspection"] = g["cloudDlpInspection"];
         }
+        if (g["cloudRun"] !== undefined) body["cloudRun"] = g["cloudRun"];
         if (g["complianceDetails"] !== undefined) {
           body["complianceDetails"] = g["complianceDetails"];
         }

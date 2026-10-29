@@ -272,13 +272,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   gitProxyConfig: z.object({
     enabled: z.boolean().describe(
-      "Optional. Setting this to true allows the git proxy to be used for performing git operations on the repositories linked in the connection.",
+      "Optional. Setting this to true allows the Git proxy to be used for performing Git operations on the repositories linked in the connection.",
     ).optional(),
     httpProxyBaseUri: z.string().describe(
       "Output only. The base URI for the HTTP proxy endpoint. Has the format `https://{generatedID}-c-h-{shortRegion}.developerconnect.dev` Populated only when enabled is set to true. This endpoint is used by other Google services that integrate with Developer Connect.",
     ).optional(),
   }).describe(
-    "Optional. Configuration for the git proxy feature. Enabling the git proxy allows clients to perform git operations on the repositories linked in the connection. [Learn more](https://docs.cloud.google.com/developer-connect/docs/configure-git-proxy).",
+    "Optional. Configuration for the Git proxy feature. Enabling the Git proxy allows clients to perform Git operations on the repositories linked in the connection. [Learn more](https://docs.cloud.google.com/developer-connect/docs/configure-git-proxy).",
   ).optional(),
   githubConfig: z.object({
     appInstallationId: z.string().describe(
@@ -462,7 +462,7 @@ const GlobalArgsSchema = z.object({
     "Configuration for connections to an instance of Secure Source Manager.",
   ).optional(),
   connectionId: z.string().describe(
-    "Required. Id of the requesting object If auto-generating Id server-side, remove this field and connection_id from the method_signature of Create RPC",
+    "Required. The ID to use for the connection, which becomes the final component of the connection's resource name.",
   ).optional(),
   requestId: z.string().describe(
     "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -695,13 +695,13 @@ const InputsSchema = z.object({
   ).optional(),
   gitProxyConfig: z.object({
     enabled: z.boolean().describe(
-      "Optional. Setting this to true allows the git proxy to be used for performing git operations on the repositories linked in the connection.",
+      "Optional. Setting this to true allows the Git proxy to be used for performing Git operations on the repositories linked in the connection.",
     ).optional(),
     httpProxyBaseUri: z.string().describe(
       "Output only. The base URI for the HTTP proxy endpoint. Has the format `https://{generatedID}-c-h-{shortRegion}.developerconnect.dev` Populated only when enabled is set to true. This endpoint is used by other Google services that integrate with Developer Connect.",
     ).optional(),
   }).describe(
-    "Optional. Configuration for the git proxy feature. Enabling the git proxy allows clients to perform git operations on the repositories linked in the connection. [Learn more](https://docs.cloud.google.com/developer-connect/docs/configure-git-proxy).",
+    "Optional. Configuration for the Git proxy feature. Enabling the Git proxy allows clients to perform Git operations on the repositories linked in the connection. [Learn more](https://docs.cloud.google.com/developer-connect/docs/configure-git-proxy).",
   ).optional(),
   githubConfig: z.object({
     appInstallationId: z.string().describe(
@@ -885,7 +885,7 @@ const InputsSchema = z.object({
     "Configuration for connections to an instance of Secure Source Manager.",
   ).optional(),
   connectionId: z.string().describe(
-    "Required. Id of the requesting object If auto-generating Id server-side, remove this field and connection_id from the method_signature of Create RPC",
+    "Required. The ID to use for the connection, which becomes the final component of the connection's resource name.",
   ).optional(),
   requestId: z.string().describe(
     "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -924,7 +924,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Developer Connect Connections. Registered at `@swamp/gcp/developerconnect/connections`. */
 export const model = {
   type: "@swamp/gcp/developerconnect/connections",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1071,6 +1071,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1423,9 +1428,9 @@ export const model = {
     list: {
       description: "List connections resources",
       arguments: z.object({
-        filter: z.string().describe("Optional. Filtering results").optional(),
+        filter: z.string().describe("Optional. Filtering results.").optional(),
         orderBy: z.string().describe(
-          "Optional. Hint for how to order the results",
+          "Optional. Hint for how to order the results.",
         ).optional(),
         pageSize: z.number().describe(
           "Optional. Requested page size. Server may return fewer items than requested. If unspecified, server will pick an appropriate default.",

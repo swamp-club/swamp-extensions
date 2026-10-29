@@ -232,6 +232,13 @@ const GlobalArgsSchema = z.object({
   })).describe(
     "Optional. Immutable. List of other unit kinds that this release will depend on. Dependencies will be automatically provisioned if not found. Maximum 10.",
   ).optional(),
+  durationLimits: z.object({
+    unitOperationTimeout: z.string().describe(
+      "Optional. The maximum duration a UnitOperation is allowed to execute in the RUNNING state. - Minimum value: 60 seconds (1 minute) - Maximum value: 604800 seconds (7 days) If this field is not set, or if the provided value falls outside the allowed range, the system will use a default timeout of 10800 seconds (3 hours). Upon exceeding this time limit, the UnitOperation will be best-effort cancelled, and its state will be set to FAILED.",
+    ).optional(),
+  }).describe(
+    "Optional. Defines the default duration limits for UnitOperations created from this UnitKind. These settings provide a baseline for execution time constraints. The limits specified here can be overridden by more specific settings on an individual UnitOperation resource. See the DurationLimits message definition for details on the constraints like minimum, maximum, and system default values for unit_operation_timeout. If not set, UnitOperations will use the system default duration limits unless overridden on the UnitOperation.",
+  ).optional(),
   inputVariableMappings: z.array(z.object({
     from: z.object({
       dependency: z.string().describe(
@@ -333,6 +340,9 @@ const StateSchema = z.object({
     alias: z.string(),
     unitKind: z.string(),
   })).optional(),
+  durationLimits: z.object({
+    unitOperationTimeout: z.string(),
+  }).optional(),
   etag: z.string().optional(),
   inputVariableMappings: z.array(z.object({
     from: z.object({
@@ -424,6 +434,13 @@ const InputsSchema = z.object({
     ).optional(),
   })).describe(
     "Optional. Immutable. List of other unit kinds that this release will depend on. Dependencies will be automatically provisioned if not found. Maximum 10.",
+  ).optional(),
+  durationLimits: z.object({
+    unitOperationTimeout: z.string().describe(
+      "Optional. The maximum duration a UnitOperation is allowed to execute in the RUNNING state. - Minimum value: 60 seconds (1 minute) - Maximum value: 604800 seconds (7 days) If this field is not set, or if the provided value falls outside the allowed range, the system will use a default timeout of 10800 seconds (3 hours). Upon exceeding this time limit, the UnitOperation will be best-effort cancelled, and its state will be set to FAILED.",
+    ).optional(),
+  }).describe(
+    "Optional. Defines the default duration limits for UnitOperations created from this UnitKind. These settings provide a baseline for execution time constraints. The limits specified here can be overridden by more specific settings on an individual UnitOperation resource. See the DurationLimits message definition for details on the constraints like minimum, maximum, and system default values for unit_operation_timeout. If not set, UnitOperations will use the system default duration limits unless overridden on the UnitOperation.",
   ).optional(),
   inputVariableMappings: z.array(z.object({
     from: z.object({
@@ -527,7 +544,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Lifecycle Manager UnitKinds. Registered at `@swamp/gcp/saasservicemgmt/unitkinds`. */
 export const model = {
   type: "@swamp/gcp/saasservicemgmt/unitkinds",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -698,6 +715,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.29.1",
+      description: "Added: durationLimits",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -738,6 +760,9 @@ export const model = {
         }
         if (g["dependencies"] !== undefined) {
           body["dependencies"] = g["dependencies"];
+        }
+        if (g["durationLimits"] !== undefined) {
+          body["durationLimits"] = g["durationLimits"];
         }
         if (g["inputVariableMappings"] !== undefined) {
           body["inputVariableMappings"] = g["inputVariableMappings"];
@@ -874,6 +899,9 @@ export const model = {
         }
         if (g["defaultRelease"] !== undefined) {
           body["defaultRelease"] = g["defaultRelease"];
+        }
+        if (g["durationLimits"] !== undefined) {
+          body["durationLimits"] = g["durationLimits"];
         }
         if (g["inputVariableMappings"] !== undefined) {
           body["inputVariableMappings"] = g["inputVariableMappings"];

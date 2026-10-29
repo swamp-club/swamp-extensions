@@ -71,6 +71,9 @@ const INSERT_CONFIG = {
     "parent",
   ],
   "parameters": {
+    "idpNonce": {
+      "location": "query",
+    },
     "parent": {
       "location": "path",
       "required": true,
@@ -213,12 +216,16 @@ const GlobalArgsSchema = z.object({
       "Optional. Fallback for the tool's runtime reference, consumed by `CreateAgent` to create the downstream AI App. Applicable when `type` is `mcp_server` or `endpoint`, and optional: the Agent service derives the runtime reference from `name` via Agent Registry (`GetMcpServer` / `GetEndpoint`), and reads this only when that lookup yields none.",
     ).optional(),
   })).describe("Optional. The tools available to the agent.").optional(),
+  idpNonce: z.string().describe(
+    "Optional. Optional. One-time cryptographic nonce issued by the trusted IdP provisioning iframe for session and device non-repudiation.",
+  ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
   ).optional(),
 });
 
 const StateSchema = z.object({
+  aiApplication: z.string().optional(),
   base_agent: z.string().optional(),
   base_environment: z.string().optional(),
   created: z.string().optional(),
@@ -308,6 +315,9 @@ const InputsSchema = z.object({
       "Optional. Fallback for the tool's runtime reference, consumed by `CreateAgent` to create the downstream AI App. Applicable when `type` is `mcp_server` or `endpoint`, and optional: the Agent service derives the runtime reference from `name` via Agent Registry (`GetMcpServer` / `GetEndpoint`), and reads this only when that lookup yields none.",
     ).optional(),
   })).describe("Optional. The tools available to the agent.").optional(),
+  idpNonce: z.string().describe(
+    "Optional. Optional. One-time cryptographic nonce issued by the trusted IdP provisioning iframe for session and device non-repudiation.",
+  ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
   ).optional(),
@@ -339,7 +349,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Agents. Registered at `@swamp/gcp/aiplatform/agents`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/agents",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -424,6 +434,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.29.1",
+      description: "Added: idpNonce",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -471,6 +486,9 @@ export const model = {
           body["system_instruction"] = g["system_instruction"];
         }
         if (g["tools"] !== undefined) body["tools"] = g["tools"];
+        if (g["idpNonce"] !== undefined) {
+          params["idpNonce"] = String(g["idpNonce"]);
+        }
         if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
             `projects/${projectId}/locations/${String(g["location"] ?? "")}`,

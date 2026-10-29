@@ -39,12 +39,12 @@ import {
 import type { AwsCredentials } from "./_lib/aws.ts";
 
 const PasswordPolicySchema = z.object({
-  MinimumLength: z.number().int().optional(),
-  RequireLowercase: z.boolean().optional(),
   RequireNumbers: z.boolean().optional(),
-  RequireSymbols: z.boolean().optional(),
-  RequireUppercase: z.boolean().optional(),
+  MinimumLength: z.number().int().optional(),
   TemporaryPasswordValidityDays: z.number().int().optional(),
+  RequireUppercase: z.boolean().optional(),
+  RequireLowercase: z.boolean().optional(),
+  RequireSymbols: z.boolean().optional(),
   PasswordHistorySize: z.number().int().optional(),
 });
 
@@ -52,69 +52,69 @@ const SignInPolicySchema = z.object({
   AllowedFirstAuthFactors: z.array(z.string()).optional(),
 });
 
-const RecoveryOptionSchema = z.object({
+const StringAttributeConstraintsSchema = z.object({
+  MinLength: z.string().optional(),
+  MaxLength: z.string().optional(),
+});
+
+const NumberAttributeConstraintsSchema = z.object({
+  MinValue: z.string().optional(),
+  MaxValue: z.string().optional(),
+});
+
+const SchemaAttributeSchema = z.object({
+  DeveloperOnlyAttribute: z.boolean().optional(),
+  Mutable: z.boolean().optional(),
+  AttributeDataType: z.string().optional(),
+  StringAttributeConstraints: StringAttributeConstraintsSchema.optional(),
+  Required: z.boolean().optional(),
+  NumberAttributeConstraints: NumberAttributeConstraintsSchema.optional(),
   Name: z.string().optional(),
-  Priority: z.number().int().optional(),
 });
 
 const InviteMessageTemplateSchema = z.object({
   EmailMessage: z.string().optional(),
-  EmailSubject: z.string().optional(),
   SMSMessage: z.string().optional(),
-});
-
-const CustomEmailSenderSchema = z.object({
-  LambdaVersion: z.string().optional(),
-  LambdaArn: z.string().optional(),
-});
-
-const CustomSMSSenderSchema = z.object({
-  LambdaVersion: z.string().optional(),
-  LambdaArn: z.string().optional(),
-});
-
-const PreTokenGenerationConfigSchema = z.object({
-  LambdaVersion: z.string().optional(),
-  LambdaArn: z.string().optional(),
-});
-
-const InboundFederationSchema = z.object({
-  LambdaVersion: z.string().optional(),
-  LambdaArn: z.string().optional(),
+  EmailSubject: z.string().optional(),
 });
 
 const EumsSmsConfigurationSchema = z.object({
-  CallerArn: z.string(),
-  ExternalId: z.string().optional(),
-  OriginationIdentity: z.string().optional(),
-  ConfigurationSetName: z.string().optional(),
-  InEntityId: z.string().optional(),
   InTemplateId: z.string().optional(),
+  InEntityId: z.string().optional(),
+  ExternalId: z.string().optional(),
+  CallerArn: z.string(),
+  ConfigurationSetName: z.string().optional(),
   Region: z.string().optional(),
+  OriginationIdentity: z.string().optional(),
 });
 
-const NumberAttributeConstraintsSchema = z.object({
-  MaxValue: z.string().optional(),
-  MinValue: z.string().optional(),
-});
-
-const StringAttributeConstraintsSchema = z.object({
-  MaxLength: z.string().optional(),
-  MinLength: z.string().optional(),
-});
-
-const SchemaAttributeSchema = z.object({
-  AttributeDataType: z.string().optional(),
-  DeveloperOnlyAttribute: z.boolean().optional(),
-  Mutable: z.boolean().optional(),
+const RecoveryOptionSchema = z.object({
+  Priority: z.number().int().optional(),
   Name: z.string().optional(),
-  NumberAttributeConstraints: NumberAttributeConstraintsSchema.optional(),
-  StringAttributeConstraints: StringAttributeConstraintsSchema.optional(),
-  Required: z.boolean().optional(),
 });
 
 const AdvancedSecurityAdditionalFlowsSchema = z.object({
   CustomAuthMode: z.string().optional(),
+});
+
+const InboundFederationSchema = z.object({
+  LambdaArn: z.string().optional(),
+  LambdaVersion: z.string().optional(),
+});
+
+const CustomSMSSenderSchema = z.object({
+  LambdaArn: z.string().optional(),
+  LambdaVersion: z.string().optional(),
+});
+
+const PreTokenGenerationConfigSchema = z.object({
+  LambdaArn: z.string().optional(),
+  LambdaVersion: z.string().optional(),
+});
+
+const CustomEmailSenderSchema = z.object({
+  LambdaArn: z.string().optional(),
+  LambdaVersion: z.string().optional(),
 });
 
 const GlobalArgsSchema = z.object({
@@ -133,65 +133,11 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  UserPoolName: z.string().min(1).max(128).optional(),
+  UserPoolTags: z.record(z.string(), z.string()).optional(),
   Policies: z.object({
     PasswordPolicy: PasswordPolicySchema.optional(),
     SignInPolicy: SignInPolicySchema.optional(),
   }).optional(),
-  AccountRecoverySetting: z.object({
-    RecoveryMechanisms: z.array(RecoveryOptionSchema).optional(),
-  }).optional(),
-  AdminCreateUserConfig: z.object({
-    AllowAdminCreateUserOnly: z.boolean().optional(),
-    InviteMessageTemplate: InviteMessageTemplateSchema.optional(),
-    UnusedAccountValidityDays: z.number().int().optional(),
-  }).optional(),
-  AliasAttributes: z.array(z.string()).optional(),
-  UsernameAttributes: z.array(z.string()).optional(),
-  AutoVerifiedAttributes: z.array(z.string()).optional(),
-  DeviceConfiguration: z.object({
-    ChallengeRequiredOnNewDevice: z.boolean().optional(),
-    DeviceOnlyRememberedOnUserPrompt: z.boolean().optional(),
-  }).optional(),
-  EmailConfiguration: z.object({
-    ReplyToEmailAddress: z.string().optional(),
-    SourceArn: z.string().optional(),
-    From: z.string().optional(),
-    ConfigurationSet: z.string().optional(),
-    EmailSendingAccount: z.string().optional(),
-  }).optional(),
-  EmailVerificationMessage: z.string().min(6).max(20000).optional(),
-  EmailVerificationSubject: z.string().min(1).max(140).optional(),
-  DeletionProtection: z.string().optional(),
-  LambdaConfig: z.object({
-    CreateAuthChallenge: z.string().optional(),
-    CustomMessage: z.string().optional(),
-    DefineAuthChallenge: z.string().optional(),
-    PostAuthentication: z.string().optional(),
-    PostConfirmation: z.string().optional(),
-    PreAuthentication: z.string().optional(),
-    PreSignUp: z.string().optional(),
-    VerifyAuthChallengeResponse: z.string().optional(),
-    UserMigration: z.string().optional(),
-    PreTokenGeneration: z.string().optional(),
-    CustomEmailSender: CustomEmailSenderSchema.optional(),
-    CustomSMSSender: CustomSMSSenderSchema.optional(),
-    KMSKeyID: z.string().optional(),
-    PreTokenGenerationConfig: PreTokenGenerationConfigSchema.optional(),
-    InboundFederation: InboundFederationSchema.optional(),
-  }).optional(),
-  MfaConfiguration: z.string().optional(),
-  EnabledMfas: z.array(z.string()).optional(),
-  SmsAuthenticationMessage: z.string().min(6).max(140).optional(),
-  EmailAuthenticationMessage: z.string().min(6).max(20000).optional(),
-  EmailAuthenticationSubject: z.string().min(1).max(140).optional(),
-  SmsConfiguration: z.object({
-    ExternalId: z.string().optional(),
-    SnsCallerArn: z.string().optional(),
-    SnsRegion: z.string().optional(),
-    EumsSms: EumsSmsConfigurationSchema.optional(),
-  }).optional(),
-  SmsVerificationMessage: z.string().min(6).max(140).optional(),
   KeyConfiguration: z.object({
     KeyType: z.enum(["AWS_OWNED_KEY", "CUSTOMER_MANAGED_KEY"]).optional(),
     KmsKeyArn: z.string().regex(
@@ -200,134 +146,188 @@ const GlobalArgsSchema = z.object({
       ),
     ).optional(),
   }).optional(),
+  Schema: z.array(SchemaAttributeSchema).optional(),
+  AdminCreateUserConfig: z.object({
+    InviteMessageTemplate: InviteMessageTemplateSchema.optional(),
+    UnusedAccountValidityDays: z.number().int().optional(),
+    AllowAdminCreateUserOnly: z.boolean().optional(),
+  }).optional(),
+  UserPoolTier: z.enum(["LITE", "ESSENTIALS", "PLUS"]).optional(),
+  UsernameConfiguration: z.object({
+    CaseSensitive: z.boolean().optional(),
+  }).optional(),
+  UserPoolName: z.string().min(1).max(128).optional(),
+  SmsVerificationMessage: z.string().min(6).max(140).optional(),
+  UserAttributeUpdateSettings: z.object({
+    AttributesRequireVerificationBeforeUpdate: z.array(z.string()),
+  }).optional(),
+  EmailConfiguration: z.object({
+    ReplyToEmailAddress: z.string().optional(),
+    ConfigurationSet: z.string().optional(),
+    EmailSendingAccount: z.string().optional(),
+    SourceArn: z.string().optional(),
+    From: z.string().optional(),
+  }).optional(),
+  SmsConfiguration: z.object({
+    SnsRegion: z.string().optional(),
+    ExternalId: z.string().optional(),
+    EumsSms: EumsSmsConfigurationSchema.optional(),
+    SnsCallerArn: z.string().optional(),
+  }).optional(),
+  EmailVerificationSubject: z.string().min(1).max(140).optional(),
   WebAuthnRelyingPartyID: z.string().min(1).max(63).optional(),
-  WebAuthnUserVerification: z.string().min(1).max(9).optional(),
+  EmailAuthenticationSubject: z.string().min(1).max(140).optional(),
+  AccountRecoverySetting: z.object({
+    RecoveryMechanisms: z.array(RecoveryOptionSchema).optional(),
+  }).optional(),
+  VerificationMessageTemplate: z.object({
+    EmailMessageByLink: z.string().optional(),
+    EmailMessage: z.string().optional(),
+    SmsMessage: z.string().optional(),
+    EmailSubject: z.string().optional(),
+    DefaultEmailOption: z.string().optional(),
+    EmailSubjectByLink: z.string().optional(),
+  }).optional(),
+  IssuerConfiguration: z.object({
+    Type: z.enum(["ORIGINAL", "UPDATED"]).optional(),
+  }).optional(),
+  MfaConfiguration: z.string().optional(),
+  DeletionProtection: z.string().optional(),
   WebAuthnFactorConfiguration: z.enum([
     "SINGLE_FACTOR",
     "MULTI_FACTOR_WITH_USER_VERIFICATION",
   ]).optional(),
-  Schema: z.array(SchemaAttributeSchema).optional(),
-  UsernameConfiguration: z.object({
-    CaseSensitive: z.boolean().optional(),
-  }).optional(),
-  UserAttributeUpdateSettings: z.object({
-    AttributesRequireVerificationBeforeUpdate: z.array(z.string()),
-  }).optional(),
-  UserPoolTags: z.record(z.string(), z.string()).optional(),
-  VerificationMessageTemplate: z.object({
-    DefaultEmailOption: z.string().optional(),
-    EmailMessage: z.string().optional(),
-    EmailMessageByLink: z.string().optional(),
-    EmailSubject: z.string().optional(),
-    EmailSubjectByLink: z.string().optional(),
-    SmsMessage: z.string().optional(),
-  }).optional(),
+  SmsAuthenticationMessage: z.string().min(6).max(140).optional(),
+  WebAuthnUserVerification: z.string().min(1).max(9).optional(),
   UserPoolAddOns: z.object({
-    AdvancedSecurityMode: z.string().optional(),
     AdvancedSecurityAdditionalFlows: AdvancedSecurityAdditionalFlowsSchema
       .optional(),
+    AdvancedSecurityMode: z.string().optional(),
   }).optional(),
-  UserPoolTier: z.enum(["LITE", "ESSENTIALS", "PLUS"]).optional(),
-  IssuerConfiguration: z.object({
-    Type: z.enum(["ORIGINAL", "UPDATED"]).optional(),
+  EmailAuthenticationMessage: z.string().min(6).max(20000).optional(),
+  AliasAttributes: z.array(z.string()).optional(),
+  EnabledMfas: z.array(z.string()).optional(),
+  LambdaConfig: z.object({
+    CreateAuthChallenge: z.string().optional(),
+    PreSignUp: z.string().optional(),
+    KMSKeyID: z.string().optional(),
+    UserMigration: z.string().optional(),
+    PostAuthentication: z.string().optional(),
+    VerifyAuthChallengeResponse: z.string().optional(),
+    PreAuthentication: z.string().optional(),
+    DefineAuthChallenge: z.string().optional(),
+    PreTokenGeneration: z.string().optional(),
+    InboundFederation: InboundFederationSchema.optional(),
+    CustomSMSSender: CustomSMSSenderSchema.optional(),
+    PostConfirmation: z.string().optional(),
+    CustomMessage: z.string().optional(),
+    PreTokenGenerationConfig: PreTokenGenerationConfigSchema.optional(),
+    CustomEmailSender: CustomEmailSenderSchema.optional(),
   }).optional(),
+  UsernameAttributes: z.array(z.string()).optional(),
+  AutoVerifiedAttributes: z.array(z.string()).optional(),
+  DeviceConfiguration: z.object({
+    DeviceOnlyRememberedOnUserPrompt: z.boolean().optional(),
+    ChallengeRequiredOnNewDevice: z.boolean().optional(),
+  }).optional(),
+  EmailVerificationMessage: z.string().min(6).max(20000).optional(),
 });
 
 const StateSchema = z.object({
-  UserPoolName: z.string().optional(),
+  UserPoolTags: z.record(z.string(), z.unknown()).optional(),
   Policies: z.object({
     PasswordPolicy: PasswordPolicySchema,
     SignInPolicy: SignInPolicySchema,
   }).optional(),
-  AccountRecoverySetting: z.object({
-    RecoveryMechanisms: z.array(RecoveryOptionSchema),
-  }).optional(),
-  AdminCreateUserConfig: z.object({
-    AllowAdminCreateUserOnly: z.boolean(),
-    InviteMessageTemplate: InviteMessageTemplateSchema,
-    UnusedAccountValidityDays: z.number(),
-  }).optional(),
-  AliasAttributes: z.array(z.string()).optional(),
-  UsernameAttributes: z.array(z.string()).optional(),
-  AutoVerifiedAttributes: z.array(z.string()).optional(),
-  DeviceConfiguration: z.object({
-    ChallengeRequiredOnNewDevice: z.boolean(),
-    DeviceOnlyRememberedOnUserPrompt: z.boolean(),
-  }).optional(),
-  EmailConfiguration: z.object({
-    ReplyToEmailAddress: z.string(),
-    SourceArn: z.string(),
-    From: z.string(),
-    ConfigurationSet: z.string(),
-    EmailSendingAccount: z.string(),
-  }).optional(),
-  EmailVerificationMessage: z.string().optional(),
-  EmailVerificationSubject: z.string().optional(),
-  DeletionProtection: z.string().optional(),
-  LambdaConfig: z.object({
-    CreateAuthChallenge: z.string(),
-    CustomMessage: z.string(),
-    DefineAuthChallenge: z.string(),
-    PostAuthentication: z.string(),
-    PostConfirmation: z.string(),
-    PreAuthentication: z.string(),
-    PreSignUp: z.string(),
-    VerifyAuthChallengeResponse: z.string(),
-    UserMigration: z.string(),
-    PreTokenGeneration: z.string(),
-    CustomEmailSender: CustomEmailSenderSchema,
-    CustomSMSSender: CustomSMSSenderSchema,
-    KMSKeyID: z.string(),
-    PreTokenGenerationConfig: PreTokenGenerationConfigSchema,
-    InboundFederation: InboundFederationSchema,
-  }).optional(),
-  MfaConfiguration: z.string().optional(),
-  EnabledMfas: z.array(z.string()).optional(),
-  SmsAuthenticationMessage: z.string().optional(),
-  EmailAuthenticationMessage: z.string().optional(),
-  EmailAuthenticationSubject: z.string().optional(),
-  SmsConfiguration: z.object({
-    ExternalId: z.string(),
-    SnsCallerArn: z.string(),
-    SnsRegion: z.string(),
-    EumsSms: EumsSmsConfigurationSchema,
-  }).optional(),
-  SmsVerificationMessage: z.string().optional(),
   KeyConfiguration: z.object({
     KeyType: z.string(),
     KmsKeyArn: z.string(),
   }).optional(),
-  WebAuthnRelyingPartyID: z.string().optional(),
-  WebAuthnUserVerification: z.string().optional(),
-  WebAuthnFactorConfiguration: z.string().optional(),
   Schema: z.array(SchemaAttributeSchema).optional(),
+  AdminCreateUserConfig: z.object({
+    InviteMessageTemplate: InviteMessageTemplateSchema,
+    UnusedAccountValidityDays: z.number(),
+    AllowAdminCreateUserOnly: z.boolean(),
+  }).optional(),
+  UserPoolTier: z.string().optional(),
   UsernameConfiguration: z.object({
     CaseSensitive: z.boolean(),
   }).optional(),
+  UserPoolName: z.string().optional(),
+  SmsVerificationMessage: z.string().optional(),
   UserAttributeUpdateSettings: z.object({
     AttributesRequireVerificationBeforeUpdate: z.array(z.string()),
   }).optional(),
-  UserPoolTags: z.record(z.string(), z.unknown()).optional(),
+  EmailConfiguration: z.object({
+    ReplyToEmailAddress: z.string(),
+    ConfigurationSet: z.string(),
+    EmailSendingAccount: z.string(),
+    SourceArn: z.string(),
+    From: z.string(),
+  }).optional(),
+  SmsConfiguration: z.object({
+    SnsRegion: z.string(),
+    ExternalId: z.string(),
+    EumsSms: EumsSmsConfigurationSchema,
+    SnsCallerArn: z.string(),
+  }).optional(),
+  EmailVerificationSubject: z.string().optional(),
+  WebAuthnRelyingPartyID: z.string().optional(),
+  EmailAuthenticationSubject: z.string().optional(),
+  AccountRecoverySetting: z.object({
+    RecoveryMechanisms: z.array(RecoveryOptionSchema),
+  }).optional(),
   VerificationMessageTemplate: z.object({
-    DefaultEmailOption: z.string(),
-    EmailMessage: z.string(),
     EmailMessageByLink: z.string(),
-    EmailSubject: z.string(),
-    EmailSubjectByLink: z.string(),
+    EmailMessage: z.string(),
     SmsMessage: z.string(),
+    EmailSubject: z.string(),
+    DefaultEmailOption: z.string(),
+    EmailSubjectByLink: z.string(),
   }).optional(),
-  UserPoolAddOns: z.object({
-    AdvancedSecurityMode: z.string(),
-    AdvancedSecurityAdditionalFlows: AdvancedSecurityAdditionalFlowsSchema,
-  }).optional(),
-  ProviderName: z.string().optional(),
-  ProviderURL: z.string().optional(),
-  Arn: z.string().optional(),
-  UserPoolId: z.string(),
-  UserPoolTier: z.string().optional(),
   IssuerConfiguration: z.object({
     Type: z.string(),
   }).optional(),
+  ProviderURL: z.string().optional(),
+  MfaConfiguration: z.string().optional(),
+  DeletionProtection: z.string().optional(),
+  WebAuthnFactorConfiguration: z.string().optional(),
+  SmsAuthenticationMessage: z.string().optional(),
+  WebAuthnUserVerification: z.string().optional(),
+  UserPoolAddOns: z.object({
+    AdvancedSecurityAdditionalFlows: AdvancedSecurityAdditionalFlowsSchema,
+    AdvancedSecurityMode: z.string(),
+  }).optional(),
+  ProviderName: z.string().optional(),
+  UserPoolId: z.string(),
+  EmailAuthenticationMessage: z.string().optional(),
+  AliasAttributes: z.array(z.string()).optional(),
+  EnabledMfas: z.array(z.string()).optional(),
+  LambdaConfig: z.object({
+    CreateAuthChallenge: z.string(),
+    PreSignUp: z.string(),
+    KMSKeyID: z.string(),
+    UserMigration: z.string(),
+    PostAuthentication: z.string(),
+    VerifyAuthChallengeResponse: z.string(),
+    PreAuthentication: z.string(),
+    DefineAuthChallenge: z.string(),
+    PreTokenGeneration: z.string(),
+    InboundFederation: InboundFederationSchema,
+    CustomSMSSender: CustomSMSSenderSchema,
+    PostConfirmation: z.string(),
+    CustomMessage: z.string(),
+    PreTokenGenerationConfig: PreTokenGenerationConfigSchema,
+    CustomEmailSender: CustomEmailSenderSchema,
+  }).optional(),
+  Arn: z.string().optional(),
+  UsernameAttributes: z.array(z.string()).optional(),
+  AutoVerifiedAttributes: z.array(z.string()).optional(),
+  DeviceConfiguration: z.object({
+    DeviceOnlyRememberedOnUserPrompt: z.boolean(),
+    ChallengeRequiredOnNewDevice: z.boolean(),
+  }).optional(),
+  EmailVerificationMessage: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -338,65 +338,11 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  UserPoolName: z.string().min(1).max(128).optional(),
+  UserPoolTags: z.record(z.string(), z.string()).optional(),
   Policies: z.object({
     PasswordPolicy: PasswordPolicySchema.optional(),
     SignInPolicy: SignInPolicySchema.optional(),
   }).optional(),
-  AccountRecoverySetting: z.object({
-    RecoveryMechanisms: z.array(RecoveryOptionSchema).optional(),
-  }).optional(),
-  AdminCreateUserConfig: z.object({
-    AllowAdminCreateUserOnly: z.boolean().optional(),
-    InviteMessageTemplate: InviteMessageTemplateSchema.optional(),
-    UnusedAccountValidityDays: z.number().int().optional(),
-  }).optional(),
-  AliasAttributes: z.array(z.string()).optional(),
-  UsernameAttributes: z.array(z.string()).optional(),
-  AutoVerifiedAttributes: z.array(z.string()).optional(),
-  DeviceConfiguration: z.object({
-    ChallengeRequiredOnNewDevice: z.boolean().optional(),
-    DeviceOnlyRememberedOnUserPrompt: z.boolean().optional(),
-  }).optional(),
-  EmailConfiguration: z.object({
-    ReplyToEmailAddress: z.string().optional(),
-    SourceArn: z.string().optional(),
-    From: z.string().optional(),
-    ConfigurationSet: z.string().optional(),
-    EmailSendingAccount: z.string().optional(),
-  }).optional(),
-  EmailVerificationMessage: z.string().min(6).max(20000).optional(),
-  EmailVerificationSubject: z.string().min(1).max(140).optional(),
-  DeletionProtection: z.string().optional(),
-  LambdaConfig: z.object({
-    CreateAuthChallenge: z.string().optional(),
-    CustomMessage: z.string().optional(),
-    DefineAuthChallenge: z.string().optional(),
-    PostAuthentication: z.string().optional(),
-    PostConfirmation: z.string().optional(),
-    PreAuthentication: z.string().optional(),
-    PreSignUp: z.string().optional(),
-    VerifyAuthChallengeResponse: z.string().optional(),
-    UserMigration: z.string().optional(),
-    PreTokenGeneration: z.string().optional(),
-    CustomEmailSender: CustomEmailSenderSchema.optional(),
-    CustomSMSSender: CustomSMSSenderSchema.optional(),
-    KMSKeyID: z.string().optional(),
-    PreTokenGenerationConfig: PreTokenGenerationConfigSchema.optional(),
-    InboundFederation: InboundFederationSchema.optional(),
-  }).optional(),
-  MfaConfiguration: z.string().optional(),
-  EnabledMfas: z.array(z.string()).optional(),
-  SmsAuthenticationMessage: z.string().min(6).max(140).optional(),
-  EmailAuthenticationMessage: z.string().min(6).max(20000).optional(),
-  EmailAuthenticationSubject: z.string().min(1).max(140).optional(),
-  SmsConfiguration: z.object({
-    ExternalId: z.string().optional(),
-    SnsCallerArn: z.string().optional(),
-    SnsRegion: z.string().optional(),
-    EumsSms: EumsSmsConfigurationSchema.optional(),
-  }).optional(),
-  SmsVerificationMessage: z.string().min(6).max(140).optional(),
   KeyConfiguration: z.object({
     KeyType: z.enum(["AWS_OWNED_KEY", "CUSTOMER_MANAGED_KEY"]).optional(),
     KmsKeyArn: z.string().regex(
@@ -405,37 +351,91 @@ const InputsSchema = z.object({
       ),
     ).optional(),
   }).optional(),
+  Schema: z.array(SchemaAttributeSchema).optional(),
+  AdminCreateUserConfig: z.object({
+    InviteMessageTemplate: InviteMessageTemplateSchema.optional(),
+    UnusedAccountValidityDays: z.number().int().optional(),
+    AllowAdminCreateUserOnly: z.boolean().optional(),
+  }).optional(),
+  UserPoolTier: z.enum(["LITE", "ESSENTIALS", "PLUS"]).optional(),
+  UsernameConfiguration: z.object({
+    CaseSensitive: z.boolean().optional(),
+  }).optional(),
+  UserPoolName: z.string().min(1).max(128).optional(),
+  SmsVerificationMessage: z.string().min(6).max(140).optional(),
+  UserAttributeUpdateSettings: z.object({
+    AttributesRequireVerificationBeforeUpdate: z.array(z.string()).optional(),
+  }).optional(),
+  EmailConfiguration: z.object({
+    ReplyToEmailAddress: z.string().optional(),
+    ConfigurationSet: z.string().optional(),
+    EmailSendingAccount: z.string().optional(),
+    SourceArn: z.string().optional(),
+    From: z.string().optional(),
+  }).optional(),
+  SmsConfiguration: z.object({
+    SnsRegion: z.string().optional(),
+    ExternalId: z.string().optional(),
+    EumsSms: EumsSmsConfigurationSchema.optional(),
+    SnsCallerArn: z.string().optional(),
+  }).optional(),
+  EmailVerificationSubject: z.string().min(1).max(140).optional(),
   WebAuthnRelyingPartyID: z.string().min(1).max(63).optional(),
-  WebAuthnUserVerification: z.string().min(1).max(9).optional(),
+  EmailAuthenticationSubject: z.string().min(1).max(140).optional(),
+  AccountRecoverySetting: z.object({
+    RecoveryMechanisms: z.array(RecoveryOptionSchema).optional(),
+  }).optional(),
+  VerificationMessageTemplate: z.object({
+    EmailMessageByLink: z.string().optional(),
+    EmailMessage: z.string().optional(),
+    SmsMessage: z.string().optional(),
+    EmailSubject: z.string().optional(),
+    DefaultEmailOption: z.string().optional(),
+    EmailSubjectByLink: z.string().optional(),
+  }).optional(),
+  IssuerConfiguration: z.object({
+    Type: z.enum(["ORIGINAL", "UPDATED"]).optional(),
+  }).optional(),
+  MfaConfiguration: z.string().optional(),
+  DeletionProtection: z.string().optional(),
   WebAuthnFactorConfiguration: z.enum([
     "SINGLE_FACTOR",
     "MULTI_FACTOR_WITH_USER_VERIFICATION",
   ]).optional(),
-  Schema: z.array(SchemaAttributeSchema).optional(),
-  UsernameConfiguration: z.object({
-    CaseSensitive: z.boolean().optional(),
-  }).optional(),
-  UserAttributeUpdateSettings: z.object({
-    AttributesRequireVerificationBeforeUpdate: z.array(z.string()).optional(),
-  }).optional(),
-  UserPoolTags: z.record(z.string(), z.string()).optional(),
-  VerificationMessageTemplate: z.object({
-    DefaultEmailOption: z.string().optional(),
-    EmailMessage: z.string().optional(),
-    EmailMessageByLink: z.string().optional(),
-    EmailSubject: z.string().optional(),
-    EmailSubjectByLink: z.string().optional(),
-    SmsMessage: z.string().optional(),
-  }).optional(),
+  SmsAuthenticationMessage: z.string().min(6).max(140).optional(),
+  WebAuthnUserVerification: z.string().min(1).max(9).optional(),
   UserPoolAddOns: z.object({
-    AdvancedSecurityMode: z.string().optional(),
     AdvancedSecurityAdditionalFlows: AdvancedSecurityAdditionalFlowsSchema
       .optional(),
+    AdvancedSecurityMode: z.string().optional(),
   }).optional(),
-  UserPoolTier: z.enum(["LITE", "ESSENTIALS", "PLUS"]).optional(),
-  IssuerConfiguration: z.object({
-    Type: z.enum(["ORIGINAL", "UPDATED"]).optional(),
+  EmailAuthenticationMessage: z.string().min(6).max(20000).optional(),
+  AliasAttributes: z.array(z.string()).optional(),
+  EnabledMfas: z.array(z.string()).optional(),
+  LambdaConfig: z.object({
+    CreateAuthChallenge: z.string().optional(),
+    PreSignUp: z.string().optional(),
+    KMSKeyID: z.string().optional(),
+    UserMigration: z.string().optional(),
+    PostAuthentication: z.string().optional(),
+    VerifyAuthChallengeResponse: z.string().optional(),
+    PreAuthentication: z.string().optional(),
+    DefineAuthChallenge: z.string().optional(),
+    PreTokenGeneration: z.string().optional(),
+    InboundFederation: InboundFederationSchema.optional(),
+    CustomSMSSender: CustomSMSSenderSchema.optional(),
+    PostConfirmation: z.string().optional(),
+    CustomMessage: z.string().optional(),
+    PreTokenGenerationConfig: PreTokenGenerationConfigSchema.optional(),
+    CustomEmailSender: CustomEmailSenderSchema.optional(),
   }).optional(),
+  UsernameAttributes: z.array(z.string()).optional(),
+  AutoVerifiedAttributes: z.array(z.string()).optional(),
+  DeviceConfiguration: z.object({
+    DeviceOnlyRememberedOnUserPrompt: z.boolean().optional(),
+    ChallengeRequiredOnNewDevice: z.boolean().optional(),
+  }).optional(),
+  EmailVerificationMessage: z.string().min(6).max(20000).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -457,7 +457,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Cognito UserPool. Registered at `@swamp/aws/cognito/user-pool`. */
 export const model = {
   type: "@swamp/aws/cognito/user-pool",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -531,6 +531,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

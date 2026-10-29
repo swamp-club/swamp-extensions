@@ -197,6 +197,7 @@ const GlobalArgsSchema = z.object({
     "VOICE",
     "CALENDAR",
     "GEMINI",
+    "GEMINI_IN_WORKSPACE",
   ]).describe("The service to be searched.").optional(),
   holdId: z.string().describe(
     "The unique immutable ID of the hold. Assigned during creation.",
@@ -227,7 +228,7 @@ const GlobalArgsSchema = z.object({
       "Service-specific options for Drive holds. If set, **CorpusType** must be **DRIVE**.",
     ).optional(),
     geminiQuery: z.object({}).describe(
-      "Service-specific options for Gemini holds. If set, **CorpusType** must be **GEMINI**.",
+      "Service-specific options for Gemini app holds. If set, **CorpusType** must be **GEMINI**.",
     ).optional(),
     groupsQuery: z.object({
       endTime: z.string().describe(
@@ -363,6 +364,7 @@ const InputsSchema = z.object({
     "VOICE",
     "CALENDAR",
     "GEMINI",
+    "GEMINI_IN_WORKSPACE",
   ]).describe("The service to be searched.").optional(),
   holdId: z.string().describe(
     "The unique immutable ID of the hold. Assigned during creation.",
@@ -393,7 +395,7 @@ const InputsSchema = z.object({
       "Service-specific options for Drive holds. If set, **CorpusType** must be **DRIVE**.",
     ).optional(),
     geminiQuery: z.object({}).describe(
-      "Service-specific options for Gemini holds. If set, **CorpusType** must be **GEMINI**.",
+      "Service-specific options for Gemini app holds. If set, **CorpusType** must be **GEMINI**.",
     ).optional(),
     groupsQuery: z.object({
       endTime: z.string().describe(
@@ -476,7 +478,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Vault Matters.Holds. Registered at `@swamp/gcp/vault/matters-holds`. */
 export const model = {
   type: "@swamp/gcp/vault/matters-holds",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -630,6 +632,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -693,6 +693,16 @@ const GlobalArgsSchema = z.object({
         "Required. Resource name of an existing Metastore service.Example: projects/[project_id]/locations/[dataproc_region]/services/[service-name]",
       ).optional(),
     }).describe("Optional. Metastore configuration.").optional(),
+    schedulingConfig: z.object({
+      requestedRunDuration: z.string().describe(
+        "Optional. Required lifetime of the resources, once provisioned. Min 10 mins, Max/Default 7 days. Note that the cluster can still be deleted before reaching this time. This time is a maximum amount of time before the cluster is forcibly deleted. Lower times are more likely to start running sooner.",
+      ).optional(),
+      schedulingTimeout: z.string().describe(
+        "Optional. How long to wait for worker resources to be allocated before failing the cluster creation request. Max/Default value: 13 days",
+      ).optional(),
+    }).describe(
+      "Optional. Config for scheduling the resources to be allocated when available.",
+    ).optional(),
     secondaryWorkerConfig: z.object({
       accelerators: z.array(z.object({
         acceleratorCount: z.number().int().describe(
@@ -1418,6 +1428,10 @@ const StateSchema = z.object({
     metastoreConfig: z.object({
       dataprocMetastoreService: z.string(),
     }),
+    schedulingConfig: z.object({
+      requestedRunDuration: z.string(),
+      schedulingTimeout: z.string(),
+    }),
     secondaryWorkerConfig: z.object({
       accelerators: z.array(z.object({
         acceleratorCount: z.number(),
@@ -2118,6 +2132,16 @@ const InputsSchema = z.object({
         "Required. Resource name of an existing Metastore service.Example: projects/[project_id]/locations/[dataproc_region]/services/[service-name]",
       ).optional(),
     }).describe("Optional. Metastore configuration.").optional(),
+    schedulingConfig: z.object({
+      requestedRunDuration: z.string().describe(
+        "Optional. Required lifetime of the resources, once provisioned. Min 10 mins, Max/Default 7 days. Note that the cluster can still be deleted before reaching this time. This time is a maximum amount of time before the cluster is forcibly deleted. Lower times are more likely to start running sooner.",
+      ).optional(),
+      schedulingTimeout: z.string().describe(
+        "Optional. How long to wait for worker resources to be allocated before failing the cluster creation request. Max/Default value: 13 days",
+      ).optional(),
+    }).describe(
+      "Optional. Config for scheduling the resources to be allocated when available.",
+    ).optional(),
     secondaryWorkerConfig: z.object({
       accelerators: z.array(z.object({
         acceleratorCount: z.number().int().describe(
@@ -2689,7 +2713,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataproc Clusters. Registered at `@swamp/gcp/dataproc/clusters`. */
 export const model = {
   type: "@swamp/gcp/dataproc/clusters",
-  version: "2026.10.24.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3011,6 +3035,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

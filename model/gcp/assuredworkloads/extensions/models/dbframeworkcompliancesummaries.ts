@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Assured Workloads DbFrameworkComplianceSummaries.
  *
- * The details for a framework compliance summary.
+ * A summary of the compliance status of a framework that's deployed in a Data Boundary scope.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -171,7 +171,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Assured Workloads DbFrameworkComplianceSummaries. Registered at `@swamp/gcp/assuredworkloads/dbframeworkcompliancesummaries`. */
 export const model = {
   type: "@swamp/gcp/assuredworkloads/dbframeworkcompliancesummaries",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -193,12 +193,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "The details for a framework compliance summary.",
+      description:
+        "A summary of the compliance status of a framework that's deployed in a Data B...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -310,13 +316,14 @@ export const model = {
     list: {
       description: "List dbFrameworkComplianceSummaries resources",
       arguments: z.object({
-        filter: z.string().describe("Optional. The filtering results.")
-          .optional(),
+        filter: z.string().describe(
+          "Optional. A filter expression that restricts the results. Reserved for future use.",
+        ).optional(),
         pageSize: z.number().describe(
           "Optional. The requested page size. The server might return fewer items than requested. If unspecified, the default page size is 50. The maximum value is 1000.",
         ).optional(),
         view: z.string().describe(
-          "Optional. Specifies the level of detail to return in the response.",
+          "Optional. The level of detail to return for each summary. If not specified, `FRAMEWORK_COMPLIANCE_SUMMARY_VIEW_BASIC` is used.",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",

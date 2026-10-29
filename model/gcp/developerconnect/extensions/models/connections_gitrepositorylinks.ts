@@ -258,7 +258,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Developer Connect Connections.GitRepositoryLinks. Registered at `@swamp/gcp/developerconnect/connections-gitrepositorylinks`. */
 export const model = {
   type: "@swamp/gcp/developerconnect/connections-gitrepositorylinks",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -397,6 +397,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -608,9 +613,9 @@ export const model = {
     list: {
       description: "List gitRepositoryLinks resources",
       arguments: z.object({
-        filter: z.string().describe("Optional. Filtering results").optional(),
+        filter: z.string().describe("Optional. Filtering results.").optional(),
         orderBy: z.string().describe(
-          "Optional. Hint for how to order the results",
+          "Optional. Hint for how to order the results.",
         ).optional(),
         pageSize: z.number().describe(
           "Optional. Requested page size. Server may return fewer items than requested. If unspecified, server will pick an appropriate default.",
@@ -659,6 +664,312 @@ export const model = {
           dataHandles.push(handle);
         }
         return { dataHandles, result: { count: items.length, nextPageToken } };
+      },
+    },
+    add_pull_request_comment: {
+      description: "add pull request comment",
+      arguments: z.object({
+        comment: z.any().optional(),
+        pullRequestId: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            String(g["parent"]),
+            String(g["name"]),
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (args["comment"] !== undefined) body["comment"] = args["comment"];
+        if (args["pullRequestId"] !== undefined) {
+          body["pullRequestId"] = args["pullRequestId"];
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "developerconnect.projects.locations.connections.gitRepositoryLinks.addPullRequestComment",
+            "path": "v1/{+name}:addPullRequestComment",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    add_pull_request_review_comment: {
+      description: "add pull request review comment",
+      arguments: z.object({
+        comment: z.any().optional(),
+        commitId: z.any().optional(),
+        pullRequestId: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            String(g["parent"]),
+            String(g["name"]),
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (args["comment"] !== undefined) body["comment"] = args["comment"];
+        if (args["commitId"] !== undefined) body["commitId"] = args["commitId"];
+        if (args["pullRequestId"] !== undefined) {
+          body["pullRequestId"] = args["pullRequestId"];
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "developerconnect.projects.locations.connections.gitRepositoryLinks.addPullRequestReviewComment",
+            "path": "v1/{+name}:addPullRequestReviewComment",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    diff_commit: {
+      description: "diff commit",
+      arguments: z.object({
+        baseSha: z.any().optional(),
+        headSha: z.any().optional(),
+        pathFilters: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            String(g["parent"]),
+            String(g["name"]),
+          );
+        }
+        if (args["baseSha"] !== undefined) {
+          params["baseSha"] = String(args["baseSha"]);
+        }
+        if (args["headSha"] !== undefined) {
+          params["headSha"] = String(args["headSha"]);
+        }
+        if (args["pathFilters"] !== undefined) {
+          params["pathFilters"] = String(args["pathFilters"]);
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "developerconnect.projects.locations.connections.gitRepositoryLinks.diffCommit",
+            "path": "v1/{+name}:diffCommit",
+            "httpMethod": "GET",
+            "parameterOrder": ["name"],
+            "parameters": {
+              "baseSha": { "location": "query" },
+              "headSha": { "location": "query" },
+              "name": { "location": "path", "required": true },
+              "pathFilters": { "location": "query" },
+            },
+          },
+          params,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    fetch_commit: {
+      description: "fetch commit",
+      arguments: z.object({
+        commitSha: z.any().optional(),
+        pathFilters: z.any().optional(),
+        view: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            String(g["parent"]),
+            String(g["name"]),
+          );
+        }
+        if (args["commitSha"] !== undefined) {
+          params["commitSha"] = String(args["commitSha"]);
+        }
+        if (args["pathFilters"] !== undefined) {
+          params["pathFilters"] = String(args["pathFilters"]);
+        }
+        if (args["view"] !== undefined) params["view"] = String(args["view"]);
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "developerconnect.projects.locations.connections.gitRepositoryLinks.fetchCommit",
+            "path": "v1/{+name}:fetchCommit",
+            "httpMethod": "GET",
+            "parameterOrder": ["name"],
+            "parameters": {
+              "commitSha": { "location": "query" },
+              "name": { "location": "path", "required": true },
+              "pathFilters": { "location": "query" },
+              "view": { "location": "query" },
+            },
+          },
+          params,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    fetch_commit_list: {
+      description: "fetch commit list",
+      arguments: z.object({
+        pageSize: z.any().optional(),
+        pageToken: z.any().optional(),
+        ref: z.any().optional(),
+        view: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            String(g["parent"]),
+            String(g["name"]),
+          );
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["pageToken"] !== undefined) {
+          params["pageToken"] = String(args["pageToken"]);
+        }
+        if (args["ref"] !== undefined) params["ref"] = String(args["ref"]);
+        if (args["view"] !== undefined) params["view"] = String(args["view"]);
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "developerconnect.projects.locations.connections.gitRepositoryLinks.fetchCommitList",
+            "path": "v1/{+name}:fetchCommitList",
+            "httpMethod": "GET",
+            "parameterOrder": ["name"],
+            "parameters": {
+              "name": { "location": "path", "required": true },
+              "pageSize": { "location": "query" },
+              "pageToken": { "location": "query" },
+              "ref": { "location": "query" },
+              "view": { "location": "query" },
+            },
+          },
+          params,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    fetch_file_blame: {
+      description: "fetch file blame",
+      arguments: z.object({
+        firstLine: z.any().optional(),
+        lastLine: z.any().optional(),
+        path: z.any().optional(),
+        ref: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            String(g["parent"]),
+            String(g["name"]),
+          );
+        }
+        if (args["firstLine"] !== undefined) {
+          params["firstLine"] = String(args["firstLine"]);
+        }
+        if (args["lastLine"] !== undefined) {
+          params["lastLine"] = String(args["lastLine"]);
+        }
+        if (args["path"] !== undefined) params["path"] = String(args["path"]);
+        if (args["ref"] !== undefined) params["ref"] = String(args["ref"]);
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "developerconnect.projects.locations.connections.gitRepositoryLinks.fetchFileBlame",
+            "path": "v1/{+name}:fetchFileBlame",
+            "httpMethod": "GET",
+            "parameterOrder": ["name"],
+            "parameters": {
+              "firstLine": { "location": "query" },
+              "lastLine": { "location": "query" },
+              "name": { "location": "path", "required": true },
+              "path": { "location": "query" },
+              "ref": { "location": "query" },
+            },
+          },
+          params,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
       },
     },
     fetch_git_refs: {
@@ -711,6 +1022,104 @@ export const model = {
               "pageSize": { "location": "query" },
               "pageToken": { "location": "query" },
               "refType": { "location": "query" },
+            },
+          },
+          params,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    fetch_pull_request: {
+      description: "fetch pull request",
+      arguments: z.object({
+        pullRequestId: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            String(g["parent"]),
+            String(g["name"]),
+          );
+        }
+        if (args["pullRequestId"] !== undefined) {
+          params["pullRequestId"] = String(args["pullRequestId"]);
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "developerconnect.projects.locations.connections.gitRepositoryLinks.fetchPullRequest",
+            "path": "v1/{+name}:fetchPullRequest",
+            "httpMethod": "GET",
+            "parameterOrder": ["name"],
+            "parameters": {
+              "name": { "location": "path", "required": true },
+              "pullRequestId": { "location": "query" },
+            },
+          },
+          params,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    fetch_pull_request_list: {
+      description: "fetch pull request list",
+      arguments: z.object({
+        filter: z.any().optional(),
+        pageSize: z.any().optional(),
+        pageToken: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            String(g["parent"]),
+            String(g["name"]),
+          );
+        }
+        if (args["filter"] !== undefined) {
+          params["filter"] = String(args["filter"]);
+        }
+        if (args["pageSize"] !== undefined) {
+          params["pageSize"] = String(args["pageSize"]);
+        }
+        if (args["pageToken"] !== undefined) {
+          params["pageToken"] = String(args["pageToken"]);
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "developerconnect.projects.locations.connections.gitRepositoryLinks.fetchPullRequestList",
+            "path": "v1/{+name}:fetchPullRequestList",
+            "httpMethod": "GET",
+            "parameterOrder": ["name"],
+            "parameters": {
+              "filter": { "location": "query" },
+              "name": { "location": "path", "required": true },
+              "pageSize": { "location": "query" },
+              "pageToken": { "location": "query" },
             },
           },
           params,
@@ -807,6 +1216,98 @@ export const model = {
           },
           params,
           {},
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    modify_pull_request: {
+      description: "modify pull request",
+      arguments: z.object({
+        baseRef: z.any().optional(),
+        body: z.any().optional(),
+        pullRequestId: z.any().optional(),
+        state: z.any().optional(),
+        title: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            String(g["parent"]),
+            String(g["name"]),
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (args["baseRef"] !== undefined) body["baseRef"] = args["baseRef"];
+        if (args["body"] !== undefined) body["body"] = args["body"];
+        if (args["pullRequestId"] !== undefined) {
+          body["pullRequestId"] = args["pullRequestId"];
+        }
+        if (args["state"] !== undefined) body["state"] = args["state"];
+        if (args["title"] !== undefined) body["title"] = args["title"];
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "developerconnect.projects.locations.connections.gitRepositoryLinks.modifyPullRequest",
+            "path": "v1/{+name}:modifyPullRequest",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    open_pull_request: {
+      description: "open pull request",
+      arguments: z.object({
+        pullRequest: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["parent"] !== undefined && g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            String(g["parent"]),
+            String(g["name"]),
+          );
+        }
+        const body: Record<string, unknown> = {};
+        if (args["pullRequest"] !== undefined) {
+          body["pullRequest"] = args["pullRequest"];
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "developerconnect.projects.locations.connections.gitRepositoryLinks.openPullRequest",
+            "path": "v1/{+name}:openPullRequest",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          body,
           undefined,
           undefined,
           undefined,

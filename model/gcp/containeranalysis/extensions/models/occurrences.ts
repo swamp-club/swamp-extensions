@@ -1714,6 +1714,49 @@ const GlobalArgsSchema = z.object({
     ]).describe(
       "The distro assigned severity for this vulnerability when it is available, otherwise this is the note provider assigned severity. When there are multiple PackageIssues for this vulnerability, they can have different effective severities because some might be provided by the distro while others are provided by the language ecosystem for a language pack. For this reason, it is advised to use the effective severity on the PackageIssue level. In the case where multiple PackageIssues have differing effective severities, this field should be the highest severity for any of the PackageIssues.",
     ).optional(),
+    exploitability: z.object({
+      signals: z.array(z.object({
+        rationale: z.string().describe(
+          "Human-readable explanation of this signal.",
+        ).optional(),
+        source: z.string().describe("Identifier of the signal source.")
+          .optional(),
+        vexJustification: z.enum([
+          "JUSTIFICATION_TYPE_UNSPECIFIED",
+          "COMPONENT_NOT_PRESENT",
+          "VULNERABLE_CODE_NOT_PRESENT",
+          "VULNERABLE_CODE_NOT_IN_EXECUTE_PATH",
+          "VULNERABLE_CODE_CANNOT_BE_CONTROLLED_BY_ADVERSARY",
+          "INLINE_MITIGATIONS_ALREADY_EXIST",
+        ]).describe(
+          "Justification for why the vulnerability is not exploitable.",
+        ).optional(),
+        vexStatus: z.enum([
+          "STATE_UNSPECIFIED",
+          "AFFECTED",
+          "NOT_AFFECTED",
+          "FIXED",
+          "UNDER_INVESTIGATION",
+        ]).describe("The VEX status asserted by this signal.").optional(),
+      })).describe("Individual exploitability signals from various sources.")
+        .optional(),
+      summary: z.object({
+        rationale: z.string().describe(
+          "Human-readable explanation of the summary.",
+        ).optional(),
+        vexStatus: z.enum([
+          "STATE_UNSPECIFIED",
+          "AFFECTED",
+          "NOT_AFFECTED",
+          "FIXED",
+          "UNDER_INVESTIGATION",
+        ]).describe(
+          "The rolled-up VEX status. Usually, this should result in an AFFECTED or NOT_AFFECTED vex status.",
+        ).optional(),
+      }).describe("Rollup summary of the exploitability signals.").optional(),
+    }).describe(
+      "Output only. Rollup of exploitability across all PackageIssues in this occurrence.",
+    ).optional(),
     extraDetails: z.string().describe(
       "Occurrence-specific extra details about the vulnerability.",
     ).optional(),
@@ -1766,6 +1809,21 @@ const GlobalArgsSchema = z.object({
         "CRITICAL",
       ]).describe(
         "Output only. The distro or language system assigned severity for this vulnerability when that is available and note provider assigned severity when it is not available.",
+      ).optional(),
+      exploitability: z.object({
+        signals: z.array(z.unknown()).describe(
+          "Individual exploitability signals from various sources.",
+        ).optional(),
+        summary: z.object({
+          rationale: z.unknown().describe(
+            "Human-readable explanation of the summary.",
+          ).optional(),
+          vexStatus: z.unknown().describe(
+            "The rolled-up VEX status. Usually, this should result in an AFFECTED or NOT_AFFECTED vex status.",
+          ).optional(),
+        }).describe("Rollup summary of the exploitability signals.").optional(),
+      }).describe(
+        "Output only. Exploitability signals and summary for this package issue.",
       ).optional(),
       fileLocation: z.array(z.object({
         filePath: z.unknown().describe(
@@ -2544,6 +2602,18 @@ const StateSchema = z.object({
       vulnerableSystemIntegrityImpact: z.string(),
     }),
     effectiveSeverity: z.string(),
+    exploitability: z.object({
+      signals: z.array(z.object({
+        rationale: z.string(),
+        source: z.string(),
+        vexJustification: z.string(),
+        vexStatus: z.string(),
+      })),
+      summary: z.object({
+        rationale: z.string(),
+        vexStatus: z.string(),
+      }),
+    }),
     extraDetails: z.string(),
     fixAvailable: z.boolean(),
     longDescription: z.string(),
@@ -2559,6 +2629,13 @@ const StateSchema = z.object({
         revision: z.string(),
       }),
       effectiveSeverity: z.string(),
+      exploitability: z.object({
+        signals: z.array(z.unknown()),
+        summary: z.object({
+          rationale: z.unknown(),
+          vexStatus: z.unknown(),
+        }),
+      }),
       fileLocation: z.array(z.object({
         filePath: z.unknown(),
         layerDetails: z.unknown(),
@@ -4183,6 +4260,49 @@ const InputsSchema = z.object({
     ]).describe(
       "The distro assigned severity for this vulnerability when it is available, otherwise this is the note provider assigned severity. When there are multiple PackageIssues for this vulnerability, they can have different effective severities because some might be provided by the distro while others are provided by the language ecosystem for a language pack. For this reason, it is advised to use the effective severity on the PackageIssue level. In the case where multiple PackageIssues have differing effective severities, this field should be the highest severity for any of the PackageIssues.",
     ).optional(),
+    exploitability: z.object({
+      signals: z.array(z.object({
+        rationale: z.string().describe(
+          "Human-readable explanation of this signal.",
+        ).optional(),
+        source: z.string().describe("Identifier of the signal source.")
+          .optional(),
+        vexJustification: z.enum([
+          "JUSTIFICATION_TYPE_UNSPECIFIED",
+          "COMPONENT_NOT_PRESENT",
+          "VULNERABLE_CODE_NOT_PRESENT",
+          "VULNERABLE_CODE_NOT_IN_EXECUTE_PATH",
+          "VULNERABLE_CODE_CANNOT_BE_CONTROLLED_BY_ADVERSARY",
+          "INLINE_MITIGATIONS_ALREADY_EXIST",
+        ]).describe(
+          "Justification for why the vulnerability is not exploitable.",
+        ).optional(),
+        vexStatus: z.enum([
+          "STATE_UNSPECIFIED",
+          "AFFECTED",
+          "NOT_AFFECTED",
+          "FIXED",
+          "UNDER_INVESTIGATION",
+        ]).describe("The VEX status asserted by this signal.").optional(),
+      })).describe("Individual exploitability signals from various sources.")
+        .optional(),
+      summary: z.object({
+        rationale: z.string().describe(
+          "Human-readable explanation of the summary.",
+        ).optional(),
+        vexStatus: z.enum([
+          "STATE_UNSPECIFIED",
+          "AFFECTED",
+          "NOT_AFFECTED",
+          "FIXED",
+          "UNDER_INVESTIGATION",
+        ]).describe(
+          "The rolled-up VEX status. Usually, this should result in an AFFECTED or NOT_AFFECTED vex status.",
+        ).optional(),
+      }).describe("Rollup summary of the exploitability signals.").optional(),
+    }).describe(
+      "Output only. Rollup of exploitability across all PackageIssues in this occurrence.",
+    ).optional(),
     extraDetails: z.string().describe(
       "Occurrence-specific extra details about the vulnerability.",
     ).optional(),
@@ -4235,6 +4355,21 @@ const InputsSchema = z.object({
         "CRITICAL",
       ]).describe(
         "Output only. The distro or language system assigned severity for this vulnerability when that is available and note provider assigned severity when it is not available.",
+      ).optional(),
+      exploitability: z.object({
+        signals: z.array(z.unknown()).describe(
+          "Individual exploitability signals from various sources.",
+        ).optional(),
+        summary: z.object({
+          rationale: z.unknown().describe(
+            "Human-readable explanation of the summary.",
+          ).optional(),
+          vexStatus: z.unknown().describe(
+            "The rolled-up VEX status. Usually, this should result in an AFFECTED or NOT_AFFECTED vex status.",
+          ).optional(),
+        }).describe("Rollup summary of the exploitability signals.").optional(),
+      }).describe(
+        "Output only. Exploitability signals and summary for this package issue.",
       ).optional(),
       fileLocation: z.array(z.object({
         filePath: z.unknown().describe(
@@ -4435,7 +4570,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Container Analysis Occurrences. Registered at `@swamp/gcp/containeranalysis/occurrences`. */
 export const model = {
   type: "@swamp/gcp/containeranalysis/occurrences",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -4664,6 +4799,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

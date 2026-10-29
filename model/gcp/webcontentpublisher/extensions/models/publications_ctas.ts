@@ -167,6 +167,9 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Optional. Configuration specific to newsletter signup CTAs. Only populated if type is `NEWSLETTER_SIGNUP`.",
   ).optional(),
+  state: z.enum(["STATE_UNSPECIFIED", "DRAFT", "ACTIVE"]).describe(
+    "Optional. The current state of this CTA.",
+  ).optional(),
   surveyConfig: z.object({
     customMessage: z.string().describe(
       "Optional. Header prompt shown to readers. If omitted, the server populates the default prompt localized to the parent publication's configured primary language.",
@@ -180,7 +183,7 @@ const GlobalArgsSchema = z.object({
           "Optional. Reporting category label sent to Google Analytics (up to 100 characters).",
         ).optional(),
         displayText: z.string().describe(
-          "Required. The question prompt displayed to readers.",
+          "Optional. The question prompt displayed to readers (up to 140 characters).",
         ).optional(),
         id: z.string().describe(
           "Output only. Server-assigned unique identifier for the custom question.",
@@ -199,6 +202,9 @@ const GlobalArgsSchema = z.object({
       ).optional(),
     })).describe(
       "Optional. Ordered list of questions presented in the survey (1-3 items when `ACTIVE`; 0-3 when `DRAFT`).",
+    ).optional(),
+    reportUrl: z.string().describe(
+      "Output only. Link to the Looker Studio dashboard.",
     ).optional(),
   }).describe(
     "Optional. Configuration specific to survey CTAs. Only populated if type is `SURVEY`.",
@@ -239,6 +245,7 @@ const StateSchema = z.object({
         questionId: z.number(),
       }),
     })),
+    reportUrl: z.string(),
   }).optional(),
   type: z.string().optional(),
 }).passthrough();
@@ -277,6 +284,9 @@ const InputsSchema = z.object({
   }).describe(
     "Optional. Configuration specific to newsletter signup CTAs. Only populated if type is `NEWSLETTER_SIGNUP`.",
   ).optional(),
+  state: z.enum(["STATE_UNSPECIFIED", "DRAFT", "ACTIVE"]).describe(
+    "Optional. The current state of this CTA.",
+  ).optional(),
   surveyConfig: z.object({
     customMessage: z.string().describe(
       "Optional. Header prompt shown to readers. If omitted, the server populates the default prompt localized to the parent publication's configured primary language.",
@@ -290,7 +300,7 @@ const InputsSchema = z.object({
           "Optional. Reporting category label sent to Google Analytics (up to 100 characters).",
         ).optional(),
         displayText: z.string().describe(
-          "Required. The question prompt displayed to readers.",
+          "Optional. The question prompt displayed to readers (up to 140 characters).",
         ).optional(),
         id: z.string().describe(
           "Output only. Server-assigned unique identifier for the custom question.",
@@ -309,6 +319,9 @@ const InputsSchema = z.object({
       ).optional(),
     })).describe(
       "Optional. Ordered list of questions presented in the survey (1-3 items when `ACTIVE`; 0-3 when `DRAFT`).",
+    ).optional(),
+    reportUrl: z.string().describe(
+      "Output only. Link to the Looker Studio dashboard.",
     ).optional(),
   }).describe(
     "Optional. Configuration specific to survey CTAs. Only populated if type is `SURVEY`.",
@@ -350,7 +363,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Web Content Publisher Publications.Ctas. Registered at `@swamp/gcp/webcontentpublisher/publications-ctas`. */
 export const model = {
   type: "@swamp/gcp/webcontentpublisher/publications-ctas",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.07.17.1",
@@ -422,6 +435,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.29.1",
+      description: "Added: state",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -458,6 +476,7 @@ export const model = {
         if (g["newsletterConfig"] !== undefined) {
           body["newsletterConfig"] = g["newsletterConfig"];
         }
+        if (g["state"] !== undefined) body["state"] = g["state"];
         if (g["surveyConfig"] !== undefined) {
           body["surveyConfig"] = g["surveyConfig"];
         }
@@ -589,6 +608,7 @@ export const model = {
         if (g["newsletterConfig"] !== undefined) {
           body["newsletterConfig"] = g["newsletterConfig"];
         }
+        if (g["state"] !== undefined) body["state"] = g["state"];
         if (g["surveyConfig"] !== undefined) {
           body["surveyConfig"] = g["surveyConfig"];
         }

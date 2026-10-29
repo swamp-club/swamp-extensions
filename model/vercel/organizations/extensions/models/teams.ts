@@ -58,6 +58,7 @@ const ResourceSchema = z.object({
   avatar: z.string().nullable().optional(),
   billingPlan: z.string().nullable().optional(),
   createdAt: z.string().nullable().optional(),
+  dsyncMode: z.string().nullable().optional(),
   memberCount: z.number().nullable().optional(),
   name: z.string().nullable().optional(),
   organizationId: z.string().nullable().optional(),
@@ -84,7 +85,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Teams. Registered at `@swamp/vercel/organizations/teams`. */
 export const model = {
   type: "@swamp/vercel/organizations/teams",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.10.20.1",
@@ -98,6 +99,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -185,6 +191,9 @@ export const model = {
         if (g.avatar !== undefined) filters.push(["avatar", String(g.avatar)]);
         if (g.createdAt !== undefined) {
           filters.push(["createdAt", String(g.createdAt)]);
+        }
+        if (g.dsyncMode !== undefined) {
+          filters.push(["dsyncMode", String(g.dsyncMode)]);
         }
         if (g.memberCount !== undefined) {
           filters.push(["memberCount", String(g.memberCount)]);

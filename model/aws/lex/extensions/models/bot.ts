@@ -66,7 +66,8 @@ const GenerativeAISettingsSchema = z.object({
       BedrockModelSpecification: BedrockModelSpecificationSchema.optional(),
     }).optional(),
     NluImprovementSpecification: z.object({
-      AssistedNluMode: z.enum(["Primary", "Fallback"]).optional(),
+      AssistedNluMode: z.enum(["Primary", "Fallback", "DialogManager"])
+        .optional(),
       IntentDisambiguationSettings: IntentDisambiguationSettingsSchema
         .optional(),
       Enabled: z.boolean(),
@@ -474,7 +475,7 @@ const ElicitationCodeHookInvocationSettingSchema = z.object({
 });
 
 const IntentConfirmationSettingSchema = z.object({
-  PromptSpecification: PromptSpecificationSchema,
+  PromptSpecification: PromptSpecificationSchema.optional(),
   ConfirmationResponse: ResponseSpecificationSchema.optional(),
   DeclinationConditional: ConditionalSpecificationSchema.optional(),
   FailureConditional: ConditionalSpecificationSchema.optional(),
@@ -497,10 +498,10 @@ const StillWaitingResponseSpecificationSchema = z.object({
 });
 
 const WaitAndContinueSpecificationSchema = z.object({
-  WaitingResponse: ResponseSpecificationSchema,
+  WaitingResponse: ResponseSpecificationSchema.optional(),
   StillWaitingResponse: StillWaitingResponseSpecificationSchema.optional(),
   IsActive: z.boolean().optional(),
-  ContinueResponse: ResponseSpecificationSchema,
+  ContinueResponse: ResponseSpecificationSchema.optional(),
 });
 
 const SlotCaptureSettingSchema = z.object({
@@ -950,7 +951,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lex Bot. Registered at `@swamp/aws/lex/bot`. */
 export const model = {
   type: "@swamp/aws/lex/bot",
-  version: "2026.10.25.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1024,6 +1025,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

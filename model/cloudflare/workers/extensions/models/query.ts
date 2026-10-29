@@ -288,6 +288,8 @@ const ResourceSchema = z.object({
         service: z.string().optional(),
         spanId: z.string().optional(),
         spanName: z.string().optional(),
+        spanStatus: z.string().optional(),
+        spanStatusMessage: z.string().optional(),
         stackId: z.string().optional(),
         startTime: z.number().optional(),
         startTimeNs: z.string().optional(),
@@ -557,7 +559,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Query. Registered at `@swamp/cloudflare/workers/query`. */
 export const model = {
   type: "@swamp/cloudflare/workers/query",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -631,6 +633,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

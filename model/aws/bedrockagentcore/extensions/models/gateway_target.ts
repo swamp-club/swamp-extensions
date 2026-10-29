@@ -38,6 +38,19 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const S3CertificateConfigurationSchema = z.object({
+  Uri: z.string().regex(new RegExp("^s3://.{1,2043}$")),
+  BucketOwnerAccountId: z.string().regex(new RegExp("^[0-9]{12}$")).optional(),
+});
+
+const SecretsManagerCertificateConfigurationSchema = z.object({
+  SecretArn: z.string().regex(
+    new RegExp(
+      "^arn:aws(-[^:]+)?:secretsmanager:[a-z0-9-]+:[0-9]{12}:secret:.+$",
+    ),
+  ),
+});
+
 const OAuthCredentialProviderSchema = z.object({
   ProviderArn: z.string().regex(
     new RegExp("^arn:([^:]*):([^:]*):([^:]*):([0-9]{12})?:(.+)$"),
@@ -129,7 +142,7 @@ const ToolDefinitionSchema = z.object({
 const McpLambdaTargetConfigurationSchema = z.object({
   LambdaArn: z.string().min(1).max(170).regex(
     new RegExp(
-      "^arn:(aws[a-zA-Z-]*)?:lambda:([a-z]{2}(-gov)?-[a-z]+-\\d{1}):(\\d{12}):function:([a-zA-Z0-9-_.]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?$",
+      "^arn:(aws[a-zA-Z-]*)?:lambda:([a-z0-9-]+):(\\d{12}):function:([a-zA-Z0-9-_.]+)(:(\\$LATEST|[a-zA-Z0-9-_]+))?$",
     ),
   ),
   ToolSchema: z.object({
@@ -293,6 +306,10 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
+  CertificateConfigurations: z.array(z.object({
+    S3: S3CertificateConfigurationSchema.optional(),
+    SecretsManager: SecretsManagerCertificateConfigurationSchema.optional(),
+  })).optional(),
   CredentialProviderConfigurations: z.array(
     CredentialProviderConfigurationSchema,
   ).optional(),
@@ -350,6 +367,10 @@ const StateSchema = z.object({
       UserId: z.string(),
     }),
   }).optional(),
+  CertificateConfigurations: z.array(z.object({
+    S3: S3CertificateConfigurationSchema,
+    SecretsManager: SecretsManagerCertificateConfigurationSchema,
+  })).optional(),
   CreatedAt: z.string().optional(),
   CredentialProviderConfigurations: z.array(
     CredentialProviderConfigurationSchema,
@@ -415,6 +436,10 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
+  CertificateConfigurations: z.array(z.object({
+    S3: S3CertificateConfigurationSchema.optional(),
+    SecretsManager: SecretsManagerCertificateConfigurationSchema.optional(),
+  })).optional(),
   CredentialProviderConfigurations: z.array(
     CredentialProviderConfigurationSchema,
   ).optional(),
@@ -484,7 +509,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore GatewayTarget. Registered at `@swamp/aws/bedrockagentcore/gateway-target`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/gateway-target",
-  version: "2026.10.25.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -574,6 +599,11 @@ export const model = {
     {
       toVersion: "2026.10.25.1",
       description: "Added: TargetConfiguration",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
+      description: "Added: CertificateConfigurations",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

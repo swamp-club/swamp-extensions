@@ -709,6 +709,28 @@ const GlobalArgsSchema = z.object({
   vm: z.boolean().describe(
     "Whether to deploy this version in a container on a virtual machine.",
   ).optional(),
+  vpcAccess: z.object({
+    networkInterfaces: z.array(z.object({
+      network: z.string().describe(
+        "Optional. The VPC network that the App Engine resource will be able to send traffic to. At least one of network or subnetwork must be specified. If both network and subnetwork are specified, the given VPC subnetwork must belong to the given VPC network. If network is not specified, it will be looked up from the subnetwork. Could be either a short name or a full path. e.g. {VPC_NETWORK} or projects/{HOST_PROJECT_ID}/global/networks/{VPC_NETWORK}",
+      ).optional(),
+      subnet: z.string().describe(
+        "Optional. The VPC subnetwork that the App Engine resource will get IPs from. At least one of network or subnetwork must be specified. If both network and subnetwork are specified, the given VPC subnetwork must belong to the given VPC network. If subnetwork is not specified, the subnetwork with the same name with the network will be used. Could be either a short name or a full path. e.g. {SUBNET_NAME} or projects/{HOST_PROJECT_ID}/regions/{REGION}/subnetworks/{SUBNET_NAME}",
+      ).optional(),
+      tags: z.array(z.string()).describe(
+        "Optional. The network tags that will be applied to this App Engine resource.",
+      ).optional(),
+    })).describe(
+      "The Direct VPC configuration. Currently only single network interface is supported.",
+    ).optional(),
+    vpcEgress: z.enum([
+      "VPC_EGRESS_UNSPECIFIED",
+      "ALL_TRAFFIC",
+      "PRIVATE_IP_RANGES",
+    ]).describe(
+      "The traffic egress setting for the VPC network interface, controlling what traffic is diverted through it.",
+    ).optional(),
+  }).describe("Enables VPC access connectivity for standard apps.").optional(),
   vpcAccessConnector: z.object({
     egressSetting: z.enum([
       "EGRESS_SETTING_UNSPECIFIED",
@@ -912,6 +934,14 @@ const StateSchema = z.object({
   threadsafe: z.boolean().optional(),
   versionUrl: z.string().optional(),
   vm: z.boolean().optional(),
+  vpcAccess: z.object({
+    networkInterfaces: z.array(z.object({
+      network: z.string(),
+      subnet: z.string(),
+      tags: z.array(z.string()),
+    })),
+    vpcEgress: z.string(),
+  }).optional(),
   vpcAccessConnector: z.object({
     egressSetting: z.string(),
     name: z.string(),
@@ -1443,6 +1473,28 @@ const InputsSchema = z.object({
   vm: z.boolean().describe(
     "Whether to deploy this version in a container on a virtual machine.",
   ).optional(),
+  vpcAccess: z.object({
+    networkInterfaces: z.array(z.object({
+      network: z.string().describe(
+        "Optional. The VPC network that the App Engine resource will be able to send traffic to. At least one of network or subnetwork must be specified. If both network and subnetwork are specified, the given VPC subnetwork must belong to the given VPC network. If network is not specified, it will be looked up from the subnetwork. Could be either a short name or a full path. e.g. {VPC_NETWORK} or projects/{HOST_PROJECT_ID}/global/networks/{VPC_NETWORK}",
+      ).optional(),
+      subnet: z.string().describe(
+        "Optional. The VPC subnetwork that the App Engine resource will get IPs from. At least one of network or subnetwork must be specified. If both network and subnetwork are specified, the given VPC subnetwork must belong to the given VPC network. If subnetwork is not specified, the subnetwork with the same name with the network will be used. Could be either a short name or a full path. e.g. {SUBNET_NAME} or projects/{HOST_PROJECT_ID}/regions/{REGION}/subnetworks/{SUBNET_NAME}",
+      ).optional(),
+      tags: z.array(z.string()).describe(
+        "Optional. The network tags that will be applied to this App Engine resource.",
+      ).optional(),
+    })).describe(
+      "The Direct VPC configuration. Currently only single network interface is supported.",
+    ).optional(),
+    vpcEgress: z.enum([
+      "VPC_EGRESS_UNSPECIFIED",
+      "ALL_TRAFFIC",
+      "PRIVATE_IP_RANGES",
+    ]).describe(
+      "The traffic egress setting for the VPC network interface, controlling what traffic is diverted through it.",
+    ).optional(),
+  }).describe("Enables VPC access connectivity for standard apps.").optional(),
   vpcAccessConnector: z.object({
     egressSetting: z.enum([
       "EGRESS_SETTING_UNSPECIFIED",
@@ -1492,7 +1544,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud App Engine Admin Apps.Services.Versions. Registered at `@swamp/gcp/appengine/apps-services-versions`. */
 export const model = {
   type: "@swamp/gcp/appengine/apps-services-versions",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1644,6 +1696,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.29.1",
+      description: "Added: vpcAccess",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1757,6 +1814,7 @@ export const model = {
         }
         if (g["threadsafe"] !== undefined) body["threadsafe"] = g["threadsafe"];
         if (g["vm"] !== undefined) body["vm"] = g["vm"];
+        if (g["vpcAccess"] !== undefined) body["vpcAccess"] = g["vpcAccess"];
         if (g["vpcAccessConnector"] !== undefined) {
           body["vpcAccessConnector"] = g["vpcAccessConnector"];
         }
@@ -1952,6 +2010,7 @@ export const model = {
         }
         if (g["threadsafe"] !== undefined) body["threadsafe"] = g["threadsafe"];
         if (g["vm"] !== undefined) body["vm"] = g["vm"];
+        if (g["vpcAccess"] !== undefined) body["vpcAccess"] = g["vpcAccess"];
         if (g["vpcAccessConnector"] !== undefined) {
           body["vpcAccessConnector"] = g["vpcAccessConnector"];
         }

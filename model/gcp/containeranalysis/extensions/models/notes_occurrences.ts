@@ -692,6 +692,18 @@ const StateSchema = z.object({
       vulnerableSystemIntegrityImpact: z.string(),
     }),
     effectiveSeverity: z.string(),
+    exploitability: z.object({
+      signals: z.array(z.object({
+        rationale: z.string(),
+        source: z.string(),
+        vexJustification: z.string(),
+        vexStatus: z.string(),
+      })),
+      summary: z.object({
+        rationale: z.string(),
+        vexStatus: z.string(),
+      }),
+    }),
     extraDetails: z.string(),
     fixAvailable: z.boolean(),
     longDescription: z.string(),
@@ -707,6 +719,13 @@ const StateSchema = z.object({
         revision: z.string(),
       }),
       effectiveSeverity: z.string(),
+      exploitability: z.object({
+        signals: z.array(z.unknown()),
+        summary: z.object({
+          rationale: z.unknown(),
+          vexStatus: z.unknown(),
+        }),
+      }),
       fileLocation: z.array(z.object({
         filePath: z.unknown(),
         layerDetails: z.unknown(),
@@ -807,7 +826,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Container Analysis Notes.Occurrences. Registered at `@swamp/gcp/containeranalysis/notes-occurrences`. */
 export const model = {
   type: "@swamp/gcp/containeranalysis/notes-occurrences",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1036,6 +1055,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

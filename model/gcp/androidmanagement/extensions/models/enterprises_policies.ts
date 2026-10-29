@@ -1527,6 +1527,113 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "The system update policy, which controls how OS updates are applied. If the update type is WINDOWED, the update window will automatically apply to Play app updates as well.Note: Google Play system updates (https://source.android.com/docs/core/ota/modular-system) (also called Mainline updates) are automatically downloaded and require a device reboot to be installed. Refer to the mainline section in Manage system updates (https://developer.android.com/work/dpc/system-updates#mainline) for further details.If this policy is set, it takes precedence over unifiedUpdatePolicy for OEM OS updates. For more information, see unifiedUpdatePolicy.",
   ).optional(),
+  unifiedUpdatePolicy: z.object({
+    rules: z.array(z.object({
+      id: z.string().describe(
+        "Required. An EMM-defined identifier for this rule, of length at most 64 characters. This must not be empty. Within a UnifiedUpdatePolicy, different rules must have different ids.",
+      ).optional(),
+      outcome: z.object({
+        outcomeType: z.enum([
+          "OUTCOME_TYPE_UNSPECIFIED",
+          "FORCE",
+          "USER_PROMPT",
+          "BLOCK",
+        ]).describe("Optional. Determines how to proceed with the update.")
+          .optional(),
+      }).describe("Optional. Determines how to proceed with the update.")
+        .optional(),
+      predicate: z.object({
+        dateLowerBound: z.object({
+          day: z.unknown().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.unknown().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.unknown().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Optional. A lower bound on the current date, in the device time zone. If not set, always evaluates to true.",
+        ).optional(),
+        dateUpperBound: z.object({
+          day: z.unknown().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.unknown().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.unknown().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Optional. An upper bound on the current date, in the device time zone. If not set, always evaluates to true.",
+        ).optional(),
+        daysOfWeek: z.array(z.unknown()).describe(
+          "Optional. Evaluates to true if this list is empty or if the current day of the week in the device's local time is in this list.",
+        ).optional(),
+        timeOfDayLowerBound: z.object({
+          hours: z.unknown().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.unknown().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.unknown().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.unknown().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Optional. A lower bound on the current time of the day, evaluated as hh:00:00 in the device time zone. Must specify only the hour (0-23). The policy will be rejected if minutes, seconds, or nanos are set. If not set, always evaluates to true.",
+        ).optional(),
+        timeOfDayUpperBound: z.object({
+          hours: z.unknown().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.unknown().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.unknown().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.unknown().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Optional. An upper bound on the current time of the day, evaluated as hh:00:00 in the device time zone. Must specify only the hour (0-23). The policy will be rejected if minutes, seconds, or nanos are set. If not set, always evaluates to true.The window closes at the specified hour (for example, a lower bound of 14 and an upper bound of 15 covers 14:00 to 15:00). When both bounds are set in the same rule, timeOfDayUpperBound must be strictly greater than timeOfDayLowerBound for the window to match; if timeOfDayUpperBound is less than or equal to timeOfDayLowerBound, the predicate evaluates to false. Setting timeOfDayUpperBound to 0 (00:00) evaluates to false for the entire day. To extend a window to the end of the day (24:00), omit timeOfDayUpperBound. To define an overnight window spanning midnight, use two rules: an evening rule with only timeOfDayLowerBound set and a morning rule with only timeOfDayUpperBound set (targeting the following day if daysOfWeek is set).",
+        ).optional(),
+        updateAgeLowerBound: z.string().describe(
+          "Optional. A lower bound on the amount of time for which the update (that is, the specific build or version) has been available to the device. This must be a multiple of 24 hours.",
+        ).optional(),
+        updateAgeUpperBound: z.string().describe(
+          "Optional. An upper bound on the amount of time for which the update has been available. If not set or set to zero, always evaluates to true. This must be a multiple of 24 hours.",
+        ).optional(),
+      }).describe(
+        "Optional. The predicate of the rule, which can evaluate to true or false. See rules for how this is used. If not set, the predicate always evaluates to true.",
+      ).optional(),
+      stages: z.array(
+        z.enum(["STAGE_UNSPECIFIED", "STAGE_DOWNLOAD", "STAGE_APPLY"]),
+      ).describe(
+        "Optional. The stages at which the rule is evaluated. If this list is empty, the rule is evaluated at all stages. Specifying stages is supported only for OS_UPDATE_WITHOUT_API_LEVEL_CHANGE and OS_UPDATE_WITH_API_LEVEL_CHANGE. For SINGLE_APP, GOOGLE_SYSTEM_SERVICES, and GOOGLE_PLAY_SYSTEM_UPDATE, this field is ignored and the rule is evaluated at all stages.",
+      ).optional(),
+      targets: z.array(z.object({
+        singleApp: z.unknown().describe(
+          "Details of an app on Google System services.",
+        ).optional(),
+        targetType: z.unknown().describe(
+          "Required. The type of software component that can be updated.",
+        ).optional(),
+      })).describe(
+        "Required. Targets that this rule applies to. This can have multiple targets here for convenience, and that is equivalent to having multiple rules in sequence each having one target, in the same order in which targets are listed here. This list must not be empty and must not have duplicates.",
+      ).optional(),
+    })).describe(
+      "Optional. When the policy is evaluated for a given target, all rules which refer to that target are evaluated in sequence. The first rule for which the predicate evaluates to true is considered, and its outcome is used. If no rule matches, the default update behavior applies. In other words, this behaves like a chained if-else statement.However, if an update has been available for more than a certain amount of time, any outcome of BLOCK is automatically changed to the default update behavior. At most 100 rules are allowed.",
+    ).optional(),
+  }).describe(
+    "Optional. The Unified Update Control policy, for controlling updates of software components on the device. Supported only on company-owned devices.The targets OS_UPDATE_WITH_API_LEVEL_CHANGE and OS_UPDATE_WITHOUT_API_LEVEL_CHANGE are supported only on devices where the OEM has integrated with Unified Update Controls, and are ignored otherwise. If systemUpdate is set, then that policy takes precedence and the targets OS_UPDATE_WITH_API_LEVEL_CHANGE and OS_UPDATE_WITHOUT_API_LEVEL_CHANGE are ignored here.",
+  ).optional(),
   uninstallAppsDisabled: z.boolean().describe(
     "Whether user uninstallation of applications is disabled. This prevents apps from being uninstalled, even those removed using applications",
   ).optional(),
@@ -1969,6 +2076,46 @@ const StateSchema = z.object({
     type: z.string(),
   }).optional(),
   tetheringConfigDisabled: z.boolean().optional(),
+  unifiedUpdatePolicy: z.object({
+    rules: z.array(z.object({
+      id: z.string(),
+      outcome: z.object({
+        outcomeType: z.string(),
+      }),
+      predicate: z.object({
+        dateLowerBound: z.object({
+          day: z.unknown(),
+          month: z.unknown(),
+          year: z.unknown(),
+        }),
+        dateUpperBound: z.object({
+          day: z.unknown(),
+          month: z.unknown(),
+          year: z.unknown(),
+        }),
+        daysOfWeek: z.array(z.unknown()),
+        timeOfDayLowerBound: z.object({
+          hours: z.unknown(),
+          minutes: z.unknown(),
+          nanos: z.unknown(),
+          seconds: z.unknown(),
+        }),
+        timeOfDayUpperBound: z.object({
+          hours: z.unknown(),
+          minutes: z.unknown(),
+          nanos: z.unknown(),
+          seconds: z.unknown(),
+        }),
+        updateAgeLowerBound: z.string(),
+        updateAgeUpperBound: z.string(),
+      }),
+      stages: z.array(z.string()),
+      targets: z.array(z.object({
+        singleApp: z.unknown(),
+        targetType: z.unknown(),
+      })),
+    })),
+  }).optional(),
   uninstallAppsDisabled: z.boolean().optional(),
   unmuteMicrophoneDisabled: z.boolean().optional(),
   usageLog: z.object({
@@ -3384,6 +3531,113 @@ const InputsSchema = z.object({
   }).describe(
     "The system update policy, which controls how OS updates are applied. If the update type is WINDOWED, the update window will automatically apply to Play app updates as well.Note: Google Play system updates (https://source.android.com/docs/core/ota/modular-system) (also called Mainline updates) are automatically downloaded and require a device reboot to be installed. Refer to the mainline section in Manage system updates (https://developer.android.com/work/dpc/system-updates#mainline) for further details.If this policy is set, it takes precedence over unifiedUpdatePolicy for OEM OS updates. For more information, see unifiedUpdatePolicy.",
   ).optional(),
+  unifiedUpdatePolicy: z.object({
+    rules: z.array(z.object({
+      id: z.string().describe(
+        "Required. An EMM-defined identifier for this rule, of length at most 64 characters. This must not be empty. Within a UnifiedUpdatePolicy, different rules must have different ids.",
+      ).optional(),
+      outcome: z.object({
+        outcomeType: z.enum([
+          "OUTCOME_TYPE_UNSPECIFIED",
+          "FORCE",
+          "USER_PROMPT",
+          "BLOCK",
+        ]).describe("Optional. Determines how to proceed with the update.")
+          .optional(),
+      }).describe("Optional. Determines how to proceed with the update.")
+        .optional(),
+      predicate: z.object({
+        dateLowerBound: z.object({
+          day: z.unknown().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.unknown().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.unknown().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Optional. A lower bound on the current date, in the device time zone. If not set, always evaluates to true.",
+        ).optional(),
+        dateUpperBound: z.object({
+          day: z.unknown().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.unknown().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.unknown().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Optional. An upper bound on the current date, in the device time zone. If not set, always evaluates to true.",
+        ).optional(),
+        daysOfWeek: z.array(z.unknown()).describe(
+          "Optional. Evaluates to true if this list is empty or if the current day of the week in the device's local time is in this list.",
+        ).optional(),
+        timeOfDayLowerBound: z.object({
+          hours: z.unknown().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.unknown().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.unknown().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.unknown().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Optional. A lower bound on the current time of the day, evaluated as hh:00:00 in the device time zone. Must specify only the hour (0-23). The policy will be rejected if minutes, seconds, or nanos are set. If not set, always evaluates to true.",
+        ).optional(),
+        timeOfDayUpperBound: z.object({
+          hours: z.unknown().describe(
+            'Hours of a day in 24 hour format. Must be greater than or equal to 0 and typically must be less than or equal to 23. An API may choose to allow the value "24:00:00" for scenarios like business closing time.',
+          ).optional(),
+          minutes: z.unknown().describe(
+            "Minutes of an hour. Must be greater than or equal to 0 and less than or equal to 59.",
+          ).optional(),
+          nanos: z.unknown().describe(
+            "Fractions of seconds, in nanoseconds. Must be greater than or equal to 0 and less than or equal to 999,999,999.",
+          ).optional(),
+          seconds: z.unknown().describe(
+            "Seconds of a minute. Must be greater than or equal to 0 and typically must be less than or equal to 59. An API may allow the value 60 if it allows leap-seconds.",
+          ).optional(),
+        }).describe(
+          "Optional. An upper bound on the current time of the day, evaluated as hh:00:00 in the device time zone. Must specify only the hour (0-23). The policy will be rejected if minutes, seconds, or nanos are set. If not set, always evaluates to true.The window closes at the specified hour (for example, a lower bound of 14 and an upper bound of 15 covers 14:00 to 15:00). When both bounds are set in the same rule, timeOfDayUpperBound must be strictly greater than timeOfDayLowerBound for the window to match; if timeOfDayUpperBound is less than or equal to timeOfDayLowerBound, the predicate evaluates to false. Setting timeOfDayUpperBound to 0 (00:00) evaluates to false for the entire day. To extend a window to the end of the day (24:00), omit timeOfDayUpperBound. To define an overnight window spanning midnight, use two rules: an evening rule with only timeOfDayLowerBound set and a morning rule with only timeOfDayUpperBound set (targeting the following day if daysOfWeek is set).",
+        ).optional(),
+        updateAgeLowerBound: z.string().describe(
+          "Optional. A lower bound on the amount of time for which the update (that is, the specific build or version) has been available to the device. This must be a multiple of 24 hours.",
+        ).optional(),
+        updateAgeUpperBound: z.string().describe(
+          "Optional. An upper bound on the amount of time for which the update has been available. If not set or set to zero, always evaluates to true. This must be a multiple of 24 hours.",
+        ).optional(),
+      }).describe(
+        "Optional. The predicate of the rule, which can evaluate to true or false. See rules for how this is used. If not set, the predicate always evaluates to true.",
+      ).optional(),
+      stages: z.array(
+        z.enum(["STAGE_UNSPECIFIED", "STAGE_DOWNLOAD", "STAGE_APPLY"]),
+      ).describe(
+        "Optional. The stages at which the rule is evaluated. If this list is empty, the rule is evaluated at all stages. Specifying stages is supported only for OS_UPDATE_WITHOUT_API_LEVEL_CHANGE and OS_UPDATE_WITH_API_LEVEL_CHANGE. For SINGLE_APP, GOOGLE_SYSTEM_SERVICES, and GOOGLE_PLAY_SYSTEM_UPDATE, this field is ignored and the rule is evaluated at all stages.",
+      ).optional(),
+      targets: z.array(z.object({
+        singleApp: z.unknown().describe(
+          "Details of an app on Google System services.",
+        ).optional(),
+        targetType: z.unknown().describe(
+          "Required. The type of software component that can be updated.",
+        ).optional(),
+      })).describe(
+        "Required. Targets that this rule applies to. This can have multiple targets here for convenience, and that is equivalent to having multiple rules in sequence each having one target, in the same order in which targets are listed here. This list must not be empty and must not have duplicates.",
+      ).optional(),
+    })).describe(
+      "Optional. When the policy is evaluated for a given target, all rules which refer to that target are evaluated in sequence. The first rule for which the predicate evaluates to true is considered, and its outcome is used. If no rule matches, the default update behavior applies. In other words, this behaves like a chained if-else statement.However, if an update has been available for more than a certain amount of time, any outcome of BLOCK is automatically changed to the default update behavior. At most 100 rules are allowed.",
+    ).optional(),
+  }).describe(
+    "Optional. The Unified Update Control policy, for controlling updates of software components on the device. Supported only on company-owned devices.The targets OS_UPDATE_WITH_API_LEVEL_CHANGE and OS_UPDATE_WITHOUT_API_LEVEL_CHANGE are supported only on devices where the OEM has integrated with Unified Update Controls, and are ignored otherwise. If systemUpdate is set, then that policy takes precedence and the targets OS_UPDATE_WITH_API_LEVEL_CHANGE and OS_UPDATE_WITHOUT_API_LEVEL_CHANGE are ignored here.",
+  ).optional(),
   uninstallAppsDisabled: z.boolean().describe(
     "Whether user uninstallation of applications is disabled. This prevents apps from being uninstalled, even those removed using applications",
   ).optional(),
@@ -3461,7 +3715,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Management Enterprises.Policies. Registered at `@swamp/gcp/androidmanagement/enterprises-policies`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-policies",
-  version: "2026.10.27.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3681,6 +3935,11 @@ export const model = {
     {
       toVersion: "2026.10.27.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
+      description: "Added: unifiedUpdatePolicy",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -4016,6 +4275,9 @@ export const model = {
         }
         if (g["systemUpdate"] !== undefined) {
           body["systemUpdate"] = g["systemUpdate"];
+        }
+        if (g["unifiedUpdatePolicy"] !== undefined) {
+          body["unifiedUpdatePolicy"] = g["unifiedUpdatePolicy"];
         }
         if (g["uninstallAppsDisabled"] !== undefined) {
           body["uninstallAppsDisabled"] = g["uninstallAppsDisabled"];

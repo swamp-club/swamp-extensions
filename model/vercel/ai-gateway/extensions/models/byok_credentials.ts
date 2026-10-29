@@ -72,6 +72,7 @@ const ResourceSchema = z.object({
   name: z.string().nullable().optional(),
   ownerId: z.string().nullable().optional(),
   providerSlug: z.string().nullable().optional(),
+  rotatedAt: z.number().nullable().optional(),
   updatedAt: z.number().nullable().optional(),
   zeroDataRetention: z.boolean().nullable().optional(),
 }).passthrough();
@@ -97,7 +98,14 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Byok Credentials. Registered at `@swamp/vercel/ai-gateway/byok-credentials`. */
 export const model = {
   type: "@swamp/vercel/ai-gateway/byok-credentials",
-  version: "2026.10.28.1",
+  version: "2026.10.29.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

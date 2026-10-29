@@ -298,6 +298,32 @@ const AthenaTableReferenceSchema = z.object({
     .optional(),
 });
 
+const DatabricksDeltaSharingConnectionSchema = z.object({
+  DeltaShareEndpoint: z.string().min(10).max(1024).regex(
+    new RegExp(
+      "^https://(?:[a-zA-Z0-9.-]+\\.cloud\\.databricks\\.com/api/2\\.0/delta-sharing|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\\.opensharing\\.[a-z0-9-]+\\.cloud\\.databricks\\.com/api/2\\.0/opensharing)/metastores/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/recipients/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
+    ),
+  ),
+  ShareName: z.string().min(1).max(255).regex(
+    new RegExp("^[\\p{L}\\p{M}\\p{N}\\p{Pc}\\p{Pd}]+$", "u"),
+  ),
+});
+
+const DatabricksTableReferenceSchema = z.object({
+  SchemaName: z.string().min(1).max(255).regex(
+    new RegExp("^[\\p{L}\\p{M}\\p{N}\\p{Pc}\\p{Pd}]+$", "u"),
+  ),
+  TableName: z.string().min(1).max(255).regex(
+    new RegExp("^[\\p{L}\\p{M}\\p{N}\\p{Pc}\\p{Pd}]+$", "u"),
+  ),
+  WorkspaceUrl: z.string().min(10).max(256).regex(
+    new RegExp("^https://[a-zA-Z0-9.-]+\\.cloud\\.databricks\\.com/?$"),
+  ),
+  ConnectionType: z.object({
+    DeltaSharing: DatabricksDeltaSharingConnectionSchema.optional(),
+  }),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -340,6 +366,7 @@ const GlobalArgsSchema = z.object({
     Glue: GlueTableReferenceSchema.optional(),
     Snowflake: SnowflakeTableReferenceSchema.optional(),
     Athena: AthenaTableReferenceSchema.optional(),
+    Databricks: DatabricksTableReferenceSchema.optional(),
   }),
 });
 
@@ -357,6 +384,7 @@ const StateSchema = z.object({
     Glue: GlueTableReferenceSchema,
     Snowflake: SnowflakeTableReferenceSchema,
     Athena: AthenaTableReferenceSchema,
+    Databricks: DatabricksTableReferenceSchema,
   }).optional(),
 }).passthrough();
 
@@ -394,6 +422,7 @@ const InputsSchema = z.object({
     Glue: GlueTableReferenceSchema.optional(),
     Snowflake: SnowflakeTableReferenceSchema.optional(),
     Athena: AthenaTableReferenceSchema.optional(),
+    Databricks: DatabricksTableReferenceSchema.optional(),
   }).optional(),
 });
 
@@ -416,7 +445,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CleanRooms ConfiguredTable. Registered at `@swamp/aws/cleanrooms/configured-table`. */
 export const model = {
   type: "@swamp/aws/cleanrooms/configured-table",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -480,6 +509,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

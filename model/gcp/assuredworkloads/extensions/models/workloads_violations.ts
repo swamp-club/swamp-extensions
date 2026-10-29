@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Assured Workloads Workloads.Violations.
  *
- * Workload monitoring Violation.
+ * A compliance violation that's detected by Assured Workloads monitoring. A violation is created when an organization policy or a resource in a workload (or a Data Boundary scope) changes in a way that doesn't comply with the controls of the applicable compliance regime or framework.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -213,7 +213,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Assured Workloads Workloads.Violations. Registered at `@swamp/gcp/assuredworkloads/workloads-violations`. */
 export const model = {
   type: "@swamp/gcp/assuredworkloads/workloads-violations",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -365,12 +365,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Workload monitoring Violation.",
+      description:
+        "A compliance violation that's detected by Assured Workloads monitoring. A vio...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -481,17 +487,20 @@ export const model = {
       description: "List violations resources",
       arguments: z.object({
         filter: z.string().describe(
-          "Optional. A custom filter for filtering by the Violations properties.",
+          'Optional. A filter expression that restricts the violations that are returned. The syntax follows [AIP-160](https://google.aip.dev/160). Only the equality operator (`=`) is supported, and expressions can be combined with `AND`, `OR`, and `NOT`. When `view` is `VIOLATION_VIEW_DATA_BOUNDARY`, the following fields are supported: `violationId`, `category`, `state` (`UNRESOLVED`, `RESOLVED`, or `EXCEPTION`), `violationType` (`ORG_POLICY` or `RESOURCE`), `resourceType`, `resourceName`, `project`, `associatedOrgPolicyViolationId`, `cloudControlName`, `workloadDisplayName`, and `complianceType` (a framework ID). Example: `state = "UNRESOLVED" AND complianceType = "builtin-fedramp-high"`',
         ).optional(),
         interval_endTime: z.string().describe("The end of the time window.")
           .optional(),
         interval_startTime: z.string().describe("The start of the time window.")
           .optional(),
-        orderBy: z.string().describe("Optional. Actionable sorting delegation.")
-          .optional(),
-        pageSize: z.number().describe("Optional. Page size.").optional(),
+        orderBy: z.string().describe(
+          "Optional. A comma-separated list of fields to sort the results by. The default sort order is ascending; to sort in descending order, append ` desc` to the field name. For example, `update_time desc,category`. When `view` is `VIOLATION_VIEW_DATA_BOUNDARY`, the following fields are supported: `begin_time`, `update_time`, `resource_type`, `state`, and `category`. If not specified, results are sorted by `begin_time` in descending order.",
+        ).optional(),
+        pageSize: z.number().describe(
+          "Optional. The maximum number of violations to return. The service might return fewer violations than this value. If unspecified, at most 100 violations are returned. The maximum value is 1000; values above 1000 are coerced to 1000.",
+        ).optional(),
         view: z.string().describe(
-          "Optional. Specifies the violation view(AssuredWorkloads or DataBoundary) for fetching violations.",
+          "Optional. The violation view (`VIOLATION_VIEW_ASSURED_WORKLOADS` or `VIOLATION_VIEW_DATA_BOUNDARY`) to list violations for. If not specified, `VIOLATION_VIEW_ASSURED_WORKLOADS` is used.",
         ).optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",

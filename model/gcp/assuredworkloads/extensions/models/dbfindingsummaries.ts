@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Assured Workloads DbFindingSummaries.
  *
- * The details for a finding.
+ * A summary of the active findings for a finding category in a Data Boundary scope.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -144,7 +144,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Assured Workloads DbFindingSummaries. Registered at `@swamp/gcp/assuredworkloads/dbfindingsummaries`. */
 export const model = {
   type: "@swamp/gcp/assuredworkloads/dbfindingsummaries",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -171,12 +171,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "The details for a finding.",
+      description:
+        "A summary of the active findings for a finding category in a Data Boundary sc...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -286,8 +292,9 @@ export const model = {
     list: {
       description: "List dbFindingSummaries resources",
       arguments: z.object({
-        filter: z.string().describe("Optional. The filtering results.")
-          .optional(),
+        filter: z.string().describe(
+          "Optional. A filter expression that restricts the framework deployments whose findings are summarized. The syntax follows [AIP-160](https://google.aip.dev/160). Supported fields are `framework_deployment`, `framework_name`, and `framework_revision` (the major revision ID of the framework).",
+        ).optional(),
         pageSize: z.number().describe(
           "Optional. The requested page size. The server might return fewer items than requested. If unspecified, the server picks an appropriate default.",
         ).optional(),

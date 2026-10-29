@@ -140,7 +140,7 @@ const WorkerLogDeliverySchema = z.object({
 
 const CustomPluginSchema = z.object({
   CustomPluginArn: z.string().regex(
-    new RegExp("arn:(aws|aws-us-gov|aws-cn):kafkaconnect:.*"),
+    new RegExp("arn:(aws|aws-us-gov|aws-cn|aws-eusc):kafkaconnect:.*"),
   ).describe("The Amazon Resource Name (ARN) of the custom plugin to use."),
   Revision: z.number().int().min(1).describe(
     "The revision of the custom plugin to use.",
@@ -223,7 +223,7 @@ const GlobalArgsSchema = z.object({
     "List of plugins to use with the connector.",
   ),
   ServiceExecutionRoleArn: z.string().regex(
-    new RegExp("arn:(aws|aws-us-gov|aws-cn):iam:.*"),
+    new RegExp("arn:(aws|aws-us-gov|aws-cn|aws-eusc):iam:.*"),
   ).describe(
     "The Amazon Resource Name (ARN) of the IAM role used by the connector to access Amazon S3 objects and other external resources.",
   ),
@@ -235,7 +235,7 @@ const GlobalArgsSchema = z.object({
       "The revision of the worker configuration to use.",
     ),
     WorkerConfigurationArn: z.string().regex(
-      new RegExp("arn:(aws|aws-us-gov|aws-cn):kafkaconnect:.*"),
+      new RegExp("arn:(aws|aws-us-gov|aws-cn|aws-eusc):kafkaconnect:.*"),
     ).describe(
       "The Amazon Resource Name (ARN) of the worker configuration to use.",
     ),
@@ -335,7 +335,7 @@ const InputsSchema = z.object({
     "List of plugins to use with the connector.",
   ).optional(),
   ServiceExecutionRoleArn: z.string().regex(
-    new RegExp("arn:(aws|aws-us-gov|aws-cn):iam:.*"),
+    new RegExp("arn:(aws|aws-us-gov|aws-cn|aws-eusc):iam:.*"),
   ).describe(
     "The Amazon Resource Name (ARN) of the IAM role used by the connector to access Amazon S3 objects and other external resources.",
   ).optional(),
@@ -347,7 +347,7 @@ const InputsSchema = z.object({
       "The revision of the worker configuration to use.",
     ).optional(),
     WorkerConfigurationArn: z.string().regex(
-      new RegExp("arn:(aws|aws-us-gov|aws-cn):kafkaconnect:.*"),
+      new RegExp("arn:(aws|aws-us-gov|aws-cn|aws-eusc):kafkaconnect:.*"),
     ).describe(
       "The Amazon Resource Name (ARN) of the worker configuration to use.",
     ).optional(),
@@ -374,7 +374,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for KafkaConnect Connector. Registered at `@swamp/aws/kafkaconnect/connector`. */
 export const model = {
   type: "@swamp/aws/kafkaconnect/connector",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -433,6 +433,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -551,9 +556,7 @@ export const model = {
             "KafkaClusterEncryptionInTransit",
             "KafkaConnectVersion",
             "LogDelivery",
-            "Plugins",
             "ServiceExecutionRoleArn",
-            "WorkerConfiguration",
             "NetworkType",
           ],
           credentials,

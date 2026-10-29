@@ -47,7 +47,7 @@ const BASE_URL = "https://devicerun.googleapis.com/";
 
 const GET_CONFIG = {
   "id": "devicerun.projects.locations.devices.get",
-  "path": "v1alpha/{+name}",
+  "path": "v1/{+name}",
   "httpMethod": "GET",
   "parameterOrder": [
     "name",
@@ -62,7 +62,7 @@ const GET_CONFIG = {
 
 const LIST_CONFIG = {
   "id": "devicerun.projects.locations.devices.list",
-  "path": "v1alpha/{+parent}/devices",
+  "path": "v1/{+parent}/devices",
   "httpMethod": "GET",
   "parameterOrder": [
     "parent",
@@ -197,7 +197,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Device Run Devices. Registered at `@swamp/gcp/devicerun/devices`. */
 export const model = {
   type: "@swamp/gcp/devicerun/devices",
-  version: "2026.10.23.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -206,6 +206,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

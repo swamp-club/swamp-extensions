@@ -38,44 +38,55 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
-const Ec2ConfigurationObjectSchema = z.object({
-  ImageIdOverride: z.string().optional(),
-  ImageType: z.string(),
-  ImageKubernetesVersion: z.string().optional(),
-  BatchImageStatus: z.string().optional(),
-});
-
-const LaunchTemplateSpecificationOverrideSchema = z.object({
-  LaunchTemplateId: z.string().optional(),
-  LaunchTemplateName: z.string().optional(),
-  Version: z.string().optional(),
-  UserdataType: z.enum(["EKS_BOOTSTRAP_SH", "EKS_NODEADM"]).optional(),
-  TargetInstanceTypes: z.array(z.string()).optional(),
-});
-
-const LaunchTemplateSpecificationSchema = z.object({
-  LaunchTemplateId: z.string().optional(),
-  LaunchTemplateName: z.string().optional(),
-  Version: z.string().optional(),
-  UserdataType: z.enum(["EKS_BOOTSTRAP_SH", "EKS_NODEADM"]).optional(),
-  Overrides: z.array(LaunchTemplateSpecificationOverrideSchema).optional(),
+const EksAccessEntrySchema = z.object({
+  DesiredState: z.enum(["ENABLED", "DISABLED", "INHERIT_FROM_CLUSTER"])
+    .describe(
+      "The desired state of the EKS access entry managed by AWS Batch. When omitted, AWS Batch applies INHERIT_FROM_CLUSTER.",
+    ).optional(),
 });
 
 const ComputeScalingPolicySchema = z.object({
   MinScaleDownDelayMinutes: z.number().int().optional(),
 });
 
-const ManagedInstancesNetworkConfigurationSchema = z.object({
-  Subnets: z.array(z.string()),
-  SecurityGroups: z.array(z.string()),
+const Ec2ConfigurationObjectSchema = z.object({
+  ImageIdOverride: z.string().optional(),
+  ImageKubernetesVersion: z.string().optional(),
+  BatchImageStatus: z.string().optional(),
+  ImageType: z.string(),
 });
 
-const InstanceRequirementsSchema = z.object({
-  AllowedInstanceTypes: z.array(z.string()).optional(),
+const LaunchTemplateSpecificationOverrideSchema = z.object({
+  TargetInstanceTypes: z.array(z.string()).optional(),
+  UserdataType: z.enum(["EKS_BOOTSTRAP_SH", "EKS_NODEADM"]).optional(),
+  LaunchTemplateName: z.string().optional(),
+  Version: z.string().optional(),
+  LaunchTemplateId: z.string().optional(),
+});
+
+const LaunchTemplateSpecificationSchema = z.object({
+  UserdataType: z.enum(["EKS_BOOTSTRAP_SH", "EKS_NODEADM"]).optional(),
+  LaunchTemplateName: z.string().optional(),
+  Version: z.string().optional(),
+  Overrides: z.array(LaunchTemplateSpecificationOverrideSchema).optional(),
+  LaunchTemplateId: z.string().optional(),
+});
+
+const InfrastructureOptimizationSchema = z.object({
+  ScaleInAfter: z.number().int().optional(),
 });
 
 const ManagedInstancesStorageConfigurationSchema = z.object({
   StorageSizeGiB: z.number().int().optional(),
+});
+
+const ManagedInstancesNetworkConfigurationSchema = z.object({
+  SecurityGroups: z.array(z.string()),
+  Subnets: z.array(z.string()),
+});
+
+const InstanceRequirementsSchema = z.object({
+  AllowedInstanceTypes: z.array(z.string()).optional(),
 });
 
 const CapacityReservationsSchema = z.object({
@@ -89,34 +100,23 @@ const ManagedInstancesLocalStorageConfigurationSchema = z.object({
 
 const InstanceLaunchTemplateSchema = z.object({
   Ec2InstanceProfileArn: z.string(),
+  CapacityOptionType: z.enum(["ON_DEMAND", "SPOT", "RESERVED"]).optional(),
+  FipsEnabled: z.boolean().optional(),
+  InstanceMetadataTagsPropagation: z.boolean().optional(),
+  StorageConfiguration: ManagedInstancesStorageConfigurationSchema.optional(),
   NetworkConfiguration: ManagedInstancesNetworkConfigurationSchema,
   InstanceRequirements: InstanceRequirementsSchema.optional(),
-  CapacityOptionType: z.enum(["ON_DEMAND", "SPOT", "RESERVED"]).optional(),
-  StorageConfiguration: ManagedInstancesStorageConfigurationSchema.optional(),
-  Monitoring: z.string().optional(),
-  FipsEnabled: z.boolean().optional(),
   CapacityReservations: CapacityReservationsSchema.optional(),
-  InstanceMetadataTagsPropagation: z.boolean().optional(),
+  Monitoring: z.string().optional(),
   LocalStorageConfiguration: ManagedInstancesLocalStorageConfigurationSchema
     .optional(),
 });
 
-const InfrastructureOptimizationSchema = z.object({
-  ScaleInAfter: z.number().int().optional(),
-});
-
 const ManagedInstancesProviderSchema = z.object({
-  PropagateTags: z.enum(["CAPACITY_PROVIDER", "NONE"]).optional(),
   InfrastructureRoleArn: z.string(),
-  InstanceLaunchTemplate: InstanceLaunchTemplateSchema,
+  PropagateTags: z.enum(["CAPACITY_PROVIDER", "NONE"]).optional(),
   InfrastructureOptimization: InfrastructureOptimizationSchema.optional(),
-});
-
-const EksAccessEntrySchema = z.object({
-  DesiredState: z.enum(["ENABLED", "DISABLED", "INHERIT_FROM_CLUSTER"])
-    .describe(
-      "The desired state of the EKS access entry managed by AWS Batch. When omitted, AWS Batch applies INHERIT_FROM_CLUSTER.",
-    ).optional(),
+  InstanceLaunchTemplate: InstanceLaunchTemplateSchema,
 });
 
 const GlobalArgsSchema = z.object({
@@ -135,106 +135,106 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  ComputeEnvironmentName: z.string().optional(),
-  ComputeResources: z.object({
-    AllocationStrategy: z.string().optional(),
-    BidPercentage: z.number().int().optional(),
-    DesiredvCpus: z.number().int().optional(),
-    Ec2Configuration: z.array(Ec2ConfigurationObjectSchema).optional(),
-    Ec2KeyPair: z.string().optional(),
-    ImageId: z.string().optional(),
-    InstanceRole: z.string().optional(),
-    InstanceTypes: z.array(z.string()).optional(),
-    LaunchTemplate: LaunchTemplateSpecificationSchema.optional(),
-    MaxvCpus: z.number().int(),
-    MinvCpus: z.number().int().optional(),
-    PlacementGroup: z.string().optional(),
-    ScalingPolicy: ComputeScalingPolicySchema.optional(),
-    SecurityGroupIds: z.array(z.string()).optional(),
-    SpotIamFleetRole: z.string().optional(),
-    Subnets: z.array(z.string()).optional(),
-    Tags: z.record(z.string(), z.string()).describe(
-      "A key-value pair to associate with a resource.",
-    ).optional(),
-    Type: z.string(),
-    UpdateToLatestImageVersion: z.boolean().optional(),
-    ManagedInstancesProvider: ManagedInstancesProviderSchema.optional(),
-    CapacityTags: z.record(z.string(), z.string()).describe(
-      "Capacity-level tags for compute environments.",
-    ).optional(),
-  }).optional(),
-  ReplaceComputeEnvironment: z.boolean().optional(),
-  ServiceRole: z.string().optional(),
-  State: z.string().optional(),
-  Tags: z.record(z.string(), z.string()).describe(
-    "A key-value pair to associate with a resource.",
-  ).optional(),
-  Type: z.string(),
+  Context: z.string().optional(),
   UpdatePolicy: z.object({
-    TerminateJobsOnUpdate: z.boolean().optional(),
     JobExecutionTimeoutMinutes: z.number().int().optional(),
+    TerminateJobsOnUpdate: z.boolean().optional(),
   }).optional(),
   UnmanagedvCpus: z.number().int().optional(),
+  Type: z.string(),
+  ReplaceComputeEnvironment: z.boolean().optional(),
+  ServiceRole: z.string().optional(),
   EksConfiguration: z.object({
     EksClusterArn: z.string(),
-    KubernetesNamespace: z.string(),
     AccessEntry: EksAccessEntrySchema.describe(
       "The EKS access entry configuration for the compute environment. Controls whether AWS Batch manages the EKS access entry for the compute environment's service role, or inherits it from the cluster.",
     ).optional(),
+    KubernetesNamespace: z.string(),
   }).optional(),
+  ComputeEnvironmentName: z.string().optional(),
+  ComputeResources: z.object({
+    ScalingPolicy: ComputeScalingPolicySchema.optional(),
+    SpotIamFleetRole: z.string().optional(),
+    MaxvCpus: z.number().int(),
+    CapacityTags: z.record(z.string(), z.string()).describe(
+      "Capacity-level tags for compute environments.",
+    ).optional(),
+    Ec2Configuration: z.array(Ec2ConfigurationObjectSchema).optional(),
+    BidPercentage: z.number().int().optional(),
+    SecurityGroupIds: z.array(z.string()).optional(),
+    AllocationStrategy: z.string().optional(),
+    Subnets: z.array(z.string()).optional(),
+    Type: z.string(),
+    MinvCpus: z.number().int().optional(),
+    UpdateToLatestImageVersion: z.boolean().optional(),
+    LaunchTemplate: LaunchTemplateSpecificationSchema.optional(),
+    ImageId: z.string().optional(),
+    InstanceRole: z.string().optional(),
+    InstanceTypes: z.array(z.string()).optional(),
+    Ec2KeyPair: z.string().optional(),
+    PlacementGroup: z.string().optional(),
+    Tags: z.record(z.string(), z.string()).describe(
+      "A key-value pair to associate with a resource.",
+    ).optional(),
+    DesiredvCpus: z.number().int().optional(),
+    ManagedInstancesProvider: ManagedInstancesProviderSchema.optional(),
+  }).optional(),
+  State: z.string().optional(),
   EcsSettings: z.object({
     ContainerInsights: z.enum(["ENABLED", "ENHANCED", "DISABLED"]).describe(
       "The CloudWatch Container Insights setting applied to the Amazon ECS cluster that backs this compute environment. After you set this property, you can't revert it to the default (unset) state in which the setting is managed outside of AWS Batch. If you remove this property after previously setting it, AWS Batch treats the omission as DISABLED, because the underlying API has no way to unset the value. Because of this, if a stack rollback would return this property to its previous unset state, AWS Batch sets it to DISABLED instead.",
     ).optional(),
   }).optional(),
-  Context: z.string().optional(),
+  Tags: z.record(z.string(), z.string()).describe(
+    "A key-value pair to associate with a resource.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
+  Context: z.string().optional(),
+  UpdatePolicy: z.object({
+    JobExecutionTimeoutMinutes: z.number(),
+    TerminateJobsOnUpdate: z.boolean(),
+  }).optional(),
   ComputeEnvironmentArn: z.string(),
+  UnmanagedvCpus: z.number().optional(),
+  Type: z.string().optional(),
+  ReplaceComputeEnvironment: z.boolean().optional(),
+  ServiceRole: z.string().optional(),
+  EksConfiguration: z.object({
+    EksClusterArn: z.string(),
+    AccessEntry: EksAccessEntrySchema,
+    KubernetesNamespace: z.string(),
+  }).optional(),
   ComputeEnvironmentName: z.string().optional(),
   ComputeResources: z.object({
-    AllocationStrategy: z.string(),
-    BidPercentage: z.number(),
-    DesiredvCpus: z.number(),
+    ScalingPolicy: ComputeScalingPolicySchema,
+    SpotIamFleetRole: z.string(),
+    MaxvCpus: z.number(),
+    CapacityTags: z.record(z.string(), z.unknown()),
     Ec2Configuration: z.array(Ec2ConfigurationObjectSchema),
-    Ec2KeyPair: z.string(),
+    BidPercentage: z.number(),
+    SecurityGroupIds: z.array(z.string()),
+    AllocationStrategy: z.string(),
+    Subnets: z.array(z.string()),
+    Type: z.string(),
+    MinvCpus: z.number(),
+    UpdateToLatestImageVersion: z.boolean(),
+    LaunchTemplate: LaunchTemplateSpecificationSchema,
     ImageId: z.string(),
     InstanceRole: z.string(),
     InstanceTypes: z.array(z.string()),
-    LaunchTemplate: LaunchTemplateSpecificationSchema,
-    MaxvCpus: z.number(),
-    MinvCpus: z.number(),
+    Ec2KeyPair: z.string(),
     PlacementGroup: z.string(),
-    ScalingPolicy: ComputeScalingPolicySchema,
-    SecurityGroupIds: z.array(z.string()),
-    SpotIamFleetRole: z.string(),
-    Subnets: z.array(z.string()),
     Tags: z.record(z.string(), z.unknown()),
-    Type: z.string(),
-    UpdateToLatestImageVersion: z.boolean(),
+    DesiredvCpus: z.number(),
     ManagedInstancesProvider: ManagedInstancesProviderSchema,
-    CapacityTags: z.record(z.string(), z.unknown()),
   }).optional(),
-  ReplaceComputeEnvironment: z.boolean().optional(),
-  ServiceRole: z.string().optional(),
   State: z.string().optional(),
-  Tags: z.record(z.string(), z.unknown()).optional(),
-  Type: z.string().optional(),
-  UpdatePolicy: z.object({
-    TerminateJobsOnUpdate: z.boolean(),
-    JobExecutionTimeoutMinutes: z.number(),
-  }).optional(),
-  UnmanagedvCpus: z.number().optional(),
-  EksConfiguration: z.object({
-    EksClusterArn: z.string(),
-    KubernetesNamespace: z.string(),
-    AccessEntry: EksAccessEntrySchema,
-  }).optional(),
   EcsSettings: z.object({
     ContainerInsights: z.string(),
   }).optional(),
-  Context: z.string().optional(),
+  Tags: z.record(z.string(), z.unknown()).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -245,59 +245,59 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  ComputeEnvironmentName: z.string().optional(),
-  ComputeResources: z.object({
-    AllocationStrategy: z.string().optional(),
-    BidPercentage: z.number().int().optional(),
-    DesiredvCpus: z.number().int().optional(),
-    Ec2Configuration: z.array(Ec2ConfigurationObjectSchema).optional(),
-    Ec2KeyPair: z.string().optional(),
-    ImageId: z.string().optional(),
-    InstanceRole: z.string().optional(),
-    InstanceTypes: z.array(z.string()).optional(),
-    LaunchTemplate: LaunchTemplateSpecificationSchema.optional(),
-    MaxvCpus: z.number().int().optional(),
-    MinvCpus: z.number().int().optional(),
-    PlacementGroup: z.string().optional(),
-    ScalingPolicy: ComputeScalingPolicySchema.optional(),
-    SecurityGroupIds: z.array(z.string()).optional(),
-    SpotIamFleetRole: z.string().optional(),
-    Subnets: z.array(z.string()).optional(),
-    Tags: z.record(z.string(), z.string()).describe(
-      "A key-value pair to associate with a resource.",
-    ).optional(),
-    Type: z.string().optional(),
-    UpdateToLatestImageVersion: z.boolean().optional(),
-    ManagedInstancesProvider: ManagedInstancesProviderSchema.optional(),
-    CapacityTags: z.record(z.string(), z.string()).describe(
-      "Capacity-level tags for compute environments.",
-    ).optional(),
-  }).optional(),
-  ReplaceComputeEnvironment: z.boolean().optional(),
-  ServiceRole: z.string().optional(),
-  State: z.string().optional(),
-  Tags: z.record(z.string(), z.string()).describe(
-    "A key-value pair to associate with a resource.",
-  ).optional(),
-  Type: z.string().optional(),
+  Context: z.string().optional(),
   UpdatePolicy: z.object({
-    TerminateJobsOnUpdate: z.boolean().optional(),
     JobExecutionTimeoutMinutes: z.number().int().optional(),
+    TerminateJobsOnUpdate: z.boolean().optional(),
   }).optional(),
   UnmanagedvCpus: z.number().int().optional(),
+  Type: z.string().optional(),
+  ReplaceComputeEnvironment: z.boolean().optional(),
+  ServiceRole: z.string().optional(),
   EksConfiguration: z.object({
     EksClusterArn: z.string().optional(),
-    KubernetesNamespace: z.string().optional(),
     AccessEntry: EksAccessEntrySchema.describe(
       "The EKS access entry configuration for the compute environment. Controls whether AWS Batch manages the EKS access entry for the compute environment's service role, or inherits it from the cluster.",
     ).optional(),
+    KubernetesNamespace: z.string().optional(),
   }).optional(),
+  ComputeEnvironmentName: z.string().optional(),
+  ComputeResources: z.object({
+    ScalingPolicy: ComputeScalingPolicySchema.optional(),
+    SpotIamFleetRole: z.string().optional(),
+    MaxvCpus: z.number().int().optional(),
+    CapacityTags: z.record(z.string(), z.string()).describe(
+      "Capacity-level tags for compute environments.",
+    ).optional(),
+    Ec2Configuration: z.array(Ec2ConfigurationObjectSchema).optional(),
+    BidPercentage: z.number().int().optional(),
+    SecurityGroupIds: z.array(z.string()).optional(),
+    AllocationStrategy: z.string().optional(),
+    Subnets: z.array(z.string()).optional(),
+    Type: z.string().optional(),
+    MinvCpus: z.number().int().optional(),
+    UpdateToLatestImageVersion: z.boolean().optional(),
+    LaunchTemplate: LaunchTemplateSpecificationSchema.optional(),
+    ImageId: z.string().optional(),
+    InstanceRole: z.string().optional(),
+    InstanceTypes: z.array(z.string()).optional(),
+    Ec2KeyPair: z.string().optional(),
+    PlacementGroup: z.string().optional(),
+    Tags: z.record(z.string(), z.string()).describe(
+      "A key-value pair to associate with a resource.",
+    ).optional(),
+    DesiredvCpus: z.number().int().optional(),
+    ManagedInstancesProvider: ManagedInstancesProviderSchema.optional(),
+  }).optional(),
+  State: z.string().optional(),
   EcsSettings: z.object({
     ContainerInsights: z.enum(["ENABLED", "ENHANCED", "DISABLED"]).describe(
       "The CloudWatch Container Insights setting applied to the Amazon ECS cluster that backs this compute environment. After you set this property, you can't revert it to the default (unset) state in which the setting is managed outside of AWS Batch. If you remove this property after previously setting it, AWS Batch treats the omission as DISABLED, because the underlying API has no way to unset the value. Because of this, if a stack rollback would return this property to its previous unset state, AWS Batch sets it to DISABLED instead.",
     ).optional(),
   }).optional(),
-  Context: z.string().optional(),
+  Tags: z.record(z.string(), z.string()).describe(
+    "A key-value pair to associate with a resource.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -319,7 +319,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Batch ComputeEnvironment. Registered at `@swamp/aws/batch/compute-environment`. */
 export const model = {
   type: "@swamp/aws/batch/compute-environment",
-  version: "2026.10.25.1",
+  version: "2026.10.29.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -403,6 +403,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.29.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
