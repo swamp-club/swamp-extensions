@@ -140,6 +140,13 @@ groups:
           paths: extensions/models/ .claude/skills/
           # The process boundary is faked in tests: no --allow-run.
           testFlags: --allow-read --allow-write --allow-env
+      - dir: video/brand
+        vars:
+          check: extensions/models/*.ts
+          paths: extensions/models/ .claude/skills/ scripts/
+          # The browser and ffmpeg are faked in tests: no --allow-run or
+          # --allow-net.
+          testFlags: --allow-read --allow-write --allow-env
       - dir: git
         vars:
           check: extensions/models/git.ts

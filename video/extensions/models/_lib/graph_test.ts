@@ -140,3 +140,67 @@ Deno.test("text that would break out of a quoted filter option is refused", () =
   );
   assertEquals(safeFilterText("Noto Sans", "font"), "Noto Sans");
 });
+
+Deno.test("still overlays hold for their window, as they always have", () => {
+  const g = buildGraph({
+    ...plan,
+    cards: {
+      fastForwardBadge: { path: "/c/badge.png" },
+      lowerThird: { path: "/c/lt.png", seconds: 6, at: 1.5 },
+    },
+  });
+  assertEquals(g.inputs.slice(2), [
+    "-loop",
+    "1",
+    "-i",
+    "/c/badge.png",
+    "-loop",
+    "1",
+    "-i",
+    "/c/lt.png",
+  ]);
+  assertStringIncludes(
+    g.graph,
+    "[1:v]scale=1920:1080,format=rgba[badge];\n" +
+      "[vsel][badge]overlay=0:0:shortest=1:enable='between(t,5.0000,9.0000)'[vbadge]",
+  );
+  assertStringIncludes(
+    g.graph,
+    "[2:v]scale=1920:1080,format=rgba[lt];\n" +
+      "[vbadge][lt]overlay=0:0:shortest=1:enable='between(t,1.5,7.5)'[vlt]",
+  );
+});
+
+Deno.test("an animated lower third plays once from at; an animated badge loops", () => {
+  const g = buildGraph({
+    ...plan,
+    cards: {
+      intro: { path: "/c/intro.mp4", seconds: 5 },
+      fastForwardBadge: { path: "/c/badge.webm" },
+      lowerThird: { path: "/c/lt.mov", seconds: 6, at: 1.5 },
+    },
+  });
+  // WebM keeps its alpha only through libvpx; ProRes needs no decoder flag.
+  assertEquals(g.inputs.slice(2, 9), [
+    "-stream_loop",
+    "-1",
+    "-c:v",
+    "libvpx-vp9",
+    "-i",
+    "/c/badge.webm",
+    "-i",
+  ]);
+  assertEquals(g.inputs[9], "/c/lt.mov");
+  assertStringIncludes(
+    g.graph,
+    "[1:v]fps=30,scale=1920:1080,format=rgba[badge];\n" +
+      "[vsel][badge]overlay=0:0:shortest=1:enable='between(t,5.0000,9.0000)'[vbadge]",
+  );
+  // `at` is take time: overlays go on before the intro is joined, so the
+  // intro's length doesn't move it.
+  assertStringIncludes(
+    g.graph,
+    "[2:v]fps=30,scale=1920:1080,format=rgba,setpts=PTS-STARTPTS+1.5/TB[lt];\n" +
+      "[vbadge][lt]overlay=0:0:eof_action=pass:enable='between(t,1.5,7.5)'[vlt]",
+  );
+});

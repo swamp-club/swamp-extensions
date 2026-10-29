@@ -100,6 +100,14 @@ export interface RenderPlan {
 const isStill = (path: string) => /\.(png|jpe?g|webp)$/i.test(path);
 
 /**
+ * Input flags that keep an overlay video's alpha: ffmpeg's native VP9
+ * decoder drops it, so WebM overlays go through libvpx. ProRes 4444 (.mov)
+ * keeps alpha as it is.
+ */
+const alphaDecoder = (path: string) =>
+  /\.webm$/i.test(path) ? ["-c:v", "libvpx-vp9"] : [];
+
+/**
  * A value placed inside single quotes in the filter graph. Inside quotes
  * ffmpeg takes everything literally until the next quote, so escaping can't
  * make a quote, colon or backslash safe there: refuse them instead.
@@ -275,7 +283,11 @@ export function buildGraph(plan: RenderPlan): BuiltGraph {
   );
   v = "vsel";
   if (cards.fastForwardBadge && fast.length) {
-    const k = addInput("-loop", "1", "-i", cards.fastForwardBadge.path);
+    const badge = cards.fastForwardBadge.path;
+    // A still holds; an animated badge loops for as long as the take runs.
+    const k = isStill(badge)
+      ? addInput("-loop", "1", "-i", badge)
+      : addInput("-stream_loop", "-1", ...alphaDecoder(badge), "-i", badge);
     const when = sumExpr(
       fast.map(({ span: [a, b, speed], i }) =>
         `between(t,${starts[i].toFixed(4)},${
@@ -284,20 +296,34 @@ export function buildGraph(plan: RenderPlan): BuiltGraph {
       ),
     );
     graph.push(
-      `[${k}:v]scale=${w}:${h},format=rgba[badge]`,
+      `[${k}:v]${isStill(badge) ? "" : `fps=${fps},`}scale=${w}:${h},` +
+        `format=rgba[badge]`,
       `[${v}][badge]overlay=0:0:shortest=1:enable='${when}'[vbadge]`,
     );
     v = "vbadge";
   }
   if (cards.lowerThird) {
     const lt = cards.lowerThird;
-    const k = addInput("-loop", "1", "-i", lt.path);
-    graph.push(
-      `[${k}:v]scale=${w}:${h},format=rgba[lt]`,
-      `[${v}][lt]overlay=0:0:shortest=1:enable='between(t,${lt.at},${
-        lt.at + lt.seconds
-      })'[vlt]`,
-    );
+    if (isStill(lt.path)) {
+      const k = addInput("-loop", "1", "-i", lt.path);
+      graph.push(
+        `[${k}:v]scale=${w}:${h},format=rgba[lt]`,
+        `[${v}][lt]overlay=0:0:shortest=1:enable='between(t,${lt.at},${
+          lt.at + lt.seconds
+        })'[vlt]`,
+      );
+    } else {
+      // An animated lower third plays once from `at`, so its own
+      // entrance and exit show; the take carries on when it ends.
+      const k = addInput(...alphaDecoder(lt.path), "-i", lt.path);
+      graph.push(
+        `[${k}:v]fps=${fps},scale=${w}:${h},format=rgba,` +
+          `setpts=PTS-STARTPTS+${lt.at}/TB[lt]`,
+        `[${v}][lt]overlay=0:0:eof_action=pass:enable='between(t,${lt.at},${
+          lt.at + lt.seconds
+        })'[vlt]`,
+      );
+    }
     v = "vlt";
   }
   graph.push(

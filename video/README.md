@@ -134,11 +134,13 @@ Render takes a `cards` object; every source produces the same contract:
 | ------------------ | ----------------------------- | ------------------------------------------- |
 | `intro`            | `{path, seconds}`             | first frame, crossfades into the take       |
 | `outro`            | `{path, seconds}`             | crossfades in at the end                    |
-| `lowerThird`       | `{path, seconds, at}`         | full-frame transparent PNG, `at` output seconds into the take |
-| `fastForwardBadge` | `{path}`                      | full-frame transparent PNG over every fast-forward |
+| `lowerThird`       | `{path, seconds, at}`         | full-frame transparent overlay, `at` output seconds into the take |
+| `fastForwardBadge` | `{path}`                      | full-frame transparent overlay over every fast-forward |
 
 Cards may be stills (PNG/JPEG/WebP, held for `seconds`) or videos (cut to
-`seconds`). Modes:
+`seconds`). Overlays may be stills or videos with alpha (ProRes 4444 `.mov`
+or VP9 `.webm`): an animated lower third plays once from `at`, so its own
+entrance and exit show; an animated badge loops. Modes:
 
 - `simple` (default): demo-polish's kicker / title / subtitle card, drawn by
   headless Chromium at the video's size;
@@ -146,7 +148,9 @@ Cards may be stills (PNG/JPEG/WebP, held for `seconds`) or videos (cut to
 - `custom`: the paths above, or `from: <instance>` to use any behavior that
   writes a `cards` resource (per take, or one shared record);
 - `brand`: `from: <@swamp/video/brand instance>`; without it render stops and
-  says so.
+  says so. With @swamp/video/brand installed, its
+  `@swamp/video/brand/video-edit` workflow renders the brand cards and runs
+  `video-edit` with them, so brand is the default there.
 
 ## Per-person settings
 

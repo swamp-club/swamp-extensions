@@ -156,6 +156,46 @@ Deno.test("render: brand without the brand extension fails clearly; custom reads
   }
 });
 
+Deno.test("render: brand cards with animated overlays from a brand instance", async () => {
+  const env = await setup();
+  try {
+    await built(env);
+    const brand = env.swamp.context("my-brand", {});
+    await brand.writeResource("cards", "take", {
+      intro: { path: `${env.dir}/intro.mp4`, seconds: 5 },
+      outro: { path: `${env.dir}/outro.mp4`, seconds: 8 },
+      lowerThird: { path: `${env.dir}/lt.mov`, seconds: 6, at: 1.5 },
+      fastForwardBadge: { path: `${env.dir}/badge.webm` },
+    });
+    await render.methods.render.execute(
+      renderArgs(env, { cards: { mode: "brand", from: "my-brand" } }),
+      env.swamp.context("render", {}),
+    );
+    const graph = await Deno.readTextFile(`${env.dir}/take.video/graph.txt`);
+    assertStringIncludes(
+      graph,
+      "setpts=PTS-STARTPTS+1.5/TB[lt]",
+    );
+    assertStringIncludes(
+      graph,
+      "[lt]overlay=0:0:eof_action=pass:enable='between(t,1.5,7.5)'",
+    );
+    const main = env.calls.find((c) => c.args.includes("-/filter_complex"))!;
+    const badge = main.args.indexOf(`${env.dir}/badge.webm`);
+    assertEquals(main.args.slice(badge - 5, badge + 1), [
+      "-stream_loop",
+      "-1",
+      "-c:v",
+      "libvpx-vp9",
+      "-i",
+      `${env.dir}/badge.webm`,
+    ]);
+    assertEquals(main.args[main.args.indexOf(`${env.dir}/lt.mov`) - 1], "-i");
+  } finally {
+    await teardown(env);
+  }
+});
+
 Deno.test("render: pixelation without screen analysis is refused, not skipped", async () => {
   const env = await setup();
   try {

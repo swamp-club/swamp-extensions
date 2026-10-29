@@ -35,7 +35,9 @@ swamp workflow run @swamp/video/video-edit \
 
 `cards` is `simple` (a title card; needs `title`), `none`, `custom`
 (`cardsFrom=<instance>` with a `cards` resource) or `brand` (needs
-@swamp/video/brand). Pass `retakeMarkers` (raw seconds) when the user marked
+@swamp/video/brand; when it is installed, run its
+`@swamp/video/brand/video-edit` workflow instead, which renders the brand cards
+and passes them on). Pass `retakeMarkers` (raw seconds) when the user marked
 retakes; a spoken "retake" is also honoured when Whisper heard it.
 
 Afterwards, tell the user the before/after lengths from the log, where the files

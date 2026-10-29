@@ -1,0 +1,52 @@
+manifestVersion: 1
+name: "@swamp/video/brand"
+version: "2026.10.29.1"
+license: "AGPL-3.0-or-later"
+visibility: private
+description: |
+  The Swamp Club look for @swamp/video. A synthwave intro (episode, title,
+  subtitle and presenter), the presenter's lower third beside the webcam,
+  an outro with their contact, a QR code to their campaign page and their
+  call to action, and an animated FAST FORWARD badge, rendered frame by
+  frame in headless Chromium and handed to render as its brand cards.
+  Also the OBS studio look: the backdrop behind the screen share, a looping
+  neon webcam ring and a circular webcam mask.
+
+  ## Behaviors
+
+  - `@swamp/video/brand`: `cards` (one take's cards, in @swamp/video's
+    cards contract) and `stage` (the studio look and its layout)
+
+  ## Workflows
+
+  `@swamp/video/brand/video-edit`: renders the brand cards, then runs
+  @swamp/video's `video-edit` with them, so brand is the default.
+
+  Who is on screen comes from your @swamp/video/presenter instance; nothing
+  personal lives in the code. Ships the Swamp Club fonts, palm silhouette
+  and SC mark; `brandDir` points at your own. Needs @swamp/video
+  2026.10.29.2 or later (animated overlays), chromium, and ffmpeg with
+  libx264, qtrle and libvpx-vp9.
+repository: "https://github.com/swamp-club/swamp-extensions"
+
+skills:
+  - video-brand
+
+models:
+  - brand.ts
+
+workflows:
+  - video_edit_brand.yaml
+
+additionalFiles:
+  - LICENSE.txt
+  - FONTS-LICENSE.txt
+  - README.md
+
+platforms: []
+
+labels:
+  - video
+  - demo
+  - brand
+  - obs

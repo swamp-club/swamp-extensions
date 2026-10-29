@@ -24,6 +24,9 @@
  *   writes one (the same fields).
  * - `brand`: the `cards` resource of an @swamp/video/brand instance.
  *
+ * Overlays (lower third, fast-forward badge) may be stills or videos with
+ * alpha; graph.ts plays an animated lower third once and loops a badge.
+ *
  * @module
  */
 
