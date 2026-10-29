@@ -1,0 +1,49 @@
+id: 7b6770b8-87f1-421c-9978-f107d4b7f298
+name: "@swamp/video/video-describe"
+description: "Write a finished take's YouTube title, description and chapters (chapter starts in raw recording time, mapped through the edit list) to <recording>.video/youtube.txt."
+version: 1
+inputs:
+  properties:
+    recordingPath:
+      type: string
+    title:
+      type: string
+    summary:
+      type: string
+    chapters:
+      type: array
+      description: "[{start, title}], start in raw recording seconds or m:ss"
+      items:
+        type: object
+      default: []
+    tags:
+      type: array
+      items:
+        type: string
+      default: []
+    presenter:
+      type: string
+      description: A @swamp/video/presenter instance for the call to action and links
+      default: ""
+  required:
+    - recordingPath
+    - title
+    - summary
+jobs:
+  - name: describe
+    steps:
+      - name: describe
+        task:
+          type: behavior
+          behaviorType: "@swamp/video/describe"
+          behaviorName: video-describe
+          methodName: describe
+          inputs:
+            recordingPath: ${{ inputs.recordingPath }}
+            edit: video-edit
+            render: video-render
+            presenter: ${{ inputs.presenter }}
+            title: ${{ inputs.title }}
+            summary: ${{ inputs.summary }}
+            chapters: ${{ inputs.chapters }}
+            tags: ${{ inputs.tags }}

@@ -134,6 +134,12 @@ groups:
           check: extensions/models/container_image.ts
           paths: extensions/models/
           testFlags: --allow-env --allow-read --allow-write --allow-run --allow-sys
+      - dir: video
+        vars:
+          check: extensions/models/*.ts
+          paths: extensions/models/ .claude/skills/
+          # The process boundary is faked in tests: no --allow-run.
+          testFlags: --allow-read --allow-write --allow-env
       - dir: git
         vars:
           check: extensions/models/git.ts

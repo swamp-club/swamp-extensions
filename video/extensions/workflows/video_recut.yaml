@@ -1,0 +1,74 @@
+id: 47892e33-4a0e-4b25-9c99-e8d2e0638488
+name: "@swamp/video/video-recut"
+description: "Re-render a take after editing: read edit.txt (hand edits, or chat edits already written there) back into the edit list, then render again. Transcript and screen analysis are reused."
+version: 1
+inputs:
+  properties:
+    recordingPath:
+      type: string
+    editFile:
+      type: string
+      description: "edit.txt to read (default: <recording>.video/edit.txt)"
+      default: ""
+    title:
+      type: string
+      default: ""
+    subtitle:
+      type: string
+      default: ""
+    kicker:
+      type: string
+      default: Demo
+    cards:
+      type: string
+      default: simple
+    cardsFrom:
+      type: string
+      default: ""
+    media:
+      type: string
+      default: ""
+    pixelate:
+      type: boolean
+      default: true
+    burn:
+      type: boolean
+      default: true
+  required:
+    - recordingPath
+jobs:
+  - name: recut
+    description: Import edit.txt, render
+    steps:
+      - name: import
+        task:
+          type: behavior
+          behaviorType: "@swamp/video/edit"
+          behaviorName: video-edit
+          methodName: import
+          inputs:
+            recordingPath: ${{ inputs.recordingPath }}
+            path: ${{ inputs.editFile }}
+      - name: render
+        dependsOn:
+          - step: import
+            condition:
+              type: succeeded
+        task:
+          type: behavior
+          behaviorType: "@swamp/video/render"
+          behaviorName: video-render
+          methodName: render
+          inputs:
+            recordingPath: ${{ inputs.recordingPath }}
+            edit: video-edit
+            screen: video-screen
+            pixelate: ${{ inputs.pixelate }}
+            media: ${{ inputs.media }}
+            burn: ${{ inputs.burn }}
+            cards:
+              mode: ${{ inputs.cards }}
+              title: ${{ inputs.title }}
+              subtitle: ${{ inputs.subtitle }}
+              kicker: ${{ inputs.kicker }}
+              from: ${{ inputs.cardsFrom }}

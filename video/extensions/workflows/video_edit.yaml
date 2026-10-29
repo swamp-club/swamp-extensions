@@ -1,0 +1,129 @@
+id: 96c629de-6189-4231-a5b5-80b1dbe18eec
+name: "@swamp/video/video-edit"
+description: "Turn a screen recording into a finished demo video: transcribe and watch the screen in parallel, build the edit list (edit.txt next to the recording), then render with cards, captions, pixelated credentials and normalized loudness."
+version: 1
+inputs:
+  properties:
+    recordingPath:
+      type: string
+      description: The recording to edit (any format ffmpeg reads, e.g. an OBS .mkv)
+    title:
+      type: string
+      description: "Headline on the simple intro card (required for cards mode simple, the default)"
+      default: ""
+    subtitle:
+      type: string
+      default: ""
+    kicker:
+      type: string
+      description: Small label above the title
+      default: Demo
+    cards:
+      type: string
+      description: "simple (built-in title card), none, custom or brand"
+      default: simple
+    cardsFrom:
+      type: string
+      description: "custom/brand: the behavior instance whose cards resource to use"
+      default: ""
+    media:
+      type: string
+      description: A @swamp/video/media instance with render settings (optional)
+      default: ""
+    retakeMarkers:
+      type: array
+      items:
+        type: number
+      description: Raw times (seconds) a retake was marked, e.g. by a hotkey
+      default: []
+    pixelate:
+      type: boolean
+      description: Pixelate credentials found on screen
+      default: true
+    burn:
+      type: boolean
+      description: Also write a burned-caption video
+      default: true
+  required:
+    - recordingPath
+jobs:
+  - name: edit
+    description: Analyze, build the edit list, render
+    steps:
+      - name: check-inputs
+        description: Fail before the slow steps when the cards can't be made
+        task:
+          type: assert
+          expr: >-
+            inputs.cards != "simple" || inputs.title != ""
+          message: "cards mode simple needs a title: pass --input title=..., or --input cards=none"
+      - name: transcribe
+        description: Verbatim word-timed transcript (fillers kept)
+        dependsOn:
+          - step: check-inputs
+            condition:
+              type: succeeded
+        task:
+          type: behavior
+          behaviorType: "@swamp/video/transcript"
+          behaviorName: video-transcript
+          methodName: transcribe
+          inputs:
+            recordingPath: ${{ inputs.recordingPath }}
+      - name: screen
+        description: Idle stretches, on-screen text, credentials, storyboard
+        dependsOn:
+          - step: check-inputs
+            condition:
+              type: succeeded
+        task:
+          type: behavior
+          behaviorType: "@swamp/video/screen"
+          behaviorName: video-screen
+          methodName: analyze
+          inputs:
+            recordingPath: ${{ inputs.recordingPath }}
+            redact: ${{ inputs.pixelate }}
+      - name: build
+        description: Cut fillers, stutters, long pauses and retakes; fast-forward waits
+        dependsOn:
+          - step: transcribe
+            condition:
+              type: succeeded
+          - step: screen
+            condition:
+              type: succeeded
+        task:
+          type: behavior
+          behaviorType: "@swamp/video/edit"
+          behaviorName: video-edit
+          methodName: build
+          inputs:
+            recordingPath: ${{ inputs.recordingPath }}
+            transcript: video-transcript
+            screen: video-screen
+            retakeMarkers: ${{ inputs.retakeMarkers }}
+      - name: render
+        description: Apply the edit list; cards, music, captions, loudness, thumbnail
+        dependsOn:
+          - step: build
+            condition:
+              type: succeeded
+        task:
+          type: behavior
+          behaviorType: "@swamp/video/render"
+          behaviorName: video-render
+          methodName: render
+          inputs:
+            recordingPath: ${{ inputs.recordingPath }}
+            edit: video-edit
+            screen: video-screen
+            pixelate: ${{ inputs.pixelate }}
+            media: ${{ inputs.media }}
+            burn: ${{ inputs.burn }}
+            cards:
+              mode: ${{ inputs.cards }}
+              title: ${{ inputs.title }}
+              subtitle: ${{ inputs.subtitle }}
+              kicker: ${{ inputs.kicker }}
+              from: ${{ inputs.cardsFrom }}

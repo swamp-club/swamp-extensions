@@ -1,0 +1,66 @@
+manifestVersion: 1
+name: "@swamp/video"
+version: "2026.10.29.1"
+license: "AGPL-3.0-or-later"
+visibility: private
+description: |
+  Turn any screen recording into a finished demo video. A take is
+  transcribed verbatim, its screen watched, and an edit list built that
+  cuts ums, stutters, long pauses and retakes and fast-forwards waits (with a
+  racing clock), faster where the screen sat idle. Change the cut from chat
+  by quoting what was said, or by hand in edit.txt; then render with a title
+  card, music, soft and burned captions, credentials pixelated, loudness
+  normalized and a thumbnail.
+
+  ## Behaviors
+
+  - `@swamp/video/transcript`: word-timed verbatim transcript
+    (faster-whisper through uv by default, or whisper.cpp)
+  - `@swamp/video/screen`: idle stretches, on-screen text timeline,
+    credential detection, storyboard
+  - `@swamp/video/edit`: the edit list; `build`, `cut`, `keep`, `speed`,
+    `export` and `import` of edit.txt
+  - `@swamp/video/render`: the finished video, thumbnail and captions
+  - `@swamp/video/describe`: YouTube title, description and chapters
+  - `@swamp/video/presenter`, `@swamp/video/media`: per-person details and
+    render settings, kept in your repo
+
+  ## Workflows
+
+  `@swamp/video/video-edit` (first cut of any recording),
+  `@swamp/video/video-recut` (re-render after edits) and
+  `@swamp/video/video-describe`.
+
+  Needs ffmpeg, ffprobe, tesseract, chromium (simple title cards), and uv
+  (faster-whisper) or whisper-cli.
+repository: "https://github.com/swamp-club/swamp-extensions"
+
+skills:
+  - video
+
+models:
+  - transcript.ts
+  - screen.ts
+  - edit.ts
+  - render.ts
+  - describe.ts
+  - presenter.ts
+  - media.ts
+
+workflows:
+  - video_edit.yaml
+  - video_recut.yaml
+  - video_describe.yaml
+
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+
+platforms: []
+
+labels:
+  - video
+  - demo
+  - transcription
+  - captions
+  - ffmpeg
