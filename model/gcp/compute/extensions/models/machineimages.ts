@@ -194,6 +194,12 @@ const GlobalArgsSchema = z.object({
     resourceManagerTags: z.record(z.string(), z.string()).describe(
       "Input only. Resource manager tags to be bound to the machine image. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/{tag_value_id}` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
     ).optional(),
+    excludedDisks: z.array(z.string()).describe(
+      "Input only. Specifies the list of disk device names that must be excluded from the new machine image.",
+    ).optional(),
+    includedDisks: z.array(z.string()).describe(
+      "Input only. Specifies the list of disk device names that must be included with the new machine image.",
+    ).optional(),
   }).describe(
     "Input only. [Input Only] Additional parameters that are passed in the request, but are not persisted in the resource.",
   ).optional(),
@@ -252,6 +258,10 @@ const StateSchema = z.object({
     confidentialInstanceConfig: z.object({
       confidentialInstanceType: z.string(),
       enableConfidentialCompute: z.boolean(),
+      confidentialParavisorConfig: z.object({
+        confidentialTpmType: z.string(),
+        sevSnpIrqMode: z.string(),
+      }),
     }),
     description: z.string(),
     disks: z.array(z.object({
@@ -351,6 +361,7 @@ const StateSchema = z.object({
         securityPolicy: z.unknown(),
         setPublicPtr: z.unknown(),
         type: z.unknown(),
+        ipCollection: z.unknown(),
       })),
       aliasIpRanges: z.array(z.object({
         ipCidrRange: z.unknown(),
@@ -375,6 +386,7 @@ const StateSchema = z.object({
         securityPolicy: z.unknown(),
         setPublicPtr: z.unknown(),
         type: z.unknown(),
+        ipCollection: z.unknown(),
       })),
       ipv6AccessType: z.string(),
       ipv6Address: z.string(),
@@ -442,6 +454,7 @@ const StateSchema = z.object({
       provisioningModel: z.string(),
       skipGuestOsShutdown: z.boolean(),
       terminationTime: z.string(),
+      protectionTier: z.string(),
     }),
     serviceAccounts: z.array(z.object({
       email: z.string(),
@@ -459,6 +472,7 @@ const StateSchema = z.object({
     workloadIdentityConfig: z.object({
       identity: z.string(),
       identityCertificateEnabled: z.boolean(),
+      identityType: z.string(),
     }),
   }).optional(),
   kind: z.string().optional(),
@@ -474,6 +488,8 @@ const StateSchema = z.object({
   name: z.string(),
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.unknown()),
+    excludedDisks: z.array(z.string()),
+    includedDisks: z.array(z.string()),
   }).optional(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
@@ -554,6 +570,7 @@ const StateSchema = z.object({
         securityPolicy: z.unknown(),
         setPublicPtr: z.unknown(),
         type: z.unknown(),
+        ipCollection: z.unknown(),
       })),
       aliasIpRanges: z.array(z.object({
         ipCidrRange: z.unknown(),
@@ -578,6 +595,7 @@ const StateSchema = z.object({
         securityPolicy: z.unknown(),
         setPublicPtr: z.unknown(),
         type: z.unknown(),
+        ipCollection: z.unknown(),
       })),
       ipv6AccessType: z.string(),
       ipv6Address: z.string(),
@@ -635,6 +653,7 @@ const StateSchema = z.object({
       provisioningModel: z.string(),
       skipGuestOsShutdown: z.boolean(),
       terminationTime: z.string(),
+      protectionTier: z.string(),
     }),
     serviceAccounts: z.array(z.object({
       email: z.string(),
@@ -697,6 +716,12 @@ const InputsSchema = z.object({
   params: z.object({
     resourceManagerTags: z.record(z.string(), z.string()).describe(
       "Input only. Resource manager tags to be bound to the machine image. Tag keys and values have the same definition as resource manager tags. Keys and values can be either in numeric format, such as `tagKeys/{tag_key_id}` and `tagValues/{tag_value_id}` or in namespaced format such as `{org_id|project_id}/{tag_key_short_name}` and `{tag_value_short_name}`. The field is ignored (both PUT & PATCH) when empty.",
+    ).optional(),
+    excludedDisks: z.array(z.string()).describe(
+      "Input only. Specifies the list of disk device names that must be excluded from the new machine image.",
+    ).optional(),
+    includedDisks: z.array(z.string()).describe(
+      "Input only. Specifies the list of disk device names that must be included with the new machine image.",
     ).optional(),
   }).describe(
     "Input only. [Input Only] Additional parameters that are passed in the request, but are not persisted in the resource.",
@@ -764,7 +789,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine MachineImages. Registered at `@swamp/gcp/compute/machineimages`. */
 export const model = {
   type: "@swamp/gcp/compute/machineimages",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1045,6 +1070,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

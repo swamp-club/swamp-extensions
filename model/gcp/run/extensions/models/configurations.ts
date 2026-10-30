@@ -204,6 +204,9 @@ const StateSchema = z.object({
         })),
         nodeSelector: z.record(z.string(), z.unknown()),
         runtimeClassName: z.string(),
+        sandboxes: z.object({
+          templates: z.array(z.unknown()),
+        }),
         serviceAccountName: z.string(),
         timeoutSeconds: z.number(),
         volumes: z.array(z.object({
@@ -273,7 +276,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Configurations. Registered at `@swamp/gcp/run/configurations`. */
 export const model = {
   type: "@swamp/gcp/run/configurations",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -292,6 +295,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -332,7 +332,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine RegionSslPolicies. Registered at `@swamp/gcp/compute/regionsslpolicies`. */
 export const model = {
   type: "@swamp/gcp/compute/regionsslpolicies",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -496,6 +496,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -854,6 +859,63 @@ export const model = {
         return { dataHandles, result: { count: items.length, nextPageToken } };
       },
     },
+    get_iam_policy: {
+      description: "get iam policy",
+      arguments: z.object({
+        optionsRequestedPolicyVersion: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["region"] !== undefined) params["region"] = String(g["region"]);
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        if (args["optionsRequestedPolicyVersion"] !== undefined) {
+          params["optionsRequestedPolicyVersion"] = String(
+            args["optionsRequestedPolicyVersion"],
+          );
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id": "compute.regionSslPolicies.getIamPolicy",
+            "path":
+              "projects/{project}/regions/{region}/sslPolicies/{resource}/getIamPolicy",
+            "httpMethod": "GET",
+            "parameterOrder": ["project", "region", "resource"],
+            "parameters": {
+              "optionsRequestedPolicyVersion": { "location": "query" },
+              "project": { "location": "path", "required": true },
+              "region": { "location": "path", "required": true },
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          undefined,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
     list_available_features: {
       description: "list available features",
       arguments: z.object({
@@ -906,6 +968,118 @@ export const model = {
           },
           params,
           undefined,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    set_iam_policy: {
+      description: "set iam policy",
+      arguments: z.object({
+        bindings: z.any().optional(),
+        etag: z.any().optional(),
+        policy: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["region"] !== undefined) params["region"] = String(g["region"]);
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["bindings"] !== undefined) body["bindings"] = args["bindings"];
+        if (args["etag"] !== undefined) body["etag"] = args["etag"];
+        if (args["policy"] !== undefined) body["policy"] = args["policy"];
+        const result = await createResource(
+          baseUrl,
+          {
+            "id": "compute.regionSslPolicies.setIamPolicy",
+            "path":
+              "projects/{project}/regions/{region}/sslPolicies/{resource}/setIamPolicy",
+            "httpMethod": "POST",
+            "parameterOrder": ["project", "region", "resource"],
+            "parameters": {
+              "project": { "location": "path", "required": true },
+              "region": { "location": "path", "required": true },
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    test_iam_permissions: {
+      description: "test iam permissions",
+      arguments: z.object({
+        permissions: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["region"] !== undefined) params["region"] = String(g["region"]);
+        const content = await context.dataRepository.getContent(
+          context.modelType,
+          context.modelId,
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, ""),
+        );
+        if (!content) {
+          throw new Error("No existing state found - run create or get first");
+        }
+        const existing = JSON.parse(new TextDecoder().decode(content));
+        params["resource"] = existing["name"]?.toString() ??
+          g["name"]?.toString() ?? "";
+        const body: Record<string, unknown> = {};
+        if (args["permissions"] !== undefined) {
+          body["permissions"] = args["permissions"];
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id": "compute.regionSslPolicies.testIamPermissions",
+            "path":
+              "projects/{project}/regions/{region}/sslPolicies/{resource}/testIamPermissions",
+            "httpMethod": "POST",
+            "parameterOrder": ["project", "region", "resource"],
+            "parameters": {
+              "project": { "location": "path", "required": true },
+              "region": { "location": "path", "required": true },
+              "resource": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
           undefined,
           undefined,
           undefined,

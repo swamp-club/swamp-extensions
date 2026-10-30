@@ -141,6 +141,14 @@ const GlobalArgsSchema = z.object({
     model: z.string().describe(
       "Optional. The Gemini model identifier to use for the review. If omitted, the server uses its default model. Unsupported values return INVALID_ARGUMENT.",
     ).optional(),
+    thinkingLevel: z.enum([
+      "THINKING_LEVEL_UNSPECIFIED",
+      "THINKING_LEVEL_LOW",
+      "THINKING_LEVEL_MEDIUM",
+      "THINKING_LEVEL_HIGH",
+    ]).describe(
+      "Optional. Reasoning effort level for model calls in the review pipeline. Defaults to `THINKING_LEVEL_MEDIUM` when omitted or `THINKING_LEVEL_UNSPECIFIED`. Non-`THINKING_LEVEL_MEDIUM` thinking levels require `gemini_api_key` when calling `CreateReview`; otherwise `CreateReview` returns `INVALID_ARGUMENT`.",
+    ).optional(),
     topology: z.enum([
       "TOPOLOGY_UNSPECIFIED",
       "EXTRA_HIGH",
@@ -240,6 +248,7 @@ const StateSchema = z.object({
     geminiApiKey: z.string(),
     geminiApiKeySet: z.boolean(),
     model: z.string(),
+    thinkingLevel: z.string(),
     topology: z.string(),
     userPrompt: z.string(),
   }).optional(),
@@ -268,6 +277,14 @@ const InputsSchema = z.object({
     ).optional(),
     model: z.string().describe(
       "Optional. The Gemini model identifier to use for the review. If omitted, the server uses its default model. Unsupported values return INVALID_ARGUMENT.",
+    ).optional(),
+    thinkingLevel: z.enum([
+      "THINKING_LEVEL_UNSPECIFIED",
+      "THINKING_LEVEL_LOW",
+      "THINKING_LEVEL_MEDIUM",
+      "THINKING_LEVEL_HIGH",
+    ]).describe(
+      "Optional. Reasoning effort level for model calls in the review pipeline. Defaults to `THINKING_LEVEL_MEDIUM` when omitted or `THINKING_LEVEL_UNSPECIFIED`. Non-`THINKING_LEVEL_MEDIUM` thinking levels require `gemini_api_key` when calling `CreateReview`; otherwise `CreateReview` returns `INVALID_ARGUMENT`.",
     ).optional(),
     topology: z.enum([
       "TOPOLOGY_UNSPECIFIED",
@@ -319,7 +336,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Deep Review Documents.Reviews. Registered at `@swamp/gcp/deepreview/documents-reviews`. */
 export const model = {
   type: "@swamp/gcp/deepreview/documents-reviews",
-  version: "2026.10.28.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
@@ -333,6 +350,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -542,6 +542,7 @@ const GlobalArgsSchema = z.object({
     "INTERNAL_MANAGED",
     "INTERNAL_SELF_MANAGED",
     "INVALID_LOAD_BALANCING_SCHEME",
+    "EXTERNAL_PASSTHROUGH",
   ]).describe(
     "Specifies the load balancer type. A backend service created for one type of load balancer cannot be used with another. For more information, refer to Backend services product and scheme table.",
   ).optional(),
@@ -831,6 +832,23 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Configuration for Backend Authenticated TLS and mTLS. May only be specified when the backend protocol is SSL, HTTPS or HTTP2.",
   ).optional(),
+  dynamicForwarding: z.object({
+    forwardProxy: z.object({
+      enabled: z.boolean().describe(
+        "A boolean flag enabling dynamic forwarding proxy.",
+      ).optional(),
+      proxyMode: z.enum(["CLOUD_RUN", "DIRECT_FORWARDING"]).describe(
+        "Determines the dynamic forwarding proxy mode.",
+      ).optional(),
+    }).describe("Dynamic Forwarding Proxy configuration.").optional(),
+    ipPortSelection: z.object({
+      enabled: z.boolean().describe(
+        "A boolean flag enabling IP:PORT based dynamic forwarding.",
+      ).optional(),
+    }).describe("IP:PORT based dynamic forwarding configuration.").optional(),
+  }).describe(
+    "Dynamic forwarding configuration. This field is used to configure the backend service with dynamic forwarding feature which together with Service Extension allows customized and complex routing logic.",
+  ).optional(),
   requestId: z.string().describe(
     "An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
   ).optional(),
@@ -1062,6 +1080,15 @@ const StateSchema = z.object({
   usedBy: z.array(z.object({
     reference: z.string(),
   })).optional(),
+  dynamicForwarding: z.object({
+    forwardProxy: z.object({
+      enabled: z.boolean(),
+      proxyMode: z.string(),
+    }),
+    ipPortSelection: z.object({
+      enabled: z.boolean(),
+    }),
+  }).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1411,6 +1438,7 @@ const InputsSchema = z.object({
     "INTERNAL_MANAGED",
     "INTERNAL_SELF_MANAGED",
     "INVALID_LOAD_BALANCING_SCHEME",
+    "EXTERNAL_PASSTHROUGH",
   ]).describe(
     "Specifies the load balancer type. A backend service created for one type of load balancer cannot be used with another. For more information, refer to Backend services product and scheme table.",
   ).optional(),
@@ -1700,6 +1728,23 @@ const InputsSchema = z.object({
   }).describe(
     "Configuration for Backend Authenticated TLS and mTLS. May only be specified when the backend protocol is SSL, HTTPS or HTTP2.",
   ).optional(),
+  dynamicForwarding: z.object({
+    forwardProxy: z.object({
+      enabled: z.boolean().describe(
+        "A boolean flag enabling dynamic forwarding proxy.",
+      ).optional(),
+      proxyMode: z.enum(["CLOUD_RUN", "DIRECT_FORWARDING"]).describe(
+        "Determines the dynamic forwarding proxy mode.",
+      ).optional(),
+    }).describe("Dynamic Forwarding Proxy configuration.").optional(),
+    ipPortSelection: z.object({
+      enabled: z.boolean().describe(
+        "A boolean flag enabling IP:PORT based dynamic forwarding.",
+      ).optional(),
+    }).describe("IP:PORT based dynamic forwarding configuration.").optional(),
+  }).describe(
+    "Dynamic forwarding configuration. This field is used to configure the backend service with dynamic forwarding feature which together with Service Extension allows customized and complex routing logic.",
+  ).optional(),
   requestId: z.string().describe(
     "An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
   ).optional(),
@@ -1731,7 +1776,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine RegionBackendServices. Registered at `@swamp/gcp/compute/regionbackendservices`. */
 export const model = {
   type: "@swamp/gcp/compute/regionbackendservices",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -1993,6 +2038,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.30.1",
+      description: "Added: dynamicForwarding",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -2122,6 +2172,9 @@ export const model = {
         if (g["timeoutSec"] !== undefined) body["timeoutSec"] = g["timeoutSec"];
         if (g["tlsSettings"] !== undefined) {
           body["tlsSettings"] = g["tlsSettings"];
+        }
+        if (g["dynamicForwarding"] !== undefined) {
+          body["dynamicForwarding"] = g["dynamicForwarding"];
         }
         if (g["requestId"] !== undefined) {
           params["requestId"] = String(g["requestId"]);
@@ -2340,6 +2393,9 @@ export const model = {
         if (g["tlsSettings"] !== undefined) {
           body["tlsSettings"] = g["tlsSettings"];
         }
+        if (g["dynamicForwarding"] !== undefined) {
+          body["dynamicForwarding"] = g["dynamicForwarding"];
+        }
         let live: Record<string, unknown> | undefined;
         const unset = [
           "affinityCookieTtlSec",
@@ -2354,6 +2410,7 @@ export const model = {
           "customRequestHeaders",
           "customResponseHeaders",
           "description",
+          "dynamicForwarding",
           "enableCDN",
           "externalManagedMigrationState",
           "externalManagedMigrationTestingPercentage",

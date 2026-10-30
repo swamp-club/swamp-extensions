@@ -259,6 +259,7 @@ const GlobalArgsSchema = z.object({
       maxAudioRecordingDuration: z.string().optional(),
     }).optional(),
     sttConfig: z.object({
+      alternativeLanguageCodes: z.array(z.string()).optional(),
       audioEncoding: z.enum([
         "AUDIO_ENCODING_UNSPECIFIED",
         "AUDIO_ENCODING_LINEAR_16",
@@ -482,6 +483,7 @@ const StateSchema = z.object({
       maxAudioRecordingDuration: z.string(),
     }),
     sttConfig: z.object({
+      alternativeLanguageCodes: z.array(z.string()),
       audioEncoding: z.string(),
       disableInterimInputTranscripts: z.boolean(),
       enableWordInfo: z.boolean(),
@@ -685,6 +687,7 @@ const InputsSchema = z.object({
       maxAudioRecordingDuration: z.string().optional(),
     }).optional(),
     sttConfig: z.object({
+      alternativeLanguageCodes: z.array(z.string()).optional(),
       audioEncoding: z.enum([
         "AUDIO_ENCODING_UNSPECIFIED",
         "AUDIO_ENCODING_LINEAR_16",
@@ -822,7 +825,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow Conversations. Registered at `@swamp/gcp/dialogflow/conversations`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/conversations",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -861,6 +864,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

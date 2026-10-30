@@ -403,6 +403,33 @@ const GlobalArgsSchema = z.object({
         ).optional(),
       }).describe("Optional. The node selector for the task template.")
         .optional(),
+      sandboxes: z.object({
+        templates: z.array(z.object({
+          args: z.unknown().describe(
+            "Optional. Arguments to the entrypoint. The docker image's CMD is used if this is not provided.",
+          ).optional(),
+          command: z.unknown().describe(
+            "Optional. Entrypoint array. Not executed within a shell. The docker image's ENTRYPOINT is used if this is not provided.",
+          ).optional(),
+          env: z.unknown().describe(
+            "Optional. List of environment variables to set in the sandbox.",
+          ).optional(),
+          image: z.unknown().describe(
+            "Required. Name of the container image in Dockerhub or Artifact Registry. If the host is not provided, Dockerhub is assumed.",
+          ).optional(),
+          name: z.unknown().describe(
+            "Required. Name of the sandbox specified as a DNS_LABEL (RFC 1123).",
+          ).optional(),
+          volumeMounts: z.unknown().describe(
+            "Optional. Volume to mount into the container's filesystem.",
+          ).optional(),
+          workingDir: z.unknown().describe(
+            "Optional. Container's working directory. If not specified, the container runtime's default will be used, which might be configured in the container image.",
+          ).optional(),
+        })).describe(
+          "Required. Sandbox templates that can be launched through the `sandbox` CLI.",
+        ).optional(),
+      }).describe("Optional. Configuration for sandboxes.").optional(),
       serviceAccount: z.string().describe(
         "Optional. Email address of the IAM service account associated with the Task of a Job. The service account represents the identity of the running task, and determines what permissions the task has. If not provided, the task will use the project's default service account.",
       ).optional(),
@@ -633,6 +660,17 @@ const StateSchema = z.object({
       maxRetries: z.number(),
       nodeSelector: z.object({
         accelerator: z.string(),
+      }),
+      sandboxes: z.object({
+        templates: z.array(z.object({
+          args: z.unknown(),
+          command: z.unknown(),
+          env: z.unknown(),
+          image: z.unknown(),
+          name: z.unknown(),
+          volumeMounts: z.unknown(),
+          workingDir: z.unknown(),
+        })),
       }),
       serviceAccount: z.string(),
       timeout: z.string(),
@@ -935,6 +973,33 @@ const InputsSchema = z.object({
         ).optional(),
       }).describe("Optional. The node selector for the task template.")
         .optional(),
+      sandboxes: z.object({
+        templates: z.array(z.object({
+          args: z.unknown().describe(
+            "Optional. Arguments to the entrypoint. The docker image's CMD is used if this is not provided.",
+          ).optional(),
+          command: z.unknown().describe(
+            "Optional. Entrypoint array. Not executed within a shell. The docker image's ENTRYPOINT is used if this is not provided.",
+          ).optional(),
+          env: z.unknown().describe(
+            "Optional. List of environment variables to set in the sandbox.",
+          ).optional(),
+          image: z.unknown().describe(
+            "Required. Name of the container image in Dockerhub or Artifact Registry. If the host is not provided, Dockerhub is assumed.",
+          ).optional(),
+          name: z.unknown().describe(
+            "Required. Name of the sandbox specified as a DNS_LABEL (RFC 1123).",
+          ).optional(),
+          volumeMounts: z.unknown().describe(
+            "Optional. Volume to mount into the container's filesystem.",
+          ).optional(),
+          workingDir: z.unknown().describe(
+            "Optional. Container's working directory. If not specified, the container runtime's default will be used, which might be configured in the container image.",
+          ).optional(),
+        })).describe(
+          "Required. Sandbox templates that can be launched through the `sandbox` CLI.",
+        ).optional(),
+      }).describe("Optional. Configuration for sandboxes.").optional(),
       serviceAccount: z.string().describe(
         "Optional. Email address of the IAM service account associated with the Task of a Job. The service account represents the identity of the running task, and determines what permissions the task has. If not provided, the task will use the project's default service account.",
       ).optional(),
@@ -1079,7 +1144,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Jobs. Registered at `@swamp/gcp/run/jobs`. */
 export const model = {
   type: "@swamp/gcp/run/jobs",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1349,6 +1414,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

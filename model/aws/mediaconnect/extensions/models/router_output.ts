@@ -38,16 +38,6 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
-const RtpRouterOutputConfigurationSchema = z.object({
-  DestinationAddress: z.string().describe(
-    "The destination IP address for the RTP protocol in the router output configuration.",
-  ),
-  DestinationPort: z.number().int().min(1024).max(65531).describe(
-    "The destination port number for the RTP protocol in the router output configuration.",
-  ),
-  ForwardErrorCorrection: z.enum(["ENABLED", "DISABLED"]).optional(),
-});
-
 const RistRouterOutputConfigurationSchema = z.object({
   DestinationAddress: z.string().describe(
     "The destination IP address for the RIST protocol in the router output configuration.",
@@ -90,24 +80,6 @@ const SrtListenerRouterOutputConfigurationSchema = z.object({
   ).optional(),
 });
 
-const SrtCallerRouterOutputConfigurationSchema = z.object({
-  DestinationAddress: z.string().describe(
-    "The destination IP address for the SRT protocol in caller mode.",
-  ),
-  DestinationPort: z.number().int().min(1024).max(65535).describe(
-    "The destination port number for the SRT protocol in caller mode.",
-  ),
-  MinimumLatencyMilliseconds: z.number().int().min(10).max(10000).describe(
-    "The minimum latency in milliseconds for the SRT protocol in caller mode.",
-  ),
-  StreamId: z.string().describe(
-    "The stream ID for the SRT protocol in caller mode.",
-  ).optional(),
-  EncryptionConfiguration: SrtEncryptionConfigurationSchema.describe(
-    "Contains the configuration settings for encrypting SRT streams, including the encryption key details and encryption parameters.",
-  ).optional(),
-});
-
 const TlsEncryptionSchema = z.object({
   EncryptionType: z.enum(["PUBLIC"]).optional(),
   EncryptionConfiguration: z.object({
@@ -135,6 +107,34 @@ const RtmpPushRouterOutputConfigurationSchema = z.object({
   ).optional(),
 });
 
+const SrtCallerRouterOutputConfigurationSchema = z.object({
+  DestinationAddress: z.string().describe(
+    "The destination IP address for the SRT protocol in caller mode.",
+  ),
+  DestinationPort: z.number().int().min(1024).max(65535).describe(
+    "The destination port number for the SRT protocol in caller mode.",
+  ),
+  MinimumLatencyMilliseconds: z.number().int().min(10).max(10000).describe(
+    "The minimum latency in milliseconds for the SRT protocol in caller mode.",
+  ),
+  StreamId: z.string().describe(
+    "The stream ID for the SRT protocol in caller mode.",
+  ).optional(),
+  EncryptionConfiguration: SrtEncryptionConfigurationSchema.describe(
+    "Contains the configuration settings for encrypting SRT streams, including the encryption key details and encryption parameters.",
+  ).optional(),
+});
+
+const RtpRouterOutputConfigurationSchema = z.object({
+  DestinationAddress: z.string().describe(
+    "The destination IP address for the RTP protocol in the router output configuration.",
+  ),
+  DestinationPort: z.number().int().min(1024).max(65531).describe(
+    "The destination port number for the RTP protocol in the router output configuration.",
+  ),
+  ForwardErrorCorrection: z.enum(["ENABLED", "DISABLED"]).optional(),
+});
+
 const StandardRouterOutputConfigurationSchema = z.object({
   NetworkInterfaceArn: z.string().regex(
     new RegExp(
@@ -144,20 +144,20 @@ const StandardRouterOutputConfigurationSchema = z.object({
     "The Amazon Resource Name (ARN) of the network interface associated with the standard router output.",
   ),
   ProtocolConfiguration: z.object({
-    Rtp: RtpRouterOutputConfigurationSchema.describe(
-      "The configuration settings for a router output using the RTP (Real-Time Transport Protocol) protocol, including the destination address and port, and forward error correction state.",
-    ).optional(),
     Rist: RistRouterOutputConfigurationSchema.describe(
       "The configuration settings for a router output using the RIST (Reliable Internet Stream Transport) protocol, including the destination address and port.",
     ).optional(),
     SrtListener: SrtListenerRouterOutputConfigurationSchema.describe(
       "The configuration settings for a router output using the SRT (Secure Reliable Transport) protocol in listener mode, including the port, minimum latency, and encryption key configuration.",
     ).optional(),
+    RtmpPush: RtmpPushRouterOutputConfigurationSchema.describe(
+      "The configuration settings for a router output that pushes a stream to a destination using the RTMP (Real-Time Messaging Protocol) protocol, or RTMPS (RTMP over TLS) when TLS encryption is specified. These settings include the destination address and port, the application and stream names, and optional TLS encryption configuration.",
+    ).optional(),
     SrtCaller: SrtCallerRouterOutputConfigurationSchema.describe(
       "The configuration settings for a router output using the SRT (Secure Reliable Transport) protocol in caller mode, including the destination address and port, minimum latency, stream ID, and encryption key configuration.",
     ).optional(),
-    RtmpPush: RtmpPushRouterOutputConfigurationSchema.describe(
-      "The configuration settings for a router output that pushes a stream to a destination using the RTMP (Real-Time Messaging Protocol) protocol, or RTMPS (RTMP over TLS) when TLS encryption is specified. These settings include the destination address and port, the application and stream names, and optional TLS encryption configuration.",
+    Rtp: RtpRouterOutputConfigurationSchema.describe(
+      "The configuration settings for a router output using the RTP (Real-Time Transport Protocol) protocol, including the destination address and port, and forward error correction state.",
     ).optional(),
   }).describe("The protocol configuration settings for a router output."),
   Protocol: z.enum(["RTP", "RIST", "SRT_CALLER", "SRT_LISTENER", "RTMP_PUSH"])
@@ -221,6 +221,45 @@ const MediaLiveInputRouterOutputConfigurationSchema = z.object({
   ),
 });
 
+const EndpointEncryptionSecretConfigurationSchema = z.object({
+  SecretArn: z.string().regex(
+    new RegExp(
+      "^arn:(aws[a-zA-Z-]*):secretsmanager:[a-z0-9-]+:[0-9]{12}:secret:[a-zA-Z0-9/_+=.@-]+$",
+    ),
+  ).describe(
+    "The ARN of the Secrets Manager secret that holds the key or passphrase. The secret must be encrypted with a customer managed Amazon Web Services KMS key that is enabled and symmetric; it cannot use the Amazon Web Services managed key aws/secretsmanager. The secret must be in the same Amazon Web Services account and Region as the endpoint.",
+  ),
+});
+
+const SecretsManagerEndpointEncryptionConfigurationSchema = z.object({
+  EncryptionSecretType: z.enum([
+    "AES_128_KEY",
+    "AES_192_KEY",
+    "AES_256_KEY",
+    "SRT_PASSPHRASE",
+  ]).optional(),
+  EncryptionSecret: EndpointEncryptionSecretConfigurationSchema.describe(
+    "The configuration for the Secrets Manager secret that holds the key or passphrase used to encrypt an endpoint connection.",
+  ),
+});
+
+const SourceEndpointRouterOutputConfigurationSchema = z.object({
+  EndpointLifecycleManagement: z.enum(["MANAGED", "UNMANAGED"]),
+  DestinationTransitEncryptionType: z.enum(["SECRETS_MANAGER", "AUTOMATIC"])
+    .optional(),
+  DestinationTransitEncryption: z.object({
+    SecretsManager: SecretsManagerEndpointEncryptionConfigurationSchema
+      .describe(
+        "The endpoint encryption configuration for connections that use a key or passphrase that you store in Secrets Manager.",
+      ).optional(),
+    Automatic: z.record(z.string(), z.unknown()).describe(
+      "The configuration for automatic endpoint encryption. In this mode, MediaConnect determines the encryption key when the endpoint connects. This type does not require any additional settings.",
+    ).optional(),
+  }).describe(
+    "The encryption settings for an endpoint connection. This is a union type, so exactly one of its members is set: secretsManager when you store the encryption key or passphrase in Secrets Manager, or automatic when you let MediaConnect determine the encryption key when the endpoint connects.",
+  ),
+});
+
 const PreferredDayTimeMaintenanceConfigurationSchema = z.object({
   Day: z.enum([
     "MONDAY",
@@ -263,10 +302,13 @@ const GlobalArgsSchema = z.object({
       "The configuration settings for a standard router output, including the protocol, protocol-specific configuration, network interface, and availability zone.",
     ).optional(),
     MediaConnectFlow: MediaConnectFlowRouterOutputConfigurationSchema.describe(
-      "Configuration settings for connecting a router output to a MediaConnect flow source.",
+      "Configuration settings for connecting a router output to a MediaConnect flow source. To connect the router output to the flow source, provide both flowArn and flowSourceArn. To disconnect it, call the update operation and omit both fields while keeping this configuration object. You can't change destinationTransitEncryption while the router output is connected to a flow source. To change it, first disconnect the router output, then update the encryption.",
     ).optional(),
     MediaLiveInput: MediaLiveInputRouterOutputConfigurationSchema.describe(
-      "Configuration settings for connecting a router output to a MediaLive input.",
+      "Configuration settings for connecting a router output to a MediaLive input. To connect the router output to the MediaLive input, provide both mediaLiveInputArn and mediaLivePipelineId. To disconnect it, call the update operation and omit both fields while keeping this configuration object. You can't change destinationTransitEncryption while the router output is connected to a MediaLive input. To change it, first disconnect the router output, then update the encryption.",
+    ).optional(),
+    SourceEndpoint: SourceEndpointRouterOutputConfigurationSchema.describe(
+      "Configuration settings for a router output that is represented by a source endpoint.",
     ).optional(),
   }).describe("The configuration settings for a router output."),
   FabricConfiguration: z.object({
@@ -294,16 +336,24 @@ const GlobalArgsSchema = z.object({
   Tags: z.array(TagSchema).describe(
     "Key-value pairs that can be used to tag this router output.",
   ).optional(),
-  Tier: z.enum(["OUTPUT_100", "OUTPUT_50", "OUTPUT_20"]),
+  Tier: z.enum([
+    "OUTPUT_100",
+    "OUTPUT_50",
+    "OUTPUT_20",
+    "OUTPUT_500",
+    "OUTPUT_250",
+  ]),
 });
 
 const StateSchema = z.object({
   Arn: z.string(),
+  AssociatedSourceEndpointArns: z.array(z.string()).optional(),
   AvailabilityZone: z.string().optional(),
   Configuration: z.object({
     Standard: StandardRouterOutputConfigurationSchema,
     MediaConnectFlow: MediaConnectFlowRouterOutputConfigurationSchema,
     MediaLiveInput: MediaLiveInputRouterOutputConfigurationSchema,
+    SourceEndpoint: SourceEndpointRouterOutputConfigurationSchema,
   }).optional(),
   CreatedAt: z.string().optional(),
   FabricConfiguration: z.object({
@@ -344,10 +394,13 @@ const InputsSchema = z.object({
       "The configuration settings for a standard router output, including the protocol, protocol-specific configuration, network interface, and availability zone.",
     ).optional(),
     MediaConnectFlow: MediaConnectFlowRouterOutputConfigurationSchema.describe(
-      "Configuration settings for connecting a router output to a MediaConnect flow source.",
+      "Configuration settings for connecting a router output to a MediaConnect flow source. To connect the router output to the flow source, provide both flowArn and flowSourceArn. To disconnect it, call the update operation and omit both fields while keeping this configuration object. You can't change destinationTransitEncryption while the router output is connected to a flow source. To change it, first disconnect the router output, then update the encryption.",
     ).optional(),
     MediaLiveInput: MediaLiveInputRouterOutputConfigurationSchema.describe(
-      "Configuration settings for connecting a router output to a MediaLive input.",
+      "Configuration settings for connecting a router output to a MediaLive input. To connect the router output to the MediaLive input, provide both mediaLiveInputArn and mediaLivePipelineId. To disconnect it, call the update operation and omit both fields while keeping this configuration object. You can't change destinationTransitEncryption while the router output is connected to a MediaLive input. To change it, first disconnect the router output, then update the encryption.",
+    ).optional(),
+    SourceEndpoint: SourceEndpointRouterOutputConfigurationSchema.describe(
+      "Configuration settings for a router output that is represented by a source endpoint.",
     ).optional(),
   }).describe("The configuration settings for a router output.").optional(),
   FabricConfiguration: z.object({
@@ -376,7 +429,13 @@ const InputsSchema = z.object({
   Tags: z.array(TagSchema).describe(
     "Key-value pairs that can be used to tag this router output.",
   ).optional(),
-  Tier: z.enum(["OUTPUT_100", "OUTPUT_50", "OUTPUT_20"]).optional(),
+  Tier: z.enum([
+    "OUTPUT_100",
+    "OUTPUT_50",
+    "OUTPUT_20",
+    "OUTPUT_500",
+    "OUTPUT_250",
+  ]).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -398,7 +457,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaConnect RouterOutput. Registered at `@swamp/aws/mediaconnect/router-output`. */
 export const model = {
   type: "@swamp/aws/mediaconnect/router-output",
-  version: "2026.10.25.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -482,6 +541,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

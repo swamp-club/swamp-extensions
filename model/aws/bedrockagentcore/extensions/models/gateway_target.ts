@@ -269,15 +269,17 @@ const ModelMappingSchema = z.object({
 });
 
 const ModelEntrySchema = z.object({
-  Model: z.string().min(1).max(256).regex(
-    new RegExp("^[a-zA-Z0-9\\-\\._\\*\\?@]+(/[a-zA-Z0-9\\-\\._\\*\\?@]+)*$"),
+  Model: z.string().min(1).max(2048).regex(
+    new RegExp("^[a-zA-Z0-9\\-\\._\\*\\?@:]+(/[a-zA-Z0-9\\-\\._\\*\\?@:]+)*$"),
   ),
 });
 
 const InferenceOperationConfigurationSchema = z.object({
-  Path: z.string().min(1).max(256).regex(new RegExp("^/[a-zA-Z0-9\\-\\._/]+$")),
+  Path: z.string().min(1).max(256).regex(
+    new RegExp("^/[a-zA-Z0-9\\-\\._/{}]+$"),
+  ),
   ProviderPath: z.string().min(1).max(256).regex(
-    new RegExp("^/[a-zA-Z0-9\\-\\._/]+$"),
+    new RegExp("^/[a-zA-Z0-9\\-\\._/{}]+$"),
   ).optional(),
   Models: z.array(ModelEntrySchema).optional(),
 });
@@ -509,7 +511,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore GatewayTarget. Registered at `@swamp/aws/bedrockagentcore/gateway-target`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/gateway-target",
-  version: "2026.10.29.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -604,6 +606,11 @@ export const model = {
     {
       toVersion: "2026.10.29.1",
       description: "Added: CertificateConfigurations",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -264,6 +264,7 @@ const GlobalArgsSchema = z.object({
     "INTERNAL_MANAGED",
     "INTERNAL_SELF_MANAGED",
     "INVALID",
+    "EXTERNAL_PASSTHROUGH",
   ]).describe(
     "Specifies the forwarding rule type. For more information, refer to Forwarding rule product and scheme table.",
   ).optional(),
@@ -346,6 +347,9 @@ const GlobalArgsSchema = z.object({
   target: z.string().describe(
     'The URL of the target resource to receive the matched traffic. For regional forwarding rules, this target must be in the same region as the forwarding rule. For global forwarding rules, this target must be a global load balancing resource. The forwarded traffic must be of a type appropriate to the target object. - For load balancers, see the "Target" column in [Port specifications](https://cloud.google.com/load-balancing/docs/forwarding-rule-concepts#ip_address_specifications). - For Private Service Connect forwarding rules that forward traffic to Google APIs, provide the name of a supported Google API bundle: - vpc-sc - APIs that support VPC Service Controls. - all-apis - All supported Google APIs. - For Private Service Connect forwarding rules that forward traffic to managed services, the target must be a service attachment. The target is not mutable once set as a service attachment. The following load balancers cannot set the target field (they should set the backendService field instead): - Internal passthrough Network Load Balancers - Backend service-based regional external passthrough Network Load Balancers - Global external passthrough Network Load Balancers',
   ).optional(),
+  IPAddresses: z.array(z.string()).describe(
+    "IP addresses for which this forwarding rule accepts traffic. All IP addresses must have the same IP version, IPv4 or IPv6. When a client sends traffic that matches one of the specified IP addresses, protocol and ports, the forwarding rule directs the traffic to the referencedbackendService. All IP addresses are served by the same set of backends, and they share the target capacities specified in the backend service fairly. Global external Passthrough Network Load Balancer requires two IP addresses for each forwarding rule to provide high availability when both IP addresses are used to serve client requests. The two IP addresses must come from global IP pools that belong to two distinct Availability Groups, represented by the purposePASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0 andPASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1. TheIPAddresses field specifies zero, one, or two IP addresses: - If omitted, Google Cloud assigns two ephemeral IP addresses, one from each Availability Group. - If you specify one IP address that references an existing static IP address resource from one Availability Group, Google Cloud assigns an ephemeral IP address from the other Availability Group. - If you specify two IP addresses that reference existing static IP address resources, they are required to be from different Availability Groups. For global external Passthrough Network Load Balancer, each IP address can be one of the following: - A static or ephemeral IPv4 address from a Google-owned IP pool. - A static IPv4 address from a global public delegated prefix. - A static or ephemeral IPv6 /96 prefix from a Google-owned IP pool. For global external Passthrough Network Load Balancer, the two IP addresses can be of different types. One IP address can be from a BYOIP prefix while the other is from a Google-owned IP pool. One IP address can be static while the other is ephemeral. However, both IP addresses must have the same IP version, IPv4 or IPv6. The IP addresses can only be set at creation and cannot be updated. When creating a global external Passthrough Network Load Balancer forwarding rule (a parent forwarding rule), you must use theIPAddresses field, but the Google Cloud-generated child forwarding rules set the IPAddress field instead. Refer to theavailabilityGroup field for further details. Refer to the IPAddress field for the formats that can be used to specify IP addresses while creating a forwarding rule. Because Passthrough Network Load Balancers do not terminate or translate traffic, the backend stack types must be compatible with the forwarding rule IP version: - If the forwarding rule IP version is IPv4, backends should be configured as dual-stack or IPv4-only. - If the forwarding rule IP version is IPv6, backends should be configured as dual-stack or IPv6-only.",
+  ).optional(),
   requestId: z.string().describe(
     "An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
   ).optional(),
@@ -403,6 +407,10 @@ const StateSchema = z.object({
   sourceIpRanges: z.array(z.string()).optional(),
   subnetwork: z.string().optional(),
   target: z.string().optional(),
+  IPAddresses: z.array(z.string()).optional(),
+  availabilityGroup: z.string().optional(),
+  childForwardingRules: z.array(z.string()).optional(),
+  parentForwardingRule: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -471,6 +479,7 @@ const InputsSchema = z.object({
     "INTERNAL_MANAGED",
     "INTERNAL_SELF_MANAGED",
     "INVALID",
+    "EXTERNAL_PASSTHROUGH",
   ]).describe(
     "Specifies the forwarding rule type. For more information, refer to Forwarding rule product and scheme table.",
   ).optional(),
@@ -553,6 +562,9 @@ const InputsSchema = z.object({
   target: z.string().describe(
     'The URL of the target resource to receive the matched traffic. For regional forwarding rules, this target must be in the same region as the forwarding rule. For global forwarding rules, this target must be a global load balancing resource. The forwarded traffic must be of a type appropriate to the target object. - For load balancers, see the "Target" column in [Port specifications](https://cloud.google.com/load-balancing/docs/forwarding-rule-concepts#ip_address_specifications). - For Private Service Connect forwarding rules that forward traffic to Google APIs, provide the name of a supported Google API bundle: - vpc-sc - APIs that support VPC Service Controls. - all-apis - All supported Google APIs. - For Private Service Connect forwarding rules that forward traffic to managed services, the target must be a service attachment. The target is not mutable once set as a service attachment. The following load balancers cannot set the target field (they should set the backendService field instead): - Internal passthrough Network Load Balancers - Backend service-based regional external passthrough Network Load Balancers - Global external passthrough Network Load Balancers',
   ).optional(),
+  IPAddresses: z.array(z.string()).describe(
+    "IP addresses for which this forwarding rule accepts traffic. All IP addresses must have the same IP version, IPv4 or IPv6. When a client sends traffic that matches one of the specified IP addresses, protocol and ports, the forwarding rule directs the traffic to the referencedbackendService. All IP addresses are served by the same set of backends, and they share the target capacities specified in the backend service fairly. Global external Passthrough Network Load Balancer requires two IP addresses for each forwarding rule to provide high availability when both IP addresses are used to serve client requests. The two IP addresses must come from global IP pools that belong to two distinct Availability Groups, represented by the purposePASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0 andPASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1. TheIPAddresses field specifies zero, one, or two IP addresses: - If omitted, Google Cloud assigns two ephemeral IP addresses, one from each Availability Group. - If you specify one IP address that references an existing static IP address resource from one Availability Group, Google Cloud assigns an ephemeral IP address from the other Availability Group. - If you specify two IP addresses that reference existing static IP address resources, they are required to be from different Availability Groups. For global external Passthrough Network Load Balancer, each IP address can be one of the following: - A static or ephemeral IPv4 address from a Google-owned IP pool. - A static IPv4 address from a global public delegated prefix. - A static or ephemeral IPv6 /96 prefix from a Google-owned IP pool. For global external Passthrough Network Load Balancer, the two IP addresses can be of different types. One IP address can be from a BYOIP prefix while the other is from a Google-owned IP pool. One IP address can be static while the other is ephemeral. However, both IP addresses must have the same IP version, IPv4 or IPv6. The IP addresses can only be set at creation and cannot be updated. When creating a global external Passthrough Network Load Balancer forwarding rule (a parent forwarding rule), you must use theIPAddresses field, but the Google Cloud-generated child forwarding rules set the IPAddress field instead. Refer to theavailabilityGroup field for further details. Refer to the IPAddress field for the formats that can be used to specify IP addresses while creating a forwarding rule. Because Passthrough Network Load Balancers do not terminate or translate traffic, the backend stack types must be compatible with the forwarding rule IP version: - If the forwarding rule IP version is IPv4, backends should be configured as dual-stack or IPv4-only. - If the forwarding rule IP version is IPv6, backends should be configured as dual-stack or IPv6-only.",
+  ).optional(),
   requestId: z.string().describe(
     "An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
   ).optional(),
@@ -584,7 +596,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine ForwardingRules. Registered at `@swamp/gcp/compute/forwardingrules`. */
 export const model = {
   type: "@swamp/gcp/compute/forwardingrules",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -756,6 +768,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.30.1",
+      description: "Added: IPAddresses",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -852,6 +869,9 @@ export const model = {
         }
         if (g["subnetwork"] !== undefined) body["subnetwork"] = g["subnetwork"];
         if (g["target"] !== undefined) body["target"] = g["target"];
+        if (g["IPAddresses"] !== undefined) {
+          body["IPAddresses"] = g["IPAddresses"];
+        }
         if (g["requestId"] !== undefined) {
           params["requestId"] = String(g["requestId"]);
         }

@@ -54,6 +54,7 @@ const GlobalArgsSchema = z.object({
 
 const ResourceSchema = z.object({
   account_id: z.string().optional(),
+  claim_release_at: z.string().optional(),
   client_reference: z.string().optional(),
   dns_management: z.string().optional(),
   dns_records: z.array(z.object({
@@ -72,6 +73,7 @@ const ResourceSchema = z.object({
   id: z.string(),
   lifecycle_reason: z.string().optional(),
   lifecycle_status: z.string().optional(),
+  modified_at: z.string().optional(),
   routing: z.object({
     reason: z.string().optional(),
     status: z.string().optional(),
@@ -106,10 +108,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Domains. Registered at `@swamp/cloudflare/email/domains`. */
 export const model = {
   type: "@swamp/cloudflare/email/domains",
-  version: "2026.10.23.2",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.10.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

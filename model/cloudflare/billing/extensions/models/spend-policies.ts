@@ -13,13 +13,13 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-// Auto-generated extension model for @swamp/cloudflare/magic/providers
+// Auto-generated extension model for @swamp/cloudflare/billing/spend-policies
 // Do not edit manually. Re-generate with: deno task generate:cloudflare
 
 // deno-lint-ignore-file no-explicit-any
 
 /**
- * Swamp extension model for a Cloudflare Providers.
+ * Swamp extension model for a Cloudflare Spend-policies.
  *
  * Wraps the Cloudflare API as a swamp model so create, get, lookup,
  * adopt, update, delete, and sync can be driven through `swamp model`.
@@ -39,14 +39,22 @@ import {
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  aws_arn: z.string().optional(),
-  azure_subscription_id: z.string().optional(),
-  azure_tenant_id: z.string().optional(),
-  description: z.string().optional(),
-  friendly_name: z.string().optional(),
-  gcp_project_id: z.string().optional(),
-  gcp_service_account_email: z.string().optional(),
-  cloud_type: z.enum(["AWS", "AZURE", "GOOGLE", "CLOUDFLARE"]).optional(),
+  action: z.enum(["notification", "usage_block"]).describe(
+    "The action taken when the threshold is reached. `notification` sends an email to `notification_email`. `usage_block` blocks further usage of the product until the end of the billing period. Raising the threshold above the current balance, disabling the policy, or deleting it lifts the block early.",
+  ).optional(),
+  enabled: z.boolean().describe("Whether the policy is evaluated.").optional(),
+  name: z.string().min(1).describe(
+    "Display name of the policy. After surrounding whitespace is trimmed, it must be 1 to 200 bytes long. The value is stored as sent, untrimmed.",
+  ).optional(),
+  notification_email: z.string().describe(
+    "Email address that receives notifications. Required when `action` is `notification`. When set, it must be a bare address (`user@example.com`); display-name forms such as `Name <user@example.com>` are rejected.",
+  ).optional(),
+  product_id: z.enum(["workers", "durable_objects"]).describe(
+    "The product the policy applies to: `workers` or `durable_objects`. Each product's balance and policies are separate. Both products support `notification` and `usage_block` policies on create and update.",
+  ).optional(),
+  threshold_cents: z.number().int().min(1).describe(
+    "The spend threshold for the current billing period, in US cents. Must be greater than zero.",
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -59,119 +67,55 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  aws_arn: z.string().optional(),
-  azure_subscription_id: z.string().optional(),
-  azure_tenant_id: z.string().optional(),
-  cloud_type: z.string().optional(),
-  description: z.string().optional(),
-  friendly_name: z.string().optional(),
-  gcp_project_id: z.string().optional(),
-  gcp_service_account_email: z.string().optional(),
-  id: z.string(),
-  last_updated: z.string().optional(),
-  lifecycle_state: z.string().optional(),
-  state: z.string().optional(),
-  state_v2: z.string().optional(),
-  status: z.object({
-    credentials_good_since: z.string().optional(),
-    credentials_missing_since: z.string().optional(),
-    credentials_rejected_since: z.string().optional(),
-    discovery_message: z.string().optional(),
-    discovery_message_v2: z.string().optional(),
-    discovery_progress: z.object({
-      done: z.number().optional(),
-      total: z.number().optional(),
-      unit: z.string().optional(),
+  account_id: z.number().optional(),
+  action: z.string().optional(),
+  current_state: z.object({
+    balance_cents: z.number().optional(),
+    billing_period_end: z.string().optional(),
+    billing_period_start: z.string().optional(),
+    enforcement: z.object({
+      applied_generation: z.number().optional(),
+      delivery_status: z.string().optional(),
+      desired_generation: z.number().optional(),
+      desired_state: z.string().optional(),
+      expires_at: z.string().optional(),
     }).optional(),
-    discovery_progress_v2: z.object({
-      done: z.number().optional(),
-      total: z.number().optional(),
-      unit: z.string().optional(),
-    }).optional(),
-    in_use_by: z.array(z.object({
-      client_type: z.string().optional(),
-      id: z.string().optional(),
-      name: z.string().optional(),
-    })).optional(),
-    last_discovery_completed_at: z.string().optional(),
-    last_discovery_completed_at_v2: z.string().optional(),
-    last_discovery_started_at: z.string().optional(),
-    last_discovery_started_at_v2: z.string().optional(),
-    last_discovery_status: z.string().optional(),
-    last_discovery_status_v2: z.string().optional(),
-    last_updated: z.string().optional(),
-    regions: z.array(z.string()).optional(),
+    evaluated_at: z.string().optional(),
+    status: z.string().optional(),
   }).optional(),
+  enabled: z.boolean().optional(),
+  id: z.string(),
+  name: z.string().optional(),
+  notification_email: z.string().optional(),
+  product_id: z.string().optional(),
+  threshold_cents: z.number().optional(),
+  version: z.number().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
   account_id: z.string().optional(),
-  aws_arn: z.string().optional(),
-  azure_subscription_id: z.string().optional(),
-  azure_tenant_id: z.string().optional(),
-  description: z.string().optional(),
-  friendly_name: z.string().optional(),
-  gcp_project_id: z.string().optional(),
-  gcp_service_account_email: z.string().optional(),
-  cloud_type: z.enum(["AWS", "AZURE", "GOOGLE", "CLOUDFLARE"]).optional(),
+  action: z.enum(["notification", "usage_block"]).optional(),
+  enabled: z.boolean().optional(),
+  name: z.string().min(1).optional(),
+  notification_email: z.string().optional(),
+  product_id: z.enum(["workers", "durable_objects"]).optional(),
+  threshold_cents: z.number().int().min(1).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
 });
 
-/** Swamp extension model for Cloudflare Providers. Registered at `@swamp/cloudflare/magic/providers`. */
+/** Swamp extension model for Cloudflare Spend-policies. Registered at `@swamp/cloudflare/billing/spend-policies`. */
 export const model = {
-  type: "@swamp/cloudflare/magic/providers",
-  version: "2026.10.23.1",
-  upgrades: [
-    {
-      toVersion: "2026.05.29.1",
-      description: "Added: apiToken, apiKey, email",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.06.08.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.07.18.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.07.21.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.09.29.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.10.13.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.10.20.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-    {
-      toVersion: "2026.10.23.1",
-      description: "No schema changes",
-      upgradeAttributes: (old: Record<string, unknown>) => old,
-    },
-  ],
+  type: "@swamp/cloudflare/billing/spend-policies",
+  version: "2026.10.30.1",
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
-      description: "Providers resource state",
+      description: "Spend-policies resource state",
       schema: ResourceSchema,
       lifetime: "infinite",
       garbageCollection: 10,
@@ -189,29 +133,41 @@ export const model = {
   },
   methods: {
     create: {
-      description: "Create a Providers",
+      description: "Create a Spend-policies",
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const missing = ["cloud_type", "friendly_name"].filter((k) =>
-          g[k] === undefined
-        );
+        const missing = [
+          "action",
+          "enabled",
+          "name",
+          "product_id",
+          "threshold_cents",
+        ].filter((k) => g[k] === undefined);
         if (missing.length > 0) {
           throw new Error(
             "create requires global arguments: " + missing.join(", "),
           );
         }
-        const endpoint = "/accounts/" + g.account_id + "/magic/cloud/providers";
+        const endpoint = "/accounts/" + g.account_id +
+          "/billing/spend-policies";
         const body: Record<string, unknown> = {};
-        if (g.cloud_type !== undefined) body.cloud_type = g.cloud_type;
-        if (g.description !== undefined) body.description = g.description;
-        if (g.friendly_name !== undefined) body.friendly_name = g.friendly_name;
+        if (g.action !== undefined) body.action = g.action;
+        if (g.enabled !== undefined) body.enabled = g.enabled;
+        if (g.name !== undefined) body.name = g.name;
+        if (g.notification_email !== undefined) {
+          body.notification_email = g.notification_email;
+        }
+        if (g.product_id !== undefined) body.product_id = g.product_id;
+        if (g.threshold_cents !== undefined) {
+          body.threshold_cents = g.threshold_cents;
+        }
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
           email: g.email,
         }) as ResourceData;
-        const instanceName = (g.description?.toString() ?? "current").replace(
+        const instanceName = (g.name?.toString() ?? "current").replace(
           /[\/\\]/g,
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");
@@ -224,19 +180,20 @@ export const model = {
       },
     },
     get: {
-      description: "Get a Providers",
+      description: "Get a Spend-policies",
       arguments: z.object({
-        id: z.string().describe("The ID of the Providers"),
+        id: z.string().describe("The ID of the Spend-policies"),
       }),
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/magic/cloud/providers";
+        const endpoint = "/accounts/" + g.account_id +
+          "/billing/spend-policies";
         const result = await read(endpoint, args.id, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
           email: g.email,
         }) as ResourceData;
-        const instanceName = (g.description?.toString() ?? args.id).replace(
+        const instanceName = (g.name?.toString() ?? args.id).replace(
           /[\/\\]/g,
           "_",
         ).replace(/\.\./g, "_").replace(/\0/g, "");
@@ -250,7 +207,7 @@ export const model = {
     },
     lookup: {
       description:
-        "Look up an existing Providers by matching global argument values and import it into state",
+        "Look up an existing Spend-policies by matching global argument values and import it into state",
       arguments: z.object({
         allowMissing: z.boolean().optional().describe(
           "Succeed and record found: false in lookupResult when nothing matches, instead of failing",
@@ -258,37 +215,22 @@ export const model = {
       }),
       execute: async (args: { allowMissing?: boolean }, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/magic/cloud/providers";
+        const endpoint = "/accounts/" + g.account_id +
+          "/billing/spend-policies";
         const filters: [string, string][] = [];
-        if (g.aws_arn !== undefined) {
-          filters.push(["aws_arn", String(g.aws_arn)]);
+        if (g.action !== undefined) filters.push(["action", String(g.action)]);
+        if (g.enabled !== undefined) {
+          filters.push(["enabled", String(g.enabled)]);
         }
-        if (g.azure_subscription_id !== undefined) {
-          filters.push([
-            "azure_subscription_id",
-            String(g.azure_subscription_id),
-          ]);
+        if (g.name !== undefined) filters.push(["name", String(g.name)]);
+        if (g.notification_email !== undefined) {
+          filters.push(["notification_email", String(g.notification_email)]);
         }
-        if (g.azure_tenant_id !== undefined) {
-          filters.push(["azure_tenant_id", String(g.azure_tenant_id)]);
+        if (g.product_id !== undefined) {
+          filters.push(["product_id", String(g.product_id)]);
         }
-        if (g.description !== undefined) {
-          filters.push(["description", String(g.description)]);
-        }
-        if (g.friendly_name !== undefined) {
-          filters.push(["friendly_name", String(g.friendly_name)]);
-        }
-        if (g.gcp_project_id !== undefined) {
-          filters.push(["gcp_project_id", String(g.gcp_project_id)]);
-        }
-        if (g.gcp_service_account_email !== undefined) {
-          filters.push([
-            "gcp_service_account_email",
-            String(g.gcp_service_account_email),
-          ]);
-        }
-        if (g.cloud_type !== undefined) {
-          filters.push(["cloud_type", String(g.cloud_type)]);
+        if (g.threshold_cents !== undefined) {
+          filters.push(["threshold_cents", String(g.threshold_cents)]);
         }
         if (filters.length === 0) {
           throw new Error(
@@ -309,8 +251,10 @@ export const model = {
           return true;
         });
         const resultName = `lookup-${
-          (g.description?.toString() ?? "current").replace(/[\/\\]/g, "_")
-            .replace(/\.\./g, "_").replace(/\0/g, "")
+          (g.name?.toString() ?? "current").replace(/[\/\\]/g, "_").replace(
+            /\.\./g,
+            "_",
+          ).replace(/\0/g, "")
         }`;
         if (matches.length === 0) {
           if (args.allowMissing) {
@@ -324,7 +268,9 @@ export const model = {
           const filterDesc = filters.map(([k, v]) =>
             `${k}=${JSON.stringify(v)}`
           ).join(", ");
-          throw new Error(`No providers found matching filters: ${filterDesc}`);
+          throw new Error(
+            `No spend-policies found matching filters: ${filterDesc}`,
+          );
         }
         if (matches.length > 1) {
           const filterDesc = filters.map(([k, v]) =>
@@ -336,8 +282,10 @@ export const model = {
         }
         const result = matches[0] as ResourceData;
         const instanceName =
-          (g.description?.toString() ?? result.id?.toString() ?? "current")
-            .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
+          (g.name?.toString() ?? result.id?.toString() ?? "current").replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -357,24 +305,24 @@ export const model = {
     },
     adopt: {
       description:
-        "Import an existing Providers by ID into state for management",
+        "Import an existing Spend-policies by ID into state for management",
       arguments: z.object({
-        id: z.string().describe("The ID of the Providers to import"),
+        id: z.string().describe("The ID of the Spend-policies to import"),
       }),
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/magic/cloud/providers";
+        const endpoint = "/accounts/" + g.account_id +
+          "/billing/spend-policies";
         const result = await read(endpoint, args.id, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
           email: g.email,
         }) as ResourceData;
         const instanceName =
-          (result.description?.toString() ?? g.description?.toString() ??
-            args.id).replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(
-              /\0/g,
-              "",
-            );
+          (result.name?.toString() ?? g.name?.toString() ?? args.id).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -384,17 +332,18 @@ export const model = {
       },
     },
     update: {
-      description: "Update Providers attributes",
+      description: "Update Spend-policies attributes",
       arguments: z.object({
         identifier: z.string().describe(
-          "Target a specific Providers by id (e.g. one discovered by list)",
+          "Target a specific Spend-policies by id (e.g. one discovered by list)",
         ).optional(),
       }),
       execute: async (args: { identifier?: string }, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/magic/cloud/providers";
+        const endpoint = "/accounts/" + g.account_id +
+          "/billing/spend-policies";
         const instanceName =
-          (g.description?.toString() ?? args.identifier ?? "current").replace(
+          (g.name?.toString() ?? args.identifier ?? "current").replace(
             /[\/\\]/g,
             "_",
           ).replace(/\.\./g, "_").replace(/\0/g, "");
@@ -408,22 +357,47 @@ export const model = {
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
-        if (g.aws_arn !== undefined) body.aws_arn = g.aws_arn;
-        if (g.azure_subscription_id !== undefined) {
-          body.azure_subscription_id = g.azure_subscription_id;
+        if (g.action !== undefined) body.action = g.action;
+        if (g.enabled !== undefined) body.enabled = g.enabled;
+        if (g.name !== undefined) body.name = g.name;
+        if (g.notification_email !== undefined) {
+          body.notification_email = g.notification_email;
         }
-        if (g.azure_tenant_id !== undefined) {
-          body.azure_tenant_id = g.azure_tenant_id;
+        if (g.product_id !== undefined) body.product_id = g.product_id;
+        if (g.threshold_cents !== undefined) {
+          body.threshold_cents = g.threshold_cents;
         }
-        if (g.description !== undefined) body.description = g.description;
-        if (g.friendly_name !== undefined) body.friendly_name = g.friendly_name;
-        if (g.gcp_project_id !== undefined) {
-          body.gcp_project_id = g.gcp_project_id;
+        const unset = [
+          "action",
+          "enabled",
+          "name",
+          "notification_email",
+          "product_id",
+          "threshold_cents",
+        ].filter((k) => body[k] === undefined);
+        if (unset.length > 0) {
+          const live = await read(endpoint, existing.id, {
+            apiToken: g.apiToken,
+            apiKey: g.apiKey,
+            email: g.email,
+          });
+          for (const k of unset) {
+            if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
+          }
         }
-        if (g.gcp_service_account_email !== undefined) {
-          body.gcp_service_account_email = g.gcp_service_account_email;
+        const missingForUpdate = [
+          "action",
+          "enabled",
+          "name",
+          "product_id",
+          "threshold_cents",
+        ].filter((k) => body[k] === undefined);
+        if (missingForUpdate.length > 0) {
+          throw new Error(
+            "update requires global arguments: " + missingForUpdate.join(", "),
+          );
         }
-        const result = await update(endpoint, existing.id, body, "PATCH", {
+        const result = await update(endpoint, existing.id, body, "PUT", {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
           email: g.email,
@@ -437,23 +411,21 @@ export const model = {
       },
     },
     delete: {
-      description: "Delete the Providers",
+      description: "Delete the Spend-policies",
       arguments: z.object({
-        id: z.string().describe("The ID of the Providers"),
+        id: z.string().describe("The ID of the Spend-policies"),
       }),
       execute: async (args: { id: string }, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/magic/cloud/providers";
+        const endpoint = "/accounts/" + g.account_id +
+          "/billing/spend-policies";
         const { existed } = await remove(endpoint, args.id, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
           email: g.email,
         });
-        const instanceName =
-          (context.globalArgs.description?.toString() ?? args.id).replace(
-            /[\/\\]/g,
-            "_",
-          ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = (context.globalArgs.name?.toString() ?? args.id)
+          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource("state", instanceName, {
           id: args.id,
           existed,
@@ -464,17 +436,18 @@ export const model = {
       },
     },
     sync: {
-      description: "Sync Providers state from Cloudflare",
+      description: "Sync Spend-policies state from Cloudflare",
       arguments: z.object({
         identifier: z.string().describe(
-          "Target a specific Providers by id (e.g. one discovered by list)",
+          "Target a specific Spend-policies by id (e.g. one discovered by list)",
         ).optional(),
       }),
       execute: async (args: { identifier?: string }, context: any) => {
         const g = context.globalArgs;
-        const endpoint = "/accounts/" + g.account_id + "/magic/cloud/providers";
+        const endpoint = "/accounts/" + g.account_id +
+          "/billing/spend-policies";
         const instanceName =
-          (g.description?.toString() ?? args.identifier ?? "current").replace(
+          (g.name?.toString() ?? args.identifier ?? "current").replace(
             /[\/\\]/g,
             "_",
           ).replace(/\.\./g, "_").replace(/\0/g, "");

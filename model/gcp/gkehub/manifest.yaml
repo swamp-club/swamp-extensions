@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/gkehub"
-version: "2026.10.23.1"
+version: "2026.10.30.1"
 license: "AGPL-3.0-or-later"
 description: "Google Cloud gkehub infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -12,7 +12,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: locations, memberships_features, fleets, features, memberships, memberships_bindings, memberships_rbacrolebindings, rolloutsequences, rollouts, scopes, scopes_namespaces, scopes_rbacrolebindings
+  - Updated: rolloutsequences
 models:
   - features.ts
   - fleets.ts

@@ -84,9 +84,7 @@ const GlobalArgsSchema = z.object({
     PrincipalAttributes: z.array(PrincipalAttributeSchema).describe(
       "Attribute key-value pairs that select the principals the grant applies to.",
     ).optional(),
-  }).describe(
-    "The principal the grant is issued to. Supply PrincipalId, or PrincipalAttributes for an attribute-based grant.",
-  ),
+  }).describe("The principal the grant is issued to."),
   Permission: z.enum(["ADMIN"]).describe(
     "The permission level the grant confers. Organization grants are administrative only.",
   ),
@@ -142,9 +140,7 @@ const InputsSchema = z.object({
     PrincipalAttributes: z.array(PrincipalAttributeSchema).describe(
       "Attribute key-value pairs that select the principals the grant applies to.",
     ).optional(),
-  }).describe(
-    "The principal the grant is issued to. Supply PrincipalId, or PrincipalAttributes for an attribute-based grant.",
-  ).optional(),
+  }).describe("The principal the grant is issued to.").optional(),
   Permission: z.enum(["ADMIN"]).describe(
     "The permission level the grant confers. Organization grants are administrative only.",
   ).optional(),
@@ -172,7 +168,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudWatch DomainAccessGrantForOrganization. Registered at `@swamp/aws/cloudwatch/domain-access-grant-for-organization`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/domain-access-grant-for-organization",
-  version: "2026.10.27.1",
+  version: "2026.10.30.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

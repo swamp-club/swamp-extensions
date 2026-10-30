@@ -142,9 +142,7 @@ const GlobalArgsSchema = z.object({
     PrincipalAttributes: z.array(AccessGrantPrincipalAttributeSchema).describe(
       "Attribute conditions for attribute-based access. When provided, the grant targets any principal matching all specified conditions. Supported only for IDC_USER principals.",
     ).optional(),
-  }).describe(
-    "The principal receiving the grant. Specify PrincipalId, PrincipalAttributes, or both.",
-  ),
+  }).describe("The principal receiving the grant."),
   Permission: z.enum(["SPACE_ADMIN", "READ", "READ_WRITE_DELETE", "CUSTOM"])
     .describe(
       "The permission granted. Exactly one permission is granted per access grant.",
@@ -217,9 +215,7 @@ const InputsSchema = z.object({
     PrincipalAttributes: z.array(AccessGrantPrincipalAttributeSchema).describe(
       "Attribute conditions for attribute-based access. When provided, the grant targets any principal matching all specified conditions. Supported only for IDC_USER principals.",
     ).optional(),
-  }).describe(
-    "The principal receiving the grant. Specify PrincipalId, PrincipalAttributes, or both.",
-  ).optional(),
+  }).describe("The principal receiving the grant.").optional(),
   Permission: z.enum(["SPACE_ADMIN", "READ", "READ_WRITE_DELETE", "CUSTOM"])
     .describe(
       "The permission granted. Exactly one permission is granted per access grant.",
@@ -251,7 +247,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudWatch AccessGrant. Registered at `@swamp/aws/cloudwatch/access-grant`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/access-grant",
-  version: "2026.10.29.1",
+  version: "2026.10.30.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

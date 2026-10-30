@@ -485,6 +485,35 @@ const GlobalArgsSchema = z.object({
     restartPolicy: z.string().describe(
       "Optional. Restart policy for the Instance. Allowable values are 'Always', 'OnFailure', or 'Never'.",
     ).optional(),
+    sandboxes: z.object({
+      templates: z.array(z.object({
+        args: z.array(z.unknown()).describe(
+          "Optional. Arguments to the entrypoint. The docker image's CMD is used if this is not provided.",
+        ).optional(),
+        command: z.array(z.unknown()).describe(
+          "Optional. Entrypoint array. Not executed within a shell. The docker image's ENTRYPOINT is used if this is not provided.",
+        ).optional(),
+        env: z.array(z.unknown()).describe(
+          "Optional. List of environment variables to set in the sandbox.",
+        ).optional(),
+        image: z.string().describe(
+          "Required. Name of the container image in Dockerhub or Artifact Registry. If the host is not provided, Dockerhub is assumed.",
+        ).optional(),
+        name: z.string().describe(
+          "Required. Name of the sandbox specified as a DNS_LABEL (RFC 1123).",
+        ).optional(),
+        volumeMounts: z.array(z.unknown()).describe(
+          "Optional. Volume to mount into the container's filesystem.",
+        ).optional(),
+        workingDir: z.string().describe(
+          "Optional. Container's working directory. If not specified, the container runtime's default will be used, which might be configured in the container image.",
+        ).optional(),
+      })).describe(
+        "Required. Sandbox templates that can be launched through the `sandbox` CLI.",
+      ).optional(),
+    }).describe(
+      "Optional. Sandbox configuration that can be launched through the `sandbox` CLI.",
+    ).optional(),
     serviceAccountName: z.string().describe(
       "Optional. Email address of the IAM service account associated with the Instance. The service account represents the identity of the running container, and determines what permissions the Instance has. If not provided, the Instance will use the project's default service account.",
     ).optional(),
@@ -707,6 +736,17 @@ const StateSchema = z.object({
     })),
     nodeSelector: z.record(z.string(), z.unknown()),
     restartPolicy: z.string(),
+    sandboxes: z.object({
+      templates: z.array(z.object({
+        args: z.array(z.unknown()),
+        command: z.array(z.unknown()),
+        env: z.array(z.unknown()),
+        image: z.string(),
+        name: z.string(),
+        volumeMounts: z.array(z.unknown()),
+        workingDir: z.string(),
+      })),
+    }),
     serviceAccountName: z.string(),
     volumes: z.array(z.object({
       configMap: z.object({
@@ -1083,6 +1123,35 @@ const InputsSchema = z.object({
     restartPolicy: z.string().describe(
       "Optional. Restart policy for the Instance. Allowable values are 'Always', 'OnFailure', or 'Never'.",
     ).optional(),
+    sandboxes: z.object({
+      templates: z.array(z.object({
+        args: z.array(z.unknown()).describe(
+          "Optional. Arguments to the entrypoint. The docker image's CMD is used if this is not provided.",
+        ).optional(),
+        command: z.array(z.unknown()).describe(
+          "Optional. Entrypoint array. Not executed within a shell. The docker image's ENTRYPOINT is used if this is not provided.",
+        ).optional(),
+        env: z.array(z.unknown()).describe(
+          "Optional. List of environment variables to set in the sandbox.",
+        ).optional(),
+        image: z.string().describe(
+          "Required. Name of the container image in Dockerhub or Artifact Registry. If the host is not provided, Dockerhub is assumed.",
+        ).optional(),
+        name: z.string().describe(
+          "Required. Name of the sandbox specified as a DNS_LABEL (RFC 1123).",
+        ).optional(),
+        volumeMounts: z.array(z.unknown()).describe(
+          "Optional. Volume to mount into the container's filesystem.",
+        ).optional(),
+        workingDir: z.string().describe(
+          "Optional. Container's working directory. If not specified, the container runtime's default will be used, which might be configured in the container image.",
+        ).optional(),
+      })).describe(
+        "Required. Sandbox templates that can be launched through the `sandbox` CLI.",
+      ).optional(),
+    }).describe(
+      "Optional. Sandbox configuration that can be launched through the `sandbox` CLI.",
+    ).optional(),
     serviceAccountName: z.string().describe(
       "Optional. Email address of the IAM service account associated with the Instance. The service account represents the identity of the running container, and determines what permissions the Instance has. If not provided, the Instance will use the project's default service account.",
     ).optional(),
@@ -1187,7 +1256,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Namespaces.Instances. Registered at `@swamp/gcp/run/namespaces-instances`. */
 export const model = {
   type: "@swamp/gcp/run/namespaces-instances",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -1236,6 +1305,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

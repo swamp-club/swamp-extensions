@@ -42,7 +42,9 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
   ),
-  authentication: z.boolean().optional(),
+  authentication: z.boolean().describe(
+    "Require authentication for gateway access. New gateways must have authentication enabled. Once enabled, authentication cannot be disabled.",
+  ).optional(),
   byok_only: z.boolean().describe(
     "Requires customer-provided provider credentials and prevents fallback to Unified Billing.",
   ).optional(),
@@ -69,6 +71,7 @@ const GlobalArgsSchema = z.object({
       S11: z.enum(["FLAG", "BLOCK"]).optional(),
       S12: z.enum(["FLAG", "BLOCK"]).optional(),
       S13: z.enum(["FLAG", "BLOCK"]).optional(),
+      S14: z.enum(["FLAG", "BLOCK"]).optional(),
       S2: z.enum(["FLAG", "BLOCK"]).optional(),
       S3: z.enum(["FLAG", "BLOCK"]).optional(),
       S4: z.enum(["FLAG", "BLOCK"]).optional(),
@@ -85,6 +88,7 @@ const GlobalArgsSchema = z.object({
       S11: z.enum(["FLAG", "BLOCK"]).optional(),
       S12: z.enum(["FLAG", "BLOCK"]).optional(),
       S13: z.enum(["FLAG", "BLOCK"]).optional(),
+      S14: z.enum(["FLAG", "BLOCK"]).optional(),
       S2: z.enum(["FLAG", "BLOCK"]).optional(),
       S3: z.enum(["FLAG", "BLOCK"]).optional(),
       S4: z.enum(["FLAG", "BLOCK"]).optional(),
@@ -196,6 +200,7 @@ const ResourceSchema = z.object({
       S11: z.string().optional(),
       S12: z.string().optional(),
       S13: z.string().optional(),
+      S14: z.string().optional(),
       S2: z.string().optional(),
       S3: z.string().optional(),
       S4: z.string().optional(),
@@ -212,6 +217,7 @@ const ResourceSchema = z.object({
       S11: z.string().optional(),
       S12: z.string().optional(),
       S13: z.string().optional(),
+      S14: z.string().optional(),
       S2: z.string().optional(),
       S3: z.string().optional(),
       S4: z.string().optional(),
@@ -303,6 +309,7 @@ const InputsSchema = z.object({
       S11: z.enum(["FLAG", "BLOCK"]).optional(),
       S12: z.enum(["FLAG", "BLOCK"]).optional(),
       S13: z.enum(["FLAG", "BLOCK"]).optional(),
+      S14: z.enum(["FLAG", "BLOCK"]).optional(),
       S2: z.enum(["FLAG", "BLOCK"]).optional(),
       S3: z.enum(["FLAG", "BLOCK"]).optional(),
       S4: z.enum(["FLAG", "BLOCK"]).optional(),
@@ -319,6 +326,7 @@ const InputsSchema = z.object({
       S11: z.enum(["FLAG", "BLOCK"]).optional(),
       S12: z.enum(["FLAG", "BLOCK"]).optional(),
       S13: z.enum(["FLAG", "BLOCK"]).optional(),
+      S14: z.enum(["FLAG", "BLOCK"]).optional(),
       S2: z.enum(["FLAG", "BLOCK"]).optional(),
       S3: z.enum(["FLAG", "BLOCK"]).optional(),
       S4: z.enum(["FLAG", "BLOCK"]).optional(),
@@ -387,7 +395,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Gateways. Registered at `@swamp/cloudflare/ai-gateway/gateways`. */
 export const model = {
   type: "@swamp/cloudflare/ai-gateway/gateways",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -481,6 +489,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

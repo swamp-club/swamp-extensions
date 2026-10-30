@@ -56,9 +56,9 @@ const GlobalArgsSchema = z.object({
   service_id: z.string().optional(),
   tls_settings: z.object({
     cert_verification_mode: z.string(),
-  }).describe(
-    "TLS settings for a connectivity service.\n\nIf omitted, the default mode (`verify_full`) is used.",
-  ).optional(),
+    certificate_authority: z.string().optional(),
+    client_certificate: z.string().optional(),
+  }).describe("TLS settings for a connectivity service.").optional(),
   type: z.enum(["tcp", "http"]).optional(),
   updated_at: z.string().optional(),
   http_port: z.number().int().min(1).optional(),
@@ -112,6 +112,8 @@ const ResourceSchema = z.object({
     service_id: z.string().optional(),
     tls_settings: z.object({
       cert_verification_mode: z.string().optional(),
+      certificate_authority: z.string().optional(),
+      client_certificate: z.string().optional(),
     }).optional(),
     type: z.string().optional(),
     updated_at: z.string().optional(),
@@ -144,6 +146,8 @@ const InputsSchema = z.object({
   service_id: z.string().optional(),
   tls_settings: z.object({
     cert_verification_mode: z.string(),
+    certificate_authority: z.string().optional(),
+    client_certificate: z.string().optional(),
   }).optional(),
   type: z.enum(["tcp", "http"]).optional(),
   updated_at: z.string().optional(),
@@ -159,7 +163,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Services. Registered at `@swamp/cloudflare/connectivity/services`. */
 export const model = {
   type: "@swamp/cloudflare/connectivity/services",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -208,6 +212,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

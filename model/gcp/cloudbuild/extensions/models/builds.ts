@@ -380,6 +380,16 @@ const GlobalArgsSchema = z.object({
     pubsubTopic: z.string().describe(
       "Optional. Option to specify the Pub/Sub topic to receive build status updates.",
     ).optional(),
+    rankedMachineSeries: z.array(
+      z.enum([
+        "MACHINE_SERIES_UNSPECIFIED",
+        "MACHINE_SERIES_E",
+        "MACHINE_SERIES_N",
+        "MACHINE_SERIES_C",
+      ]),
+    ).describe(
+      "Optional. Ranked list (earlier items have higher priority) of Machine Series to consider when provisioning Worker VMs. A concrete machine type will be selected based on machine availability in the given region. This field must be empty for the Build to be eligible to be paired with a pre-provisioned worker VM.",
+    ).optional(),
     requestedVerifyOption: z.enum(["NOT_VERIFIED", "VERIFIED", "BEST_EFFORT"])
       .describe("Requested verifiability options.").optional(),
     resolvedWorkerRelease: z.string().describe(
@@ -759,6 +769,7 @@ const StateSchema = z.object({
       workerRelease: z.string(),
     }),
     pubsubTopic: z.string(),
+    rankedMachineSeries: z.array(z.string()),
     requestedVerifyOption: z.string(),
     resolvedWorkerRelease: z.string(),
     secretEnv: z.array(z.string()),
@@ -1240,6 +1251,16 @@ const InputsSchema = z.object({
     pubsubTopic: z.string().describe(
       "Optional. Option to specify the Pub/Sub topic to receive build status updates.",
     ).optional(),
+    rankedMachineSeries: z.array(
+      z.enum([
+        "MACHINE_SERIES_UNSPECIFIED",
+        "MACHINE_SERIES_E",
+        "MACHINE_SERIES_N",
+        "MACHINE_SERIES_C",
+      ]),
+    ).describe(
+      "Optional. Ranked list (earlier items have higher priority) of Machine Series to consider when provisioning Worker VMs. A concrete machine type will be selected based on machine availability in the given region. This field must be empty for the Build to be eligible to be paired with a pre-provisioned worker VM.",
+    ).optional(),
     requestedVerifyOption: z.enum(["NOT_VERIFIED", "VERIFIED", "BEST_EFFORT"])
       .describe("Requested verifiability options.").optional(),
     resolvedWorkerRelease: z.string().describe(
@@ -1526,7 +1547,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Build Builds. Registered at `@swamp/gcp/cloudbuild/builds`. */
 export const model = {
   type: "@swamp/gcp/cloudbuild/builds",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -1565,6 +1586,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -216,6 +216,16 @@ const GlobalArgsSchema = z.object({
       machineType: z.string().describe(
         "Optional. Machine type of a worker, such as `e2-medium`. See [Worker pool config file](https://cloud.google.com/build/docs/private-pools/worker-pool-config-file-schema). If left blank, Cloud Build will use a sensible default.",
       ).optional(),
+      rankedMachineSeries: z.array(
+        z.enum([
+          "MACHINE_SERIES_UNSPECIFIED",
+          "MACHINE_SERIES_E",
+          "MACHINE_SERIES_N",
+          "MACHINE_SERIES_C",
+        ]),
+      ).describe(
+        "Optional. Ranked list (earlier items have higher priority) of Machine Series to consider when provisioning Worker VMs. A concrete machine type will be selected based on machine availability in the given region.",
+      ).optional(),
       workerRelease: z.string().describe(
         "Optional. Option to specify which release or release channel (rapid|regular|stable) to use to run this build.",
       ).optional(),
@@ -252,6 +262,7 @@ const StateSchema = z.object({
       diskSizeGb: z.string(),
       enableNestedVirtualization: z.boolean(),
       machineType: z.string(),
+      rankedMachineSeries: z.array(z.string()),
       workerRelease: z.string(),
     }),
   }).optional(),
@@ -314,6 +325,16 @@ const InputsSchema = z.object({
       machineType: z.string().describe(
         "Optional. Machine type of a worker, such as `e2-medium`. See [Worker pool config file](https://cloud.google.com/build/docs/private-pools/worker-pool-config-file-schema). If left blank, Cloud Build will use a sensible default.",
       ).optional(),
+      rankedMachineSeries: z.array(
+        z.enum([
+          "MACHINE_SERIES_UNSPECIFIED",
+          "MACHINE_SERIES_E",
+          "MACHINE_SERIES_N",
+          "MACHINE_SERIES_C",
+        ]),
+      ).describe(
+        "Optional. Ranked list (earlier items have higher priority) of Machine Series to consider when provisioning Worker VMs. A concrete machine type will be selected based on machine availability in the given region.",
+      ).optional(),
       workerRelease: z.string().describe(
         "Optional. Option to specify which release or release channel (rapid|regular|stable) to use to run this build.",
       ).optional(),
@@ -354,7 +375,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Build WorkerPools. Registered at `@swamp/gcp/cloudbuild/workerpools`. */
 export const model = {
   type: "@swamp/gcp/cloudbuild/workerpools",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -378,6 +399,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

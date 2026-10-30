@@ -39,7 +39,9 @@ import {
 import type { AwsCredentials } from "./_lib/aws.ts";
 
 const PublicRouterNetworkInterfaceRuleSchema = z.object({
-  Cidr: z.string().describe(
+  Cidr: z.string().regex(
+    new RegExp("^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}/([0-9]|[12][0-9]|3[0-2])$"),
+  ).describe(
     "The CIDR block that is allowed to access the public router network interface.",
   ),
 });
@@ -88,11 +90,11 @@ const GlobalArgsSchema = z.object({
       "The configuration settings for a router network interface within a VPC, including the security group IDs and subnet ID.",
     ).optional(),
   }).describe("The configuration settings for a router network interface."),
-  Name: z.string().min(1).max(128).describe(
-    "The name of the router network interface.",
-  ),
+  Name: z.string().min(1).max(128).regex(
+    new RegExp("^[a-zA-Z0-9]([a-zA-Z0-9\\-_]*[a-zA-Z0-9])?$"),
+  ).describe("The name of the router network interface."),
   RegionName: z.string().describe(
-    "The AWS Region for the router network interface. Defaults to the current region if not specified.",
+    "The Amazon Web Services Region for the router network interface. Defaults to the current region if not specified.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
     "Key-value pairs that can be used to tag and organize this router network interface.",
@@ -134,11 +136,11 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe("The configuration settings for a router network interface.")
     .optional(),
-  Name: z.string().min(1).max(128).describe(
-    "The name of the router network interface.",
-  ).optional(),
+  Name: z.string().min(1).max(128).regex(
+    new RegExp("^[a-zA-Z0-9]([a-zA-Z0-9\\-_]*[a-zA-Z0-9])?$"),
+  ).describe("The name of the router network interface.").optional(),
   RegionName: z.string().describe(
-    "The AWS Region for the router network interface. Defaults to the current region if not specified.",
+    "The Amazon Web Services Region for the router network interface. Defaults to the current region if not specified.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
     "Key-value pairs that can be used to tag and organize this router network interface.",
@@ -164,7 +166,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaConnect RouterNetworkInterface. Registered at `@swamp/aws/mediaconnect/router-network-interface`. */
 export const model = {
   type: "@swamp/aws/mediaconnect/router-network-interface",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -223,6 +225,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

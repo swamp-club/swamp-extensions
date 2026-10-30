@@ -268,11 +268,25 @@ const GlobalArgsSchema = z.object({
     status: z.enum(["ACTIVE", "INACTIVE"]).describe(
       "Output only. [Output Only] The status of the sub public delegated prefix.",
     ).optional(),
+    purpose: z.enum([
+      "APPLICATION_AND_PROXY_LOAD_BALANCERS",
+      "PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0",
+      "PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1",
+    ]).describe(
+      "Output only. [Output Only] The purpose of the sub public delegated prefix. Inherited from parent prefix.",
+    ).optional(),
   })).describe(
     "The list of sub public delegated prefixes that exist for this public delegated prefix.",
   ).optional(),
   region: z.string().describe(
     "Output only. [Output Only] URL of the region where the public delegated prefix resides. This field applies only to the region resource. You must specify this field as part of the HTTP request URL. It is not settable as a field in the request body.",
+  ).optional(),
+  purpose: z.enum([
+    "APPLICATION_AND_PROXY_LOAD_BALANCERS",
+    "PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0",
+    "PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1",
+  ]).describe(
+    "Immutable. The purpose of the public delegated prefix. This field can only be set for the top-level global public delegated prefix. It is an output-only field for the sub-delegates that inherit the value from the top-level global public delegated prefix. Once the value is set, it cannot be changed. The field cannot be set for regional public delegated prefixes. The supported values are: - APPLICATION_AND_PROXY_LOAD_BALANCERS: The global public delegated prefix can only be used by Global External Application and Proxy Load Balancers to allocate addresses for forwarding rules. This is the default value. - PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0: The global public delegated prefix can only be used by Global External Passthrough Network Load Balancers to allocate Availability Group 0 addresses for forwarding rules. - PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1: The global public delegated prefix can only be used by Global External Passthrough Network Load Balancers to allocate Availability Group 1 addresses for forwarding rules.",
   ).optional(),
   requestId: z.string().describe(
     "An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -306,10 +320,12 @@ const StateSchema = z.object({
     name: z.string(),
     region: z.string(),
     status: z.string(),
+    purpose: z.string(),
   })).optional(),
   region: z.string().optional(),
   selfLink: z.string().optional(),
   status: z.string().optional(),
+  purpose: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -385,11 +401,25 @@ const InputsSchema = z.object({
     status: z.enum(["ACTIVE", "INACTIVE"]).describe(
       "Output only. [Output Only] The status of the sub public delegated prefix.",
     ).optional(),
+    purpose: z.enum([
+      "APPLICATION_AND_PROXY_LOAD_BALANCERS",
+      "PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0",
+      "PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1",
+    ]).describe(
+      "Output only. [Output Only] The purpose of the sub public delegated prefix. Inherited from parent prefix.",
+    ).optional(),
   })).describe(
     "The list of sub public delegated prefixes that exist for this public delegated prefix.",
   ).optional(),
   region: z.string().describe(
     "Output only. [Output Only] URL of the region where the public delegated prefix resides. This field applies only to the region resource. You must specify this field as part of the HTTP request URL. It is not settable as a field in the request body.",
+  ).optional(),
+  purpose: z.enum([
+    "APPLICATION_AND_PROXY_LOAD_BALANCERS",
+    "PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0",
+    "PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1",
+  ]).describe(
+    "Immutable. The purpose of the public delegated prefix. This field can only be set for the top-level global public delegated prefix. It is an output-only field for the sub-delegates that inherit the value from the top-level global public delegated prefix. Once the value is set, it cannot be changed. The field cannot be set for regional public delegated prefixes. The supported values are: - APPLICATION_AND_PROXY_LOAD_BALANCERS: The global public delegated prefix can only be used by Global External Application and Proxy Load Balancers to allocate addresses for forwarding rules. This is the default value. - PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0: The global public delegated prefix can only be used by Global External Passthrough Network Load Balancers to allocate Availability Group 0 addresses for forwarding rules. - PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1: The global public delegated prefix can only be used by Global External Passthrough Network Load Balancers to allocate Availability Group 1 addresses for forwarding rules.",
   ).optional(),
   requestId: z.string().describe(
     "An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -422,7 +452,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine PublicDelegatedPrefixes. Registered at `@swamp/gcp/compute/publicdelegatedprefixes`. */
 export const model = {
   type: "@swamp/gcp/compute/publicdelegatedprefixes",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -579,6 +609,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.30.1",
+      description: "Added: purpose",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -637,6 +672,7 @@ export const model = {
         if (g["publicDelegatedSubPrefixs"] !== undefined) {
           body["publicDelegatedSubPrefixs"] = g["publicDelegatedSubPrefixs"];
         }
+        if (g["purpose"] !== undefined) body["purpose"] = g["purpose"];
         if (g["requestId"] !== undefined) {
           params["requestId"] = String(g["requestId"]);
         }

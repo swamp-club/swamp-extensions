@@ -493,6 +493,9 @@ const GlobalArgsSchema = z.object({
     .describe(
       "User-provided name of the Organization firewall policy. The name should be unique in the organization in which the firewall policy is created. This field is not applicable to network firewall policies. This name must be set on creation and cannot be changed. The name must be 1-63 characters long, and comply with RFC1035. Specifically, the name must be 1-63 characters long and match the regular expression `[a-z]([-a-z0-9]*[a-z0-9])?` which means the first character must be a lowercase letter, and all following characters must be a dash, lowercase letter, or digit, except the last character, which cannot be a dash.",
     ).optional(),
+  policySource: z.enum(["SYSTEM", "USER_DEFINED"]).describe(
+    "Indicates the source of this Firewall Policy. This field is optional on creation and defaults to USER_DEFINED. The USER_DEFINED value indicates a regular firewall policy. The SYSTEM value indicates a system-level policy managed by an internal service like GKE. This SYSTEM value is reserved for internal services and cannot be set by users during policy creation. Policies with a SYSTEM source cannot be modified or deleted by users.",
+  ).optional(),
   parentId: z.string().describe(
     'Parent ID for this request. The ID can be either be "folders/[FOLDER_ID]" if the parent is a folder or "organizations/[ORGANIZATION_ID]" if the parent is an organization.',
   ).optional(),
@@ -616,6 +619,7 @@ const StateSchema = z.object({
   selfLink: z.string().optional(),
   selfLinkWithId: z.string().optional(),
   shortName: z.string().optional(),
+  policySource: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -963,6 +967,9 @@ const InputsSchema = z.object({
     .describe(
       "User-provided name of the Organization firewall policy. The name should be unique in the organization in which the firewall policy is created. This field is not applicable to network firewall policies. This name must be set on creation and cannot be changed. The name must be 1-63 characters long, and comply with RFC1035. Specifically, the name must be 1-63 characters long and match the regular expression `[a-z]([-a-z0-9]*[a-z0-9])?` which means the first character must be a lowercase letter, and all following characters must be a dash, lowercase letter, or digit, except the last character, which cannot be a dash.",
     ).optional(),
+  policySource: z.enum(["SYSTEM", "USER_DEFINED"]).describe(
+    "Indicates the source of this Firewall Policy. This field is optional on creation and defaults to USER_DEFINED. The USER_DEFINED value indicates a regular firewall policy. The SYSTEM value indicates a system-level policy managed by an internal service like GKE. This SYSTEM value is reserved for internal services and cannot be set by users during policy creation. Policies with a SYSTEM source cannot be modified or deleted by users.",
+  ).optional(),
   parentId: z.string().describe(
     'Parent ID for this request. The ID can be either be "folders/[FOLDER_ID]" if the parent is a folder or "organizations/[ORGANIZATION_ID]" if the parent is an organization.',
   ).optional(),
@@ -997,7 +1004,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine FirewallPolicies. Registered at `@swamp/gcp/compute/firewallpolicies`. */
 export const model = {
   type: "@swamp/gcp/compute/firewallpolicies",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1224,6 +1231,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.30.1",
+      description: "Added: policySource",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1262,6 +1274,9 @@ export const model = {
         if (g["policyType"] !== undefined) body["policyType"] = g["policyType"];
         if (g["rules"] !== undefined) body["rules"] = g["rules"];
         if (g["shortName"] !== undefined) body["shortName"] = g["shortName"];
+        if (g["policySource"] !== undefined) {
+          body["policySource"] = g["policySource"];
+        }
         if (g["parentId"] !== undefined) {
           params["parentId"] = String(g["parentId"]);
         }

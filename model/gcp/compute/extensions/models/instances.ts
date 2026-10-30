@@ -259,8 +259,24 @@ const GlobalArgsSchema = z.object({
       "Defines the type of technology used by the confidential instance.",
     ).optional(),
     enableConfidentialCompute: z.boolean().describe(
-      "Defines whether the instance should have confidential compute enabled.",
+      "Defines whether the instance should have confidential compute enabled. When enabled, the technology used defaults to AMD SEV unless confidentialInstanceType is specified.",
     ).optional(),
+    confidentialParavisorConfig: z.object({
+      confidentialTpmType: z.enum([
+        "CONFIDENTIAL_TPM_TYPE_UNSPECIFIED",
+        "EPHEMERAL",
+        "NO_CC_TPM",
+      ]).describe(
+        "Defines the type of TPM to use for the confidential instance.",
+      ).optional(),
+      sevSnpIrqMode: z.enum([
+        "RESTRICTED",
+        "SEV_SNP_IRQ_MODE_UNSPECIFIED",
+        "UNRESTRICTED",
+      ]).describe("Defines the IRQ mode to use for the confidential instance.")
+        .optional(),
+    }).describe("Defines a set of Confidential Paravisor (SVSM) options.")
+      .optional(),
   }).describe("A set of Confidential Instance options.").optional(),
   deletionProtection: z.boolean().describe(
     "Whether the resource should be protected against deletion.",
@@ -614,6 +630,9 @@ const GlobalArgsSchema = z.object({
       type: z.enum(["DIRECT_IPV6", "ONE_TO_ONE_NAT"]).describe(
         "The type of configuration. In accessConfigs (IPv4), the default and only option is ONE_TO_ONE_NAT. Inipv6AccessConfigs, the default and only option isDIRECT_IPV6.",
       ).optional(),
+      ipCollection: z.string().describe(
+        "Reference to the source of external IPv4 addresses, like a PublicDelegatedPrefix (PDP) for BYOIP. The PDP must support enhanced IPv4 allocations. Use one of the following formats to specify a PDP when allocating an external IPv4 address using BYOIP. - Full resource URL, as inhttps://www.googleapis.com/compute/v1/projects/projectId/regions/region/publicDelegatedPrefixes/pdp-name - Partial URL, as in - projects/projectId/regions/region/publicDelegatedPrefixes/pdp-name - regions/region/publicDelegatedPrefixes/pdp-name",
+      ).optional(),
     })).describe(
       "An array of configurations for this interface. Currently, only one access config, ONE_TO_ONE_NAT, is supported. If there are noaccessConfigs specified, then this instance will have no external internet access.",
     ).optional(),
@@ -684,6 +703,9 @@ const GlobalArgsSchema = z.object({
       ).optional(),
       type: z.enum(["DIRECT_IPV6", "ONE_TO_ONE_NAT"]).describe(
         "The type of configuration. In accessConfigs (IPv4), the default and only option is ONE_TO_ONE_NAT. Inipv6AccessConfigs, the default and only option isDIRECT_IPV6.",
+      ).optional(),
+      ipCollection: z.string().describe(
+        "Reference to the source of external IPv4 addresses, like a PublicDelegatedPrefix (PDP) for BYOIP. The PDP must support enhanced IPv4 allocations. Use one of the following formats to specify a PDP when allocating an external IPv4 address using BYOIP. - Full resource URL, as inhttps://www.googleapis.com/compute/v1/projects/projectId/regions/region/publicDelegatedPrefixes/pdp-name - Partial URL, as in - projects/projectId/regions/region/publicDelegatedPrefixes/pdp-name - regions/region/publicDelegatedPrefixes/pdp-name",
       ).optional(),
     })).describe(
       "An array of IPv6 access configurations for this interface. Currently, only one IPv6 access config, DIRECT_IPV6, is supported. If there is no ipv6AccessConfig specified, then this instance will have no external IPv6 Internet access.",
@@ -894,6 +916,13 @@ const GlobalArgsSchema = z.object({
     terminationTime: z.string().describe(
       "Specifies the timestamp, when the instance will be terminated, inRFC3339 text format. If specified, the instance termination action will be performed at the termination time.",
     ).optional(),
+    protectionTier: z.enum([
+      "PROTECTION_TIER_CAPACITY_OPTIMIZED",
+      "PROTECTION_TIER_STANDARD",
+      "PROTECTION_TIER_UNSPECIFIED",
+    ]).describe(
+      "Protection tier for the workload which specifies the workload expectations in the event of infrastructure failures at data center (e.g. power and/or cooling failures).",
+    ).optional(),
   }).describe("Sets the scheduling options for this instance.").optional(),
   serviceAccounts: z.array(z.object({
     email: z.string().describe("Email address of the service account.")
@@ -955,6 +984,11 @@ const GlobalArgsSchema = z.object({
   workloadIdentityConfig: z.object({
     identity: z.string().optional(),
     identityCertificateEnabled: z.boolean().optional(),
+    identityType: z.enum([
+      "AGENT_IDENTITY",
+      "IDENTITY_TYPE_UNSPECIFIED",
+      "SERVICE_ACCOUNT",
+    ]).optional(),
   }).optional(),
   zone: z.string().describe(
     "Output only. [Output Only] URL of the zone where the instance resides. You must specify this field as part of the HTTP request URL. It is not settable as a field in the request body.",
@@ -989,6 +1023,10 @@ const StateSchema = z.object({
   confidentialInstanceConfig: z.object({
     confidentialInstanceType: z.string(),
     enableConfidentialCompute: z.boolean(),
+    confidentialParavisorConfig: z.object({
+      confidentialTpmType: z.string(),
+      sevSnpIrqMode: z.string(),
+    }),
   }).optional(),
   cpuPlatform: z.string().optional(),
   creationTimestamp: z.string().optional(),
@@ -1119,6 +1157,7 @@ const StateSchema = z.object({
       securityPolicy: z.string(),
       setPublicPtr: z.boolean(),
       type: z.string(),
+      ipCollection: z.string(),
     })),
     aliasIpRanges: z.array(z.object({
       ipCidrRange: z.string(),
@@ -1143,6 +1182,7 @@ const StateSchema = z.object({
       securityPolicy: z.string(),
       setPublicPtr: z.boolean(),
       type: z.string(),
+      ipCollection: z.string(),
     })),
     ipv6AccessType: z.string(),
     ipv6Address: z.string(),
@@ -1207,6 +1247,7 @@ const StateSchema = z.object({
       availabilityDomain: z.number(),
       gracefulShutdownTimestamp: z.string(),
       terminationTimestamp: z.string(),
+      protectionTier: z.string(),
     }),
     shutdownDetails: z.object({
       maxDuration: z.object({
@@ -1270,6 +1311,7 @@ const StateSchema = z.object({
     provisioningModel: z.string(),
     skipGuestOsShutdown: z.boolean(),
     terminationTime: z.string(),
+    protectionTier: z.string(),
   }).optional(),
   selfLink: z.string().optional(),
   serviceAccounts: z.array(z.object({
@@ -1302,6 +1344,7 @@ const StateSchema = z.object({
   workloadIdentityConfig: z.object({
     identity: z.string(),
     identityCertificateEnabled: z.boolean(),
+    identityType: z.string(),
   }).optional(),
   zone: z.string().optional(),
 }).passthrough();
@@ -1355,8 +1398,24 @@ const InputsSchema = z.object({
       "Defines the type of technology used by the confidential instance.",
     ).optional(),
     enableConfidentialCompute: z.boolean().describe(
-      "Defines whether the instance should have confidential compute enabled.",
+      "Defines whether the instance should have confidential compute enabled. When enabled, the technology used defaults to AMD SEV unless confidentialInstanceType is specified.",
     ).optional(),
+    confidentialParavisorConfig: z.object({
+      confidentialTpmType: z.enum([
+        "CONFIDENTIAL_TPM_TYPE_UNSPECIFIED",
+        "EPHEMERAL",
+        "NO_CC_TPM",
+      ]).describe(
+        "Defines the type of TPM to use for the confidential instance.",
+      ).optional(),
+      sevSnpIrqMode: z.enum([
+        "RESTRICTED",
+        "SEV_SNP_IRQ_MODE_UNSPECIFIED",
+        "UNRESTRICTED",
+      ]).describe("Defines the IRQ mode to use for the confidential instance.")
+        .optional(),
+    }).describe("Defines a set of Confidential Paravisor (SVSM) options.")
+      .optional(),
   }).describe("A set of Confidential Instance options.").optional(),
   deletionProtection: z.boolean().describe(
     "Whether the resource should be protected against deletion.",
@@ -1710,6 +1769,9 @@ const InputsSchema = z.object({
       type: z.enum(["DIRECT_IPV6", "ONE_TO_ONE_NAT"]).describe(
         "The type of configuration. In accessConfigs (IPv4), the default and only option is ONE_TO_ONE_NAT. Inipv6AccessConfigs, the default and only option isDIRECT_IPV6.",
       ).optional(),
+      ipCollection: z.string().describe(
+        "Reference to the source of external IPv4 addresses, like a PublicDelegatedPrefix (PDP) for BYOIP. The PDP must support enhanced IPv4 allocations. Use one of the following formats to specify a PDP when allocating an external IPv4 address using BYOIP. - Full resource URL, as inhttps://www.googleapis.com/compute/v1/projects/projectId/regions/region/publicDelegatedPrefixes/pdp-name - Partial URL, as in - projects/projectId/regions/region/publicDelegatedPrefixes/pdp-name - regions/region/publicDelegatedPrefixes/pdp-name",
+      ).optional(),
     })).describe(
       "An array of configurations for this interface. Currently, only one access config, ONE_TO_ONE_NAT, is supported. If there are noaccessConfigs specified, then this instance will have no external internet access.",
     ).optional(),
@@ -1780,6 +1842,9 @@ const InputsSchema = z.object({
       ).optional(),
       type: z.enum(["DIRECT_IPV6", "ONE_TO_ONE_NAT"]).describe(
         "The type of configuration. In accessConfigs (IPv4), the default and only option is ONE_TO_ONE_NAT. Inipv6AccessConfigs, the default and only option isDIRECT_IPV6.",
+      ).optional(),
+      ipCollection: z.string().describe(
+        "Reference to the source of external IPv4 addresses, like a PublicDelegatedPrefix (PDP) for BYOIP. The PDP must support enhanced IPv4 allocations. Use one of the following formats to specify a PDP when allocating an external IPv4 address using BYOIP. - Full resource URL, as inhttps://www.googleapis.com/compute/v1/projects/projectId/regions/region/publicDelegatedPrefixes/pdp-name - Partial URL, as in - projects/projectId/regions/region/publicDelegatedPrefixes/pdp-name - regions/region/publicDelegatedPrefixes/pdp-name",
       ).optional(),
     })).describe(
       "An array of IPv6 access configurations for this interface. Currently, only one IPv6 access config, DIRECT_IPV6, is supported. If there is no ipv6AccessConfig specified, then this instance will have no external IPv6 Internet access.",
@@ -1990,6 +2055,13 @@ const InputsSchema = z.object({
     terminationTime: z.string().describe(
       "Specifies the timestamp, when the instance will be terminated, inRFC3339 text format. If specified, the instance termination action will be performed at the termination time.",
     ).optional(),
+    protectionTier: z.enum([
+      "PROTECTION_TIER_CAPACITY_OPTIMIZED",
+      "PROTECTION_TIER_STANDARD",
+      "PROTECTION_TIER_UNSPECIFIED",
+    ]).describe(
+      "Protection tier for the workload which specifies the workload expectations in the event of infrastructure failures at data center (e.g. power and/or cooling failures).",
+    ).optional(),
   }).describe("Sets the scheduling options for this instance.").optional(),
   serviceAccounts: z.array(z.object({
     email: z.string().describe("Email address of the service account.")
@@ -2051,6 +2123,11 @@ const InputsSchema = z.object({
   workloadIdentityConfig: z.object({
     identity: z.string().optional(),
     identityCertificateEnabled: z.boolean().optional(),
+    identityType: z.enum([
+      "AGENT_IDENTITY",
+      "IDENTITY_TYPE_UNSPECIFIED",
+      "SERVICE_ACCOUNT",
+    ]).optional(),
   }).optional(),
   zone: z.string().describe(
     "Output only. [Output Only] URL of the zone where the instance resides. You must specify this field as part of the HTTP request URL. It is not settable as a field in the request body.",
@@ -2098,7 +2175,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Instances. Registered at `@swamp/gcp/compute/instances`. */
 export const model = {
   type: "@swamp/gcp/compute/instances",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -2386,6 +2463,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2995,6 +3077,7 @@ export const model = {
         securityPolicy: z.any().optional(),
         setPublicPtr: z.any().optional(),
         type: z.any().optional(),
+        ipCollection: z.any().optional(),
         requestId: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
@@ -3047,6 +3130,9 @@ export const model = {
           body["setPublicPtr"] = args["setPublicPtr"];
         }
         if (args["type"] !== undefined) body["type"] = args["type"];
+        if (args["ipCollection"] !== undefined) {
+          body["ipCollection"] = args["ipCollection"];
+        }
         const result = await createResource(
           baseUrl,
           {
@@ -4770,6 +4856,7 @@ export const model = {
         provisioningModel: z.any().optional(),
         skipGuestOsShutdown: z.any().optional(),
         terminationTime: z.any().optional(),
+        protectionTier: z.any().optional(),
         requestId: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
@@ -4851,6 +4938,9 @@ export const model = {
         }
         if (args["terminationTime"] !== undefined) {
           body["terminationTime"] = args["terminationTime"];
+        }
+        if (args["protectionTier"] !== undefined) {
+          body["protectionTier"] = args["protectionTier"];
         }
         const result = await createResource(
           baseUrl,
@@ -5490,6 +5580,7 @@ export const model = {
         securityPolicy: z.any().optional(),
         setPublicPtr: z.any().optional(),
         type: z.any().optional(),
+        ipCollection: z.any().optional(),
         requestId: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
@@ -5542,6 +5633,9 @@ export const model = {
           body["setPublicPtr"] = args["setPublicPtr"];
         }
         if (args["type"] !== undefined) body["type"] = args["type"];
+        if (args["ipCollection"] !== undefined) {
+          body["ipCollection"] = args["ipCollection"];
+        }
         const result = await createResource(
           baseUrl,
           {

@@ -255,6 +255,7 @@ const GlobalArgsSchema = z.object({
         "CACHE_ALL_STATIC",
         "FORCE_CACHE_ALL",
         "USE_ORIGIN_HEADERS",
+        "BYPASS_CACHE",
       ]).describe(
         "Specifies the cache setting for all responses from this route. If not specified, Cloud CDN uses `CACHE_ALL_STATIC` mode.",
       ).optional(),
@@ -480,6 +481,24 @@ const GlobalArgsSchema = z.object({
     })).describe(
       "A list of weighted backend services to send traffic to when a route match occurs. The weights determine the fraction of traffic that flows to their corresponding backend service. If all traffic needs to go to a single backend service, there must be oneweightedBackendService with weight set to a non-zero number. After a backend service is identified and before forwarding the request to the backend service, advanced routing actions such as URL rewrites and header transformations are applied depending on additional settings specified in this HttpRouteAction.",
     ).optional(),
+    dynamicCompressionPolicy: z.object({
+      compressionMode: z.enum(["AUTOMATIC", "DISABLED"]).describe(
+        "Compress text responses using Brotli or gzip compression, based on the client's Accept-Encoding header.",
+      ).optional(),
+    }).describe(
+      "Dynamic compression policy for this URL Map's route. Available only for Global EXTERNAL_MANAGED load balancer schemes.",
+    ).optional(),
+    imageOptimizationPolicy: z.object({
+      queryParameterInterpretation: z.enum([
+        "DISABLED",
+        "ENABLED",
+        "QUERY_PARAMETER_INTERPRETATION_UNSPECIFIED",
+      ]).describe(
+        "Specifies whether to interpret query parameters for image optimization.",
+      ).optional(),
+    }).describe(
+      "Image optimization policy for this URL Map's route. Available only for Global EXTERNAL_MANAGED load balancer schemes. Either Cloud CDN must be enabled on the backend service or backend bucket serving the route, or cache policy must be configured on the same route",
+    ).optional(),
   }).describe(
     "defaultRouteAction takes effect when none of the hostRules match. The load balancer performs advanced routing actions, such as URL rewrites and header transformations, before forwarding the request to the selected backend. Only one of defaultUrlRedirect, defaultService or defaultRouteAction.weightedBackendService can be set. URL maps for classic Application Load Balancers only support the urlRewrite action within defaultRouteAction. defaultRouteAction has no effect when the URL map is bound to a target gRPC proxy that has the validateForProxyless field set to true.",
   ).optional(),
@@ -620,6 +639,7 @@ const GlobalArgsSchema = z.object({
           "CACHE_ALL_STATIC",
           "FORCE_CACHE_ALL",
           "USE_ORIGIN_HEADERS",
+          "BYPASS_CACHE",
         ]).describe(
           "Specifies the cache setting for all responses from this route. If not specified, Cloud CDN uses `CACHE_ALL_STATIC` mode.",
         ).optional(),
@@ -812,6 +832,24 @@ const GlobalArgsSchema = z.object({
       })).describe(
         "A list of weighted backend services to send traffic to when a route match occurs. The weights determine the fraction of traffic that flows to their corresponding backend service. If all traffic needs to go to a single backend service, there must be oneweightedBackendService with weight set to a non-zero number. After a backend service is identified and before forwarding the request to the backend service, advanced routing actions such as URL rewrites and header transformations are applied depending on additional settings specified in this HttpRouteAction.",
       ).optional(),
+      dynamicCompressionPolicy: z.object({
+        compressionMode: z.enum(["AUTOMATIC", "DISABLED"]).describe(
+          "Compress text responses using Brotli or gzip compression, based on the client's Accept-Encoding header.",
+        ).optional(),
+      }).describe(
+        "Dynamic compression policy for this URL Map's route. Available only for Global EXTERNAL_MANAGED load balancer schemes.",
+      ).optional(),
+      imageOptimizationPolicy: z.object({
+        queryParameterInterpretation: z.enum([
+          "DISABLED",
+          "ENABLED",
+          "QUERY_PARAMETER_INTERPRETATION_UNSPECIFIED",
+        ]).describe(
+          "Specifies whether to interpret query parameters for image optimization.",
+        ).optional(),
+      }).describe(
+        "Image optimization policy for this URL Map's route. Available only for Global EXTERNAL_MANAGED load balancer schemes. Either Cloud CDN must be enabled on the backend service or backend bucket serving the route, or cache policy must be configured on the same route",
+      ).optional(),
     }).describe(
       "defaultRouteAction takes effect when none of the pathRules or routeRules match. The load balancer performs advanced routing actions, such as URL rewrites and header transformations, before forwarding the request to the selected backend. Only one of defaultUrlRedirect, defaultService or defaultRouteAction.weightedBackendService can be set. URL maps for classic Application Load Balancers only support the urlRewrite action within a path matcher'sdefaultRouteAction.",
     ).optional(),
@@ -924,6 +962,12 @@ const GlobalArgsSchema = z.object({
         weightedBackendServices: z.unknown().describe(
           "A list of weighted backend services to send traffic to when a route match occurs. The weights determine the fraction of traffic that flows to their corresponding backend service. If all traffic needs to go to a single backend service, there must be oneweightedBackendService with weight set to a non-zero number. After a backend service is identified and before forwarding the request to the backend service, advanced routing actions such as URL rewrites and header transformations are applied depending on additional settings specified in this HttpRouteAction.",
         ).optional(),
+        dynamicCompressionPolicy: z.unknown().describe(
+          "Dynamic compression policy for this URL Map's route. Available only for Global EXTERNAL_MANAGED load balancer schemes.",
+        ).optional(),
+        imageOptimizationPolicy: z.unknown().describe(
+          "Image optimization policy for this URL Map's route. Available only for Global EXTERNAL_MANAGED load balancer schemes. Either Cloud CDN must be enabled on the backend service or backend bucket serving the route, or cache policy must be configured on the same route",
+        ).optional(),
       }).describe(
         "In response to a matching path, the load balancer performs advanced routing actions, such as URL rewrites and header transformations, before forwarding the request to the selected backend. Only one of urlRedirect, service orrouteAction.weightedBackendService can be set. URL maps for classic Application Load Balancers only support the urlRewrite action within a path rule'srouteAction.",
       ).optional(),
@@ -1018,6 +1062,12 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         weightedBackendServices: z.unknown().describe(
           "A list of weighted backend services to send traffic to when a route match occurs. The weights determine the fraction of traffic that flows to their corresponding backend service. If all traffic needs to go to a single backend service, there must be oneweightedBackendService with weight set to a non-zero number. After a backend service is identified and before forwarding the request to the backend service, advanced routing actions such as URL rewrites and header transformations are applied depending on additional settings specified in this HttpRouteAction.",
+        ).optional(),
+        dynamicCompressionPolicy: z.unknown().describe(
+          "Dynamic compression policy for this URL Map's route. Available only for Global EXTERNAL_MANAGED load balancer schemes.",
+        ).optional(),
+        imageOptimizationPolicy: z.unknown().describe(
+          "Image optimization policy for this URL Map's route. Available only for Global EXTERNAL_MANAGED load balancer schemes. Either Cloud CDN must be enabled on the backend service or backend bucket serving the route, or cache policy must be configured on the same route",
         ).optional(),
       }).describe(
         "In response to a matching matchRule, the load balancer performs advanced routing actions, such as URL rewrites and header transformations, before forwarding the request to the selected backend. Only one of urlRedirect, service orrouteAction.weightedBackendService can be set. URL maps for classic Application Load Balancers only support the urlRewrite action within a route rule'srouteAction.",
@@ -1196,6 +1246,12 @@ const StateSchema = z.object({
       }),
       weight: z.number(),
     })),
+    dynamicCompressionPolicy: z.object({
+      compressionMode: z.string(),
+    }),
+    imageOptimizationPolicy: z.object({
+      queryParameterInterpretation: z.string(),
+    }),
   }).optional(),
   defaultService: z.string().optional(),
   defaultUrlRedirect: z.object({
@@ -1326,6 +1382,12 @@ const StateSchema = z.object({
         headerAction: z.unknown(),
         weight: z.unknown(),
       })),
+      dynamicCompressionPolicy: z.object({
+        compressionMode: z.string(),
+      }),
+      imageOptimizationPolicy: z.object({
+        queryParameterInterpretation: z.string(),
+      }),
     }),
     defaultService: z.string(),
     defaultUrlRedirect: z.object({
@@ -1368,6 +1430,8 @@ const StateSchema = z.object({
         timeout: z.unknown(),
         urlRewrite: z.unknown(),
         weightedBackendServices: z.unknown(),
+        dynamicCompressionPolicy: z.unknown(),
+        imageOptimizationPolicy: z.unknown(),
       }),
       service: z.string(),
       urlRedirect: z.object({
@@ -1403,6 +1467,8 @@ const StateSchema = z.object({
         timeout: z.unknown(),
         urlRewrite: z.unknown(),
         weightedBackendServices: z.unknown(),
+        dynamicCompressionPolicy: z.unknown(),
+        imageOptimizationPolicy: z.unknown(),
       }),
       service: z.string(),
       urlRedirect: z.object({
@@ -1429,6 +1495,12 @@ const StateSchema = z.object({
     path: z.string(),
     service: z.string(),
   })).optional(),
+  status: z.object({
+    quotaUsage: z.object({
+      forwardingRules: z.number(),
+      units: z.string(),
+    }),
+  }).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -1494,6 +1566,7 @@ const InputsSchema = z.object({
         "CACHE_ALL_STATIC",
         "FORCE_CACHE_ALL",
         "USE_ORIGIN_HEADERS",
+        "BYPASS_CACHE",
       ]).describe(
         "Specifies the cache setting for all responses from this route. If not specified, Cloud CDN uses `CACHE_ALL_STATIC` mode.",
       ).optional(),
@@ -1719,6 +1792,24 @@ const InputsSchema = z.object({
     })).describe(
       "A list of weighted backend services to send traffic to when a route match occurs. The weights determine the fraction of traffic that flows to their corresponding backend service. If all traffic needs to go to a single backend service, there must be oneweightedBackendService with weight set to a non-zero number. After a backend service is identified and before forwarding the request to the backend service, advanced routing actions such as URL rewrites and header transformations are applied depending on additional settings specified in this HttpRouteAction.",
     ).optional(),
+    dynamicCompressionPolicy: z.object({
+      compressionMode: z.enum(["AUTOMATIC", "DISABLED"]).describe(
+        "Compress text responses using Brotli or gzip compression, based on the client's Accept-Encoding header.",
+      ).optional(),
+    }).describe(
+      "Dynamic compression policy for this URL Map's route. Available only for Global EXTERNAL_MANAGED load balancer schemes.",
+    ).optional(),
+    imageOptimizationPolicy: z.object({
+      queryParameterInterpretation: z.enum([
+        "DISABLED",
+        "ENABLED",
+        "QUERY_PARAMETER_INTERPRETATION_UNSPECIFIED",
+      ]).describe(
+        "Specifies whether to interpret query parameters for image optimization.",
+      ).optional(),
+    }).describe(
+      "Image optimization policy for this URL Map's route. Available only for Global EXTERNAL_MANAGED load balancer schemes. Either Cloud CDN must be enabled on the backend service or backend bucket serving the route, or cache policy must be configured on the same route",
+    ).optional(),
   }).describe(
     "defaultRouteAction takes effect when none of the hostRules match. The load balancer performs advanced routing actions, such as URL rewrites and header transformations, before forwarding the request to the selected backend. Only one of defaultUrlRedirect, defaultService or defaultRouteAction.weightedBackendService can be set. URL maps for classic Application Load Balancers only support the urlRewrite action within defaultRouteAction. defaultRouteAction has no effect when the URL map is bound to a target gRPC proxy that has the validateForProxyless field set to true.",
   ).optional(),
@@ -1859,6 +1950,7 @@ const InputsSchema = z.object({
           "CACHE_ALL_STATIC",
           "FORCE_CACHE_ALL",
           "USE_ORIGIN_HEADERS",
+          "BYPASS_CACHE",
         ]).describe(
           "Specifies the cache setting for all responses from this route. If not specified, Cloud CDN uses `CACHE_ALL_STATIC` mode.",
         ).optional(),
@@ -2051,6 +2143,24 @@ const InputsSchema = z.object({
       })).describe(
         "A list of weighted backend services to send traffic to when a route match occurs. The weights determine the fraction of traffic that flows to their corresponding backend service. If all traffic needs to go to a single backend service, there must be oneweightedBackendService with weight set to a non-zero number. After a backend service is identified and before forwarding the request to the backend service, advanced routing actions such as URL rewrites and header transformations are applied depending on additional settings specified in this HttpRouteAction.",
       ).optional(),
+      dynamicCompressionPolicy: z.object({
+        compressionMode: z.enum(["AUTOMATIC", "DISABLED"]).describe(
+          "Compress text responses using Brotli or gzip compression, based on the client's Accept-Encoding header.",
+        ).optional(),
+      }).describe(
+        "Dynamic compression policy for this URL Map's route. Available only for Global EXTERNAL_MANAGED load balancer schemes.",
+      ).optional(),
+      imageOptimizationPolicy: z.object({
+        queryParameterInterpretation: z.enum([
+          "DISABLED",
+          "ENABLED",
+          "QUERY_PARAMETER_INTERPRETATION_UNSPECIFIED",
+        ]).describe(
+          "Specifies whether to interpret query parameters for image optimization.",
+        ).optional(),
+      }).describe(
+        "Image optimization policy for this URL Map's route. Available only for Global EXTERNAL_MANAGED load balancer schemes. Either Cloud CDN must be enabled on the backend service or backend bucket serving the route, or cache policy must be configured on the same route",
+      ).optional(),
     }).describe(
       "defaultRouteAction takes effect when none of the pathRules or routeRules match. The load balancer performs advanced routing actions, such as URL rewrites and header transformations, before forwarding the request to the selected backend. Only one of defaultUrlRedirect, defaultService or defaultRouteAction.weightedBackendService can be set. URL maps for classic Application Load Balancers only support the urlRewrite action within a path matcher'sdefaultRouteAction.",
     ).optional(),
@@ -2163,6 +2273,12 @@ const InputsSchema = z.object({
         weightedBackendServices: z.unknown().describe(
           "A list of weighted backend services to send traffic to when a route match occurs. The weights determine the fraction of traffic that flows to their corresponding backend service. If all traffic needs to go to a single backend service, there must be oneweightedBackendService with weight set to a non-zero number. After a backend service is identified and before forwarding the request to the backend service, advanced routing actions such as URL rewrites and header transformations are applied depending on additional settings specified in this HttpRouteAction.",
         ).optional(),
+        dynamicCompressionPolicy: z.unknown().describe(
+          "Dynamic compression policy for this URL Map's route. Available only for Global EXTERNAL_MANAGED load balancer schemes.",
+        ).optional(),
+        imageOptimizationPolicy: z.unknown().describe(
+          "Image optimization policy for this URL Map's route. Available only for Global EXTERNAL_MANAGED load balancer schemes. Either Cloud CDN must be enabled on the backend service or backend bucket serving the route, or cache policy must be configured on the same route",
+        ).optional(),
       }).describe(
         "In response to a matching path, the load balancer performs advanced routing actions, such as URL rewrites and header transformations, before forwarding the request to the selected backend. Only one of urlRedirect, service orrouteAction.weightedBackendService can be set. URL maps for classic Application Load Balancers only support the urlRewrite action within a path rule'srouteAction.",
       ).optional(),
@@ -2258,6 +2374,12 @@ const InputsSchema = z.object({
         weightedBackendServices: z.unknown().describe(
           "A list of weighted backend services to send traffic to when a route match occurs. The weights determine the fraction of traffic that flows to their corresponding backend service. If all traffic needs to go to a single backend service, there must be oneweightedBackendService with weight set to a non-zero number. After a backend service is identified and before forwarding the request to the backend service, advanced routing actions such as URL rewrites and header transformations are applied depending on additional settings specified in this HttpRouteAction.",
         ).optional(),
+        dynamicCompressionPolicy: z.unknown().describe(
+          "Dynamic compression policy for this URL Map's route. Available only for Global EXTERNAL_MANAGED load balancer schemes.",
+        ).optional(),
+        imageOptimizationPolicy: z.unknown().describe(
+          "Image optimization policy for this URL Map's route. Available only for Global EXTERNAL_MANAGED load balancer schemes. Either Cloud CDN must be enabled on the backend service or backend bucket serving the route, or cache policy must be configured on the same route",
+        ).optional(),
       }).describe(
         "In response to a matching matchRule, the load balancer performs advanced routing actions, such as URL rewrites and header transformations, before forwarding the request to the selected backend. Only one of urlRedirect, service orrouteAction.weightedBackendService can be set. URL maps for classic Application Load Balancers only support the urlRewrite action within a route rule'srouteAction.",
       ).optional(),
@@ -2350,7 +2472,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine RegionUrlMaps. Registered at `@swamp/gcp/compute/regionurlmaps`. */
 export const model = {
   type: "@swamp/gcp/compute/regionurlmaps",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2549,6 +2671,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

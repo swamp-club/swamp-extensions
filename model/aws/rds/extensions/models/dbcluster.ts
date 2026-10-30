@@ -165,6 +165,7 @@ const GlobalArgsSchema = z.object({
   EngineVersion: z.string().describe(
     'The version number of the database engine to use. Don\'t use this property if your DB cluster is a member of a global database cluster. Instead, specify the EngineVersion property on the [AWS::RDS::GlobalCluster](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-rds-globalcluster.html) resource. Major version upgrades aren\'t supported for individual members of a global cluster. Use ModifyGlobalCluster to upgrade all members of the global cluster. To list all of the available engine versions for Aurora MySQL version 2 (5.7-compatible) and version 3 (8.0-compatible), use the following command: aws rds describe-db-engine-versions --engine aurora-mysql --query "DBEngineVersions[].EngineVersion" You can supply either 5.7 or 8.0 to use the default engine version for Aurora MySQL version 2 or version 3, respectively. To list all of the available engine versions for Aurora PostgreSQL, use the following command: aws rds describe-db-engine-versions --engine aurora-postgresql --query "DBEngineVersions[].EngineVersion" To list all of the available engine versions for RDS for MySQL, use the following command: aws rds describe-db-engine-versions --engine mysql --query "DBEngineVersions[].EngineVersion" To list all of the available engine versions for RDS for PostgreSQL, use the following command: aws rds describe-db-engine-versions --engine postgres --query "DBEngineVersions[].EngineVersion" *Aurora MySQL* For information, see [Database engine updates for Amazon Aurora MySQL](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Updates.html) in the *Amazon Aurora User Guide*. *Aurora PostgreSQL* For information, see [Amazon Aurora PostgreSQL releases and engine versions](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraPostgreSQL.Updates.20180305.html) in the *Amazon Aurora User Guide*. *MySQL* For information, see [Amazon RDS for MySQL](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_MySQL.html#MySQL.Concepts.VersionMgmt) in the *Amazon RDS User Guide*. *PostgreSQL* For information, see [Amazon RDS for PostgreSQL](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_PostgreSQL.html#PostgreSQL.Concepts) in the *Amazon RDS User Guide*. Valid for: Aurora DB clusters and Multi-AZ DB clusters',
   ).optional(),
+  WithExpressConfiguration: z.boolean().optional(),
   ManageMasterUserPassword: z.boolean().describe(
     "Specifies whether to manage the master user password with AWS Secrets Manager. For more information, see [Password management with Secrets Manager](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-secrets-manager.html) in the *Amazon RDS User Guide* and [Password management with Secrets Manager](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/rds-secrets-manager.html) in the *Amazon Aurora User Guide.* Valid for Cluster Type: Aurora DB clusters and Multi-AZ DB clusters Constraints: Can't manage the master user password with AWS Secrets Manager if MasterUserPassword is specified.",
   ).optional(),
@@ -501,6 +502,7 @@ const StateSchema = z.object({
   EngineLifecycleSupport: z.string().optional(),
   EngineMode: z.string().optional(),
   EngineVersion: z.string().optional(),
+  WithExpressConfiguration: z.boolean().optional(),
   ManageMasterUserPassword: z.boolean().optional(),
   Iops: z.number().optional(),
   KmsKeyId: z.string().optional(),
@@ -650,6 +652,7 @@ const InputsSchema = z.object({
   EngineVersion: z.string().describe(
     'The version number of the database engine to use. Don\'t use this property if your DB cluster is a member of a global database cluster. Instead, specify the EngineVersion property on the [AWS::RDS::GlobalCluster](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-rds-globalcluster.html) resource. Major version upgrades aren\'t supported for individual members of a global cluster. Use ModifyGlobalCluster to upgrade all members of the global cluster. To list all of the available engine versions for Aurora MySQL version 2 (5.7-compatible) and version 3 (8.0-compatible), use the following command: aws rds describe-db-engine-versions --engine aurora-mysql --query "DBEngineVersions[].EngineVersion" You can supply either 5.7 or 8.0 to use the default engine version for Aurora MySQL version 2 or version 3, respectively. To list all of the available engine versions for Aurora PostgreSQL, use the following command: aws rds describe-db-engine-versions --engine aurora-postgresql --query "DBEngineVersions[].EngineVersion" To list all of the available engine versions for RDS for MySQL, use the following command: aws rds describe-db-engine-versions --engine mysql --query "DBEngineVersions[].EngineVersion" To list all of the available engine versions for RDS for PostgreSQL, use the following command: aws rds describe-db-engine-versions --engine postgres --query "DBEngineVersions[].EngineVersion" *Aurora MySQL* For information, see [Database engine updates for Amazon Aurora MySQL](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraMySQL.Updates.html) in the *Amazon Aurora User Guide*. *Aurora PostgreSQL* For information, see [Amazon Aurora PostgreSQL releases and engine versions](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraPostgreSQL.Updates.20180305.html) in the *Amazon Aurora User Guide*. *MySQL* For information, see [Amazon RDS for MySQL](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_MySQL.html#MySQL.Concepts.VersionMgmt) in the *Amazon RDS User Guide*. *PostgreSQL* For information, see [Amazon RDS for PostgreSQL](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/CHAP_PostgreSQL.html#PostgreSQL.Concepts) in the *Amazon RDS User Guide*. Valid for: Aurora DB clusters and Multi-AZ DB clusters',
   ).optional(),
+  WithExpressConfiguration: z.boolean().optional(),
   ManageMasterUserPassword: z.boolean().describe(
     "Specifies whether to manage the master user password with AWS Secrets Manager. For more information, see [Password management with Secrets Manager](https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-secrets-manager.html) in the *Amazon RDS User Guide* and [Password management with Secrets Manager](https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/rds-secrets-manager.html) in the *Amazon Aurora User Guide.* Valid for Cluster Type: Aurora DB clusters and Multi-AZ DB clusters Constraints: Can't manage the master user password with AWS Secrets Manager if MasterUserPassword is specified.",
   ).optional(),
@@ -799,7 +802,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RDS DBCluster. Registered at `@swamp/aws/rds/dbcluster`. */
 export const model = {
   type: "@swamp/aws/rds/dbcluster",
-  version: "2026.10.25.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -931,6 +934,11 @@ export const model = {
       description: "Added: Port",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.30.1",
+      description: "Added: WithExpressConfiguration",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1045,6 +1053,7 @@ export const model = {
             "DBSystemId",
             "DatabaseName",
             "EngineMode",
+            "WithExpressConfiguration",
             "KmsKeyId",
             "PubliclyAccessible",
             "RestoreToTime",

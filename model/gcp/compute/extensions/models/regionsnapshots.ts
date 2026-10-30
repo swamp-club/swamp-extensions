@@ -224,7 +224,7 @@ const GlobalArgsSchema = z.object({
     "Encrypts the snapshot using acustomer-supplied encryption key. After you encrypt a snapshot using a customer-supplied key, you must provide the same key if you use the snapshot later. For example, you must provide the encryption key when you create a disk from the encrypted snapshot in a future request. Customer-supplied encryption keys do not protect access to metadata of the snapshot. If you do not provide an encryption key when creating the snapshot, then the snapshot will be encrypted using an automatically generated key and you do not need to provide a key to use the snapshot later.",
   ).optional(),
   snapshotType: z.enum(["ARCHIVE", "STANDARD"]).describe(
-    "Indicates the type of the snapshot.",
+    "Indicates the type of the snapshot. Valid values are ARCHIVE or STANDARD. The default is STANDARD.",
   ).optional(),
   sourceDisk: z.string().describe(
     "The source disk used to create this snapshot.",
@@ -408,7 +408,7 @@ const InputsSchema = z.object({
     "Encrypts the snapshot using acustomer-supplied encryption key. After you encrypt a snapshot using a customer-supplied key, you must provide the same key if you use the snapshot later. For example, you must provide the encryption key when you create a disk from the encrypted snapshot in a future request. Customer-supplied encryption keys do not protect access to metadata of the snapshot. If you do not provide an encryption key when creating the snapshot, then the snapshot will be encrypted using an automatically generated key and you do not need to provide a key to use the snapshot later.",
   ).optional(),
   snapshotType: z.enum(["ARCHIVE", "STANDARD"]).describe(
-    "Indicates the type of the snapshot.",
+    "Indicates the type of the snapshot. Valid values are ARCHIVE or STANDARD. The default is STANDARD.",
   ).optional(),
   sourceDisk: z.string().describe(
     "The source disk used to create this snapshot.",
@@ -491,7 +491,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine RegionSnapshots. Registered at `@swamp/gcp/compute/regionsnapshots`. */
 export const model = {
   type: "@swamp/gcp/compute/regionsnapshots",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.07.26.1",
@@ -540,6 +540,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

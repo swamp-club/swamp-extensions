@@ -78,8 +78,40 @@ const WeightedOverrideSchema = z.object({
   TrafficSplit: z.array(TrafficSplitEntrySchema),
 });
 
+const FallbackTriggersSchema = z.object({
+  StatusCodes: z.array(z.string().regex(new RegExp("^[4-5]([0-9]{2}|XX)$")))
+    .optional(),
+  Errors: z.array(
+    z.enum(["CONNECTION_ERROR", "FIRST_BYTE_TIMEOUT", "UNROUTABLE"]),
+  ).optional(),
+});
+
+const CircuitBreakerConfigurationSchema = z.object({
+  Mode: z.enum(["ENABLED", "DISABLED"]).optional(),
+});
+
+const FallbackTargetSchema = z.object({
+  TargetName: z.string().regex(new RegExp("^([0-9a-zA-Z][-]?){1,100}$")),
+  Model: z.string().min(1).max(2048).regex(
+    new RegExp("^[a-zA-Z0-9][a-zA-Z0-9\\-._/@:]*$"),
+  ).optional(),
+  TriggerOn: FallbackTriggersSchema.optional(),
+  FirstByteTimeoutMilliseconds: z.number().int().min(50).max(900000).optional(),
+});
+
+const FallbackSchema = z.object({
+  TriggerOn: FallbackTriggersSchema.optional(),
+  FirstByteTimeoutMilliseconds: z.number().int().min(50).max(900000).optional(),
+  CircuitBreaker: CircuitBreakerConfigurationSchema.optional(),
+  TargetFallback: z.array(FallbackTargetSchema),
+});
+
 const StaticRouteSchema = z.object({
   TargetName: z.string().regex(new RegExp("^([0-9a-zA-Z][-]?){1,100}$")),
+  Model: z.string().min(1).max(2048).regex(
+    new RegExp("^[a-zA-Z0-9][a-zA-Z0-9\\-._/@:]*$"),
+  ).optional(),
+  Fallback: FallbackSchema.optional(),
 });
 
 const TargetTrafficSplitEntrySchema = z.object({
@@ -88,6 +120,10 @@ const TargetTrafficSplitEntrySchema = z.object({
   ),
   Weight: z.number().min(1).max(99),
   TargetName: z.string().regex(new RegExp("^([0-9a-zA-Z][-]?){1,100}$")),
+  Model: z.string().min(1).max(2048).regex(
+    new RegExp("^[a-zA-Z0-9][a-zA-Z0-9\\-._/@:]*$"),
+  ).optional(),
+  Fallback: FallbackSchema.optional(),
   Description: z.string().min(1).max(200).optional(),
   Metadata: z.record(z.string(), z.string().min(1).max(256)).optional(),
 });
@@ -113,6 +149,17 @@ const MatchPrincipalsSchema = z.object({
 
 const MatchPathsSchema = z.object({
   AnyOf: z.array(z.string().max(512).regex(new RegExp("^/[\\w\\-.]+/\\*$"))),
+});
+
+const MatchModelEntrySchema = z.object({
+  Value: z.string().min(1).max(2048).regex(
+    new RegExp("^[a-zA-Z0-9\\-\\._\\*\\?@:]+(/[a-zA-Z0-9\\-\\._\\*\\?@:]+)*$"),
+  ),
+  Operator: z.enum(["StringEquals", "StringLike"]).optional(),
+});
+
+const MatchModelsSchema = z.object({
+  AnyOf: z.array(MatchModelEntrySchema),
 });
 
 const GlobalArgsSchema = z.object({
@@ -144,6 +191,7 @@ const GlobalArgsSchema = z.object({
   Conditions: z.array(z.object({
     MatchPrincipals: MatchPrincipalsSchema.optional(),
     MatchPaths: MatchPathsSchema.optional(),
+    MatchModels: MatchModelsSchema.optional(),
   })).optional(),
   Description: z.string().min(1).max(256).optional(),
   GatewayIdentifier: z.string().regex(
@@ -169,6 +217,7 @@ const StateSchema = z.object({
   Conditions: z.array(z.object({
     MatchPrincipals: MatchPrincipalsSchema,
     MatchPaths: MatchPathsSchema,
+    MatchModels: MatchModelsSchema,
   })).optional(),
   CreatedAt: z.string().optional(),
   Description: z.string().optional(),
@@ -204,6 +253,7 @@ const InputsSchema = z.object({
   Conditions: z.array(z.object({
     MatchPrincipals: MatchPrincipalsSchema.optional(),
     MatchPaths: MatchPathsSchema.optional(),
+    MatchModels: MatchModelsSchema.optional(),
   })).optional(),
   Description: z.string().min(1).max(256).optional(),
   GatewayIdentifier: z.string().regex(
@@ -234,7 +284,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore GatewayRule. Registered at `@swamp/aws/bedrockagentcore/gateway-rule`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/gateway-rule",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -258,6 +308,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

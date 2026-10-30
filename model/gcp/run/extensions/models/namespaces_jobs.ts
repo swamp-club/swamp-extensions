@@ -316,6 +316,9 @@ const GlobalArgsSchema = z.object({
             nodeSelector: z.unknown().describe(
               "Optional. The Node Selector configuration. Map of selector key to a value which matches a node.",
             ).optional(),
+            sandboxes: z.unknown().describe(
+              "Optional. Sandbox configuration that can be launched through the `sandbox` CLI.",
+            ).optional(),
             serviceAccountName: z.unknown().describe(
               "Optional. Email address of the IAM service account associated with the task of a job execution. The service account represents the identity of the running task, and determines what permissions the task has. If not provided, the task will use the project's default service account.",
             ).optional(),
@@ -411,6 +414,7 @@ const StateSchema = z.object({
             containers: z.unknown(),
             maxRetries: z.unknown(),
             nodeSelector: z.unknown(),
+            sandboxes: z.unknown(),
             serviceAccountName: z.unknown(),
             timeoutSeconds: z.unknown(),
             volumes: z.unknown(),
@@ -601,6 +605,9 @@ const InputsSchema = z.object({
             nodeSelector: z.unknown().describe(
               "Optional. The Node Selector configuration. Map of selector key to a value which matches a node.",
             ).optional(),
+            sandboxes: z.unknown().describe(
+              "Optional. Sandbox configuration that can be launched through the `sandbox` CLI.",
+            ).optional(),
             serviceAccountName: z.unknown().describe(
               "Optional. Email address of the IAM service account associated with the task of a job execution. The service account represents the identity of the running task, and determines what permissions the task has. If not provided, the task will use the project's default service account.",
             ).optional(),
@@ -658,7 +665,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Namespaces.Jobs. Registered at `@swamp/gcp/run/namespaces-jobs`. */
 export const model = {
   type: "@swamp/gcp/run/namespaces-jobs",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -707,6 +714,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

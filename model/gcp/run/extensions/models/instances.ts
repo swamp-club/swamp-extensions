@@ -490,6 +490,52 @@ const GlobalArgsSchema = z.object({
     "ON_FAILURE",
     "NEVER",
   ]).describe("Optional. Restart policy for the Instance.").optional(),
+  sandboxes: z.object({
+    templates: z.array(z.object({
+      args: z.array(z.string()).describe(
+        "Optional. Arguments to the entrypoint. The docker image's CMD is used if this is not provided.",
+      ).optional(),
+      command: z.array(z.string()).describe(
+        "Optional. Entrypoint array. Not executed within a shell. The docker image's ENTRYPOINT is used if this is not provided.",
+      ).optional(),
+      env: z.array(z.object({
+        name: z.unknown().describe(
+          "Required. Name of the environment variable. Must not exceed 32768 characters.",
+        ).optional(),
+        value: z.unknown().describe(
+          'Literal value of the environment variable. Defaults to "", and the maximum length is 32768 bytes. Variable references are not supported in Cloud Run.',
+        ).optional(),
+        valueSource: z.unknown().describe(
+          "Source for the environment variable's value.",
+        ).optional(),
+      })).describe(
+        "Optional. List of environment variables to set in the sandbox.",
+      ).optional(),
+      image: z.string().describe(
+        "Required. Name of the container image in Dockerhub or Artifact Registry. If the host is not provided, Dockerhub is assumed.",
+      ).optional(),
+      name: z.string().describe(
+        "Required. Name of the sandbox specified as a DNS_LABEL (RFC 1123).",
+      ).optional(),
+      volumeMounts: z.array(z.object({
+        mountPath: z.unknown().describe(
+          "Required. Path within the container at which the volume should be mounted. Must not contain ':'. For Cloud SQL volumes, it can be left empty, or must otherwise be `/cloudsql`. All instances defined in the Volume will be available as `/cloudsql/[instance]`. For more information on Cloud SQL volumes, visit https://cloud.google.com/sql/docs/mysql/connect-run",
+        ).optional(),
+        name: z.unknown().describe(
+          "Required. This must match the Name of a Volume.",
+        ).optional(),
+        subPath: z.unknown().describe(
+          "Optional. Path within the volume from which the container's volume should be mounted. Defaults to \"\" (volume's root). This field is currently rejected in Secret volume mounts.",
+        ).optional(),
+      })).describe("Optional. Volume to mount into the container's filesystem.")
+        .optional(),
+      workingDir: z.string().describe(
+        "Optional. Container's working directory. If not specified, the container runtime's default will be used, which might be configured in the container image.",
+      ).optional(),
+    })).describe(
+      "Required. Sandbox templates that can be launched through the `sandbox` CLI.",
+    ).optional(),
+  }).describe("Optional. Configuration for sandboxes.").optional(),
   serviceAccount: z.string().optional(),
   sshEnabled: z.boolean().describe(
     "Optional. Enables SSH access to the Instance.",
@@ -741,6 +787,25 @@ const StateSchema = z.object({
   observedGeneration: z.string().optional(),
   reconciling: z.boolean().optional(),
   restartPolicy: z.string().optional(),
+  sandboxes: z.object({
+    templates: z.array(z.object({
+      args: z.array(z.string()),
+      command: z.array(z.string()),
+      env: z.array(z.object({
+        name: z.unknown(),
+        value: z.unknown(),
+        valueSource: z.unknown(),
+      })),
+      image: z.string(),
+      name: z.string(),
+      volumeMounts: z.array(z.object({
+        mountPath: z.unknown(),
+        name: z.unknown(),
+        subPath: z.unknown(),
+      })),
+      workingDir: z.string(),
+    })),
+  }).optional(),
   satisfiesPzs: z.boolean().optional(),
   serviceAccount: z.string().optional(),
   sshEnabled: z.boolean().optional(),
@@ -1125,6 +1190,52 @@ const InputsSchema = z.object({
     "ON_FAILURE",
     "NEVER",
   ]).describe("Optional. Restart policy for the Instance.").optional(),
+  sandboxes: z.object({
+    templates: z.array(z.object({
+      args: z.array(z.string()).describe(
+        "Optional. Arguments to the entrypoint. The docker image's CMD is used if this is not provided.",
+      ).optional(),
+      command: z.array(z.string()).describe(
+        "Optional. Entrypoint array. Not executed within a shell. The docker image's ENTRYPOINT is used if this is not provided.",
+      ).optional(),
+      env: z.array(z.object({
+        name: z.unknown().describe(
+          "Required. Name of the environment variable. Must not exceed 32768 characters.",
+        ).optional(),
+        value: z.unknown().describe(
+          'Literal value of the environment variable. Defaults to "", and the maximum length is 32768 bytes. Variable references are not supported in Cloud Run.',
+        ).optional(),
+        valueSource: z.unknown().describe(
+          "Source for the environment variable's value.",
+        ).optional(),
+      })).describe(
+        "Optional. List of environment variables to set in the sandbox.",
+      ).optional(),
+      image: z.string().describe(
+        "Required. Name of the container image in Dockerhub or Artifact Registry. If the host is not provided, Dockerhub is assumed.",
+      ).optional(),
+      name: z.string().describe(
+        "Required. Name of the sandbox specified as a DNS_LABEL (RFC 1123).",
+      ).optional(),
+      volumeMounts: z.array(z.object({
+        mountPath: z.unknown().describe(
+          "Required. Path within the container at which the volume should be mounted. Must not contain ':'. For Cloud SQL volumes, it can be left empty, or must otherwise be `/cloudsql`. All instances defined in the Volume will be available as `/cloudsql/[instance]`. For more information on Cloud SQL volumes, visit https://cloud.google.com/sql/docs/mysql/connect-run",
+        ).optional(),
+        name: z.unknown().describe(
+          "Required. This must match the Name of a Volume.",
+        ).optional(),
+        subPath: z.unknown().describe(
+          "Optional. Path within the volume from which the container's volume should be mounted. Defaults to \"\" (volume's root). This field is currently rejected in Secret volume mounts.",
+        ).optional(),
+      })).describe("Optional. Volume to mount into the container's filesystem.")
+        .optional(),
+      workingDir: z.string().describe(
+        "Optional. Container's working directory. If not specified, the container runtime's default will be used, which might be configured in the container image.",
+      ).optional(),
+    })).describe(
+      "Required. Sandbox templates that can be launched through the `sandbox` CLI.",
+    ).optional(),
+  }).describe("Optional. Configuration for sandboxes.").optional(),
   serviceAccount: z.string().optional(),
   sshEnabled: z.boolean().describe(
     "Optional. Enables SSH access to the Instance.",
@@ -1253,7 +1364,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Instances. Registered at `@swamp/gcp/run/instances`. */
 export const model = {
   type: "@swamp/gcp/run/instances",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1552,6 +1663,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.30.1",
+      description: "Added: sandboxes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1626,6 +1742,7 @@ export const model = {
         if (g["restartPolicy"] !== undefined) {
           body["restartPolicy"] = g["restartPolicy"];
         }
+        if (g["sandboxes"] !== undefined) body["sandboxes"] = g["sandboxes"];
         if (g["serviceAccount"] !== undefined) {
           body["serviceAccount"] = g["serviceAccount"];
         }
@@ -1791,6 +1908,7 @@ export const model = {
         if (g["restartPolicy"] !== undefined) {
           body["restartPolicy"] = g["restartPolicy"];
         }
+        if (g["sandboxes"] !== undefined) body["sandboxes"] = g["sandboxes"];
         if (g["serviceAccount"] !== undefined) {
           body["serviceAccount"] = g["serviceAccount"];
         }

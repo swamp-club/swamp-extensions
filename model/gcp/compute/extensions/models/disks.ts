@@ -389,6 +389,31 @@ const GlobalArgsSchema = z.object({
   zone: z.string().describe(
     "Output only. [Output Only] URL of the zone where the disk resides. You must specify this field as part of the HTTP request URL. It is not settable as a field in the request body.",
   ).optional(),
+  sourceMachineImage: z.string().describe(
+    "The machine image to create the disk from. You can provide this as a partial or full URL to the resource. For example, the following are valid values: - https://www.googleapis.com/compute/v1/projects/project/global/machineImages/machineImage - projects/project/global/machineImages/machineImage - global/machineImages/machineImage",
+  ).optional(),
+  sourceMachineImageDiskDeviceName: z.string().describe(
+    "The device name of a disk within a given machine image. The source_machine_image must be specified.",
+  ).optional(),
+  sourceMachineImageEncryptionKey: z.object({
+    kmsKeyName: z.string().describe(
+      'The name of the encryption key that is stored in Google Cloud KMS. For example: "kmsKeyName": "projects/kms_project_id/locations/region/keyRings/ key_region/cryptoKeys/key The fully-qualifed key name may be returned for resource GET requests. For example: "kmsKeyName": "projects/kms_project_id/locations/region/keyRings/ key_region/cryptoKeys/key /cryptoKeyVersions/1',
+    ).optional(),
+    kmsKeyServiceAccount: z.string().describe(
+      'The service account being used for the encryption request for the given KMS key. If absent, the Compute Engine default service account is used. For example: "kmsKeyServiceAccount": "name@project_id.iam.gserviceaccount.com/',
+    ).optional(),
+    rawKey: z.string().describe(
+      '[DEPRECATED] CSEK is no longer supported. Use CMEK instead. Specifies a 256-bit customer-supplied encryption key, encoded in RFC 4648 base64 to either encrypt or decrypt this resource. You can provide either the rawKey or thersaEncryptedKey. For example: "rawKey": "SGVsbG8gZnJvbSBHb29nbGUgQ2xvdWQgUGxhdGZvcm0="',
+    ).optional(),
+    rsaEncryptedKey: z.string().describe(
+      '[DEPRECATED] CSEK is no longer supported. Use CMEK instead. Specifies an RFC 4648 base64 encoded, RSA-wrapped 2048-bit customer-supplied encryption key to either encrypt or decrypt this resource. You can provide either the rawKey or thersaEncryptedKey. For example: "rsaEncryptedKey": "ieCx/NcW06PcT7Ep1X6LUTc/hLvUDYyzSZPPVCVPTVEohpeHASqC8uw5TzyO9U+Fka9JFH z0mBibXUInrC/jEk014kCK/NPjYgEMOyssZ4ZINPKxlUh2zn1bV+MCaTICrdmuSBTWlUUiFoD D6PYznLwh8ZNdaheCeZ8ewEXgFQ8V+sDroLaN3Xs3MDTXQEMMoNUXMCZEIpg9Vtp9x2oe==" The key must meet the following requirements before you can provide it to Compute Engine: 1. The key is wrapped using a RSA public key certificate provided by Google. 2. After being wrapped, the key must be encoded in RFC 4648 base64 encoding. Gets the RSA public key certificate provided by Google at: https://cloud-certs.storage.googleapis.com/google-cloud-csek-ingress.pem',
+    ).optional(),
+    sha256: z.string().describe(
+      "[DEPRECATED] CSEK is no longer supported. Use CMEK instead. [Output only] TheRFC 4648 base64 encoded SHA-256 hash of the customer-supplied encryption key that protects this resource.",
+    ).optional(),
+  }).describe(
+    "Thecustomer-supplied encryption key of the source machine image. Required if the source machine image is protected by a customer-supplied encryption key.",
+  ).optional(),
   requestId: z.string().describe(
     "An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
   ).optional(),
@@ -478,6 +503,16 @@ const StateSchema = z.object({
   type: z.string().optional(),
   users: z.array(z.string()).optional(),
   zone: z.string().optional(),
+  sourceMachineImage: z.string().optional(),
+  sourceMachineImageDiskDeviceName: z.string().optional(),
+  sourceMachineImageEncryptionKey: z.object({
+    kmsKeyName: z.string(),
+    kmsKeyServiceAccount: z.string(),
+    rawKey: z.string(),
+    rsaEncryptedKey: z.string(),
+    sha256: z.string(),
+  }).optional(),
+  sourceMachineImageId: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -668,6 +703,31 @@ const InputsSchema = z.object({
   zone: z.string().describe(
     "Output only. [Output Only] URL of the zone where the disk resides. You must specify this field as part of the HTTP request URL. It is not settable as a field in the request body.",
   ).optional(),
+  sourceMachineImage: z.string().describe(
+    "The machine image to create the disk from. You can provide this as a partial or full URL to the resource. For example, the following are valid values: - https://www.googleapis.com/compute/v1/projects/project/global/machineImages/machineImage - projects/project/global/machineImages/machineImage - global/machineImages/machineImage",
+  ).optional(),
+  sourceMachineImageDiskDeviceName: z.string().describe(
+    "The device name of a disk within a given machine image. The source_machine_image must be specified.",
+  ).optional(),
+  sourceMachineImageEncryptionKey: z.object({
+    kmsKeyName: z.string().describe(
+      'The name of the encryption key that is stored in Google Cloud KMS. For example: "kmsKeyName": "projects/kms_project_id/locations/region/keyRings/ key_region/cryptoKeys/key The fully-qualifed key name may be returned for resource GET requests. For example: "kmsKeyName": "projects/kms_project_id/locations/region/keyRings/ key_region/cryptoKeys/key /cryptoKeyVersions/1',
+    ).optional(),
+    kmsKeyServiceAccount: z.string().describe(
+      'The service account being used for the encryption request for the given KMS key. If absent, the Compute Engine default service account is used. For example: "kmsKeyServiceAccount": "name@project_id.iam.gserviceaccount.com/',
+    ).optional(),
+    rawKey: z.string().describe(
+      '[DEPRECATED] CSEK is no longer supported. Use CMEK instead. Specifies a 256-bit customer-supplied encryption key, encoded in RFC 4648 base64 to either encrypt or decrypt this resource. You can provide either the rawKey or thersaEncryptedKey. For example: "rawKey": "SGVsbG8gZnJvbSBHb29nbGUgQ2xvdWQgUGxhdGZvcm0="',
+    ).optional(),
+    rsaEncryptedKey: z.string().describe(
+      '[DEPRECATED] CSEK is no longer supported. Use CMEK instead. Specifies an RFC 4648 base64 encoded, RSA-wrapped 2048-bit customer-supplied encryption key to either encrypt or decrypt this resource. You can provide either the rawKey or thersaEncryptedKey. For example: "rsaEncryptedKey": "ieCx/NcW06PcT7Ep1X6LUTc/hLvUDYyzSZPPVCVPTVEohpeHASqC8uw5TzyO9U+Fka9JFH z0mBibXUInrC/jEk014kCK/NPjYgEMOyssZ4ZINPKxlUh2zn1bV+MCaTICrdmuSBTWlUUiFoD D6PYznLwh8ZNdaheCeZ8ewEXgFQ8V+sDroLaN3Xs3MDTXQEMMoNUXMCZEIpg9Vtp9x2oe==" The key must meet the following requirements before you can provide it to Compute Engine: 1. The key is wrapped using a RSA public key certificate provided by Google. 2. After being wrapped, the key must be encoded in RFC 4648 base64 encoding. Gets the RSA public key certificate provided by Google at: https://cloud-certs.storage.googleapis.com/google-cloud-csek-ingress.pem',
+    ).optional(),
+    sha256: z.string().describe(
+      "[DEPRECATED] CSEK is no longer supported. Use CMEK instead. [Output only] TheRFC 4648 base64 encoded SHA-256 hash of the customer-supplied encryption key that protects this resource.",
+    ).optional(),
+  }).describe(
+    "Thecustomer-supplied encryption key of the source machine image. Required if the source machine image is protected by a customer-supplied encryption key.",
+  ).optional(),
   requestId: z.string().describe(
     "An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
   ).optional(),
@@ -700,7 +760,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Disks. Registered at `@swamp/gcp/compute/disks`. */
 export const model = {
   type: "@swamp/gcp/compute/disks",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -975,6 +1035,12 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.30.1",
+      description:
+        "Added: sourceMachineImage, sourceMachineImageDiskDeviceName, sourceMachineImageEncryptionKey",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1083,6 +1149,17 @@ export const model = {
           body["storagePool"] = g["storagePool"];
         }
         if (g["type"] !== undefined) body["type"] = g["type"];
+        if (g["sourceMachineImage"] !== undefined) {
+          body["sourceMachineImage"] = g["sourceMachineImage"];
+        }
+        if (g["sourceMachineImageDiskDeviceName"] !== undefined) {
+          body["sourceMachineImageDiskDeviceName"] =
+            g["sourceMachineImageDiskDeviceName"];
+        }
+        if (g["sourceMachineImageEncryptionKey"] !== undefined) {
+          body["sourceMachineImageEncryptionKey"] =
+            g["sourceMachineImageEncryptionKey"];
+        }
         if (g["requestId"] !== undefined) {
           params["requestId"] = String(g["requestId"]);
         }
@@ -1274,6 +1351,17 @@ export const model = {
           body["storagePool"] = g["storagePool"];
         }
         if (g["type"] !== undefined) body["type"] = g["type"];
+        if (g["sourceMachineImage"] !== undefined) {
+          body["sourceMachineImage"] = g["sourceMachineImage"];
+        }
+        if (g["sourceMachineImageDiskDeviceName"] !== undefined) {
+          body["sourceMachineImageDiskDeviceName"] =
+            g["sourceMachineImageDiskDeviceName"];
+        }
+        if (g["sourceMachineImageEncryptionKey"] !== undefined) {
+          body["sourceMachineImageEncryptionKey"] =
+            g["sourceMachineImageEncryptionKey"];
+        }
         if (g["paths"] !== undefined) params["paths"] = String(g["paths"]);
         else if (existing["paths"] !== undefined) {
           params["paths"] = String(existing["paths"]);

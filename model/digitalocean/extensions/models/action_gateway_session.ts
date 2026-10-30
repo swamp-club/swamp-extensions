@@ -52,8 +52,14 @@ const GlobalArgsSchema = z.object({
   tools: z.array(z.string()).describe(
     "Omitted enables every tool. An explicit empty array enables no tools. Direct tools may be `<tool>` or `<tool>@<version>`, using provider-qualified tool slugs, and a pinned version must be the released one; toolbelt references must be version-pinned as `toolbelt:<belt-name>@<version>`.",
   ).optional(),
-  config: z.record(z.string(), z.unknown()).describe(
-    "Optional session options. config.preloadTools may contain concrete tool names (optionally version-pinned) and version-pinned toolbelt references. config.customInstructions is a string of at most 1000 characters. config.outputViews maps up to 100 tool slugs to the name of an output view to apply to that tool's results.",
+  config: z.object({
+    cache: z.object({
+      tools: z.array(z.string()).optional(),
+      allEligible: z.boolean().optional(),
+      maxAgeSeconds: z.number().int().min(1).max(300).optional(),
+    }).optional(),
+  }).describe(
+    "Optional session options. config.preloadTools may contain concrete tool names (optionally version-pinned) and version-pinned toolbelt references. config.customInstructions is a string of at most 1000 characters. config.outputViews maps up to 100 tool slugs to the name of an output view to apply to that tool's results. config.cache opts eligible tools into result caching for this session.",
   ).optional(),
   network: z.object({
     vpcUuid: z.string().optional(),
@@ -91,7 +97,13 @@ const ResourceSchema = z.object({
       version: z.string().optional(),
     })).optional(),
   }).optional(),
-  config: z.record(z.string(), z.unknown()).optional(),
+  config: z.object({
+    cache: z.object({
+      tools: z.array(z.string()).optional(),
+      allEligible: z.boolean().optional(),
+      maxAgeSeconds: z.number().optional(),
+    }).optional(),
+  }).optional(),
   network: z.object({
     vpcUuid: z.string().optional(),
   }).optional(),
@@ -122,7 +134,13 @@ const InputsSchema = z.object({
     })).optional(),
   }).optional(),
   tools: z.array(z.string()).optional(),
-  config: z.record(z.string(), z.unknown()).optional(),
+  config: z.object({
+    cache: z.object({
+      tools: z.array(z.string()).optional(),
+      allEligible: z.boolean().optional(),
+      maxAgeSeconds: z.number().int().min(1).max(300).optional(),
+    }).optional(),
+  }).optional(),
   network: z.object({
     vpcUuid: z.string().optional(),
   }).optional(),
@@ -137,7 +155,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean action gateway session. Registered at `@swamp/digitalocean/action-gateway-session`. */
 export const model = {
   type: "@swamp/digitalocean/action-gateway-session",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.10.01.1",
@@ -164,6 +182,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

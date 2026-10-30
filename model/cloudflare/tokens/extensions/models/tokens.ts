@@ -89,6 +89,12 @@ const GlobalArgsSchema = z.object({
   status: z.enum(["active", "disabled", "expired"]).describe(
     "Status of the token.",
   ).optional(),
+  token_prefix: z.string().describe(
+    "The prefix of the token value, before the first underscore. Use it with\n`token_suffix` to identify a token. Only present for tokens created or\nrolled after this field was added.",
+  ).optional(),
+  token_suffix: z.string().min(4).max(4).describe(
+    "The last 4 characters of the token value. Use it with `token_prefix` to\nidentify a token. It is not unique. Only present for tokens created or\nrolled after this field was added.",
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -137,6 +143,8 @@ const ResourceSchema = z.object({
   provisioner_id: z.string().optional(),
   provisioner_type: z.string().optional(),
   status: z.string().optional(),
+  token_prefix: z.string().optional(),
+  token_suffix: z.string().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -179,6 +187,8 @@ const InputsSchema = z.object({
   provisioner_id: z.string().optional(),
   provisioner_type: z.string().optional(),
   status: z.enum(["active", "disabled", "expired"]).optional(),
+  token_prefix: z.string().optional(),
+  token_suffix: z.string().min(4).max(4).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
@@ -187,7 +197,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Tokens. Registered at `@swamp/cloudflare/tokens/tokens`. */
 export const model = {
   type: "@swamp/cloudflare/tokens/tokens",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -248,6 +258,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
+      description: "Added: token_prefix, token_suffix",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -372,6 +387,12 @@ export const model = {
           filters.push(["provisioner_type", String(g.provisioner_type)]);
         }
         if (g.status !== undefined) filters.push(["status", String(g.status)]);
+        if (g.token_prefix !== undefined) {
+          filters.push(["token_prefix", String(g.token_prefix)]);
+        }
+        if (g.token_suffix !== undefined) {
+          filters.push(["token_suffix", String(g.token_suffix)]);
+        }
         if (filters.length === 0) {
           throw new Error(
             "At least one global argument must be set to filter by",
@@ -511,6 +532,8 @@ export const model = {
           body.provisioner_type = g.provisioner_type;
         }
         if (g.status !== undefined) body.status = g.status;
+        if (g.token_prefix !== undefined) body.token_prefix = g.token_prefix;
+        if (g.token_suffix !== undefined) body.token_suffix = g.token_suffix;
         const unset = [
           "condition",
           "creator_email_at_creation",

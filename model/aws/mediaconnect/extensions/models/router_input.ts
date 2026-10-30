@@ -38,11 +38,43 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
-const RtpRouterInputConfigurationSchema = z.object({
-  Port: z.number().int().min(3000).max(30000).describe(
-    "The port number used for the RTP protocol in the router input configuration.",
+const EndpointEncryptionSecretConfigurationSchema = z.object({
+  SecretArn: z.string().regex(
+    new RegExp(
+      "^arn:(aws[a-zA-Z-]*):secretsmanager:[a-z0-9-]+:[0-9]{12}:secret:[a-zA-Z0-9/_+=.@-]+$",
+    ),
+  ).describe(
+    "The ARN of the Secrets Manager secret that holds the key or passphrase. The secret must be encrypted with a customer managed Amazon Web Services KMS key that is enabled and symmetric; it cannot use the Amazon Web Services managed key aws/secretsmanager. The secret must be in the same Amazon Web Services account and Region as the endpoint.",
   ),
-  ForwardErrorCorrection: z.enum(["ENABLED", "DISABLED"]).optional(),
+});
+
+const SecretsManagerEndpointEncryptionConfigurationSchema = z.object({
+  EncryptionSecretType: z.enum([
+    "AES_128_KEY",
+    "AES_192_KEY",
+    "AES_256_KEY",
+    "SRT_PASSPHRASE",
+  ]).optional(),
+  EncryptionSecret: EndpointEncryptionSecretConfigurationSchema.describe(
+    "The configuration for the Secrets Manager secret that holds the key or passphrase used to encrypt an endpoint connection.",
+  ),
+});
+
+const DestinationEndpointRouterInputConfigurationSchema = z.object({
+  EndpointLifecycleManagement: z.enum(["MANAGED", "UNMANAGED"]),
+  SourceTransitDecryptionType: z.enum(["SECRETS_MANAGER", "AUTOMATIC"])
+    .optional(),
+  SourceTransitDecryption: z.object({
+    SecretsManager: SecretsManagerEndpointEncryptionConfigurationSchema
+      .describe(
+        "The endpoint encryption configuration for connections that use a key or passphrase that you store in Secrets Manager.",
+      ).optional(),
+    Automatic: z.record(z.string(), z.unknown()).describe(
+      "The configuration for automatic endpoint encryption. In this mode, MediaConnect determines the encryption key when the endpoint connects. This type does not require any additional settings.",
+    ).optional(),
+  }).describe(
+    "The encryption settings for an endpoint connection. This is a union type, so exactly one of its members is set: secretsManager when you store the encryption key or passphrase in Secrets Manager, or automatic when you let MediaConnect determine the encryption key when the endpoint connects.",
+  ),
 });
 
 const RistRouterInputConfigurationSchema = z.object({
@@ -105,6 +137,13 @@ const SrtCallerRouterInputConfigurationSchema = z.object({
   ).optional(),
 });
 
+const RtpRouterInputConfigurationSchema = z.object({
+  Port: z.number().int().min(3000).max(30000).describe(
+    "The port number used for the RTP protocol in the router input configuration.",
+  ),
+  ForwardErrorCorrection: z.enum(["ENABLED", "DISABLED"]).optional(),
+});
+
 const StandardRouterInputConfigurationSchema = z.object({
   NetworkInterfaceArn: z.string().regex(
     new RegExp(
@@ -114,9 +153,6 @@ const StandardRouterInputConfigurationSchema = z.object({
     "The Amazon Resource Name (ARN) of the network interface associated with the standard router input.",
   ),
   ProtocolConfiguration: z.object({
-    Rtp: RtpRouterInputConfigurationSchema.describe(
-      "The configuration settings for a Router Input using the RTP (Real-Time Transport Protocol) protocol, including the port and forward error correction state.",
-    ).optional(),
     Rist: RistRouterInputConfigurationSchema.describe(
       "The configuration settings for a router input using the RIST (Reliable Internet Stream Transport) protocol, including the port and recovery latency.",
     ).optional(),
@@ -126,8 +162,42 @@ const StandardRouterInputConfigurationSchema = z.object({
     SrtCaller: SrtCallerRouterInputConfigurationSchema.describe(
       "The configuration settings for a router input using the SRT (Secure Reliable Transport) protocol in caller mode, including the source address and port, minimum latency, stream ID, and decryption key configuration.",
     ).optional(),
+    Rtp: RtpRouterInputConfigurationSchema.describe(
+      "The configuration settings for a Router Input using the RTP (Real-Time Transport Protocol) protocol, including the port and forward error correction state.",
+    ).optional(),
   }).describe("The protocol configuration settings for a router input."),
   Protocol: z.enum(["RTP", "RIST", "SRT_CALLER", "SRT_LISTENER"]).optional(),
+});
+
+const MediaLiveTransitEncryptionSchema = z.object({
+  EncryptionKeyType: z.enum(["SECRETS_MANAGER", "AUTOMATIC"]).optional(),
+  EncryptionKeyConfiguration: z.object({
+    SecretsManager: SecretsManagerEncryptionKeyConfigurationSchema.describe(
+      "The configuration settings for transit encryption using Secrets Manager, including the secret ARN and role ARN.",
+    ).optional(),
+    Automatic: z.record(z.string(), z.unknown()).describe(
+      "Configuration settings for automatic encryption key management, where MediaConnect handles key creation and rotation.",
+    ).optional(),
+  }).describe(
+    "Configuration settings for the MediaLive transit encryption key.",
+  ),
+});
+
+const MediaLiveChannelRouterInputConfigurationSchema = z.object({
+  MediaLiveChannelArn: z.string().regex(
+    new RegExp(
+      "^arn:(aws[a-zA-Z-]*):medialive:[a-z0-9-]+:[0-9]{12}:channel:[a-zA-Z0-9]+$",
+    ),
+  ).describe(
+    "The ARN of the MediaLive channel to connect to this router input.",
+  ).optional(),
+  MediaLivePipelineId: z.enum(["PIPELINE_0", "PIPELINE_1"]).optional(),
+  MediaLiveChannelOutputName: z.string().describe(
+    "The name of the MediaLive channel output to connect to this router input.",
+  ).optional(),
+  SourceTransitDecryption: MediaLiveTransitEncryptionSchema.describe(
+    "The encryption configuration that defines how content is encrypted during transit between MediaConnect Router and MediaLive. This configuration determines whether encryption keys are automatically managed by the service or manually managed through Secrets Manager.",
+  ),
 });
 
 const FailoverRouterInputConfigurationSchema = z.object({
@@ -139,9 +209,6 @@ const FailoverRouterInputConfigurationSchema = z.object({
     "The ARN of the network interface to use for this failover router input.",
   ),
   ProtocolConfigurations: z.array(z.object({
-    Rtp: RtpRouterInputConfigurationSchema.describe(
-      "The configuration settings for a Router Input using the RTP (Real-Time Transport Protocol) protocol, including the port and forward error correction state.",
-    ).optional(),
     Rist: RistRouterInputConfigurationSchema.describe(
       "The configuration settings for a router input using the RIST (Reliable Internet Stream Transport) protocol, including the port and recovery latency.",
     ).optional(),
@@ -151,6 +218,9 @@ const FailoverRouterInputConfigurationSchema = z.object({
     SrtCaller: SrtCallerRouterInputConfigurationSchema.describe(
       "The configuration settings for a router input using the SRT (Secure Reliable Transport) protocol in caller mode, including the source address and port, minimum latency, stream ID, and decryption key configuration.",
     ).optional(),
+    Rtp: RtpRouterInputConfigurationSchema.describe(
+      "The configuration settings for a Router Input using the RTP (Real-Time Transport Protocol) protocol, including the port and forward error correction state.",
+    ).optional(),
   })).describe(
     "A list of exactly two protocol configurations for the failover input sources. Both must use the same protocol type.",
   ),
@@ -158,29 +228,6 @@ const FailoverRouterInputConfigurationSchema = z.object({
   PrimarySourceIndex: z.number().int().min(0).max(1).describe(
     "The index (0 or 1) that specifies which source in the protocol configurations list is currently active. Used to control which of the two failover sources is currently selected. This field is ignored when sourcePriorityMode is set to NO_PRIORITY",
   ).optional(),
-});
-
-const MergeRouterInputConfigurationSchema = z.object({
-  NetworkInterfaceArn: z.string().regex(
-    new RegExp(
-      "^arn:(aws[a-zA-Z-]*):mediaconnect:[a-z0-9-]+:[0-9]{12}:routerNetworkInterface:[a-z0-9]{12}$",
-    ),
-  ).describe(
-    "The ARN of the network interface to use for this merge router input.",
-  ),
-  ProtocolConfigurations: z.array(z.object({
-    Rtp: RtpRouterInputConfigurationSchema.describe(
-      "The configuration settings for a Router Input using the RTP (Real-Time Transport Protocol) protocol, including the port and forward error correction state.",
-    ).optional(),
-    Rist: RistRouterInputConfigurationSchema.describe(
-      "The configuration settings for a router input using the RIST (Reliable Internet Stream Transport) protocol, including the port and recovery latency.",
-    ).optional(),
-  })).describe(
-    "A list of exactly two protocol configurations for the merge input sources. Both must use the same protocol type.",
-  ),
-  MergeRecoveryWindowMilliseconds: z.number().int().describe(
-    "The time window in milliseconds for merging the two input sources.",
-  ),
 });
 
 const FlowTransitEncryptionSchema = z.object({
@@ -212,34 +259,26 @@ const MediaConnectFlowRouterInputConfigurationSchema = z.object({
   ),
 });
 
-const MediaLiveTransitEncryptionSchema = z.object({
-  EncryptionKeyType: z.enum(["SECRETS_MANAGER", "AUTOMATIC"]).optional(),
-  EncryptionKeyConfiguration: z.object({
-    SecretsManager: SecretsManagerEncryptionKeyConfigurationSchema.describe(
-      "The configuration settings for transit encryption using Secrets Manager, including the secret ARN and role ARN.",
-    ).optional(),
-    Automatic: z.record(z.string(), z.unknown()).describe(
-      "Configuration settings for automatic encryption key management, where MediaConnect handles key creation and rotation.",
-    ).optional(),
-  }).describe(
-    "Configuration settings for the MediaLive transit encryption key.",
-  ),
-});
-
-const MediaLiveChannelRouterInputConfigurationSchema = z.object({
-  MediaLiveChannelArn: z.string().regex(
+const MergeRouterInputConfigurationSchema = z.object({
+  NetworkInterfaceArn: z.string().regex(
     new RegExp(
-      "^arn:(aws[a-zA-Z-]*):medialive:[a-z0-9-]+:[0-9]{12}:channel:[a-zA-Z0-9]+$",
+      "^arn:(aws[a-zA-Z-]*):mediaconnect:[a-z0-9-]+:[0-9]{12}:routerNetworkInterface:[a-z0-9]{12}$",
     ),
   ).describe(
-    "The ARN of the MediaLive channel to connect to this router input.",
-  ).optional(),
-  MediaLivePipelineId: z.enum(["PIPELINE_0", "PIPELINE_1"]).optional(),
-  MediaLiveChannelOutputName: z.string().describe(
-    "The name of the MediaLive channel output to connect to this router input.",
-  ).optional(),
-  SourceTransitDecryption: MediaLiveTransitEncryptionSchema.describe(
-    "The encryption configuration that defines how content is encrypted during transit between MediaConnect Router and MediaLive. This configuration determines whether encryption keys are automatically managed by the service or manually managed through Secrets Manager.",
+    "The ARN of the network interface to use for this merge router input.",
+  ),
+  ProtocolConfigurations: z.array(z.object({
+    Rtp: RtpRouterInputConfigurationSchema.describe(
+      "The configuration settings for a Router Input using the RTP (Real-Time Transport Protocol) protocol, including the port and forward error correction state.",
+    ).optional(),
+    Rist: RistRouterInputConfigurationSchema.describe(
+      "The configuration settings for a router input using the RIST (Reliable Internet Stream Transport) protocol, including the port and recovery latency.",
+    ).optional(),
+  })).describe(
+    "A list of exactly two protocol configurations for the merge input sources. Both must use the same protocol type.",
+  ),
+  MergeRecoveryWindowMilliseconds: z.number().int().describe(
+    "The time window in milliseconds for merging the two input sources.",
   ),
 });
 
@@ -314,20 +353,24 @@ const GlobalArgsSchema = z.object({
     "The Availability Zone where you want to create the router input. This must be a valid Availability Zone for the region specified by regionName, or the current region if no regionName is provided.",
   ).optional(),
   Configuration: z.object({
+    DestinationEndpoint: DestinationEndpointRouterInputConfigurationSchema
+      .describe(
+        "Configuration settings for a router input that is represented by a destination endpoint.",
+      ).optional(),
     Standard: StandardRouterInputConfigurationSchema.describe(
       "The configuration settings for a standard router input, including the protocol, protocol-specific configuration, network interface, and availability zone.",
+    ).optional(),
+    MediaLiveChannel: MediaLiveChannelRouterInputConfigurationSchema.describe(
+      "Configuration settings for connecting a router input to a MediaLive channel output. To connect the router input to the MediaLive channel output, provide all three of mediaLiveChannelArn, mediaLivePipelineId, and mediaLiveChannelOutputName. To disconnect it, call the update operation and omit all three fields while keeping this configuration object. You can't change sourceTransitDecryption while the router input is connected to a MediaLive channel output. To change it, first disconnect the router input, then update the decryption.",
     ).optional(),
     Failover: FailoverRouterInputConfigurationSchema.describe(
       "Configuration settings for a failover router input that allows switching between two input sources.",
     ).optional(),
+    MediaConnectFlow: MediaConnectFlowRouterInputConfigurationSchema.describe(
+      "Configuration settings for connecting a router input to a flow output. To connect the router input to the flow output, provide both flowArn and flowOutputArn. To disconnect it, call the update operation and omit both fields while keeping this configuration object. You can't change sourceTransitDecryption while the router input is connected to a flow output. To change it, first disconnect the router input, then update the decryption.",
+    ).optional(),
     Merge: MergeRouterInputConfigurationSchema.describe(
       "Configuration settings for a merge router input that combines two input sources.",
-    ).optional(),
-    MediaConnectFlow: MediaConnectFlowRouterInputConfigurationSchema.describe(
-      "Configuration settings for connecting a router input to a flow output.",
-    ).optional(),
-    MediaLiveChannel: MediaLiveChannelRouterInputConfigurationSchema.describe(
-      "Configuration settings for connecting a router input to a MediaLive channel output.",
     ).optional(),
   }).describe("The configuration settings for a router input."),
   ContentQualityAnalysisConfiguration: z.object({
@@ -358,7 +401,7 @@ const GlobalArgsSchema = z.object({
   Tags: z.array(TagSchema).describe(
     "Key-value pairs that can be used to tag and organize this router input.",
   ).optional(),
-  Tier: z.enum(["INPUT_100", "INPUT_50", "INPUT_20"]),
+  Tier: z.enum(["INPUT_100", "INPUT_50", "INPUT_20", "INPUT_500", "INPUT_250"]),
   TransitEncryption: z.object({
     EncryptionKeyType: z.enum(["SECRETS_MANAGER", "AUTOMATIC"]).optional(),
     EncryptionKeyConfiguration: z.object({
@@ -376,13 +419,15 @@ const GlobalArgsSchema = z.object({
 
 const StateSchema = z.object({
   Arn: z.string(),
+  AssociatedDestinationEndpointArns: z.array(z.string()).optional(),
   AvailabilityZone: z.string().optional(),
   Configuration: z.object({
+    DestinationEndpoint: DestinationEndpointRouterInputConfigurationSchema,
     Standard: StandardRouterInputConfigurationSchema,
-    Failover: FailoverRouterInputConfigurationSchema,
-    Merge: MergeRouterInputConfigurationSchema,
-    MediaConnectFlow: MediaConnectFlowRouterInputConfigurationSchema,
     MediaLiveChannel: MediaLiveChannelRouterInputConfigurationSchema,
+    Failover: FailoverRouterInputConfigurationSchema,
+    MediaConnectFlow: MediaConnectFlowRouterInputConfigurationSchema,
+    Merge: MergeRouterInputConfigurationSchema,
   }).optional(),
   ContentQualityAnalysisConfiguration: z.object({
     ContentLevel: ContentQualityAnalysisFeatureConfigurationSchema,
@@ -427,20 +472,24 @@ const InputsSchema = z.object({
     "The Availability Zone where you want to create the router input. This must be a valid Availability Zone for the region specified by regionName, or the current region if no regionName is provided.",
   ).optional(),
   Configuration: z.object({
+    DestinationEndpoint: DestinationEndpointRouterInputConfigurationSchema
+      .describe(
+        "Configuration settings for a router input that is represented by a destination endpoint.",
+      ).optional(),
     Standard: StandardRouterInputConfigurationSchema.describe(
       "The configuration settings for a standard router input, including the protocol, protocol-specific configuration, network interface, and availability zone.",
+    ).optional(),
+    MediaLiveChannel: MediaLiveChannelRouterInputConfigurationSchema.describe(
+      "Configuration settings for connecting a router input to a MediaLive channel output. To connect the router input to the MediaLive channel output, provide all three of mediaLiveChannelArn, mediaLivePipelineId, and mediaLiveChannelOutputName. To disconnect it, call the update operation and omit all three fields while keeping this configuration object. You can't change sourceTransitDecryption while the router input is connected to a MediaLive channel output. To change it, first disconnect the router input, then update the decryption.",
     ).optional(),
     Failover: FailoverRouterInputConfigurationSchema.describe(
       "Configuration settings for a failover router input that allows switching between two input sources.",
     ).optional(),
+    MediaConnectFlow: MediaConnectFlowRouterInputConfigurationSchema.describe(
+      "Configuration settings for connecting a router input to a flow output. To connect the router input to the flow output, provide both flowArn and flowOutputArn. To disconnect it, call the update operation and omit both fields while keeping this configuration object. You can't change sourceTransitDecryption while the router input is connected to a flow output. To change it, first disconnect the router input, then update the decryption.",
+    ).optional(),
     Merge: MergeRouterInputConfigurationSchema.describe(
       "Configuration settings for a merge router input that combines two input sources.",
-    ).optional(),
-    MediaConnectFlow: MediaConnectFlowRouterInputConfigurationSchema.describe(
-      "Configuration settings for connecting a router input to a flow output.",
-    ).optional(),
-    MediaLiveChannel: MediaLiveChannelRouterInputConfigurationSchema.describe(
-      "Configuration settings for connecting a router input to a MediaLive channel output.",
     ).optional(),
   }).describe("The configuration settings for a router input.").optional(),
   ContentQualityAnalysisConfiguration: z.object({
@@ -472,7 +521,8 @@ const InputsSchema = z.object({
   Tags: z.array(TagSchema).describe(
     "Key-value pairs that can be used to tag and organize this router input.",
   ).optional(),
-  Tier: z.enum(["INPUT_100", "INPUT_50", "INPUT_20"]).optional(),
+  Tier: z.enum(["INPUT_100", "INPUT_50", "INPUT_20", "INPUT_500", "INPUT_250"])
+    .optional(),
   TransitEncryption: z.object({
     EncryptionKeyType: z.enum(["SECRETS_MANAGER", "AUTOMATIC"]).optional(),
     EncryptionKeyConfiguration: z.object({
@@ -507,7 +557,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaConnect RouterInput. Registered at `@swamp/aws/mediaconnect/router-input`. */
 export const model = {
   type: "@swamp/aws/mediaconnect/router-input",
-  version: "2026.10.25.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -586,6 +636,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

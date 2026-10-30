@@ -199,6 +199,7 @@ const GlobalArgsSchema = z.object({
       "CONVERSATION_OUTCOME",
       "CONVERSATION_OUTCOME_ESCALATION_INITIATOR_ROLE",
       "CONVERSATION_OUTCOME_AI_AVERSION",
+      "CONVERSATION_OUTCOME_ESCALATION_REASON",
     ]).describe("The type of the predefined question.").optional(),
   }).describe(
     "The configuration of the predefined question. This field will only be set if the Question Type is predefined.",
@@ -344,6 +345,7 @@ const InputsSchema = z.object({
       "CONVERSATION_OUTCOME",
       "CONVERSATION_OUTCOME_ESCALATION_INITIATOR_ROLE",
       "CONVERSATION_OUTCOME_AI_AVERSION",
+      "CONVERSATION_OUTCOME_ESCALATION_REASON",
     ]).describe("The type of the predefined question.").optional(),
   }).describe(
     "The configuration of the predefined question. This field will only be set if the Question Type is predefined.",
@@ -428,7 +430,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Contact Center AI Insights QaScorecards.Revisions.QaQuestions. Registered at `@swamp/gcp/contactcenterinsights/qascorecards-revisions-qaquestions`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/qascorecards-revisions-qaquestions",
-  version: "2026.10.24.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -587,6 +589,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

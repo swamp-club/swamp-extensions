@@ -280,6 +280,17 @@ const StateSchema = z.object({
     nodeSelector: z.object({
       accelerator: z.string(),
     }),
+    sandboxes: z.object({
+      templates: z.array(z.object({
+        args: z.array(z.unknown()),
+        command: z.array(z.unknown()),
+        env: z.array(z.unknown()),
+        image: z.string(),
+        name: z.string(),
+        volumeMounts: z.array(z.unknown()),
+        workingDir: z.string(),
+      })),
+    }),
     serviceAccount: z.string(),
     timeout: z.string(),
     volumes: z.array(z.object({
@@ -370,7 +381,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Jobs.Executions. Registered at `@swamp/gcp/run/jobs-executions`. */
 export const model = {
   type: "@swamp/gcp/run/jobs-executions",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -529,6 +540,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

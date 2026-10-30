@@ -255,6 +255,9 @@ const GlobalArgsSchema = z.object({
     faultResponse: z.enum(["DISABLE_PORT", "NONE"]).describe(
       "Response when a fault is detected in a pseudowire: - NONE: default. - DISABLE_PORT: set the port line protocol down when inline probes detect a fault. This setting is only permitted on port mode pseudowires.",
     ).optional(),
+    flowManagement: z.enum(["DYNAMIC_PATH", "FIXED_PATH"]).describe(
+      "The flow management configuration for the wire.",
+    ).optional(),
   }).describe("Properties for all wires in the wire group.").optional(),
   crossSiteNetwork: z.string().describe(
     "The crossSiteNetwork for this resource",
@@ -284,6 +287,7 @@ const StateSchema = z.object({
     bandwidthAllocation: z.string(),
     bandwidthUnmetered: z.string(),
     faultResponse: z.string(),
+    flowManagement: z.string(),
   }).optional(),
   wires: z.array(z.object({
     adminEnabled: z.boolean(),
@@ -296,6 +300,7 @@ const StateSchema = z.object({
       bandwidthAllocation: z.string(),
       bandwidthUnmetered: z.string(),
       faultResponse: z.string(),
+      flowManagement: z.string(),
     }),
   })).optional(),
 }).passthrough();
@@ -349,6 +354,9 @@ const InputsSchema = z.object({
     faultResponse: z.enum(["DISABLE_PORT", "NONE"]).describe(
       "Response when a fault is detected in a pseudowire: - NONE: default. - DISABLE_PORT: set the port line protocol down when inline probes detect a fault. This setting is only permitted on port mode pseudowires.",
     ).optional(),
+    flowManagement: z.enum(["DYNAMIC_PATH", "FIXED_PATH"]).describe(
+      "The flow management configuration for the wire.",
+    ).optional(),
   }).describe("Properties for all wires in the wire group.").optional(),
   crossSiteNetwork: z.string().describe(
     "The crossSiteNetwork for this resource",
@@ -384,7 +392,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine WireGroups. Registered at `@swamp/gcp/compute/wiregroups`. */
 export const model = {
   type: "@swamp/gcp/compute/wiregroups",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -541,6 +549,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

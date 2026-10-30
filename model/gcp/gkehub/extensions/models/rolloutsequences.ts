@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud GKE Hub RolloutSequences.
  *
- * RolloutSequence defines the desired order of upgrades. Next ID: 20
+ * RolloutSequence defines the desired order of upgrades. Next ID: 22
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -357,7 +357,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud GKE Hub RolloutSequences. Registered at `@swamp/gcp/gkehub/rolloutsequences`. */
 export const model = {
   type: "@swamp/gcp/gkehub/rolloutsequences",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -389,13 +389,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
       description:
-        "RolloutSequence defines the desired order of upgrades. Next ID: 20",
+        "RolloutSequence defines the desired order of upgrades. Next ID: 22",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,

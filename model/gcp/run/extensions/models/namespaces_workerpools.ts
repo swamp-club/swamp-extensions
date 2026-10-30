@@ -354,6 +354,13 @@ const GlobalArgsSchema = z.object({
         runtimeClassName: z.string().describe(
           "Optional. Runtime. Leave unset for default.",
         ).optional(),
+        sandboxes: z.object({
+          templates: z.array(z.unknown()).describe(
+            "Required. Sandbox templates that can be launched through the `sandbox` CLI.",
+          ).optional(),
+        }).describe(
+          "Optional. Sandbox configuration that can be launched through the `sandbox` CLI.",
+        ).optional(),
         serviceAccountName: z.string().describe(
           "Email address of the IAM service account associated with the revision of the service. The service account represents the identity of the running revision, and determines what permissions the revision has. If not provided, the revision will use the project's default service account.",
         ).optional(),
@@ -528,6 +535,9 @@ const StateSchema = z.object({
         })),
         nodeSelector: z.record(z.string(), z.unknown()),
         runtimeClassName: z.string(),
+        sandboxes: z.object({
+          templates: z.array(z.unknown()),
+        }),
         serviceAccountName: z.string(),
         timeoutSeconds: z.number(),
         volumes: z.array(z.object({
@@ -781,6 +791,13 @@ const InputsSchema = z.object({
         runtimeClassName: z.string().describe(
           "Optional. Runtime. Leave unset for default.",
         ).optional(),
+        sandboxes: z.object({
+          templates: z.array(z.unknown()).describe(
+            "Required. Sandbox templates that can be launched through the `sandbox` CLI.",
+          ).optional(),
+        }).describe(
+          "Optional. Sandbox configuration that can be launched through the `sandbox` CLI.",
+        ).optional(),
         serviceAccountName: z.string().describe(
           "Email address of the IAM service account associated with the revision of the service. The service account represents the identity of the running revision, and determines what permissions the revision has. If not provided, the revision will use the project's default service account.",
         ).optional(),
@@ -895,7 +912,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Namespaces.Workerpools. Registered at `@swamp/gcp/run/namespaces-workerpools`. */
 export const model = {
   type: "@swamp/gcp/run/namespaces-workerpools",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -939,6 +956,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

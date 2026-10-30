@@ -278,6 +278,8 @@ const StateSchema = z.object({
       entrySubagentDisplayName: z.string(),
       entrySubagentId: z.string(),
       location: z.string(),
+      studyArmId: z.string(),
+      studyId: z.string(),
       team: z.string(),
       teams: z.array(z.string()),
       versionDisplayName: z.string(),
@@ -488,7 +490,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Contact Center AI Insights Datasets.Conversations. Registered at `@swamp/gcp/contactcenterinsights/datasets-conversations`. */
 export const model = {
   type: "@swamp/gcp/contactcenterinsights/datasets-conversations",
-  version: "2026.10.24.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -682,6 +684,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.24.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

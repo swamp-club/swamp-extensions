@@ -223,6 +223,8 @@ const GlobalArgsSchema = z.object({
     "SERVERLESS",
     "SHARED_LOADBALANCER_VIP",
     "VPC_PEERING",
+    "PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0",
+    "PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1",
   ]).describe(
     "The purpose of this resource, which can be one of the following values: - GCE_ENDPOINT for addresses that are used by VM instances, alias IP ranges, load balancers, and similar resources. - DNS_RESOLVER for a DNS resolver address in a subnetwork for a Cloud DNS inbound forwarder IP addresses (regional internal IP address in a subnet of a VPC network) - VPC_PEERING for global internal IP addresses used for private services access allocated ranges. - NAT_AUTO for the regional external IP addresses used by Cloud NAT when allocating addresses using automatic NAT IP address allocation. - IPSEC_INTERCONNECT for addresses created from a private IP range that are reserved for a VLAN attachment in an *HA VPN over Cloud Interconnect* configuration. These addresses are regional resources. - `SHARED_LOADBALANCER_VIP` for an internal IP address that is assigned to multiple internal forwarding rules. - `PRIVATE_SERVICE_CONNECT` for a private network address that is used to configure Private Service Connect. Only global internal addresses can use this purpose. - `PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0` for addresses that can only be assigned to global external Passthrough Network Load Balancer forwarding rules, as an Availability Group 0 address. - `PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1` for addresses that can only be assigned to global external Passthrough Network Load Balancer forwarding rules, as an Availability Group 1 address.",
   ).optional(),
@@ -231,6 +233,12 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   subnetwork: z.string().describe(
     "The URL of the subnetwork in which to reserve the address. If an IP address is specified, it must be within the subnetwork's IP range. This field can only be used with INTERNAL type with aGCE_ENDPOINT or DNS_RESOLVER purpose.",
+  ).optional(),
+  networkAttachment: z.string().describe(
+    "Optional. The URL of the network attachment that this address comes from in the following format: projects/{project}/regions/{region_name}/networkAttachments/{network_attachment_name}.",
+  ).optional(),
+  serviceClassId: z.string().describe(
+    "Optional. Producer Service's Service class ID for the region of this address. Can only be used with network_attachment. It is not possible to use on its own; however, network_attachment can be used without service_class_id.",
   ).optional(),
   requestId: z.string().describe(
     "An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -259,6 +267,8 @@ const StateSchema = z.object({
   status: z.string().optional(),
   subnetwork: z.string().optional(),
   users: z.array(z.string()).optional(),
+  networkAttachment: z.string().optional(),
+  serviceClassId: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -321,6 +331,8 @@ const InputsSchema = z.object({
     "SERVERLESS",
     "SHARED_LOADBALANCER_VIP",
     "VPC_PEERING",
+    "PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0",
+    "PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1",
   ]).describe(
     "The purpose of this resource, which can be one of the following values: - GCE_ENDPOINT for addresses that are used by VM instances, alias IP ranges, load balancers, and similar resources. - DNS_RESOLVER for a DNS resolver address in a subnetwork for a Cloud DNS inbound forwarder IP addresses (regional internal IP address in a subnet of a VPC network) - VPC_PEERING for global internal IP addresses used for private services access allocated ranges. - NAT_AUTO for the regional external IP addresses used by Cloud NAT when allocating addresses using automatic NAT IP address allocation. - IPSEC_INTERCONNECT for addresses created from a private IP range that are reserved for a VLAN attachment in an *HA VPN over Cloud Interconnect* configuration. These addresses are regional resources. - `SHARED_LOADBALANCER_VIP` for an internal IP address that is assigned to multiple internal forwarding rules. - `PRIVATE_SERVICE_CONNECT` for a private network address that is used to configure Private Service Connect. Only global internal addresses can use this purpose. - `PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP0` for addresses that can only be assigned to global external Passthrough Network Load Balancer forwarding rules, as an Availability Group 0 address. - `PASSTHROUGH_LOAD_BALANCER_AVAILABILITY_GROUP1` for addresses that can only be assigned to global external Passthrough Network Load Balancer forwarding rules, as an Availability Group 1 address.",
   ).optional(),
@@ -329,6 +341,12 @@ const InputsSchema = z.object({
   ).optional(),
   subnetwork: z.string().describe(
     "The URL of the subnetwork in which to reserve the address. If an IP address is specified, it must be within the subnetwork's IP range. This field can only be used with INTERNAL type with aGCE_ENDPOINT or DNS_RESOLVER purpose.",
+  ).optional(),
+  networkAttachment: z.string().describe(
+    "Optional. The URL of the network attachment that this address comes from in the following format: projects/{project}/regions/{region_name}/networkAttachments/{network_attachment_name}.",
+  ).optional(),
+  serviceClassId: z.string().describe(
+    "Optional. Producer Service's Service class ID for the region of this address. Can only be used with network_attachment. It is not possible to use on its own; however, network_attachment can be used without service_class_id.",
   ).optional(),
   requestId: z.string().describe(
     "An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -361,7 +379,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Compute Engine Addresses. Registered at `@swamp/gcp/compute/addresses`. */
 export const model = {
   type: "@swamp/gcp/compute/addresses",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -543,6 +561,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.30.1",
+      description: "Added: networkAttachment, serviceClassId",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -602,6 +625,12 @@ export const model = {
         }
         if (g["purpose"] !== undefined) body["purpose"] = g["purpose"];
         if (g["subnetwork"] !== undefined) body["subnetwork"] = g["subnetwork"];
+        if (g["networkAttachment"] !== undefined) {
+          body["networkAttachment"] = g["networkAttachment"];
+        }
+        if (g["serviceClassId"] !== undefined) {
+          body["serviceClassId"] = g["serviceClassId"];
+        }
         if (g["requestId"] !== undefined) {
           params["requestId"] = String(g["requestId"]);
         }

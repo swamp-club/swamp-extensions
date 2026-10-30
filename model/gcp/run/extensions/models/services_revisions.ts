@@ -276,6 +276,25 @@ const StateSchema = z.object({
   }).optional(),
   observedGeneration: z.string().optional(),
   reconciling: z.boolean().optional(),
+  sandboxes: z.object({
+    templates: z.array(z.object({
+      args: z.array(z.string()),
+      command: z.array(z.string()),
+      env: z.array(z.object({
+        name: z.unknown(),
+        value: z.unknown(),
+        valueSource: z.unknown(),
+      })),
+      image: z.string(),
+      name: z.string(),
+      volumeMounts: z.array(z.object({
+        mountPath: z.unknown(),
+        name: z.unknown(),
+        subPath: z.unknown(),
+      })),
+      workingDir: z.string(),
+    })),
+  }).optional(),
   satisfiesPzs: z.boolean().optional(),
   scaling: z.object({
     concurrencyUtilization: z.number(),
@@ -384,7 +403,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Services.Revisions. Registered at `@swamp/gcp/run/services-revisions`. */
 export const model = {
   type: "@swamp/gcp/run/services-revisions",
-  version: "2026.10.23.1",
+  version: "2026.10.30.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -553,6 +572,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
