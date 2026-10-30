@@ -113,11 +113,11 @@ Deno.test("describe: a cold open's hook is not shifted by the intro; the rest is
         title: string;
       }[]).map((c) => c.at);
     };
-    // 0:33 is 5.93s into the edited take: after the intro without a cold
-    // open, still inside a 6s hook with one.
-    assertEquals(await describeWith(), [0, 25.93]);
-    assertEquals(await describeWith(6), [0]);
-    assertEquals(await describeWith(5), [0, 25.93]);
+    // 0:33 is 6.16s into the edited take: after the intro without a cold
+    // open, still inside a 6.5s hook with one.
+    assertEquals(await describeWith(), [0, 26.16]);
+    assertEquals(await describeWith(6.5), [0]);
+    assertEquals(await describeWith(5), [0, 26.16]);
   } finally {
     await teardown(env);
   }

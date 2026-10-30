@@ -22,12 +22,14 @@ import {
   applyRetakes,
   buildItems,
   DEFAULT_SETTINGS,
+  fastEdgeAir,
   findQuote,
   type Item,
   keepSpans,
   outputStarts,
   pyFixed,
   pyRound,
+  remapper,
   type Span,
   spokenRetakes,
   type Word,
@@ -232,4 +234,78 @@ Deno.test("edit.txt: deleting a wait next to a retyped word cuts the wait", () =
   const wait = items.find((i) => i.kind === "pause" && i.e > 29)!;
   assertEquals(wait.keep, false);
   assertEquals(items.find((i) => i.token === "Now")!.text, "So");
+});
+
+// Loudness per 10 ms: the voice until `until`, silence after.
+function voiceUntil(until: number, seconds = 15): number[] {
+  return Array.from(
+    { length: seconds * 100 },
+    (_, j) => j < until * 100 ? -20 : -60,
+  );
+}
+
+Deno.test("a kept word running into a fast-forward keeps its tail, at 1x and heard", () => {
+  // "service." ends at 3.0 by Whisper's clock; the wait runs to the next
+  // word at 13.0 and plays fast-forward.
+  const items = buildItems(
+    take([["our", 0, 2.5], ["service.", 2.5, 3.0], ["Next", 13.0, 13.5]]),
+    14,
+  );
+  const spans = fastEdgeAir(keepSpans(items, 20), 20);
+  assertEquals(spans, [[0, 3.25, 1], [3.25, 12.75, 3], [12.75, 13.75, 1]]);
+});
+
+Deno.test("fastEdgeAir: air on both sides next to kept words", () => {
+  assertEquals(
+    fastEdgeAir([[0, 3, 1], [3, 13, 4], [13, 15, 1]], 20),
+    [[0, 3.25, 1], [3.25, 12.75, 4], [12.75, 15, 1]],
+  );
+});
+
+Deno.test("fastEdgeAir: a fast-forward between two cuts is unchanged", () => {
+  const spans: Span[] = [[0, 2, 1], [3, 13, 4], [14, 15, 1]];
+  assertEquals(fastEdgeAir(spans, 20), spans);
+});
+
+Deno.test("fastEdgeAir: air only on the side next to a kept word", () => {
+  assertEquals(
+    fastEdgeAir([[0, 3, 1], [3, 13, 4], [14, 15, 1]], 20),
+    [[0, 3.25, 1], [3.25, 13, 4], [14, 15, 1]],
+  );
+  assertEquals(
+    fastEdgeAir([[0, 2, 1], [3, 13, 4], [13, 15, 1]], 20),
+    [[0, 2, 1], [3, 12.75, 4], [12.75, 15, 1]],
+  );
+});
+
+Deno.test("fastEdgeAir: a short wait keeps at least half of it fast-forwarded", () => {
+  // A 0.8s wait marked >> by hand: a quarter each side, not PAD.
+  assertEquals(
+    fastEdgeAir([[0, 1, 1], [1, 1.8, 2], [1.8, 3, 1]], 20),
+    [[0, 1.2, 1], [1.2, 1.6, 2], [1.6, 3, 1]],
+  );
+});
+
+Deno.test("fastEdgeAir: the edge grows into real silence, no further than a cut edge would", () => {
+  const spans: Span[] = [[0, 3, 1], [3, 13, 4], [13, 15, 1]];
+  // The word really ends at 3.35, past PAD: the edge moves to the silence
+  // plus a breath, on a frame.
+  assertEquals(fastEdgeAir(spans, 20, voiceUntil(3.35))[1][0], 3.4);
+  // A voice that never goes quiet: PAD, the quietest point being earlier.
+  assertEquals(fastEdgeAir(spans, 20, voiceUntil(15))[1][0], 3.25);
+  // Silence straight away: still PAD.
+  assertEquals(fastEdgeAir(spans, 20, voiceUntil(0))[1][0], 3.25);
+});
+
+Deno.test("fastEdgeAir: output time grows only by the air, and maps stay consistent", () => {
+  const before: Span[] = [[0, 3, 1], [3, 13, 4], [13, 15, 1]];
+  const after = fastEdgeAir(before, 20);
+  assertAlmostEquals(outputStarts(before, 20).total, 7.5, 1e-9);
+  // 0.5s of air at 1x, 9.5s at 4x on whole frames.
+  assertAlmostEquals(outputStarts(after, 20).total, 7.9, 1e-9);
+  const at = remapper(after, 20);
+  // The word's real tail plays at normal speed, before the race.
+  assertAlmostEquals(at(3.2), 3.2, 1e-9);
+  // The next word starts after the race and its air, as its caption does.
+  assertAlmostEquals(at(13), 5.9, 1e-9);
 });

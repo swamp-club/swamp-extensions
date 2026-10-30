@@ -250,19 +250,20 @@ Deno.test("render: a cold open plays the hook, then the card, with captions to m
       env.swamp.context("render", {}),
     );
     const graph = await Deno.readTextFile(`${env.dir}/take.video/graph.txt`);
-    // The hook ends where the wait starts: 65 frames (2.17s) in.
-    assertStringIncludes(graph, "[v1h]trim=end_frame=65,setpts=PTS-STARTPTS");
+    // The hook keeps PAD of air after "demo", which runs into the wait: 73
+    // frames (2.43s) in.
+    assertStringIncludes(graph, "[v1h]trim=end_frame=73,setpts=PTS-STARTPTS");
     assertStringIncludes(graph, "[v1hook][v1cb]concat=n=2:v=1:a=0[v1i]");
     assertStringIncludes(graph, "[v2hook][v2cb]concat=n=2:v=1:a=0[v2i]");
     const v = env.swamp.latest("render", "take")!;
-    assertEquals(v.hookSeconds, 65 / 30);
+    assertEquals(v.hookSeconds, 73 / 30);
     assertEquals(v.introSeconds, 3.8);
     // The hook's caption plays at once and ends by the cut; the body's
     // comes after the card.
     const srt = await Deno.readTextFile(`${env.dir}/take.polished.srt`);
     assertMatch(
       srt,
-      /^1\n00:00:00,\d{3} --> 00:00:02,167\nHello, this is a demo\.\n\n2\n00:00:10,033 /,
+      /^1\n00:00:00,\d{3} --> 00:00:02,433\nHello, this is a demo\.\n\n2\n00:00:10,267 /,
     );
     // Burned captions go on the take before the split: broken there, not shifted.
     const burned = await Deno.readTextFile(
@@ -270,7 +271,7 @@ Deno.test("render: a cold open plays the hook, then the card, with captions to m
     );
     assertMatch(
       burned,
-      /--> 00:00:02,167\nHello, this is a demo\.\n\n2\n00:00:06,233 /,
+      /--> 00:00:02,433\nHello, this is a demo\.\n\n2\n00:00:06,467 /,
     );
   } finally {
     await teardown(env);
@@ -292,7 +293,7 @@ Deno.test("render: a cold open crossfades into the card when media says fade", a
     const graph = await Deno.readTextFile(`${env.dir}/take.video/graph.txt`);
     assertStringIncludes(
       graph,
-      "[v1hook][v1cb]xfade=transition=fade:duration=0.7:offset=1.4667[v1i]",
+      "[v1hook][v1cb]xfade=transition=fade:duration=0.7:offset=1.7333[v1i]",
     );
     assertEquals(
       (env.swamp.latest("render", "take")!.introSeconds as number).toFixed(6),

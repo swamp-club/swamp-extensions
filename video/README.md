@@ -36,7 +36,10 @@ From a verbatim transcript (fillers kept, so they can be cut):
   the word, so treat spoken markers as best effort);
 - **fast-forwards** waits of 4s or more so each plays in about 4s (up to 32x)
   with a racing wall clock on screen and the voice muted, and waits where the
-  screen sat idle in about 1s (up to 64x);
+  screen sat idle in about 1s (up to 64x). Beside a kept word a fast-forward
+  starts and ends with a little air at normal speed, voice and all (grown into
+  real silence like a cut edge), so a word Whisper timed tightly is not
+  clipped;
 - **pixelates** credentials it reads on screen (AWS, GitHub, OpenAI-style,
   Slack, Google keys, JWTs, long high-entropy strings, `token=`/`password:`
   values) for as long as they show.

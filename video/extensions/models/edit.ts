@@ -37,6 +37,7 @@ import {
   clock,
   DEFAULT_SETTINGS,
   type EditSettings,
+  fastEdgeAir,
   findQuote,
   type Item,
   keepSpans,
@@ -263,7 +264,11 @@ async function finish(
 ) {
   const db = await energy(g.ffmpeg, take, base.speechTrack, ctx.signal);
   const items = base.items as Item[];
-  const spans: Span[] = keepSpans(items, base.fps, db);
+  const spans: Span[] = fastEdgeAir(
+    keepSpans(items, base.fps, db),
+    base.fps,
+    db,
+  );
   const { total } = outputStarts(spans, base.fps);
   const list: EditList = {
     ...base,

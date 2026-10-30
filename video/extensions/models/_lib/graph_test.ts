@@ -33,6 +33,7 @@ import {
   selectExpr,
   sumExpr,
 } from "./graph.ts";
+import { fastEdgeAir } from "./edit_list.ts";
 
 function depth(expr: string): number {
   let d = 0, max = 0;
@@ -81,6 +82,11 @@ Deno.test("the voice track is muted under fast-forwards and cleaned when asked",
   assert(g.inputs.includes("-stream_loop"));
   assertEquals(g.duration, 14);
   assertEquals(g.videoBurned, undefined);
+});
+
+Deno.test("the voice mute starts after the air beside a kept word, not on the word's end", () => {
+  const g = buildGraph({ ...plan, spans: fastEdgeAir(plan.spans, plan.fps) });
+  assertStringIncludes(g.graph, "volume=0:enable='between(t,5.2667,44.7333)'");
 });
 
 Deno.test("two-pass loudness: measure, parse, apply", () => {

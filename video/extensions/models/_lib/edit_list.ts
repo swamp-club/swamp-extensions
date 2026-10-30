@@ -270,48 +270,61 @@ export function linesOf(items: Item[]): Map<number, Item[]> {
 }
 
 /**
+ * Where an edge at `t` settles moving in `direction`, no further than
+ * `limit` or GROW: the first real silence plus a breath, else the quietest
+ * point. `db` is loudness per 10 ms of the voice track.
+ */
+function quietEdge(
+  db: number[],
+  t: number,
+  direction: 1 | -1,
+  limit: number,
+): number {
+  const at = (j: number) => db[j < 0 ? db.length + j : j];
+  const i = pyRound(t * 100);
+  const reach = pyRound(
+    Math.min(GROW[direction > 0 ? 1 : 0], Math.abs(limit - t)) * 100,
+  );
+  const window: number[] = [];
+  for (let k = 0; k <= reach; k++) {
+    const j = i + direction * k;
+    if (j >= 0 && j < db.length) window.push(j);
+  }
+  if (!window.length) return t;
+  for (let k = 0; k < window.length; k++) {
+    const j = window[k];
+    let quiet = true;
+    for (let m = 0; m < 3; m++) {
+      if (!(at(Math.min(j + direction * m, db.length - 1)) < QUIET_DB)) {
+        quiet = false;
+        break;
+      }
+    }
+    if (quiet) {
+      // a breath into the silence
+      return (j + direction * Math.min(3, window.length - 1 - k)) / 100;
+    }
+  }
+  let best = window[0];
+  for (const j of window) if (db[j] < db[best]) best = j;
+  return best / 100;
+}
+
+/**
  * Push each cut edge outward into real silence, so word heads and tails
  * Whisper timed too tightly aren't clipped. Where there's no silence nearby,
  * use the quietest point. `db` is loudness per 10 ms of the voice track.
  */
 export function settle(spans: Span[], db: number[]): Span[] {
-  const at = (j: number) => db[j < 0 ? db.length + j : j];
-  const edge = (t: number, direction: 1 | -1, limit: number): number => {
-    const i = pyRound(t * 100);
-    const reach = pyRound(
-      Math.min(GROW[direction > 0 ? 1 : 0], Math.abs(limit - t)) * 100,
-    );
-    const window: number[] = [];
-    for (let k = 0; k <= reach; k++) {
-      const j = i + direction * k;
-      if (j >= 0 && j < db.length) window.push(j);
-    }
-    if (!window.length) return t;
-    for (let k = 0; k < window.length; k++) {
-      const j = window[k];
-      let quiet = true;
-      for (let m = 0; m < 3; m++) {
-        if (!(at(Math.min(j + direction * m, db.length - 1)) < QUIET_DB)) {
-          quiet = false;
-          break;
-        }
-      }
-      if (quiet) {
-        // a breath into the silence
-        return (j + direction * Math.min(3, window.length - 1 - k)) / 100;
-      }
-    }
-    let best = window[0];
-    for (const j of window) if (db[j] < db[best]) best = j;
-    return best / 100;
-  };
-
   spans.forEach((span, k) => {
     if (k + 1 < spans.length && spans[k + 1][0] - span[1] > 0.02) {
-      span[1] = Math.max(span[1], edge(span[1], 1, spans[k + 1][0]));
+      span[1] = Math.max(span[1], quietEdge(db, span[1], 1, spans[k + 1][0]));
     }
     if (k && span[0] - spans[k - 1][1] > 0.02) {
-      span[0] = Math.min(span[0], edge(span[0], -1, spans[k - 1][1]));
+      span[0] = Math.min(
+        span[0],
+        quietEdge(db, span[0], -1, spans[k - 1][1]),
+      );
     }
   });
   return spans;
@@ -361,6 +374,52 @@ export function keepSpans(items: Item[], fps: number, db?: number[]): Span[] {
     else snapped.push([s, e, speed]);
   }
   return snapped;
+}
+
+/**
+ * Air at normal speed, voice and all, where a fast-forward meets a kept
+ * word: the voice is muted from a fast-forward's first frame, and Whisper
+ * often ends a word early or starts one late. Each such side keeps at least
+ * PAD and grows into real silence like a cut edge, but never takes more
+ * than a quarter of the wait. A side next to a cut is left alone.
+ */
+export function fastEdgeAir(
+  spans: Span[],
+  fps: number,
+  db?: number[],
+): Span[] {
+  const out: Span[] = [];
+  const push = (span: Span) => {
+    const last = out[out.length - 1];
+    if (last && last[2] === span[2] && Math.abs(span[0] - last[1]) < 1e-6) {
+      last[1] = span[1];
+    } else out.push(span);
+  };
+  // Round onto a frame into the fast-forward, so the air is never short.
+  const later = (t: number) => Math.ceil(t * fps - 1e-6) / fps;
+  const earlier = (t: number) => Math.floor(t * fps + 1e-6) / fps;
+  spans.forEach(([s, e, speed], k) => {
+    if (speed <= 1) return push([s, e, speed]);
+    // Spans touch only where nothing was cut between them.
+    const prev = spans[k - 1], next = spans[k + 1];
+    const most = (e - s) / 4;
+    let a = s, b = e;
+    if (prev && prev[2] === 1 && Math.abs(prev[1] - s) < 1e-6) {
+      a = s + Math.min(PAD, most);
+      if (db && db.length) a = Math.max(a, quietEdge(db, s, 1, s + most));
+      a = later(a);
+    }
+    if (next && next[2] === 1 && Math.abs(next[0] - e) < 1e-6) {
+      b = e - Math.min(PAD, most);
+      if (db && db.length) b = Math.min(b, quietEdge(db, e, -1, e - most));
+      b = earlier(b);
+    }
+    if (b - a < 1 / fps) return push([s, e, speed]);
+    if (a > s) push([s, a, 1]);
+    push([a, b, speed]);
+    if (b < e) push([b, e, 1]);
+  });
+  return out;
 }
 
 /** Where each span begins in the rendered video, plus the total length. */
