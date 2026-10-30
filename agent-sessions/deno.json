@@ -1,0 +1,19 @@
+{
+  "tasks": {
+    "check": "deno check extensions/models/agent_sessions.ts",
+    "lint": "deno lint extensions/models/",
+    "fmt": "deno fmt extensions/models/",
+    "fmt:check": "deno fmt --check extensions/models/",
+    "test": "deno test --allow-read --allow-write --allow-env --allow-run --allow-sys extensions/models/"
+  },
+  "lint": {
+    "rules": {
+      "exclude": [
+        "no-import-prefix"
+      ]
+    }
+  },
+  "imports": {
+    "zod": "npm:zod@4.6.7"
+  }
+}

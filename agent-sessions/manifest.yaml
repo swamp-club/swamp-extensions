@@ -1,0 +1,53 @@
+manifestVersion: 1
+name: "@swamp/agent-sessions"
+version: "2026.10.30.1"
+license: "AGPL-3.0-or-later"
+visibility: private
+description: |
+  Import what coding agents did in this repo as agent session records, the
+  data the dashboard's agent sessions page reads. The `import` method reads
+  Claude Code's own transcripts on this machine, so no hooks or setup are
+  needed, and writes one record per session and per subagent: its turns,
+  tool calls, times and tokens.
+
+  Prompts and replies are never stored. A call keeps only its target (a
+  command line, a path, a skill name or a URL), redacted: paths become
+  relative, home becomes `~`, secrets, bearer tokens and emails are masked,
+  heredoc bodies are dropped, and text is capped at 1000 characters.
+
+  Private while it is a prototype. Calls are written `unlabeled`; a later
+  classifier labels them swamp, bypass or neutral.
+
+  ## Methods
+
+  | Method   | What it does |
+  | -------- | ------------ |
+  | `import` | Import this repo's Claude Code sessions, its worktrees' and every subagent's. Unchanged transcripts are skipped. Optional `since`, `projectsDir` and `worktreeGlobs`. |
+
+  ## Usage
+
+  ```bash
+  swamp model create @swamp/agent-sessions sessions
+  swamp model method run sessions import
+  swamp model method run sessions import --input since=2026-10-01
+  ```
+
+  Run the import on the machine that holds the transcripts. A serve worker
+  (`--remote-only`) has none, and the import fails saying so.
+repository: "https://github.com/swamp-club/swamp-extensions"
+models:
+  - agent_sessions.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms:
+  - darwin-aarch64
+  - darwin-x86_64
+  - linux-aarch64
+  - linux-x86_64
+  - windows-x86_64
+labels:
+  - ai
+  - agent
+  - observability
+  - claude
