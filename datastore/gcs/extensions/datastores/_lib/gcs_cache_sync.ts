@@ -39,7 +39,9 @@ import type {
   NamespaceContaminationSummary,
   PushManifest,
   RepairNamespaceContaminationOptions,
+  RepairUnpushedFilesOptions,
   SyncCapabilities,
+  UnpushedFilesSummary,
 } from "./interfaces.ts";
 import {
   confirmGcsKeyMissing,
@@ -83,6 +85,20 @@ const SYNC_STATE_FILE = ".datastore-sync-state.json";
  */
 const OWN_MTIMES_FILE = ".datastore-local-mtimes.json";
 
+/**
+ * Filename of the peer-deleted record: keys a sync dropped from the
+ * last-synced index while a regular file stayed at the path, so that copy is
+ * not mistaken for one the remote never received (swamp-club#4112). Local-only,
+ * listed in `isInternalCacheFile`.
+ */
+const PEER_DELETED_FILE = ".datastore-peer-deleted.json";
+
+/** Object metadata key holding the sha256 `repairUnpushedFiles` uploaded. */
+const SHA256_METADATA_KEY = "sha256";
+
+/** Most paths a `repairUnpushedFiles` summary lists per category. */
+const REPAIR_SAMPLE_LIMIT = 20;
+
 /** One file's entry in the own mtime record. */
 interface OwnMtimeRecord {
   mtime: string;
@@ -105,6 +121,8 @@ interface OwnMtimeRecord {
  *   Never uploaded: its contents are per-machine state.
  * - `.datastore-local-mtimes.json` — this copy's own mtime record, which
  *   vouches that a local file is unchanged. Per-machine state.
+ * - `.datastore-peer-deleted.json` — keys a sync dropped while the file
+ *   stayed, which a repair must not upload. Per-machine state.
  * - `_index/`, `_control/`, `_blobs/` and `_litestream/` — the shard
  *   index, the control plane, `storage/1` chunks and the v3 Litestream
  *   replicas, each reached through its own code path, never the file sync.
@@ -183,7 +201,7 @@ export function isInternalCacheFile(rel: string): boolean {
   if (
     rel === ".datastore-index.json" || rel === ".push-queue.json" ||
     rel === ".datastore.lock" || rel === SYNC_STATE_FILE ||
-    rel === OWN_MTIMES_FILE
+    rel === OWN_MTIMES_FILE || rel === PEER_DELETED_FILE
   ) {
     return true;
   }
@@ -682,6 +700,20 @@ interface DatastoreSyncStateV2 {
 
 type DatastoreSyncState = DatastoreSyncStateV1 | DatastoreSyncStateV2;
 
+/** `repairUnpushedFiles` refused a remote or a cache it cannot repair safely. */
+export class RepairUnpushedRefusedError extends Error {
+  override readonly name = "RepairUnpushedRefusedError";
+}
+
+/**
+ * Whether two index entries describe one remote object. `localMtime` is left
+ * out: it is per-machine, and last-synced records this copy's own.
+ */
+function sameRemoteEntry(a: IndexEntry, b: IndexEntry): boolean {
+  return a.size === b.size && a.sha256 === b.sha256 &&
+    a.lastModified === b.lastModified;
+}
+
 /** GCS cache sync service. */
 export class GcsCacheSyncService implements DatastoreSyncService {
   private readonly gcs: GcsClient;
@@ -698,6 +730,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   private syncStateWrites: Promise<void> = Promise.resolve();
   private syncStateWriteSeq = 0;
   private readonly ownMtimesPath: string;
+  private readonly peerDeletedPath: string;
   private ownMtimes: Map<string, OwnMtimeRecord> | null = null;
   private ownMtimesLoad: Promise<Map<string, OwnMtimeRecord>> | null = null;
   private ownMtimesSeedPending = false;
@@ -730,6 +763,8 @@ export class GcsCacheSyncService implements DatastoreSyncService {
   // Generous: meta is tiny, and exhausting it after shards committed
   // leaves a new partition unlisted until the next push.
   private static readonly META_CAS_ATTEMPTS = 20;
+  private static readonly REPAIR_CREATE_ATTEMPTS = 5;
+  private static readonly REPAIR_COMMIT_BATCH = 200;
 
   constructor(
     gcs: GcsClient,
@@ -744,6 +779,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     this.indexPath = join(cachePath, ".datastore-index.json");
     this.syncStatePath = join(cachePath, SYNC_STATE_FILE);
     this.ownMtimesPath = join(cachePath, OWN_MTIMES_FILE);
+    this.peerDeletedPath = join(cachePath, PEER_DELETED_FILE);
     this.pullConcurrency = options?.pullConcurrency ?? DEFAULT_PULL_CONCURRENCY;
     this.pushConcurrency = options?.pushConcurrency ?? DEFAULT_PUSH_CONCURRENCY;
   }
@@ -1019,11 +1055,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
         () => this.gcs.putObject(this.indexKey(), indexData, signal),
         { signal },
       );
-      await this.beforeIndexWrite();
-      await atomicWriteTextFile(
-        this.indexPath,
-        JSON.stringify(this.index, null, 2),
-      );
+      await this.writeLastSynced(this.index);
       try {
         await this.gcs.deleteObject(this.metaKey(), undefined, signal);
       } catch { /* may not exist */ }
@@ -1281,12 +1313,16 @@ export class GcsCacheSyncService implements DatastoreSyncService {
    * what this writer already knew (no entries merged in from other
    * writers, and no commits since `baseCommitSeq`). Callers must only arm
    * the sidecar commitSeq fast path when `upToDate` is true.
+   *
+   * With `keepExisting`, an upsert does not replace an entry the shard already
+   * holds, for a writer whose upload came before a peer's newer commit.
    */
   private async commitShardChanges(
     upserts: Record<string, IndexEntry>,
     removals: Iterable<string>,
     baseCommitSeq: number,
     signal?: AbortSignal,
+    keepExisting = false,
   ): Promise<{ commitSeq: number; upToDate: boolean }> {
     const changes = new Map<
       string,
@@ -1342,10 +1378,9 @@ export class GcsCacheSyncService implements DatastoreSyncService {
             `[gcs-sync] GCS returned no generation for index shard "${partKey}"; compare-and-swap needs one to avoid clobbering concurrent writers. The push stays dirty; retry it.`,
           );
         }
-        const merged: Record<string, IndexEntry> = {
-          ...(entries ?? {}),
-          ...change.upserts,
-        };
+        const merged: Record<string, IndexEntry> = keepExisting
+          ? { ...change.upserts, ...(entries ?? {}) }
+          : { ...(entries ?? {}), ...change.upserts };
         for (const rel of change.removals) delete merged[rel];
         for (const rel of Object.keys(merged)) {
           if (isInternalCacheFile(rel)) delete merged[rel];
@@ -1504,7 +1539,26 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           this.bindNamespace(options?.namespace);
           await this.formatGate.ensure(signal);
           const migrateStart = Date.now();
-          await this.pullIndex({ forceRemote: true, signal });
+          const existingMeta = await this.readPartitionMeta(signal);
+          // Shards are the index on a v2 remote, and with no monolith on any
+          // remote. A leftover monolith is stale: shard-first pushes never update
+          // it. Reading on would rebuild the shards from it or, with no monolith,
+          // reach discovery, which rewrites them from a listing with no sha256.
+          const monolith = await retryWithBackoff(
+            () => this.gcs.getMetadata(this.indexKey(), signal),
+            { signal },
+          );
+          if (
+            (existingMeta?.version === 2 || !monolith.exists) &&
+            (await this.listShardKeys(signal)).length > 0
+          ) {
+            return await this.recoverMetaFromListing(signal);
+          }
+          // Last-synced and local files stay as they are, except on a bucket
+          // with no index at all, where discovery writes the one it builds. The
+          // next pull compares them with the shards this writes, and the
+          // commitSeq below makes sure that pull takes the slow path.
+          await this.pullIndex({ forceRemote: true, signal, persist: false });
           const allEntries = this.index?.entries ?? {};
           const entryCount = Object.keys(allEntries).length;
 
@@ -1545,12 +1599,12 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           const meta: PartitionMetaV2 = {
             version: 2,
             partitions: partitionKeys.sort(),
-            commitSeq: 1,
+            commitSeq: GcsCacheSyncService.rebuiltCommitSeq(existingMeta),
           };
           await this.writePartitionMeta(meta, signal);
           tracePhase("migration", migrateStart, `shards=${partitions.size}`);
           console.info(
-            `[gcs-sync] Migration complete: ${partitions.size} shard(s) written, _meta.json v2 with commitSeq=1 (${
+            `[gcs-sync] Migration complete: ${partitions.size} shard(s) written, _meta.json v2 with commitSeq=${meta.commitSeq} (${
               Date.now() - migrateStart
             }ms)`,
           );
@@ -1741,28 +1795,146 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     return { entries, commitSeq: v2Meta.commitSeq, readKeys: new Set(toRead) };
   }
 
-  private async recoverMetaFromListing(
-    signal?: AbortSignal,
-  ): Promise<PartitionMetaV2> {
+  /** The keys of the `_index/` shards the bucket holds, `_meta.json` aside. */
+  private async listShardKeys(signal?: AbortSignal): Promise<string[]> {
     const prefix = this.namespace ? `${this.namespace}/_index/` : "_index/";
-    const listing = await this.gcs.listAllObjects(prefix, signal);
-    const partitionKeys: string[] = [];
+    const listing = await retryWithBackoff(
+      () => this.gcs.listAllObjects(prefix, signal),
+      { signal },
+    );
+    const keys: string[] = [];
     for (const entry of listing) {
       const name = entry.key.replace(prefix, "");
       if (name === "_meta.json" || !name.endsWith(".json")) continue;
-      partitionKeys.push(name.slice(0, -5));
+      keys.push(name.slice(0, -5));
     }
+    return keys.sort();
+  }
 
-    const meta: PartitionMetaV2 = {
-      version: 2,
-      partitions: partitionKeys.sort(),
-      commitSeq: 1,
-    };
-    await this.writePartitionMeta(meta, signal);
-    console.warn(
-      `[gcs-sync] Rebuilt _meta.json from _index/ listing: ${partitionKeys.length} shard(s)`,
-    );
-    return meta;
+  /**
+   * The commitSeq a rebuilt `_meta.json` starts from. It must never equal one
+   * a sidecar armed before the rebuild, or the pull fast path would skip every
+   * commit since. The old value may be gone, so the clock covers that case.
+   */
+  private static rebuiltCommitSeq(existing: PartitionMeta | null): number {
+    const seq = existing?.version === 2
+      ? (existing as PartitionMetaV2).commitSeq
+      : 0;
+    return Math.max(Date.now(), seq + 1);
+  }
+
+  /**
+   * Rewrites `_meta.json` from the shards the bucket holds. Listing after the
+   * read, under a compare-and-swap on it, keeps a partition a concurrent writer
+   * lists: its shard is written before its meta, so the listing has it, and a
+   * meta that changed since the read fails the swap and is read again.
+   */
+  private async recoverMetaFromListing(
+    signal?: AbortSignal,
+  ): Promise<PartitionMetaV2> {
+    for (let attempt = 1;; attempt++) {
+      const { meta: existing, invalid, generation } = await this
+        .readPartitionMetaVersioned(signal);
+      if (invalid) {
+        throw new Error(
+          "[gcs-sync] _meta.json is not a recognized v1/v2 index meta; refusing to overwrite it. Repair or remove _meta.json, then retry.",
+        );
+      }
+      const partitionKeys = await this.listShardKeys(signal);
+      const meta: PartitionMetaV2 = {
+        version: 2,
+        partitions: partitionKeys,
+        commitSeq: GcsCacheSyncService.rebuiltCommitSeq(existing),
+      };
+      const result = await this.putIfGenerationMatch(
+        this.metaKey(),
+        new TextEncoder().encode(JSON.stringify(meta)),
+        generation,
+        signal,
+      );
+      if (result) {
+        console.warn(
+          `[gcs-sync] Rebuilt _meta.json from _index/ listing: ${partitionKeys.length} shard(s)`,
+        );
+        return meta;
+      }
+      if (attempt >= GcsCacheSyncService.META_CAS_ATTEMPTS) {
+        throw new Error(
+          `[gcs-sync] _meta.json kept changing under concurrent writers (${attempt} compare-and-swap attempts); retry migrate-index.`,
+        );
+      }
+      await abortableSleep(casBackoffMs(attempt), signal);
+    }
+  }
+
+  /**
+   * Keeps a v2 remote v2 after contamination repair deleted foreign objects:
+   * a strictly greater commitSeq, so an armed sidecar cannot fast-path over the
+   * repair, and no shard belonging to a foreign namespace.
+   */
+  private async rebuildMetaAfterContamination(
+    prior: PartitionMeta | null,
+    foreign: ReadonlySet<string>,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    let partitions: string[] = [];
+    let dropped: string[] = [];
+    for (let attempt = 1;; attempt++) {
+      const { meta, invalid, generation } = await this
+        .readPartitionMetaVersioned(
+          signal,
+        );
+      if (invalid || meta?.version !== 2) {
+        throw new Error(
+          "[gcs-sync] _meta.json is no longer a v2 index meta; refusing to overwrite it. Run `swamp datastore migrate-index`, then retry.",
+        );
+      }
+      // From the meta just read, so a partition a concurrent writer listed
+      // after this repair started stays listed.
+      partitions = meta.partitions.filter((key) => !foreign.has(key));
+      dropped = meta.partitions.filter((key) => foreign.has(key));
+      const newest = Math.max(
+        (prior as PartitionMetaV2 | null)?.commitSeq ?? 0,
+        (meta as PartitionMetaV2).commitSeq ?? 0,
+      );
+      const next: PartitionMetaV2 = {
+        version: 2,
+        partitions,
+        commitSeq: Math.max(Date.now(), newest + 1),
+      };
+      const result = await this.putIfGenerationMatch(
+        this.metaKey(),
+        new TextEncoder().encode(JSON.stringify(next)),
+        generation,
+        signal,
+      );
+      if (result) break;
+      if (attempt >= GcsCacheSyncService.META_CAS_ATTEMPTS) {
+        throw new Error(
+          `[gcs-sync] _meta.json kept changing under concurrent writers (${attempt} compare-and-swap attempts); retry the repair.`,
+        );
+      }
+      await abortableSleep(casBackoffMs(attempt), signal);
+    }
+    // Only shards just unlisted and foreign ones. A shard no meta lists may be
+    // one a writer has created and is about to list, and deleting it would make
+    // every later read of the index fail.
+    const doomed = new Set(dropped);
+    for (const key of await this.listShardKeys(signal)) {
+      if (foreign.has(key)) doomed.add(key);
+    }
+    for (const key of doomed) {
+      try {
+        await retryWithBackoff(
+          () => this.gcs.deleteObject(this.shardKey(key), undefined, signal),
+          { signal },
+        );
+      } catch (err) {
+        console.warn(
+          `[gcs-sync] Could not delete index shard ${key}: ${err}`,
+        );
+      }
+    }
   }
 
   /**
@@ -2284,6 +2456,15 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     const commitSeqResult = await this.tryCommitSeqFastPath(signal);
     if (commitSeqResult !== null) return commitSeqResult;
 
+    // On a v2 remote the monolith is stale: migrating never deletes it and
+    // shard-first pushes never update it. A sidecar armed from it would match
+    // forever and skip every commit to the shards.
+    try {
+      if ((await this.readPartitionMeta(signal))?.version === 2) return null;
+    } catch {
+      return null;
+    }
+
     const sidecar = await this.loadSyncState();
     if (!sidecar) return null;
     if (
@@ -2455,14 +2636,9 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     await ensureDir(this.cachePath);
     if (this.scrubIndex()) {
       this.indexMutated = true;
-      await this.beforeIndexWrite();
-      await atomicWriteTextFile(
-        this.indexPath,
-        JSON.stringify(this.index, null, 2),
-      );
+      await this.writeLastSynced(this.index);
     } else {
-      await this.beforeIndexWrite();
-      await atomicWriteTextFile(this.indexPath, text);
+      await this.writeLastSynced(this.index, text);
     }
     return generation ?? null;
   }
@@ -2559,6 +2735,13 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       } catch {
         tracePhase("pullIndex.discover", discoverStart, "n=0 v2-init-failed");
       }
+      // This cache has now synced an empty remote. Without a saved index it
+      // could not tell a file it wrote from one a peer deleted. An index it
+      // already holds stays: an empty listing reads the same as a wiped one.
+      if (await this.readLastSyncedEntries() === null) {
+        await ensureDir(this.cachePath);
+        await this.writeLastSynced(this.index);
+      }
       return null;
     }
 
@@ -2584,11 +2767,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
       { signal },
     );
     await ensureDir(this.cachePath);
-    await this.beforeIndexWrite();
-    await atomicWriteTextFile(
-      this.indexPath,
-      JSON.stringify(this.index, null, 2),
-    );
+    await this.writeLastSynced(this.index);
     tracePhase(
       "pullIndex.discover",
       discoverStart,
@@ -2654,11 +2833,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     if (!this.index) return false;
     if (!this.indexIsPartial) {
       try {
-        await this.beforeIndexWrite();
-        await atomicWriteTextFile(
-          this.indexPath,
-          JSON.stringify(this.index, null, 2),
-        );
+        await this.writeLastSynced(this.index);
         return true;
       } catch (err) {
         console.warn(
@@ -2680,11 +2855,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
         delete onDisk.entries[rel];
       }
       onDisk.lastPulled = this.index.lastPulled;
-      await this.beforeIndexWrite();
-      await atomicWriteTextFile(
-        this.indexPath,
-        JSON.stringify(onDisk, null, 2),
-      );
+      await this.writeLastSynced(onDisk);
       // Keep the in-memory view in step with disk: a re-armed fast path
       // returns early on the next pull and would otherwise leave this
       // process reading a partial index for the rest of its life.
@@ -2836,6 +3007,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
 
           const indexStart = Date.now();
           const models = options?.context?.models;
+          let modelsScopedRead = false;
           let indexGeneration: string | null = null;
           let v2CommitSeq: number | null = null;
           // What this cache last synced, read before the remote index
@@ -2891,6 +3063,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
               // Only these models' shards were read: no later arm in this
               // process may trust the index as complete (swamp-club #3193).
               this.indexIsPartial = true;
+              modelsScopedRead = true;
               indexGeneration = null;
             } else {
               // A model with no shard: read the whole index the way an
@@ -2981,6 +3154,10 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           const toPull: string[] = [];
           const lazyDirsToCreate: Set<string> = new Set();
           const pull404Rels = new Set<string>();
+          // This copy's mtime for content it verified: files it downloaded
+          // or hash-matched. Never a hashless entry it only compared by size,
+          // whose mtime would hide a same-size local edit.
+          const verifiedMtimes = new Map<string, string>();
           for (
             const [rel, entry] of Object.entries(this.index?.entries ?? {})
           ) {
@@ -3036,9 +3213,13 @@ export class GcsCacheSyncService implements DatastoreSyncService {
                     }
                     await this.recordOwnMtime(rel, stat, localHash);
                   }
+                  if (stat.mtime) {
+                    verifiedMtimes.set(rel, stat.mtime.toISOString());
+                  }
                 }
                 if (
                   this.index && stat.mtime &&
+                  entry.sha256 &&
                   entry.localMtime !== stat.mtime.toISOString()
                 ) {
                   this.index.entries[rel].localMtime = stat.mtime.toISOString();
@@ -3071,6 +3252,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
                   if (stat.mtime && this.index) {
                     this.index.entries[rel].localMtime = stat.mtime
                       .toISOString();
+                    verifiedMtimes.set(rel, stat.mtime.toISOString());
                   }
                 } catch {
                   // Non-fatal: mtime recording is best-effort
@@ -3099,14 +3281,34 @@ export class GcsCacheSyncService implements DatastoreSyncService {
             throw new Error(formatBatchFailure("pull", failures));
           }
 
+          // A shard read saved the index before this walk, and a models-scoped
+          // read saved nothing, so record what the walk verified now. Field
+          // by field, and before the sidecar writes below (see the ordering
+          // invariant above).
+          if (v2CommitSeq !== null || modelsScopedRead) {
+            try {
+              const upserts: Record<string, IndexEntry> = {};
+              if (modelsScopedRead && this.index) {
+                for (const [rel, mtime] of verifiedMtimes) {
+                  const entry = this.index.entries[rel];
+                  if (entry) upserts[rel] = { ...entry, localMtime: mtime };
+                }
+              }
+              await this.mergeIntoLastSynced({
+                upserts,
+                mtimes: verifiedMtimes,
+              });
+            } catch (err) {
+              console.warn(
+                `[gcs-sync] Could not update the local index: ${err}`,
+              );
+            }
+          }
+
           if (indexGeneration) {
             try {
               if ((pulled > 0 || this.indexMutated) && this.index) {
-                await this.beforeIndexWrite();
-                await atomicWriteTextFile(
-                  this.indexPath,
-                  JSON.stringify(this.index, null, 2),
-                );
+                await this.writeLastSynced(this.index);
                 if (this.indexMutated) {
                   const indexData = new TextEncoder().encode(
                     JSON.stringify(this.index),
@@ -3143,11 +3345,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
                 signal,
               );
 
-              await this.beforeIndexWrite();
-              await atomicWriteTextFile(
-                this.indexPath,
-                JSON.stringify(this.index, null, 2),
-              );
+              await this.mergeIntoLastSynced({ removals: pull404Rels });
               this.indexMutated = false;
 
               if (!scoped) {
@@ -3613,11 +3811,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
                 () => this.gcs.putObject(this.indexKey(), indexData, signal),
                 { signal },
               );
-              await this.beforeIndexWrite();
-              await atomicWriteTextFile(
-                this.indexPath,
-                JSON.stringify(this.index, null, 2),
-              );
+              await this.writeLastSynced(this.index);
               this.indexMutated = false;
 
               await this.writePartitionedIndex(
@@ -4143,11 +4337,7 @@ export class GcsCacheSyncService implements DatastoreSyncService {
         () => this.gcs.putObject(this.indexKey(), indexData, signal),
         { signal },
       );
-      await this.beforeIndexWrite();
-      await atomicWriteTextFile(
-        this.indexPath,
-        JSON.stringify(this.index, null, 2),
-      );
+      await this.writeLastSynced(this.index);
       this.indexMutated = false;
 
       const dirtyKeys = data.dirtyPartitionKeys.length > 0
@@ -4171,15 +4361,168 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     return data.pushed + data.deleted;
   }
 
+  /**
+   * Replaces `.datastore-index.json`. Every write of that file comes through
+   * here, so a key an operation drops from it while a file stays at its path
+   * is recorded first (swamp-club#4112). `text` is what to write when it is
+   * not a re-serialized `index`.
+   */
+  private async writeLastSynced(
+    index: DatastoreIndex,
+    text?: string,
+  ): Promise<void> {
+    await this.beforeIndexWrite();
+    await this.recordPeerDeleted(index.entries);
+    await atomicWriteTextFile(
+      this.indexPath,
+      text ?? JSON.stringify(index, null, 2),
+    );
+  }
+
+  /**
+   * Field-level update of `.datastore-index.json`. It reads the file fresh,
+   * so entries a concurrent push committed since the last read survive, and
+   * it writes only when something changed, and never when there is no file.
+   * `mtimes` is this copy's verified mtime for entries the file already holds.
+   */
+  private async mergeIntoLastSynced(changes: {
+    upserts?: Record<string, IndexEntry>;
+    removals?: Iterable<string>;
+    mtimes?: ReadonlyMap<string, string>;
+  }): Promise<void> {
+    let onDisk: DatastoreIndex | null = null;
+    try {
+      onDisk = JSON.parse(
+        await Deno.readTextFile(this.indexPath),
+      ) as DatastoreIndex;
+    } catch (err) {
+      if (!(err instanceof Deno.errors.NotFound)) throw err;
+    }
+    // A partial index made here would read as a cache that has synced, and
+    // defeat the refusal in repairUnpushedFiles.
+    if (!onDisk?.entries) return;
+    const target: DatastoreIndex = onDisk;
+    let changed = false;
+    for (const [rel, entry] of Object.entries(changes.upserts ?? {})) {
+      const current = target.entries[rel];
+      if (
+        current && sameRemoteEntry(current, entry) &&
+        current.localMtime === entry.localMtime
+      ) {
+        continue;
+      }
+      target.entries[rel] = entry;
+      changed = true;
+    }
+    for (const rel of changes.removals ?? []) {
+      if (target.entries[rel]) {
+        delete target.entries[rel];
+        changed = true;
+      }
+    }
+    for (const [rel, mtime] of changes.mtimes ?? []) {
+      const entry = target.entries[rel];
+      if (entry && entry.localMtime !== mtime) {
+        entry.localMtime = mtime;
+        changed = true;
+      }
+    }
+    if (!changed) return;
+    await this.writeLastSynced(target);
+  }
+
+  /** Whether a regular file sits at `rel`; a symlink is never followed. */
+  private async isRegularCacheFile(rel: string): Promise<boolean> {
+    let localPath: string;
+    try {
+      localPath = assertSafePath(this.cachePath, this.localRelPath(rel));
+    } catch {
+      return false;
+    }
+    try {
+      return (await Deno.lstat(localPath)).isFile;
+    } catch (err) {
+      // A path under a file that replaced its directory has no file either.
+      if (
+        err instanceof Deno.errors.NotFound ||
+        err instanceof Deno.errors.NotADirectory
+      ) {
+        return false;
+      }
+      throw err;
+    }
+  }
+
+  /**
+   * The peer-deleted record; empty when there is none. A record that cannot be
+   * read throws: reading it as empty would let a repair upload the copies it
+   * lists, undoing peers' deletes.
+   */
+  private async readPeerDeleted(): Promise<Set<string>> {
+    let text: string;
+    try {
+      text = await Deno.readTextFile(this.peerDeletedPath);
+    } catch (err) {
+      if (err instanceof Deno.errors.NotFound) return new Set();
+      throw err;
+    }
+    const parsed = JSON.parse(text);
+    if (parsed?.version !== 1 || !Array.isArray(parsed.keys)) {
+      throw new Error(`${PEER_DELETED_FILE} is not a version 1 record`);
+    }
+    return new Set(parsed.keys.filter((k: unknown) => typeof k === "string"));
+  }
+
+  /**
+   * Updates the peer-deleted record before last-synced becomes `next`. A key
+   * `next` drops while a regular file stays at its path is recorded, because
+   * that copy would otherwise read as a file the remote never received and
+   * `repairUnpushedFiles` would bring the delete back. A key is forgotten once
+   * `next` holds it again or its file is gone. Never throws: a lost record
+   * must not fail a sync that otherwise succeeded.
+   */
+  private async recordPeerDeleted(
+    next: Record<string, IndexEntry>,
+  ): Promise<void> {
+    try {
+      const recorded = await this.readPeerDeleted();
+      let changed = false;
+      const prior = await this.readLastSyncedEntries() ?? {};
+      for (const rel of Object.keys(prior)) {
+        if (next[rel] || recorded.has(rel)) continue;
+        if (isInternalCacheFile(rel)) continue;
+        if (isStrayNamespacePath(rel, this.namespace)) continue;
+        if (await this.isRegularCacheFile(rel)) {
+          recorded.add(rel);
+          changed = true;
+        }
+      }
+      for (const rel of [...recorded]) {
+        if (next[rel] || !(await this.isRegularCacheFile(rel))) {
+          recorded.delete(rel);
+          changed = true;
+        }
+      }
+      if (!changed) return;
+      await ensureDir(this.cachePath);
+      await atomicWriteTextFile(
+        this.peerDeletedPath,
+        JSON.stringify({ version: 1, keys: [...recorded].sort() }, null, 2),
+      );
+    } catch (err) {
+      console.warn(
+        `[gcs-sync] Could not update the peer-deleted record: ${err}. A copy a ` +
+          `peer deleted may now read as unpushed, and a real repair would ` +
+          `upload it.`,
+      );
+    }
+  }
+
   /** Saves the in-memory index as `.datastore-index.json`. */
   private async saveIndex(): Promise<void> {
     if (!this.index) return;
     await ensureDir(this.cachePath);
-    await this.beforeIndexWrite();
-    await atomicWriteTextFile(
-      this.indexPath,
-      JSON.stringify(this.index, null, 2),
-    );
+    await this.writeLastSynced(this.index);
   }
 
   /**
@@ -5292,6 +5635,459 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     );
   }
 
+  /**
+   * Runs the push's root-to-namespace and control-plane migration gates before
+   * a repair uploads, so it writes the keys a push would. Both can change the
+   * remote, so a dry run never comes here. The sidecar's flags stay unset: they
+   * also send the next push down the slow path, and that walk is what sends a
+   * local edit a repair only reports. The next push runs the gates again and
+   * finds nothing left to move.
+   */
+  private async runRepairMigrationGates(
+    isV2: boolean,
+    signal?: AbortSignal,
+  ): Promise<void> {
+    if (!this.namespace) return;
+    const state = await this.loadSyncState() as DatastoreSyncStateV2 | null;
+    if (!isV2 && !state?.dataKeyMigrated) {
+      await this.migrateRootDataToNamespace(signal);
+    }
+    if (!state?.controlPlaneKeysMigrated) {
+      await this.migrateRootControlPlaneToNamespace(signal);
+    }
+  }
+
+  /** A streamed sha256 of the remote object, or null when it is gone. */
+  private async remoteSha256(
+    rel: string,
+    signal?: AbortSignal,
+  ): Promise<string | null> {
+    try {
+      const { body } = await retryWithBackoff(
+        () => this.gcs.getObjectStream(this.dataKey(rel), signal),
+        { signal },
+      );
+      const hasher = createHash("sha256");
+      for await (const chunk of body) hasher.update(chunk);
+      return hasher.digest("hex");
+    } catch (err) {
+      if (err instanceof NotFoundError) return null;
+      throw err;
+    }
+  }
+
+  /**
+   * Whether the object at `rel` holds `sha256`, read from the metadata a
+   * repair recorded, else from a streamed hash. Null when no object exists.
+   */
+  private async remoteHolds(
+    rel: string,
+    sha256: string,
+    signal?: AbortSignal,
+  ): Promise<boolean | null> {
+    const head = await retryWithBackoff(
+      () => this.gcs.getMetadata(this.dataKey(rel), signal),
+      { signal },
+    );
+    if (!head.exists) return null;
+    const recorded = head.metadata?.[SHA256_METADATA_KEY];
+    if (recorded && /^[0-9a-f]{64}$/.test(recorded)) return recorded === sha256;
+    const streamed = await this.remoteSha256(rel, signal);
+    return streamed === null ? null : streamed === sha256;
+  }
+
+  /**
+   * Uploads one unpushed file with a create-only write that records its
+   * sha256, or settles a key something else already holds: its own bytes are
+   * an earlier upload of ours and are indexed; other bytes are left alone.
+   * Never goes through `pushFile`, which marks the cache dirty. A refusal that
+   * left no object is retried up to a fixed limit, then rejects. Returns null
+   * when the file vanished before it could be read.
+   */
+  private async createOrSettle(
+    rel: string,
+    localPath: string,
+    listed: boolean,
+    signal?: AbortSignal,
+  ): Promise<{ entry: IndexEntry } | "alreadyPresent" | null> {
+    if (!isWithinDir(this.cachePath, normalize(localPath))) {
+      throw new Error(`Path traversal detected: ${localPath}`);
+    }
+    let preReadStat: Deno.FileInfo;
+    let data: Uint8Array<ArrayBuffer>;
+    try {
+      // Stat before the read, as in pushFile.
+      preReadStat = await Deno.lstat(localPath);
+      if (!preReadStat.isFile) return null;
+      data = await Deno.readFile(localPath);
+    } catch (err) {
+      if (err instanceof Deno.errors.NotFound) return null;
+      throw err;
+    }
+    const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+    const sha256 = Array.from(new Uint8Array(hashBuffer))
+      .map((b) => b.toString(16).padStart(2, "0"))
+      .join("");
+    const metadata = { [SHA256_METADATA_KEY]: sha256 };
+    const key = this.dataKey(rel);
+
+    let tryCreate = !listed;
+    for (let attempt = 1;; attempt++) {
+      throwIfAborted(signal);
+      if (tryCreate) {
+        const created = await retryWithBackoff(
+          () => this.gcs.putObjectConditional(key, data, signal, { metadata }),
+          { signal },
+        );
+        if (created !== null) break;
+      }
+      tryCreate = true;
+      const holds = await this.remoteHolds(rel, sha256, signal);
+      if (holds === true) break;
+      if (holds === false) return "alreadyPresent";
+      if (attempt >= GcsCacheSyncService.REPAIR_CREATE_ATTEMPTS) {
+        throw new Error(
+          `[gcs-sync] A create of ${key} was refused ${attempt} time(s) and left no object; retry the repair.`,
+        );
+      }
+      await abortableSleep(casBackoffMs(attempt), signal);
+    }
+    await this.recordOwnMtime(rel, preReadStat, sha256);
+    return {
+      entry: {
+        key: rel,
+        size: data.length,
+        lastModified: new Date().toISOString(),
+        localMtime: preReadStat.mtime?.toISOString(),
+        sha256,
+      },
+    };
+  }
+
+  async repairUnpushedFiles(
+    options?: RepairUnpushedFilesOptions,
+  ): Promise<UnpushedFilesSummary> {
+    const dryRun = options?.dryRun ?? false;
+    const exact = options?.exact ?? false;
+    return await getTracer().startActiveSpan(
+      "gcs-datastore repairUnpushed",
+      async (span) => {
+        try {
+          span.setAttribute(Attr.DATASTORE_DRY_RUN, dryRun);
+          span.setAttribute(Attr.DATASTORE_NAMESPACE, options?.namespace ?? "");
+          const signal = options?.signal;
+          this.bindNamespace(options?.namespace);
+          throwIfAborted(signal);
+          await this.ensureSyncable(signal);
+
+          // A repair commits to shards, so a monolith would be split from
+          // them. A monolith need not have a _meta.json beside it.
+          const meta = await this.readPartitionMeta(signal);
+          const monolithAtRemote = meta === null &&
+            (await retryWithBackoff(
+              () => this.gcs.getMetadata(this.indexKey(), signal),
+              { signal },
+            )).exists;
+          if (monolithAtRemote || (meta !== null && meta.version !== 2)) {
+            throw new RepairUnpushedRefusedError(
+              "The remote index is a v1 monolith, which repairUnpushedFiles " +
+                "cannot commit to. Run `swamp datastore sync --pull`, then " +
+                "`swamp datastore migrate-index`, and repair again.",
+            );
+          }
+          const lastSynced = await this.readLastSyncedEntries();
+          if (!lastSynced) {
+            throw new RepairUnpushedRefusedError(
+              "This cache has no last-synced index, so unpushed files cannot " +
+                "be told apart from files a peer deleted. Run " +
+                "`swamp datastore sync --pull` first.",
+            );
+          }
+
+          const assembled = await this.assembleIndexFromShards(signal);
+          const live: Record<string, IndexEntry> = assembled?.entries ?? {};
+          const baseCommitSeq = assembled?.commitSeq ?? 0;
+          const nsPrefix = this.namespace ? `${this.namespace}/` : "";
+          const listing = await retryWithBackoff(
+            () => this.gcs.listAllObjects(nsPrefix || undefined, signal),
+            { signal },
+          );
+          const objects = new Map<string, number>();
+          const remoteNamespaces = new Set<string>();
+          for (const entry of listing) {
+            if (!this.namespace && entry.key.endsWith("/.namespace.json")) {
+              remoteNamespaces.add(entry.key.split("/")[0]);
+            }
+            objects.set(entry.key.substring(nsPrefix.length), entry.size);
+          }
+          const foreignDirs = this.namespace
+            ? await detectNamespaceDirs(this.cachePath, this.namespace)
+            : remoteNamespaces;
+          // No _meta.json on a remote that holds shards or data: its index is
+          // not readable, so everything would look absent, and a first commit
+          // would create a _meta.json that unlists the other shards. Peers would
+          // then read those files as deleted.
+          if (
+            meta === null && listing.some((entry) => {
+              const rel = entry.key.substring(nsPrefix.length);
+              return rel.startsWith("_index/") ||
+                (!isInternalCacheFile(rel) &&
+                  !isInsideNamespaceDir(rel, remoteNamespaces));
+            })
+          ) {
+            throw new RepairUnpushedRefusedError(
+              "The remote holds data but has no _meta.json, so its index " +
+                "cannot be read. Run `swamp datastore migrate-index`, then " +
+                "`swamp datastore sync --pull`, and repair again.",
+            );
+          }
+          let recorded: Set<string>;
+          try {
+            recorded = await this.readPeerDeleted();
+          } catch (err) {
+            throw new RepairUnpushedRefusedError(
+              `Could not read ${PEER_DELETED_FILE}: ${err}. Copies it lists ` +
+                "would be uploaded, undoing peers' deletes. Repair the file. " +
+                "Removing it makes those copies read as unpushed.",
+            );
+          }
+
+          const unpushed: Array<
+            { rel: string; path: string; listed: boolean }
+          > = [];
+          const alreadyPresent: string[] = [];
+          const modified: string[] = [];
+          const unknown: string[] = [];
+          const peerDeleted: string[] = [];
+
+          // Compared with last-synced, never the live remote: a stale copy is
+          // not a local change.
+          const classifySynced = async (
+            rel: string,
+            path: string,
+            stat: Deno.FileInfo,
+            synced: IndexEntry,
+          ) => {
+            if (stat.size !== synced.size) {
+              modified.push(rel);
+              return;
+            }
+            const own = await this.ownRecordFor(rel, stat, false);
+            if (own?.sha256 && synced.sha256) {
+              if (own.sha256 !== synced.sha256) modified.push(rel);
+              return;
+            }
+            const mtime = stat.mtime?.toISOString();
+            if (own || (mtime && mtime === synced.localMtime)) return;
+            // A local hash needs no remote request, so this does not wait for
+            // `exact`.
+            if (synced.sha256) {
+              if (await streamingSha256(path) !== synced.sha256) {
+                modified.push(rel);
+              }
+              return;
+            }
+            const remote = live[rel];
+            if (exact && remote && sameRemoteEntry(remote, synced)) {
+              const remoteHash = await this.remoteSha256(rel, signal);
+              if (remoteHash !== null) {
+                if (await streamingSha256(path) !== remoteHash) {
+                  modified.push(rel);
+                }
+                return;
+              }
+            }
+            unknown.push(rel);
+          };
+
+          // A key the remote indexes that this cache never synced.
+          const classifyLive = async (
+            rel: string,
+            path: string,
+            stat: Deno.FileInfo,
+            remote: IndexEntry,
+          ) => {
+            if (remote.size !== stat.size) {
+              alreadyPresent.push(rel);
+            } else if (remote.sha256) {
+              if (await streamingSha256(path) !== remote.sha256) {
+                alreadyPresent.push(rel);
+              }
+            } else if (exact) {
+              const remoteHash = await this.remoteSha256(rel, signal);
+              if (remoteHash === null) {
+                unknown.push(rel);
+              } else if (await streamingSha256(path) !== remoteHash) {
+                alreadyPresent.push(rel);
+              }
+            } else {
+              unknown.push(rel);
+            }
+          };
+
+          // The push walk's filter, except that strays are never removed: a
+          // repair deletes nothing.
+          for await (
+            const entry of this.walkCacheFiles(this.cachePath, () => {})
+          ) {
+            const localRel = toKeyPath(relative(this.cachePath, entry.path));
+            if (isInternalCacheFile(localRel)) continue;
+            if (nsPrefix && !localRel.startsWith(nsPrefix)) continue;
+            if (isInsideNamespaceDir(localRel, foreignDirs)) continue;
+            const rel = localRel.substring(nsPrefix.length);
+            // Again without the namespace: `<ns>/_control/x` is a control-plane
+            // key, and `<ns>/.datastore-index.json` would be a monolith.
+            if (isInternalCacheFile(rel)) continue;
+            if (isStrayNamespacePath(rel, this.namespace)) continue;
+            let stat: Deno.FileInfo;
+            try {
+              stat = await Deno.lstat(entry.path);
+            } catch (err) {
+              if (err instanceof Deno.errors.NotFound) continue;
+              throw err;
+            }
+            if (!stat.isFile) continue;
+
+            const synced = lastSynced[rel];
+            if (synced || live[rel]) {
+              try {
+                await (synced
+                  ? classifySynced(rel, entry.path, stat, synced)
+                  : classifyLive(rel, entry.path, stat, live[rel]));
+              } catch (err) {
+                // Removed since the walk listed it, as by a peer step's GC.
+                if (!(err instanceof Deno.errors.NotFound)) throw err;
+              }
+            } else if (recorded.has(rel)) {
+              peerDeleted.push(rel);
+            } else {
+              const objectSize = objects.get(rel);
+              if (objectSize !== undefined && objectSize !== stat.size) {
+                alreadyPresent.push(rel);
+              } else {
+                // An equal-size object cannot be compared from a listing: a
+                // real run settles it, a dry run reports it here.
+                unpushed.push({
+                  rel,
+                  path: entry.path,
+                  listed: objectSize !== undefined,
+                });
+              }
+            }
+          }
+
+          let remoteMovedOn = 0;
+          for (const [rel, synced] of Object.entries(lastSynced)) {
+            if (isInternalCacheFile(rel)) continue;
+            if (isStrayNamespacePath(rel, this.namespace)) continue;
+            if (live[rel] && !sameRemoteEntry(live[rel], synced)) {
+              remoteMovedOn++;
+            }
+          }
+
+          let uploaded = 0;
+          const remaining: string[] = [];
+          if (dryRun) {
+            remaining.push(...unpushed.map((u) => u.rel));
+          } else if (unpushed.length > 0) {
+            await this.runRepairMigrationGates(meta !== null, signal);
+            await this.formatGate.ensureWithinOperation(signal);
+            let pending: Record<string, IndexEntry> = {};
+            // Commits leave the sidecar alone: the next pull must still see
+            // every commit this cache has not read, this one included.
+            const commitPending = async () => {
+              const count = Object.keys(pending).length;
+              if (count === 0) return;
+              await this.commitShardChanges(
+                pending,
+                [],
+                baseCommitSeq,
+                signal,
+                true,
+              );
+              await this.mergeIntoLastSynced({ upserts: pending });
+              if (this.index) Object.assign(this.index.entries, pending);
+              uploaded += count;
+              pending = {};
+            };
+            const failures: Array<{ file: string; error: unknown }> = [];
+            const candidates = unpushed.filter(({ rel }) => {
+              if (GcsCacheSyncService.partitionKeyFromPath(rel)) return true;
+              remaining.push(rel);
+              return false;
+            });
+            for (let i = 0; i < candidates.length; i += this.pushConcurrency) {
+              throwIfAborted(signal);
+              const batch = candidates.slice(i, i + this.pushConcurrency);
+              const results = await Promise.allSettled(
+                batch.map(({ rel, path, listed }) =>
+                  this.createOrSettle(rel, path, listed, signal)
+                ),
+              );
+              for (let j = 0; j < results.length; j++) {
+                const result = results[j];
+                if (result.status === "rejected") {
+                  failures.push({ file: batch[j].rel, error: result.reason });
+                  remaining.push(batch[j].rel);
+                } else if (result.value === "alreadyPresent") {
+                  alreadyPresent.push(batch[j].rel);
+                } else if (result.value !== null) {
+                  pending[batch[j].rel] = result.value.entry;
+                }
+              }
+              if (
+                Object.keys(pending).length >=
+                  GcsCacheSyncService.REPAIR_COMMIT_BATCH
+              ) {
+                await commitPending();
+              }
+            }
+            await commitPending();
+            if (failures.length > 0) {
+              throw new Error(formatBatchFailure("push", failures));
+            }
+          }
+
+          span.setAttribute(Attr.DATASTORE_FILES_PUSHED, uploaded);
+          const sample = (rels: string[]) =>
+            rels.map((rel) => this.localRelPath(rel)).sort().slice(
+              0,
+              REPAIR_SAMPLE_LIMIT,
+            );
+          const sidecar = await this.loadSyncState();
+          return {
+            unpushed: remaining.length,
+            samplePaths: sample(remaining),
+            alreadyPresent: alreadyPresent.length,
+            sampleAlreadyPresent: sample(alreadyPresent),
+            locallyModified: modified.length,
+            sampleModified: sample(modified),
+            unknown: unknown.length,
+            sampleUnknown: sample(unknown),
+            peerDeleted: peerDeleted.length,
+            samplePeerDeleted: sample(peerDeleted),
+            remoteMovedOn,
+            uploaded,
+            pendingChanges: sidecar?.localDirty === true ||
+              this.hasDirtyMarks(),
+          };
+        } catch (err) {
+          span.setStatus({
+            code: SpanStatusCode.ERROR,
+            message: err instanceof Error ? err.message : String(err),
+          });
+          span.recordException(
+            err instanceof Error ? err : new Error(String(err)),
+          );
+          throw err;
+        } finally {
+          if (!dryRun) await this.flushOwnMtimes();
+          span.end();
+        }
+      },
+    );
+  }
+
   async repairNamespaceContamination(
     options?: RepairNamespaceContaminationOptions,
   ): Promise<NamespaceContaminationSummary> {
@@ -5379,6 +6175,20 @@ export class GcsCacheSyncService implements DatastoreSyncService {
             return { foreignNamespaces, totalForeignObjects, deleted: 0 };
           }
 
+          // Read before anything is deleted: the rewrite below must exceed
+          // it, and an unreadable _meta.json stops the repair here.
+          const priorMeta = await this.readPartitionMeta(signal);
+          // Before the deletes, so a failure here leaves the foreign objects in
+          // place and a rerun repeats all of it. After them, a rerun would find
+          // nothing foreign and report success with the rewrite never done.
+          if (priorMeta?.version === 2) {
+            await this.rebuildMetaAfterContamination(
+              priorMeta,
+              new Set(foreignByNs.keys()),
+              signal,
+            );
+          }
+
           let deleted = 0;
           for (
             let i = 0;
@@ -5406,15 +6216,33 @@ export class GcsCacheSyncService implements DatastoreSyncService {
               { signal },
             );
           } catch { /* may not exist */ }
-          try {
-            await retryWithBackoff(
-              () => this.gcs.deleteObject(this.metaKey(), undefined, signal),
-              { signal },
-            );
-          } catch { /* may not exist */ }
-
-          this.index = null;
-          await this.pullIndex({ forceRemote: true, signal });
+          if (priorMeta?.version === 2) {
+            // The shards are the index. pullIndex would find no monolith and
+            // rediscover one from the listing, with no sha256.
+            this.index = null;
+            const assembled = await this.assembleIndexFromShards(signal);
+            if (assembled) {
+              this.index = {
+                version: 1,
+                lastPulled: new Date().toISOString(),
+                entries: assembled.entries,
+              };
+              this.indexIsPartial = false;
+              this.scrubIndex();
+              await this.saveIndex();
+            }
+          } else {
+            // A remote that is not v2 has no complete shard index to keep: its
+            // monolith was the index, so rebuild it from what remains.
+            try {
+              await retryWithBackoff(
+                () => this.gcs.deleteObject(this.metaKey(), undefined, signal),
+                { signal },
+              );
+            } catch { /* may not exist */ }
+            this.index = null;
+            await this.pullIndex({ forceRemote: true, signal });
+          }
 
           return { foreignNamespaces, totalForeignObjects, deleted };
         } catch (err) {

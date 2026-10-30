@@ -10509,6 +10509,11 @@ Deno.test("fetchContent: passes core's round-trip conformance suite (swamp-club#
         return Promise.reject(makeGcsErr(403));
       }) as never;
     };
+    // A first pull of an empty bucket leaves no sidecar, so the next push
+    // walks the whole cache. The repair cases need a cache that has synced
+    // and is clean, which takes one pull more than the suite's warm-up. A
+    // separate service, because a pull binds the namespace.
+    await new GcsCacheSyncService(mock, firstCache).pullChanged();
     return {
       first: {
         service: new GcsCacheSyncService(mock, firstCache),
@@ -10543,6 +10548,12 @@ Deno.test("fetchContent: passes core's round-trip conformance suite (swamp-club#
       "remark-between-prepare-and-commit",
       "bulk-between-prepare-and-commit",
       "vanish-during-walk",
+      "repair-unpushed",
+      "repair-unpushed-keeps-pending",
+      "repair-unpushed-keeps-fingerprint",
+      "repair-unpushed-classifies",
+      "repair-unpushed-peer-deleted",
+      "repair-unpushed-already-present",
     ]
   ) {
     assert(result.passed.includes(name), `${name} did not run`);

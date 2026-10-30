@@ -75,6 +75,7 @@ export interface GcsObjectMetadata {
   size?: number;
   updated?: Date;
   generation?: string;
+  metadata?: Record<string, string>;
 }
 
 export interface GcsListEntry {
@@ -101,6 +102,27 @@ export class PreconditionFailedError extends Error {
  * a dual-region object that has not finished replicating.
  */
 const MAX_REWRITE_CALLS = 20;
+
+/** The body of a multipart upload: the object resource, then its bytes. */
+function multipartUploadBody(
+  boundary: string,
+  name: string,
+  metadata: Record<string, string>,
+  body: Uint8Array,
+): Uint8Array {
+  const encoder = new TextEncoder();
+  const head = encoder.encode(
+    `--${boundary}\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n` +
+      `${JSON.stringify({ name, metadata })}\r\n` +
+      `--${boundary}\r\nContent-Type: application/octet-stream\r\n\r\n`,
+  );
+  const tail = encoder.encode(`\r\n--${boundary}--\r\n`);
+  const out = new Uint8Array(head.length + body.length + tail.length);
+  out.set(head);
+  out.set(body, head.length);
+  out.set(tail, head.length + body.length);
+  return out;
+}
 
 /** Error thrown when a GCS object is not found (HTTP 404). */
 export class NotFoundError extends Error {
@@ -1227,6 +1249,7 @@ export class GcsClient {
         size: parseInt(meta.size, 10),
         updated: meta.updated ? new Date(meta.updated) : undefined,
         generation: meta.generation,
+        metadata: meta.metadata,
       };
     } catch (err) {
       if (err instanceof NotFoundError) return { exists: false };
@@ -1243,11 +1266,15 @@ export class GcsClient {
    * Returns the generation on success, or null if the object already exists.
    * A 409 from a non-conforming endpoint counts as "already exists" too —
    * see `isPreconditionFailure`.
+   *
+   * `options.metadata` is stored as custom object metadata, which takes a
+   * multipart upload. Without it the request stays a simple media upload.
    */
   async putObjectConditional(
     key: string,
     body: Uint8Array,
     signal?: AbortSignal,
+    options?: { metadata?: Record<string, string> },
   ): Promise<GcsWriteResult | null> {
     return await getTracer().startActiveSpan(
       "GCS putObjectConditional",
@@ -1261,19 +1288,33 @@ export class GcsClient {
         });
         try {
           const objectName = this.fullKey(key);
+          const metadata = options?.metadata;
           const url = this.uploadUrl(
-            `/b/${encodeURIComponent(this.bucket)}/o?uploadType=media&name=${
-              encodeURIComponent(objectName)
-            }&ifGenerationMatch=0`,
+            metadata
+              ? `/b/${
+                encodeURIComponent(this.bucket)
+              }/o?uploadType=multipart&ifGenerationMatch=0`
+              : `/b/${
+                encodeURIComponent(this.bucket)
+              }/o?uploadType=media&name=${
+                encodeURIComponent(objectName)
+              }&ifGenerationMatch=0`,
           );
           const hdrs = await this.headers();
-          hdrs["Content-Type"] = "application/octet-stream";
+          let payload: Uint8Array = body;
+          if (metadata) {
+            const boundary = `swamp-${crypto.randomUUID()}`;
+            hdrs["Content-Type"] = `multipart/related; boundary=${boundary}`;
+            payload = multipartUploadBody(boundary, objectName, metadata, body);
+          } else {
+            hdrs["Content-Type"] = "application/octet-stream";
+          }
 
           try {
             const resp = await this.send(
               "putObjectConditional",
               url,
-              { method: "POST", headers: hdrs, body: body as BodyInit },
+              { method: "POST", headers: hdrs, body: payload as BodyInit },
               signal,
               key,
             );

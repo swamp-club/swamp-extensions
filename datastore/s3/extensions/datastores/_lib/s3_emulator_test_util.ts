@@ -73,7 +73,12 @@ export interface S3EmulatorState {
    */
   objects: Map<
     string,
-    { body: Uint8Array; etag: string; lastModified?: Date }
+    {
+      body: Uint8Array;
+      etag: string;
+      lastModified?: Date;
+      metadata?: Record<string, string>;
+    }
   >;
   requests: S3EmulatorRequest[];
   /** Mutable, so a test can change behaviour between calls. */
@@ -224,6 +229,9 @@ export function createS3EmulatorHandler(
         "content-length": String(current.body.length),
         "last-modified": (current.lastModified ?? new Date()).toUTCString(),
       };
+      for (const [name, value] of Object.entries(current.metadata ?? {})) {
+        headers[`x-amz-meta-${name}`] = value;
+      }
       if (req.method === "GET" || !state.options.omitHeadETag) {
         headers.etag = `"${current.etag}"`;
       }
@@ -279,7 +287,18 @@ export function createS3EmulatorHandler(
       // A fresh ETag per write, whatever the content, so nothing can pass
       // by accidentally reusing a stale one.
       const etag = crypto.randomUUID().replaceAll("-", "");
-      state.objects.set(key, { body, etag, lastModified: new Date() });
+      const metadata: Record<string, string> = {};
+      for (const [name, value] of req.headers) {
+        if (name.startsWith("x-amz-meta-")) {
+          metadata[name.slice("x-amz-meta-".length)] = value;
+        }
+      }
+      state.objects.set(key, {
+        body,
+        etag,
+        lastModified: new Date(),
+        metadata,
+      });
       return new Response(null, {
         status: 200,
         headers: { etag: `"${etag}"` },

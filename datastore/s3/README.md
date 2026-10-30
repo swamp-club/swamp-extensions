@@ -510,6 +510,54 @@ read the whole index. After a model-scoped pull (which reads only those models'
 shards) it leaves the sidecar's `commitSeq` as it was, so the next full pull
 still fetches what other hosts committed.
 
+## Recovering files a push never sent
+
+`repairUnpushedFiles` (driven by core's doctor stage) finds cache files the
+bucket has never received and uploads them. It exists for files written into the
+cache behind the sync service and never marked, which no push sends, such as
+those an earlier `swamp datastore setup extension` migration left
+(swamp-club#4100, #4112).
+
+- **It needs a shard-first index and a synced cache.** A monolithic index is
+  refused: run `swamp datastore sync --pull`, then
+  `swamp datastore migrate-index`. So is a remote that holds data with no
+  `_meta.json`, whose index cannot be read: run `swamp datastore migrate-index`.
+  A cache with no last-synced index is refused too, because an unpushed file
+  cannot be told apart from one a peer deleted.
+- **A dry run changes nothing remote.** It makes one listing of the namespace
+  and no request per file, except that `exact` downloads an object when it has
+  to hash one. A listing cannot compare bytes, so an object of the
+  same size with no index entry counts as unpushed until a real run settles it,
+  and the two runs' counts can differ. Check the dry run first.
+- **Uploads are create-only** and record the sha256 in object metadata
+  (S3 `If-None-Match: *`), so on an endpoint that honours the condition they
+  never overwrite a key. An endpoint that rejects conditional create is refused,
+  never written to unconditionally. A refused
+  create is settled in the same run: the same bytes are indexed as an earlier
+  upload, other bytes are reported as `alreadyPresent` and left alone.
+- **Pending work is untouched.** It deletes nothing, sets and clears no dirty
+  state, and does not advance the sync fingerprint, so the next pull still sees
+  every commit this cache has not read, its own included.
+
+Local versions the bucket lacks are reported and never uploaded:
+`locallyModified` and `unknown` (an entry with no sha256 whose size matches and
+whose mtime does not; `exact` settles it with a streamed hash while the remote
+entry is unchanged) compare with the last-synced index, not the bucket.
+
+`.datastore-peer-deleted.json` is a local-only record of keys a sync dropped from
+the last-synced index while a regular file stayed at the path, such as a copy
+changed locally when a peer deleted its key. Those copies are reported as
+`peerDeleted`, and a repair never uploads them. A key is forgotten once the
+bucket holds it again or its file is gone. Two limits:
+
+- A deletion pulled before this record existed left no trace, so such a kept copy
+  still reads as unpushed, and a real repair uploads it. Review the dry run's
+  `samplePaths` before repairing a cache that has been running for a while.
+- A key a pull pruned because its object was missing from the bucket is recorded
+  too, though no peer may have deleted it. A repair reports it and does not
+  upload it. A later push that walks the file still uploads it, as described
+  above.
+
 ## License
 
 AGPLv3 — see [LICENSE.txt](./LICENSE.txt) for details.

@@ -50,6 +50,19 @@ Deno.test({
         };
         const first = await connect();
         const second = await connect();
+        // A first pull of an empty bucket leaves no sidecar, so the next push
+        // walks the whole cache. The repair cases need a cache that has synced
+        // and is clean, which takes one pull more than the suite's warm-up.
+        // A separate service, because a pull binds the namespace.
+        await new S3CacheSyncService(
+          new S3Client({
+            bucket: "test-bucket",
+            region: "us-east-1",
+            endpoint: `http://127.0.0.1:${port}`,
+            forcePathStyle: true,
+          }),
+          first.cacheDir,
+        ).pullChanged();
         return {
           first,
           second,
@@ -93,6 +106,12 @@ Deno.test({
           "fetch-content",
           "fetch-content-error",
           "fetch-content-namespace",
+          "repair-unpushed",
+          "repair-unpushed-keeps-pending",
+          "repair-unpushed-keeps-fingerprint",
+          "repair-unpushed-classifies",
+          "repair-unpushed-peer-deleted",
+          "repair-unpushed-already-present",
           "mark-between-prepare-and-commit",
           "remark-between-prepare-and-commit",
           "bulk-between-prepare-and-commit",

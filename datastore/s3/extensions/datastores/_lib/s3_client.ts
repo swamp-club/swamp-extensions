@@ -770,7 +770,13 @@ export class S3Client {
     key: string,
     signal?: AbortSignal,
   ): Promise<
-    { exists: boolean; size?: number; lastModified?: Date; etag?: string }
+    {
+      exists: boolean;
+      size?: number;
+      lastModified?: Date;
+      etag?: string;
+      metadata?: Record<string, string>;
+    }
   > {
     try {
       const response = await this.run(
@@ -786,6 +792,7 @@ export class S3Client {
         size: response.ContentLength,
         lastModified: response.LastModified,
         etag: response.ETag,
+        metadata: response.Metadata,
       };
     } catch (error) {
       if (
@@ -859,12 +866,16 @@ export class S3Client {
    * and a one-time probe decides whether the unquoted form is safe to use
    * instead. The success path on endpoints that honour the quoted form is
    * unchanged.
+   *
+   * `options.metadata` is stored as object metadata on a create (a null
+   * `etag`). A compare-and-swap ignores it.
    */
   async putObjectIfMatch(
     key: string,
     body: Uint8Array,
     etag: string | null,
     signal?: AbortSignal,
+    options?: { metadata?: Record<string, string> },
   ): Promise<{ etag?: string } | null> {
     if (etag === null) {
       const result = await this.conditionalPut(
@@ -872,6 +883,7 @@ export class S3Client {
         body,
         { IfNoneMatch: "*" },
         signal,
+        options?.metadata,
       );
       if (result.outcome === "unsupported") throw result.error;
       return result.outcome === "accepted" ? { etag: result.etag } : null;
@@ -1042,6 +1054,7 @@ export class S3Client {
     body: Uint8Array,
     condition: { IfMatch: string } | { IfNoneMatch: "*" },
     signal?: AbortSignal,
+    metadata?: Record<string, string>,
   ): Promise<ConditionalPutResult> {
     try {
       const response = await this.run(
@@ -1051,6 +1064,7 @@ export class S3Client {
           Key: this.fullKey(key),
           Body: body,
           ...condition,
+          ...(metadata ? { Metadata: metadata } : {}),
         }),
         signal,
       );

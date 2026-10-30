@@ -9,12 +9,12 @@
     "jsr:@std/path@1.1.4": "1.1.4",
     "jsr:@std/path@^1.1.4": "1.1.6",
     "jsr:@std/path@^1.1.5": "1.1.6",
-    "jsr:@swamp-club/swamp-testing@0.20261024.62": "0.20261024.62",
+    "jsr:@swamp-club/swamp-testing@0.20261030.67": "0.20261030.67",
     "jsr:@systeminit/swamp-testing@0.20260331.5": "0.20260331.5",
     "npm:@marcbachmann/cel-js@7.6.1": "7.6.1",
     "npm:@opentelemetry/api@1.9.0": "1.9.0",
     "npm:zod@4.6.7": "4.6.7",
-    "npm:zod@^4.3.6": "4.6.7"
+    "npm:zod@^4.6.7": "4.6.7"
   },
   "jsr": {
     "@std/assert@1.0.19": {
@@ -45,13 +45,13 @@
         "jsr:@std/internal@^1.0.14"
       ]
     },
-    "@swamp-club/swamp-testing@0.20261024.62": {
-      "integrity": "4455c499cefa2ded774bc3f29448efa86ca1272ed5ceefb59689f2c8e04c84e9",
+    "@swamp-club/swamp-testing@0.20261030.67": {
+      "integrity": "b4bd0b70335292ce4cb4a3598262cc50342293b0534ecfe3237f38d18d81f289",
       "dependencies": [
         "jsr:@std/assert",
         "jsr:@std/path@^1.1.4",
         "npm:@marcbachmann/cel-js",
-        "npm:zod@^4.3.6"
+        "npm:zod@^4.6.7"
       ]
     },
     "@systeminit/swamp-testing@0.20260331.5": {
@@ -77,7 +77,7 @@
     "dependencies": [
       "jsr:@std/fs@1",
       "jsr:@std/path@1",
-      "jsr:@swamp-club/swamp-testing@0.20261024.62",
+      "jsr:@swamp-club/swamp-testing@0.20261030.67",
       "jsr:@systeminit/swamp-testing@0.20260331.5",
       "npm:@opentelemetry/api@1.9.0",
       "npm:zod@4.6.7"

@@ -343,6 +343,14 @@ export interface DatastoreSyncService {
   ): Promise<number | void>;
   /** Returns a direct key-value store for small control-plane records. */
   controlPlaneStore?(): ControlPlaneStore;
+  /**
+   * Finds cache files the remote has never received and, unless `dryRun`,
+   * uploads them with create-only writes. Deletes nothing and leaves dirty
+   * state and the sync fingerprint alone.
+   */
+  repairUnpushedFiles?(
+    options?: RepairUnpushedFilesOptions,
+  ): Promise<UnpushedFilesSummary>;
 }
 
 /** Options for the namespace contamination repair operation. */
@@ -362,6 +370,48 @@ export interface NamespaceContaminationSummary {
   totalForeignObjects: number;
   /** Number of foreign objects deleted. Zero when dryRun is true. */
   deleted: number;
+}
+
+/** Options for `DatastoreSyncService.repairUnpushedFiles`. */
+export interface RepairUnpushedFilesOptions {
+  signal?: AbortSignal;
+  namespace?: string;
+  /** When true, report without uploading anything. */
+  dryRun?: boolean;
+  /** When true, compare content by sha256 where size and mtime cannot. */
+  exact?: boolean;
+}
+
+/** Summary of `DatastoreSyncService.repairUnpushedFiles`. */
+export interface UnpushedFilesSummary {
+  /**
+   * Files the remote has never received: every one found on a dry run, and
+   * those still not uploaded on a real run.
+   */
+  unpushed: number;
+  /** Up to 20 of them, cache-relative with forward slashes. */
+  samplePaths: readonly string[];
+  /** Local files whose key the remote holds with other bytes. */
+  alreadyPresent: number;
+  sampleAlreadyPresent: readonly string[];
+  /** Local files whose content differs from their last-synced entry. */
+  locallyModified: number;
+  sampleModified: readonly string[];
+  /** Local files that may differ from an entry with no sha256. */
+  unknown: number;
+  sampleUnknown: readonly string[];
+  /**
+   * Local files whose key a sync dropped from the last-synced index while
+   * the file stayed, as when a peer deleted it. Never uploaded.
+   */
+  peerDeleted: number;
+  samplePeerDeleted: readonly string[];
+  /** Last-synced keys the remote now holds with other content. */
+  remoteMovedOn: number;
+  /** Files uploaded and indexed. Zero on a dry run. */
+  uploaded: number;
+  /** Whether the cache holds marks a push has not sent yet. */
+  pendingChanges: boolean;
 }
 
 /** Factory that produces the datastore's lock, verifier, and sync service. */

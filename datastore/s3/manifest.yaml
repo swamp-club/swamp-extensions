@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/s3-datastore"
-version: "2026.10.24.2"
+version: "2026.10.30.1"
 license: "AGPL-3.0-or-later"
 description: |
   Store data in an Amazon S3 bucket with local cache synchronization.
@@ -18,7 +18,8 @@ description: |
   tracking, namespace-scoped sync for multi-repo shared datastores,
   configurable transfer concurrency, configurable per-request timeout,
   managed config refresh for pulling config partitions from the datastore,
-  and a single-file remote read that writes nothing to the local cache.
+  a single-file remote read that writes nothing to the local cache, and a
+  create-only repair that uploads cache files the datastore never received.
 
   Groundwork for the v3 datastore format: a datastore-wide control plane at
   the root `_control/` that holds the v3 writer lease and replication lineage

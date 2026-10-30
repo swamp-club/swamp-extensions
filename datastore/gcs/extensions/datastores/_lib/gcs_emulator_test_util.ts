@@ -83,6 +83,32 @@ function resource(name: string, o: GcsEmulatorObject) {
   };
 }
 
+/** Splits a multipart upload into its resource and bytes, or null. */
+function parseMultipartUpload(
+  contentType: string,
+  raw: Uint8Array,
+):
+  | { name: string; metadata?: Record<string, string>; body: Uint8Array }
+  | null {
+  const boundary = contentType.match(/boundary=(.+)$/)?.[1];
+  if (!boundary) return null;
+  // latin1 keeps one character per byte, so offsets carry over to `raw`.
+  const text = new TextDecoder("latin1").decode(raw);
+  const first = text.indexOf(`--${boundary}\r\n`);
+  const second = text.indexOf(`\r\n--${boundary}\r\n`, first);
+  const end = text.lastIndexOf(`\r\n--${boundary}--`);
+  if (first === -1 || second === -1 || end === -1) return null;
+  const jsonStart = text.indexOf("\r\n\r\n", first) + 4;
+  const bodyStart = text.indexOf("\r\n\r\n", second + 2) + 4;
+  if (jsonStart < 4 || bodyStart < 4) return null;
+  const resource = JSON.parse(text.slice(jsonStart, second));
+  return {
+    name: resource.name,
+    metadata: resource.metadata,
+    body: raw.slice(bodyStart, end),
+  };
+}
+
 /** Builds the request handler; the state is live and inspectable. */
 export function createGcsEmulatorHandler(
   options: GcsEmulatorOptions = {},
@@ -121,10 +147,11 @@ export function createGcsEmulatorHandler(
       if (state.options.missingBucket) return jsonError(404, "No such bucket");
       const override = state.options.respondTo?.("POST", name);
       if (override) return override;
-      // Only simple uploads are emulated; a resumable or multipart one is
-      // refused, so a test sees it.
-      if (url.searchParams.get("uploadType") !== "media") {
-        return jsonError(400, "only uploadType=media is emulated");
+      // Simple and multipart uploads are emulated; a resumable one is refused,
+      // so a test sees it.
+      const uploadType = url.searchParams.get("uploadType");
+      if (uploadType !== "media" && uploadType !== "multipart") {
+        return jsonError(400, `uploadType=${uploadType} is not emulated`);
       }
       // A body that ends early commits nothing, as GCS does with a simple
       // upload it never received whole.
@@ -135,17 +162,34 @@ export function createGcsEmulatorHandler(
         return new Response(null, { status: 499 });
       }
       if (req.signal.aborted) return new Response(null, { status: 499 });
+      let objectName = name;
+      let metadata: Record<string, string> | undefined;
+      if (uploadType === "multipart") {
+        const parts = parseMultipartUpload(
+          req.headers.get("content-type") ?? "",
+          body,
+        );
+        if (!parts) return jsonError(400, "Malformed multipart body");
+        objectName = parts.name;
+        metadata = parts.metadata;
+        body = parts.body;
+      }
       if (
         !holds(
-          state.objects.get(name),
+          state.objects.get(objectName),
           url.searchParams.get("ifGenerationMatch"),
         )
       ) {
         return jsonError(412, "Precondition Failed");
       }
-      const o = { body, generation: nextGeneration++, updated: new Date() };
-      state.objects.set(name, o);
-      return Response.json(resource(name, o));
+      const o = {
+        body,
+        generation: nextGeneration++,
+        updated: new Date(),
+        metadata,
+      };
+      state.objects.set(objectName, o);
+      return Response.json(resource(objectName, o));
     }
 
     if (rewrite && req.method === "POST") {
