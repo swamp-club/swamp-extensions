@@ -765,6 +765,51 @@ Deno.test({
     }),
 });
 
+// The three ways a push finds its files. No conformance helper covers which
+// cache paths a push walks, so these assert on the bucket directly
+// (swamp-club#4191).
+const pushWalks: Record<
+  string,
+  (ns: string, files: string[]) => Array<string | undefined>
+> = {
+  "the whole-cache walk": () => [undefined],
+  "a scoped directory": (ns) => [ns],
+  "a scoped file": (_ns, files) => files,
+};
+
+for (const [walk, marks] of Object.entries(pushWalks)) {
+  Deno.test({
+    ...opts,
+    name: `push: ${walk} never uploads internal paths under the namespace`,
+    fn: () =>
+      world(async (w) => {
+        const ns = "ns";
+        const a = await w.connect();
+        await a.svc.pullChanged({ namespace: ns });
+        await a.svc.pullChanged({ namespace: ns });
+        const internal = [
+          `${ns}/_control/x`,
+          `${ns}/_index/x.json`,
+          `${ns}/_blobs/x`,
+          `${ns}/_litestream/x`,
+          `${ns}/${INDEX}`,
+        ];
+        // The second only looks internal: it is data, deeper in the tree.
+        const data = [`${ns}/${rawPath(1)}`, `${ns}/data/_control/y`];
+        for (const rel of internal) await write(a.dir, rel, "internal");
+        for (const rel of data) await write(a.dir, rel, "data");
+
+        for (const relPath of marks(ns, [...internal, ...data])) {
+          await a.svc.markDirty({ namespace: ns, relPath });
+        }
+        await a.svc.pushChanged({ namespace: ns });
+
+        for (const rel of internal) assertEquals(w.has(rel), false, rel);
+        for (const rel of data) assertEquals(w.has(rel), true, rel);
+      }),
+  });
+}
+
 Deno.test({
   ...opts,
   name: "repair: symlinks are never followed or uploaded",

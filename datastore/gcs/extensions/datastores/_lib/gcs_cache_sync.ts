@@ -4810,8 +4810,11 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           continue;
         }
         if (stat.isFile) {
+          // Again without the namespace: `<ns>/_control/x` is a control-plane
+          // key, and `<ns>/.datastore-index.json` would be a monolith.
           if (
             isInternalCacheFile(dirtyPath) ||
+            isInternalCacheFile(bareDirtyPath) ||
             await skipStray(bareDirtyPath, absPath)
           ) {
             continue;
@@ -4845,6 +4848,8 @@ export class GcsCacheSyncService implements DatastoreSyncService {
               const bareRel = nsPrefix && rel.startsWith(nsPrefix)
                 ? rel.substring(nsPrefix.length)
                 : rel;
+              // Again without the namespace, as for a dirty file above.
+              if (isInternalCacheFile(bareRel)) continue;
               if (await skipStray(bareRel, entry.path)) continue;
               // Listed even when it vanishes below: a file seen in the walk
               // is never a delete in the same push.
@@ -4929,6 +4934,8 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           const bareRel = nsPrefix && rel.startsWith(nsPrefix)
             ? rel.substring(nsPrefix.length)
             : rel;
+          // Again without the namespace, as for a dirty file above.
+          if (isInternalCacheFile(bareRel)) continue;
           if (await skipStray(bareRel, entry.path)) continue;
           localFiles.add(bareRel);
           const verdict = await this.fileNeedsPush(entry.path, bareRel);
