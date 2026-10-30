@@ -266,6 +266,14 @@ The cache sync service maintains a local cache directory and syncs with GCS:
   When core provides a scoped sync context (`context.models`), pull reads only
   the relevant partition files instead of the full monolithic index. Falls back
   to monolithic when partition files are missing (old writer).
+  `migrate-index` on a remote with no v2 `_meta.json` merges any shards already
+  in the bucket with the monolith rather than overwriting them, because a
+  leftover monolith can be missing newer commits. The newer entry wins, an entry
+  whose object is gone from the bucket is dropped, another namespace's entries
+  stay out, and an unreadable shard stops the migration until it is repaired or
+  removed. A credential scoped to its namespace cannot confirm a delete or see
+  other namespaces' markers at the root, so it drops nothing and leaves out only
+  what its own prefix marks.
 - **Content hashing** — push computes SHA-256 for each uploaded file and stores
   it in the index. Change detection on push and pull: size differs → changed;
   same size and this copy's own mtime record (`.datastore-local-mtimes.json`,

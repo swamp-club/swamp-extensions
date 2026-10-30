@@ -163,6 +163,14 @@ export SWAMP_S3_REQUEST_TIMEOUT_MS=120000
   `swamp serve` and a CLI `datastore sync --push`) never drop each other's index
   entries, with or without the global lock. Shards emptied by deletions are
   unlisted from `_meta.json` but left in place as empty objects.
+  `migrate-index` on a remote with no v2 `_meta.json` merges any shards already
+  in the bucket with the monolith rather than overwriting them, because a
+  leftover monolith can be missing newer commits. The newer entry wins, an entry
+  whose object is gone from the bucket is dropped, another namespace's entries
+  stay out, and an unreadable shard stops the migration until it is repaired or
+  removed. A credential scoped to its namespace cannot confirm a delete or see
+  other namespaces' markers at the root, so it drops nothing and leaves out only
+  what its own prefix marks.
 - **Scoped sync**: The extension advertises `scopedSync` capability. When the
   framework passes `context.models`, pull and push operate only on the specified
   models.

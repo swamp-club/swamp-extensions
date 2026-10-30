@@ -1526,6 +1526,152 @@ export class GcsCacheSyncService implements DatastoreSyncService {
     );
   }
 
+  /**
+   * Folds the bucket's shards into the monolith in `this.index`, for a remote
+   * with no v2 `_meta.json`. A leftover monolith looks just like a real v1 one
+   * there, and shard-first pushes never update it, so a shard can hold commits
+   * it lacks. Overwriting those shards would hide the entries from every reader
+   * (swamp-club#4192). Returns the shards that held entries.
+   */
+  private async mergeShardsIntoIndex(
+    shardKeys: string[],
+    signal?: AbortSignal,
+  ): Promise<string[]> {
+    const shards: Array<[string, Record<string, IndexEntry>]> = [];
+    const batchSize = 10;
+    for (let i = 0; i < shardKeys.length; i += batchSize) {
+      throwIfAborted(signal);
+      const batch = shardKeys.slice(i, i + batchSize);
+      const results = await Promise.allSettled(
+        batch.map((key) => this.readShard(key, signal)),
+      );
+      for (let j = 0; j < results.length; j++) {
+        const result = results[j];
+        if (result.status === "rejected") {
+          throwIfAborted(signal);
+          // Only a shard that does not parse needs repair. Other failures say
+          // nothing about its contents, and removing a healthy shard loses the
+          // commits this merge keeps. readShard's own error covers the rest.
+          const advice = result.reason instanceof SyntaxError ||
+              result.reason instanceof TypeError
+            ? ". Repair or remove it, then retry."
+            : "";
+          throw new Error(
+            `[gcs-sync] Failed to read shard ${
+              batch[j]
+            }, refusing to migrate over it: ${
+              result.reason instanceof Error
+                ? result.reason.message
+                : String(result.reason)
+            }${advice}`,
+          );
+        }
+        if (result.value) shards.push([batch[j], result.value]);
+      }
+    }
+
+    // Listed after the reads: an object is uploaded before its index commit, so
+    // the listing holds whatever the indexes just read list. Only the prefixes
+    // these entries can resolve to, never the whole bucket (swamp-club#2242).
+    const rels = new Set(Object.keys(this.index?.entries ?? {}));
+    for (const [, entries] of shards) {
+      for (const rel of Object.keys(entries)) rels.add(rel);
+    }
+    const prefixes = this.bulkDiffPrefixes(rels);
+    const nsPrefix = this.namespace ? `${this.namespace}/` : "";
+    const listAll = async (from: string[]) =>
+      (await Promise.all(
+        from.map((prefix) =>
+          retryWithBackoff(() => this.gcs.listAllObjects(prefix, signal), {
+            signal,
+          })
+        ),
+      )).flat();
+    let listing = await listAll(nsPrefix ? [nsPrefix] : prefixes);
+    // A namespaced read falls back to the root key, so the root counts too. A
+    // credential scoped to the namespace is denied that listing and cannot tell
+    // a deleted entry from one at the root, so it keeps them all. A pull with
+    // that credential fails on one whose object really is gone, as it already
+    // does on that entry in the monolith. Any other failure stops the migration.
+    let rootKnown = true;
+    if (nsPrefix) {
+      try {
+        // concat, as a spread overflows the stack on a large prefix.
+        listing = listing.concat(
+          await listAll(prefixes.filter((p) => p !== nsPrefix)),
+        );
+      } catch (err) {
+        if (!(err instanceof GcsOperationError && err.httpStatusCode === 403)) {
+          throw err;
+        }
+        rootKnown = false;
+        console.warn(
+          `[gcs-sync] Denied listing root keys, so no entry is dropped as deleted, and a pull with this credential fails on any whose object is gone: ${err}`,
+        );
+      }
+    }
+    const objects = new Set<string>();
+    const foreign = new Set<string>();
+    const marker = "/.namespace.json";
+    for (const { key } of listing) {
+      objects.add(key);
+      if (!key.endsWith(marker)) continue;
+      const dir = key.slice(0, -marker.length);
+      foreign.add(dir.startsWith(nsPrefix) ? dir.slice(nsPrefix.length) : dir);
+    }
+    if (this.namespace) foreign.delete(this.namespace);
+    // A sibling named like one of these does not make the path foreign: every
+    // real file under this namespace starts with one of them.
+    for (const dir of LAYOUT_SUBDIRS) foreign.delete(dir);
+    const hasObject = (rel: string) =>
+      !rootKnown || objects.has(this.dataKey(rel)) || objects.has(rel);
+
+    const merged: Record<string, IndexEntry> = {};
+    const dropped = new Set<string>();
+    for (const [rel, entry] of Object.entries(this.index?.entries ?? {})) {
+      if (hasObject(rel)) merged[rel] = entry;
+      else dropped.add(rel);
+    }
+    let kept = 0;
+    let foreignSkipped = 0;
+    const held: string[] = [];
+    for (const [shardKey, entries] of shards) {
+      if (Object.keys(entries).length > 0) held.push(shardKey);
+      for (const [rel, entry] of Object.entries(entries)) {
+        if (!hasObject(rel)) {
+          dropped.add(rel);
+          continue;
+        }
+        const current = merged[rel];
+        if (!current && isInsideNamespaceDir(rel, foreign)) {
+          foreignSkipped++;
+          continue;
+        }
+        // False for an unparseable date, which leaves what is already there.
+        if (
+          !current ||
+          Date.parse(entry.lastModified) > Date.parse(current.lastModified)
+        ) {
+          merged[rel] = entry;
+          kept++;
+        }
+      }
+    }
+    this.index = {
+      version: 1,
+      lastPulled: this.index?.lastPulled ?? new Date().toISOString(),
+      entries: merged,
+    };
+    // Not ||=: the merge can bring in what pullIndex's scrub never saw.
+    if (this.scrubIndex()) this.indexMutated = true;
+    if (kept > 0 || dropped.size > 0 || foreignSkipped > 0) {
+      console.warn(
+        `[gcs-sync] Merged ${shards.length} shard(s) into the monolith before migrating: ${kept} entry/entries kept from shards, ${dropped.size} dropped with no object in the bucket, ${foreignSkipped} left out as another namespace's`,
+      );
+    }
+    return held;
+  }
+
   async migrateMonolithToShards(
     options?: DatastoreSyncOptions,
   ): Promise<PartitionMetaV2> {
@@ -1544,6 +1690,8 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           // remote. A leftover monolith is stale: shard-first pushes never update
           // it. Reading on would rebuild the shards from it or, with no monolith,
           // reach discovery, which rewrites them from a listing with no sha256.
+          // Past this check, a stale monolith cannot be told from a real v1 one,
+          // so the merge below keeps what shards hold.
           const monolith = await retryWithBackoff(
             () => this.gcs.getMetadata(this.indexKey(), signal),
             { signal },
@@ -1559,10 +1707,17 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           // next pull compares them with the shards this writes, and the
           // commitSeq below makes sure that pull takes the slow path.
           await this.pullIndex({ forceRemote: true, signal, persist: false });
+          const shardKeys = await this.listShardKeys(signal);
+          const heldEntries = shardKeys.length > 0
+            ? await this.mergeShardsIntoIndex(shardKeys, signal)
+            : [];
           const allEntries = this.index?.entries ?? {};
           const entryCount = Object.keys(allEntries).length;
 
           if (entryCount === 0) {
+            for (const key of heldEntries) {
+              await this.writeShard(key, {}, signal);
+            }
             return await this.recoverMetaFromListing(signal);
           }
 
@@ -1594,6 +1749,11 @@ export class GcsCacheSyncService implements DatastoreSyncService {
           for (const [key, entries] of partitions) {
             partitionKeys.push(key);
             await this.writeShard(key, entries, signal);
+          }
+          // A rebuild from the listing lists every shard, so one left out here
+          // must not keep the entries the merge dropped.
+          for (const key of heldEntries) {
+            if (!partitions.has(key)) await this.writeShard(key, {}, signal);
           }
 
           const meta: PartitionMetaV2 = {
@@ -2795,10 +2955,12 @@ export class GcsCacheSyncService implements DatastoreSyncService {
    * prefix: that is the O(all co-tenant objects) listing this exists to
    * avoid (swamp-club #2242).
    */
-  private bulkDiffPrefixes(): string[] {
+  private bulkDiffPrefixes(
+    rels: Iterable<string> = Object.keys(this.index?.entries ?? {}),
+  ): string[] {
     const prefixes = new Set<string>();
     if (this.namespace) prefixes.add(`${this.namespace}/`);
-    for (const rel of Object.keys(this.index?.entries ?? {})) {
+    for (const rel of rels) {
       const slash = rel.indexOf("/");
       // A slash-less entry is a root key and becomes its own prefix, so the
       // listing can over-match a sibling like `topfileXYZ`. Harmless: the

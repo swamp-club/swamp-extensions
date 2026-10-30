@@ -13191,3 +13191,266 @@ Deno.test("swamp-club#3860: a directory removed during the walk of a marked dire
     assertEquals(sidecar.localDirty, true);
   });
 });
+
+// ==========================================================================
+// swamp-club#4192: migrate-index merges shards into a monolith with no v2 meta.
+// The request-level cases need a mock; the rest are in gcs_repair_unpushed_test.ts.
+// assertDatastoreExportConformance does not cover migrate-index, so these are
+// direct assertions.
+// ==========================================================================
+
+Deno.test("swamp-club#4192: a failed bucket listing stops the migration and writes nothing", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-4192-list-" });
+  try {
+    const mock = createMockGcsClient();
+    seedRemote(mock, { "data/t1/m1/d1/1/raw": "aaa" });
+    const shard = new TextEncoder().encode('{"version":1,"entries":{}}');
+    mock.storage.set("_index/data--t1--m1.json", shard);
+    const inner = mock.listAllObjects.bind(mock);
+    (mock as unknown as Record<string, unknown>).listAllObjects = (
+      subPrefix?: string,
+    ) => {
+      if (subPrefix === "_index/") return inner(subPrefix);
+      return Promise.reject(
+        new GcsOperationError("Forbidden", {
+          name: "GcsOperationError",
+          httpStatusCode: 403,
+          code: "forbidden",
+          bodyPreview: undefined,
+          uploadId: undefined,
+        }),
+      );
+    };
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    await assertRejects(
+      () => service.migrateMonolithToShards(),
+      Error,
+      "Forbidden",
+    );
+    assertEquals(mock.storage.get("_index/data--t1--m1.json"), shard);
+    assertEquals(mock.storage.has("_index/_meta.json"), false);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#4192: a monolith with no shards migrates with no bucket listing", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-4192-noshard-" });
+  try {
+    const mock = createMockGcsClient();
+    seedRemote(mock, { "data/t1/m1/d1/1/raw": "aaa" });
+    const seen: (string | undefined)[] = [];
+    const inner = mock.listAllObjects.bind(mock);
+    (mock as unknown as Record<string, unknown>).listAllObjects = (
+      subPrefix?: string,
+    ) => {
+      seen.push(subPrefix);
+      return inner(subPrefix);
+    };
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    await service.migrateMonolithToShards();
+
+    assertEquals(seen, ["_index/"]);
+    assertEquals(decodeMeta(mock.storage.get("_index/_meta.json")!).version, 2);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#4192: a merge lists only the prefixes its entries use, never the whole bucket", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-4192-prefix-" });
+  try {
+    const mock = createMockGcsClient();
+    const rel = "data/t1/m1/d1/1/raw";
+    seedRemote(mock, { [rel]: "aaa" }, "ns/");
+    mock.storage.set(
+      "ns/_index/data--t1--m1.json",
+      new TextEncoder().encode('{"version":1,"entries":{}}'),
+    );
+    mock.storage.set("sibling/data/t2/m2/d2/1/raw", new Uint8Array(1));
+    const seen: (string | undefined)[] = [];
+    const inner = mock.listAllObjects.bind(mock);
+    (mock as unknown as Record<string, unknown>).listAllObjects = (
+      subPrefix?: string,
+    ) => {
+      seen.push(subPrefix);
+      return inner(subPrefix);
+    };
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    await service.migrateMonolithToShards({ namespace: "ns" });
+
+    assertEquals(seen.sort(), ["data/", "ns/", "ns/_index/"]);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#4192: a credential scoped to its namespace still migrates, dropping nothing", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-4192-scoped-" });
+  try {
+    const mock = createMockGcsClient();
+    const encode = (text: string) => new TextEncoder().encode(text);
+    const kept = "data/t1/m1/d1/1/raw";
+    const unconfirmed = "data/t1/m1/d1/2/raw";
+    const shardOnly = "data/t1/m1/d1/3/raw";
+    seedRemote(mock, { [kept]: "aaa", [unconfirmed]: "bbb" }, "ns/");
+    mock.storage.delete(`ns/${unconfirmed}`);
+    mock.storage.set(`ns/${shardOnly}`, encode("ccc"));
+    mock.storage.set(
+      "ns/_index/data--t1--m1--d1.json",
+      encode(JSON.stringify({
+        version: 1,
+        entries: {
+          [shardOnly]: {
+            key: shardOnly,
+            size: 3,
+            lastModified: "2026-01-01T00:00:00Z",
+          },
+        },
+      })),
+    );
+    const inner = mock.listAllObjects.bind(mock);
+    (mock as unknown as Record<string, unknown>).listAllObjects = (
+      subPrefix?: string,
+    ) => {
+      if (subPrefix?.startsWith("ns/")) return inner(subPrefix);
+      return Promise.reject(
+        new GcsOperationError("Forbidden", {
+          name: "GcsOperationError",
+          httpStatusCode: 403,
+          code: "forbidden",
+          bodyPreview: undefined,
+          uploadId: undefined,
+        }),
+      );
+    };
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    const rebuilt = await service.migrateMonolithToShards({ namespace: "ns" });
+
+    const entries: Record<string, unknown> = {};
+    for (const key of rebuilt.partitions) {
+      const body = mock.storage.get(`ns/_index/${key}.json`)!;
+      Object.assign(
+        entries,
+        JSON.parse(new TextDecoder().decode(body)).entries,
+      );
+    }
+    assertEquals(Object.keys(entries).sort(), [kept, unconfirmed, shardOnly]);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#4192: a denied shard read stops the migration and does not advise removing it", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-4192-denied-" });
+  try {
+    const mock = createMockGcsClient();
+    seedRemote(mock, { "data/t1/m1/d1/1/raw": "aaa" });
+    const shardKey = "_index/data--t1--m1.json";
+    const shard = new TextEncoder().encode('{"version":1,"entries":{}}');
+    mock.storage.set(shardKey, shard);
+    const inner = mock.getObject.bind(mock);
+    (mock as unknown as Record<string, unknown>).getObject = (
+      key: string,
+      signal?: AbortSignal,
+    ) =>
+      key === shardKey
+        ? Promise.reject(
+          new GcsOperationError("Forbidden", {
+            name: "GcsOperationError",
+            httpStatusCode: 403,
+            code: "forbidden",
+            bodyPreview: undefined,
+            uploadId: undefined,
+          }),
+        )
+        : inner(key, signal);
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    const err = await assertRejects(
+      () => service.migrateMonolithToShards(),
+      Error,
+      "data--t1--m1",
+    );
+    assertEquals(err.message.includes("remove"), false);
+    assertEquals(mock.storage.get(shardKey), shard);
+    assertEquals(mock.storage.has("_index/_meta.json"), false);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#4192: a root listing failure other than a denial stops the migration", async () => {
+  const cachePath = await Deno.makeTempDir({
+    prefix: "gcssync-4192-rootfail-",
+  });
+  try {
+    const mock = createMockGcsClient();
+    seedRemote(mock, { "data/t1/m1/d1/1/raw": "aaa" }, "ns/");
+    const shardKey = "ns/_index/data--t1--m1.json";
+    const shard = new TextEncoder().encode('{"version":1,"entries":{}}');
+    mock.storage.set(shardKey, shard);
+    const inner = mock.listAllObjects.bind(mock);
+    (mock as unknown as Record<string, unknown>).listAllObjects = (
+      subPrefix?: string,
+    ) => {
+      if (subPrefix?.startsWith("ns/")) return inner(subPrefix);
+      return Promise.reject(
+        new GcsOperationError("Bad Request", {
+          name: "GcsOperationError",
+          httpStatusCode: 400,
+          code: "badRequest",
+          bodyPreview: undefined,
+          uploadId: undefined,
+        }),
+      );
+    };
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    await assertRejects(
+      () => service.migrateMonolithToShards({ namespace: "ns" }),
+      Error,
+      "Bad Request",
+    );
+    assertEquals(mock.storage.get(shardKey), shard);
+    assertEquals(mock.storage.has("ns/_index/_meta.json"), false);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#4192: a very large root listing does not stop the migration", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-4192-large-" });
+  try {
+    const mock = createMockGcsClient();
+    const rel = "data/t1/m1/d1/1/raw";
+    seedRemote(mock, { [rel]: "aaa" }, "ns/");
+    mock.storage.set(
+      "ns/_index/data--t1--m1.json",
+      new TextEncoder().encode('{"version":1,"entries":{}}'),
+    );
+    const inner = mock.listAllObjects.bind(mock);
+    (mock as unknown as Record<string, unknown>).listAllObjects = (
+      subPrefix?: string,
+    ) => {
+      if (subPrefix?.startsWith("ns/")) return inner(subPrefix);
+      return Promise.resolve(
+        Array.from({ length: 500_000 }, (_, i) => ({
+          key: `data/legacy/${i}`,
+          size: 1,
+          lastModified: new Date(0),
+        })),
+      );
+    };
+
+    const service = new GcsCacheSyncService(mock, cachePath);
+    const rebuilt = await service.migrateMonolithToShards({ namespace: "ns" });
+    assertEquals(rebuilt.partitions, ["data--t1--m1"]);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});

@@ -1458,3 +1458,403 @@ Deno.test({
       assertEquals((await s3.headObject("k")).metadata?.sha256, undefined);
     }),
 });
+
+// swamp-club#4192: with no v2 _meta.json, a leftover monolith looks like a real
+// v1 one, so migrate-index merges the shards in rather than overwriting them.
+// assertDatastoreExportConformance does not cover migrate-index, and this adds
+// nothing to the export contract, so these are direct assertions.
+const OLD = "2020-01-01T00:00:00.000Z";
+const OLDER = "2019-01-01T00:00:00.000Z";
+const OTHER_PATH = "data/mt/other/name/1/raw";
+const OTHER_SHARD = "_index/data--mt--other.json";
+
+function entryOf(rel: string, size: number, lastModified = OLD): Entry {
+  return { key: rel, size, lastModified };
+}
+
+/** A monolith listing `files`, whose objects are put under `prefix`. */
+function seedMonolith(
+  w: World,
+  files: Record<string, string>,
+  prefix = "",
+): void {
+  const entries: Record<string, Entry> = {};
+  for (const [rel, text] of Object.entries(files)) {
+    entries[rel] = entryOf(rel, text.length);
+    w.put(`${prefix}${rel}`, encode(text));
+  }
+  w.put(
+    `${prefix}${INDEX}`,
+    encode(JSON.stringify({ version: 1, lastPulled: OLD, entries })),
+  );
+}
+
+function seedShard(w: World, key: string, entries: Entry[]): void {
+  w.put(
+    key,
+    encode(JSON.stringify({
+      version: 1,
+      entries: Object.fromEntries(entries.map((e) => [e.key, e])),
+    })),
+  );
+}
+
+function shardEntries(w: World, key: string): Record<string, Entry> {
+  return JSON.parse(new TextDecoder().decode(w.get(key))).entries;
+}
+
+/** Migrated, then one push the monolith never saw, then `_meta.json` lost. */
+async function migratedThenLostMeta(
+  w: World,
+  files: Record<string, string>,
+  pushed: [string, string],
+): Promise<Conn> {
+  seedMonolith(w, files);
+  const a = await w.connect();
+  await a.svc.pullChanged();
+  await a.svc.migrateMonolithToShards();
+  await a.svc.pullChanged();
+  await push(a, pushed[0], pushed[1]);
+  w.del(META);
+  return a;
+}
+
+Deno.test({
+  ...opts,
+  name: "migrate-index: no meta keeps a shard entry the stale monolith lacks",
+  fn: () =>
+    world(async (w) => {
+      await migratedThenLostMeta(w, { [rawPath(1)]: "one" }, [
+        rawPath(2),
+        "two",
+      ]);
+      const fresh = await w.connect();
+      const rebuilt = await fresh.svc.migrateMonolithToShards();
+      assertEquals(Object.keys(shardEntries(w, SHARD)).sort(), [
+        rawPath(1),
+        rawPath(2),
+      ]);
+      assertEquals(rebuilt.partitions, ["data--mt--mid"]);
+    }),
+});
+
+Deno.test({
+  ...opts,
+  name: "migrate-index: no meta keeps a partition the stale monolith never had",
+  fn: () =>
+    world(async (w) => {
+      await migratedThenLostMeta(w, { [rawPath(1)]: "one" }, [
+        OTHER_PATH,
+        "other",
+      ]);
+      const fresh = await w.connect();
+      await fresh.svc.migrateMonolithToShards();
+      assertEquals(meta(w).partitions, ["data--mt--mid", "data--mt--other"]);
+      assert(shardEntries(w, OTHER_SHARD)[OTHER_PATH]);
+    }),
+});
+
+Deno.test({
+  ...opts,
+  name:
+    "migrate-index: a version 1 meta keeps a partition the monolith never had",
+  fn: () =>
+    world(async (w) => {
+      await migratedThenLostMeta(w, { [rawPath(1)]: "one" }, [
+        OTHER_PATH,
+        "other",
+      ]);
+      w.put(
+        META,
+        encode(JSON.stringify({ version: 1, partitions: ["data--mt--mid"] })),
+      );
+      const fresh = await w.connect();
+      await fresh.svc.migrateMonolithToShards();
+      assertEquals(meta(w).version, 2);
+      assertEquals(meta(w).partitions, ["data--mt--mid", "data--mt--other"]);
+    }),
+});
+
+Deno.test({
+  ...opts,
+  name: "migrate-index: a peer holding a shard-only entry keeps its file",
+  fn: () =>
+    world(async (w) => {
+      seedMonolith(w, { [rawPath(1)]: "one" });
+      const a = await w.connect();
+      await a.svc.pullChanged();
+      await a.svc.migrateMonolithToShards();
+      await a.svc.pullChanged();
+      await push(a, rawPath(2), "two");
+      const peer = await w.connect();
+      await peer.svc.pullChanged();
+      await peer.svc.pullChanged();
+      assertEquals(await Deno.readTextFile(join(peer.dir, rawPath(2))), "two");
+
+      w.del(META);
+      const fresh = await w.connect();
+      await fresh.svc.migrateMonolithToShards();
+      await peer.svc.pullChanged();
+
+      assertEquals(await Deno.readTextFile(join(peer.dir, rawPath(2))), "two");
+      assert((await lastSynced(peer.dir))[rawPath(2)]);
+    }),
+});
+
+Deno.test({
+  ...opts,
+  name: "migrate-index: the migrating instance then pulls a shard-only entry",
+  fn: () =>
+    world(async (w) => {
+      await migratedThenLostMeta(w, { [rawPath(1)]: "one" }, [
+        rawPath(2),
+        "two",
+      ]);
+      const fresh = await w.connect();
+      await fresh.svc.migrateMonolithToShards();
+      await fresh.svc.pullChanged();
+      assertEquals(await Deno.readTextFile(join(fresh.dir, rawPath(2))), "two");
+      assert((await lastSynced(fresh.dir))[rawPath(2)]);
+    }),
+});
+
+Deno.test({
+  ...opts,
+  name:
+    "migrate-index: an entry updated since the monolith keeps the shard's copy",
+  fn: () =>
+    world(async (w) => {
+      await migratedThenLostMeta(w, { [rawPath(1)]: "one" }, [
+        rawPath(1),
+        "longer",
+      ]);
+      const pushed = shardEntries(w, SHARD)[rawPath(1)];
+      assert(pushed.sha256);
+      const fresh = await w.connect();
+      await fresh.svc.migrateMonolithToShards();
+      assertEquals(shardEntries(w, SHARD)[rawPath(1)], pushed);
+    }),
+});
+
+Deno.test({
+  ...opts,
+  name: "migrate-index: an entry deleted since the monolith stays deleted",
+  fn: () =>
+    world(async (w) => {
+      seedMonolith(w, { [rawPath(1)]: "one", [rawPath(2)]: "two" });
+      const a = await w.connect();
+      await a.svc.pullChanged();
+      await a.svc.migrateMonolithToShards();
+      await a.svc.pullChanged();
+      await Deno.remove(join(a.dir, rawPath(2)));
+      await a.svc.markDirty({ relPath: rawPath(2) });
+      await a.svc.pushChanged();
+      assertEquals(w.has(rawPath(2)), false);
+
+      w.del(META);
+      const fresh = await w.connect();
+      await fresh.svc.migrateMonolithToShards();
+      assertEquals(Object.keys(shardEntries(w, SHARD)), [rawPath(1)]);
+    }),
+});
+
+Deno.test({
+  ...opts,
+  name:
+    "migrate-index: a shard left with only deleted entries is emptied, so a rebuild cannot list them",
+  fn: () =>
+    world(async (w) => {
+      seedMonolith(w, { [rawPath(1)]: "one" });
+      seedShard(w, OTHER_SHARD, [entryOf(OTHER_PATH, 5)]);
+      const a = await w.connect();
+      await a.svc.migrateMonolithToShards();
+      assertEquals(meta(w).partitions, ["data--mt--mid"]);
+      assertEquals(shardEntries(w, OTHER_SHARD), {});
+    }),
+});
+
+Deno.test({
+  ...opts,
+  name:
+    "migrate-index: an unreadable shard stops the migration and writes nothing",
+  fn: () =>
+    world(async (w) => {
+      seedMonolith(w, { [rawPath(1)]: "one" });
+      const corrupt = encode("<Error>not json</Error>");
+      w.put(OTHER_SHARD, corrupt);
+      const a = await w.connect();
+      await assertRejects(
+        () => a.svc.migrateMonolithToShards(),
+        Error,
+        "data--mt--other",
+      );
+      assertEquals(w.get(OTHER_SHARD), corrupt);
+      assertEquals(w.has(SHARD), false);
+      assertEquals(w.has(META), false);
+    }),
+});
+
+Deno.test({
+  ...opts,
+  name:
+    "migrate-index: a retried interrupted migration still takes the whole monolith",
+  fn: () =>
+    world(async (w) => {
+      seedMonolith(w, { [rawPath(1)]: "one", [OTHER_PATH]: "other" });
+      seedShard(w, SHARD, [entryOf(rawPath(1), 3)]);
+      const a = await w.connect();
+      const rebuilt = await a.svc.migrateMonolithToShards();
+      assertEquals(rebuilt.partitions, ["data--mt--mid", "data--mt--other"]);
+      assert(shardEntries(w, OTHER_SHARD)[OTHER_PATH]);
+    }),
+});
+
+Deno.test({
+  ...opts,
+  name:
+    "migrate-index: a monolith newer than the shard wins, as does one tied with it",
+  fn: () =>
+    world(async (w) => {
+      seedMonolith(w, { [rawPath(1)]: "newer", [rawPath(2)]: "tied" });
+      seedShard(w, SHARD, [
+        entryOf(rawPath(1), 3, OLDER),
+        entryOf(rawPath(2), 9, OLD),
+      ]);
+      const a = await w.connect();
+      await a.svc.migrateMonolithToShards();
+      const entries = shardEntries(w, SHARD);
+      assertEquals(entries[rawPath(1)].size, 5);
+      assertEquals(entries[rawPath(2)].size, 4);
+    }),
+});
+
+Deno.test({
+  ...opts,
+  name:
+    "migrate-index: a namespaced migration merges the shards under its prefix",
+  fn: () =>
+    world(async (w) => {
+      const ns = "ns";
+      seedMonolith(w, { [rawPath(1)]: "one" }, `${ns}/`);
+      w.put(`${ns}/${rawPath(2)}`, encode("two"));
+      seedShard(w, `${ns}/${SHARD}`, [entryOf(rawPath(2), 3)]);
+      const a = await w.connect();
+      await a.svc.migrateMonolithToShards({ namespace: ns });
+      assertEquals(Object.keys(shardEntries(w, `${ns}/${SHARD}`)).sort(), [
+        rawPath(1),
+        rawPath(2),
+      ]);
+      assertEquals(w.has(META), false);
+    }),
+});
+
+Deno.test({
+  ...opts,
+  name:
+    "migrate-index: a namespaced entry whose object is only at the root stays, as a pull reads it there, even if deleted from the namespace",
+  fn: () =>
+    world(async (w) => {
+      const ns = "ns";
+      seedMonolith(w, { [rawPath(1)]: "one" }, `${ns}/`);
+      w.del(`${ns}/${rawPath(1)}`);
+      w.put(rawPath(1), encode("one"));
+      w.put(rawPath(2), encode("two"));
+      seedShard(w, `${ns}/${SHARD}`, [entryOf(rawPath(2), 3)]);
+      const a = await w.connect();
+      await a.svc.migrateMonolithToShards({ namespace: ns });
+      assertEquals(Object.keys(shardEntries(w, `${ns}/${SHARD}`)).sort(), [
+        rawPath(1),
+        rawPath(2),
+      ]);
+    }),
+});
+
+Deno.test({
+  ...opts,
+  name:
+    "migrate-index: a shard entry from another namespace stays out of a bound namespace's index",
+  fn: () =>
+    world(async (w) => {
+      const ns = "ns";
+      const foreign = "other/data/x/y/z/1/raw";
+      w.put("other/.namespace.json", encode("{}"));
+      seedMonolith(w, { [rawPath(1)]: "one" }, `${ns}/`);
+      w.put(`${ns}/${foreign}`, encode("foreign"));
+      seedShard(w, `${ns}/_index/other.json`, [entryOf(foreign, 7)]);
+      const a = await w.connect();
+      await a.svc.migrateMonolithToShards({ namespace: ns });
+      assertEquals(meta(w, `${ns}/${META}`).partitions, ["data--mt--mid"]);
+      assertEquals(shardEntries(w, `${ns}/_index/other.json`), {});
+    }),
+});
+
+Deno.test({
+  ...opts,
+  name:
+    "migrate-index: a shard entry inside a namespace stays out of the root index",
+  fn: () =>
+    world(async (w) => {
+      const foreign = `ns/${rawPath(1)}`;
+      w.put("ns/.namespace.json", encode("{}"));
+      seedMonolith(w, { [rawPath(1)]: "one" });
+      w.put(foreign, encode("foreign"));
+      seedShard(w, "_index/ns.json", [entryOf(foreign, 7)]);
+      const a = await w.connect();
+      await a.svc.migrateMonolithToShards();
+      assertEquals(meta(w).partitions, ["data--mt--mid"]);
+      assertEquals(shardEntries(w, "_index/ns.json"), {});
+    }),
+});
+
+Deno.test({
+  ...opts,
+  name:
+    "migrate-index: a sibling namespace named like a layout dir does not hide a shard-only entry",
+  fn: () =>
+    world(async (w) => {
+      const ns = "prod";
+      w.put("logs/.namespace.json", encode("{}"));
+      seedMonolith(w, { [rawPath(1)]: "one" }, `${ns}/`);
+      w.put(`${ns}/logs/app.log`, encode("log"));
+      seedShard(w, `${ns}/_index/logs.json`, [entryOf("logs/app.log", 3)]);
+      const a = await w.connect();
+      await a.svc.migrateMonolithToShards({ namespace: ns });
+      assertEquals(meta(w, `${ns}/${META}`).partitions, [
+        "data--mt--mid",
+        "logs",
+      ]);
+      assert(shardEntries(w, `${ns}/_index/logs.json`)["logs/app.log"]);
+    }),
+});
+
+Deno.test({
+  ...opts,
+  name:
+    "migrate-index: an internal file from a shard stays out when the monolith also held a zombie",
+  fn: () =>
+    world(async (w) => {
+      seedMonolith(w, { [rawPath(1)]: "one", "_catalog.db": "zombie" });
+      w.put("_catalog.db-wal", encode("w"));
+      seedShard(w, "_index/_root.json", [entryOf("_catalog.db-wal", 1)]);
+      const a = await w.connect();
+      await a.svc.migrateMonolithToShards();
+      assertEquals(meta(w).partitions, ["data--mt--mid"]);
+      assertEquals(shardEntries(w, "_index/_root.json"), {});
+    }),
+});
+
+Deno.test({
+  ...opts,
+  name:
+    "migrate-index: when every entry is gone, the shards are emptied before the rebuild from the listing",
+  fn: () =>
+    world(async (w) => {
+      seedMonolith(w, { [rawPath(1)]: "one" });
+      w.del(rawPath(1));
+      seedShard(w, SHARD, [entryOf(rawPath(2), 3)]);
+      const a = await w.connect();
+      await a.svc.migrateMonolithToShards();
+      assertEquals(meta(w).version, 2);
+      assertEquals(shardEntries(w, SHARD), {});
+    }),
+});
