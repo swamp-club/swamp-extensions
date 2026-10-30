@@ -71,3 +71,54 @@ Deno.test("describe: chapters mapped through the edit list, presenter links, no 
     await teardown(env);
   }
 });
+
+Deno.test("describe: a cold open's hook is not shifted by the intro; the rest is", async () => {
+  const env = await setup();
+  try {
+    await built(env);
+    const describeWith = async (hookSeconds?: number) => {
+      // A long render, so chapters are far enough apart to be kept.
+      const ctx = env.swamp.context("render", {});
+      await ctx.writeResource("video", "take", {
+        recording: env.rec,
+        take: "take",
+        polished: `${env.dir}/take.polished.mp4`,
+        srt: `${env.dir}/take.polished.srt`,
+        thumbnail: `${env.dir}/take.thumbnail.jpg`,
+        durationSeconds: 100,
+        introSeconds: 20,
+        hookSeconds,
+        cardsMode: "simple",
+        encoder: "libx264",
+        redactions: 0,
+        renderedAt: new Date().toISOString(),
+      });
+      await describe.methods.describe.execute(
+        {
+          recordingPath: env.rec,
+          edit: "edit",
+          render: "render",
+          title: "A demo",
+          summary: "What it does.",
+          chapters: [{ start: 0, title: "Hello" }, {
+            start: "0:33",
+            title: "It works",
+          }],
+          tags: [],
+        },
+        env.swamp.context("describe", {}),
+      );
+      return (env.swamp.latest("describe", "take")!.chapters as {
+        at: number;
+        title: string;
+      }[]).map((c) => c.at);
+    };
+    // 0:33 is 5.93s into the edited take: after the intro without a cold
+    // open, still inside a 6s hook with one.
+    assertEquals(await describeWith(), [0, 25.93]);
+    assertEquals(await describeWith(6), [0]);
+    assertEquals(await describeWith(5), [0, 25.93]);
+  } finally {
+    await teardown(env);
+  }
+});

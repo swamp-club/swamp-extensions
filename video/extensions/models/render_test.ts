@@ -240,3 +240,96 @@ Deno.test("render: pixelation without screen analysis is refused, not skipped", 
     await teardown(env);
   }
 });
+
+Deno.test("render: a cold open plays the hook, then the card, with captions to match", async () => {
+  const env = await setup();
+  try {
+    await built(env, { coldOpenUntil: "this is a demo" });
+    await render.methods.render.execute(
+      renderArgs(env),
+      env.swamp.context("render", {}),
+    );
+    const graph = await Deno.readTextFile(`${env.dir}/take.video/graph.txt`);
+    // The hook ends where the wait starts: 65 frames (2.17s) in.
+    assertStringIncludes(graph, "[v1h]trim=end_frame=65,setpts=PTS-STARTPTS");
+    assertStringIncludes(graph, "[v1hook][v1cb]concat=n=2:v=1:a=0[v1i]");
+    assertStringIncludes(graph, "[v2hook][v2cb]concat=n=2:v=1:a=0[v2i]");
+    const v = env.swamp.latest("render", "take")!;
+    assertEquals(v.hookSeconds, 65 / 30);
+    assertEquals(v.introSeconds, 3.8);
+    // The hook's caption plays at once and ends by the cut; the body's
+    // comes after the card.
+    const srt = await Deno.readTextFile(`${env.dir}/take.polished.srt`);
+    assertMatch(
+      srt,
+      /^1\n00:00:00,\d{3} --> 00:00:02,167\nHello, this is a demo\.\n\n2\n00:00:10,033 /,
+    );
+    // Burned captions go on the take before the split: broken there, not shifted.
+    const burned = await Deno.readTextFile(
+      `${env.dir}/take.video/captions.srt`,
+    );
+    assertMatch(
+      burned,
+      /--> 00:00:02,167\nHello, this is a demo\.\n\n2\n00:00:06,233 /,
+    );
+  } finally {
+    await teardown(env);
+  }
+});
+
+Deno.test("render: a cold open crossfades into the card when media says fade", async () => {
+  const env = await setup();
+  try {
+    await built(env, { coldOpenUntil: "this is a demo" });
+    await media.methods.show.execute(
+      {},
+      env.swamp.context("media", { coldOpenTransition: "fade" }),
+    );
+    await render.methods.render.execute(
+      renderArgs(env, { media: "media" }),
+      env.swamp.context("render", {}),
+    );
+    const graph = await Deno.readTextFile(`${env.dir}/take.video/graph.txt`);
+    assertStringIncludes(
+      graph,
+      "[v1hook][v1cb]xfade=transition=fade:duration=0.7:offset=1.4667[v1i]",
+    );
+    assertEquals(
+      (env.swamp.latest("render", "take")!.introSeconds as number).toFixed(6),
+      "3.100000",
+    );
+  } finally {
+    await teardown(env);
+  }
+});
+
+Deno.test("render: no cold open without an intro card; none designated writes no hook", async () => {
+  const env = await setup();
+  try {
+    await built(env, { coldOpenUntil: "this is a demo" });
+    const opts = { cards: { mode: "none" as const }, twoPassLoudness: false };
+    await render.methods.render.execute(
+      renderArgs(env, opts),
+      env.swamp.context("render", {}),
+    );
+    const hooked = await Deno.readTextFile(`${env.dir}/take.video/graph.txt`);
+    assert(!hooked.includes("trim=end_frame"));
+    assertEquals(env.swamp.latest("render", "take")!.hookSeconds, undefined);
+    await built(env);
+    await render.methods.render.execute(
+      renderArgs(env, opts),
+      env.swamp.context("render", {}),
+    );
+    assertEquals(
+      await Deno.readTextFile(`${env.dir}/take.video/graph.txt`),
+      hooked,
+    );
+    await render.methods.render.execute(
+      renderArgs(env),
+      env.swamp.context("render", {}),
+    );
+    assertEquals(env.swamp.latest("render", "take")!.hookSeconds, undefined);
+  } finally {
+    await teardown(env);
+  }
+});

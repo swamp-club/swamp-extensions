@@ -47,6 +47,9 @@ export const MediaSettingsSchema = z.object({
   bedMergeSeconds: z.number().min(0).default(0).describe(
     "Fast-forwards closer than this (output seconds) share one bed; 0 never merges",
   ),
+  coldOpenTransition: z.enum(["cut", "fade"]).default("cut").describe(
+    "How a cold open's hook gives way to the intro card: a hard cut, or a crossfade",
+  ),
   loudness: z.number().default(-14).describe(
     "Integrated loudness target, LUFS",
   ),
@@ -62,13 +65,19 @@ export type MediaSettings = z.infer<typeof MediaSettingsSchema>;
 
 export const model = {
   type: "@swamp/video/media",
-  version: "2026.10.29.2",
+  version: "2026.10.30.1",
   globalArguments: MediaSettingsSchema,
   upgrades: [
     {
       toVersion: "2026.10.29.2",
       description:
         "Add bedMinSeconds, bedFadeSeconds and bedMergeSeconds (defaults keep the old bed)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.30.1",
+      description:
+        "Add coldOpenTransition (cut by default; only takes with a cold open use it)",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

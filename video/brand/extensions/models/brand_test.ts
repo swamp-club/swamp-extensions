@@ -24,6 +24,8 @@ import { ASSET_FILES } from "./_lib/assets.ts";
 import { fakeExec, fakeScenes, FakeSwamp, resetFakes } from "./_lib/testing.ts";
 import { CardsResourceSchema as CoreCards } from "../../../extensions/models/_lib/cards.ts";
 import { PresenterSchema } from "./_lib/contract.ts";
+import { parse as parseYaml } from "jsr:@std/yaml@1.0.10";
+import { model as coreEdit } from "../../../extensions/models/edit.ts";
 
 async function setup() {
   const dir = await Deno.makeTempDir();
@@ -187,5 +189,53 @@ Deno.test("stage: backdrop, ring loop, mask and layout for OBS", async () => {
     assertEquals(env.calls[1].args.at(-1), `${dir}/camera-mask.png`);
   } finally {
     await teardown(env);
+  }
+});
+
+interface WorkflowYaml {
+  name: string;
+  inputs: { properties: Record<string, { default?: unknown }> };
+  jobs: {
+    steps: {
+      name: string;
+      task: {
+        workflowIdOrName?: string;
+        behaviorType?: string;
+        methodName?: string;
+        inputs: Record<string, unknown>;
+      };
+    }[];
+  }[];
+}
+
+const workflow = (path: string): WorkflowYaml =>
+  parseYaml(
+    Deno.readTextFileSync(new URL(path, import.meta.url)),
+  ) as WorkflowYaml;
+
+Deno.test("the brand workflow passes a cold open through to video-edit and its build", () => {
+  const brand = workflow("../workflows/video_edit_brand.yaml");
+  const core = workflow("../../../extensions/workflows/video_edit.yaml");
+  // Same default as core: no cold open unless one is given.
+  assertEquals(brand.inputs.properties.coldOpenUntil.default, "");
+  const run = brand.jobs[0].steps.find((s) =>
+    s.task.workflowIdOrName === core.name
+  )!;
+  assertEquals(run.task.inputs.coldOpenUntil, "${{ inputs.coldOpenUntil }}");
+  assertEquals(core.inputs.properties.coldOpenUntil.default, "");
+  const build = core.jobs[0].steps.find((s) =>
+    s.task.behaviorType === "@swamp/video/edit" && s.task.methodName === "build"
+  )!;
+  assertEquals(
+    build.task.inputs.coldOpenUntil,
+    "${{ inputs.coldOpenUntil }}",
+  );
+  for (const value of ["", "and that is the hook", "0:07"]) {
+    assert(
+      coreEdit.methods.build.arguments.safeParse({
+        recordingPath: "take.mkv",
+        coldOpenUntil: value,
+      }).success,
+    );
   }
 });

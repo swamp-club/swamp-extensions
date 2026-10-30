@@ -396,6 +396,26 @@ export function remapper(spans: Span[], fps: number): (t: number) => number {
   };
 }
 
+/**
+ * Where a cold open's hook ends in the edited take, in seconds on a frame:
+ * a little air after its last word (raw `until`), never into the next kept
+ * word or a fast-forward.
+ */
+export function coldOpenAt(
+  items: Item[],
+  spans: Span[],
+  fps: number,
+  until: number,
+): number {
+  const next = items.find((it) =>
+    it.kind === "word" && it.keep && it.s >= until
+  );
+  let t = Math.min(until + PAD, next ? next.s : Infinity);
+  const fast = spans.find(([s, e, speed]) => speed > 1 && s < t && t < e);
+  if (fast) t = fast[0];
+  return Math.round(remapper(spans, fps)(t) * fps) / fps;
+}
+
 export function clock(t: number): string {
   const sec = Math.floor(t % 60);
   return `${Math.floor(t / 60)}:${String(sec).padStart(2, "0")}`;

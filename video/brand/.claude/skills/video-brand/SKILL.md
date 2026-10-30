@@ -41,8 +41,10 @@ swamp workflow run @swamp/video/brand/video-edit \
 
 It renders the cards (a minute and a half or so) into `<rec>.video/brand/`, then
 runs `video-edit` with `cards=brand` and `cardsFrom=video-brand`. It takes
-`subtitle`, `presenter`, `media`, `retakeMarkers`, `pixelate` and `burn` like
-`video-edit`.
+`subtitle`, `presenter`, `media`, `retakeMarkers`, `coldOpenUntil`, `pixelate`
+and `burn` like `video-edit`. For "open on me talking, then the title", pass
+`coldOpenUntil` with the words that end the hook (or a time); the lower third
+shows during the hook.
 
 ## After that
 

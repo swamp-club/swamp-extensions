@@ -19,6 +19,9 @@
  * cut; ~2.4s is a cut pause; >>12.0s is a fast-forwarded wait; retyping a
  * word changes only its caption.
  *
+ * A cold open is marked by a `[cold-open]` token after the hook's last word
+ * (and a header line explaining it); files without one are unchanged.
+ *
  * One deliberate difference: demo-polish closed a brace at the first `}`, so
  * `{a {b} c}` silently kept `c`. Here a nested or stray brace is an error
  * naming the line.
@@ -38,6 +41,7 @@ import { opcodes } from "./sequence_match.ts";
 export class EditFileError extends Error {}
 
 const PAUSE_TOKEN = /^(~|>>)(\d+\.\d)s$/;
+export const COLD_OPEN = "[cold-open]";
 
 function alignKey(token: string): string {
   const m = token.match(PAUSE_TOKEN);
@@ -57,7 +61,12 @@ export function writeEditFile(
   recordingName: string,
   items: Item[],
   maxPause: number,
+  coldOpenUntil?: number,
 ): string {
+  // The hook ends after the last item that ends by coldOpenUntil.
+  const mark = coldOpenUntil === undefined
+    ? undefined
+    : items.findLast((it) => it.e <= coldOpenUntil + 1e-6);
   const out = [
     `# demo-polish edit file for ${recordingName}`,
     `# max-pause: ${
@@ -67,22 +76,34 @@ export function writeEditFile(
     "# ~2.4s is a pause. Unbrace one if something is happening on screen during it.",
     "# >>12.0s is a long wait played fast-forward. Change to ~12.0s for normal speed, or brace it to cut.",
     "# Fixing a word's spelling only changes the captions. Save, then re-run demo-polish.",
+    ...(mark
+      ? [
+        `# ${COLD_OPEN} ends the cold open: everything before it plays ahead of the title. Move it to move the hook, delete it for none.`,
+      ]
+      : []),
     "",
   ];
   for (const [n, its] of linesOf(items)) {
     const toks: string[] = [];
     let group: string[] = [];
-    for (const it of [...its, undefined]) {
-      const shown = it === undefined ? "" : display(it);
-      if (it !== undefined && !it.keep) {
-        if (shown) group.push(shown);
-        continue;
-      }
+    const flush = () => {
       if (group.length) {
         toks.push("{" + group.join(" ") + "}");
         group = [];
       }
-      if (shown) toks.push(shown);
+    };
+    for (const it of [...its, undefined]) {
+      const shown = it === undefined ? "" : display(it);
+      if (it !== undefined && !it.keep) {
+        if (shown) group.push(shown);
+      } else {
+        flush();
+        if (shown) toks.push(shown);
+      }
+      if (it !== undefined && it === mark) {
+        flush();
+        toks.push(COLD_OPEN);
+      }
     }
     out.push(`${n} [${clock(its[0].s)}] | ` + toks.join(" "));
   }
@@ -131,6 +152,8 @@ export function parseTokens(
 
 export interface ApplyResult {
   maxPause?: number;
+  /** Raw end of the item before the [cold-open] marker, when there is one. */
+  coldOpenUntil?: number;
   warnings: string[];
 }
 
@@ -143,6 +166,8 @@ export function applyEditFile(
   const warnings: string[] = [];
   const edited = new Map<number, [string, boolean][]>();
   let maxPause: number | undefined;
+  // The cold-open marker: its line and how many tokens come before it.
+  let mark: { line: number; before: number } | undefined;
   for (const ln of text.split("\n")) {
     const header = ln.match(/^# max-pause: ([\d.]+)/);
     if (header) maxPause = Number(header[1]);
@@ -152,8 +177,22 @@ export function applyEditFile(
       warnings.push(`ignoring unrecognised edit line: ${ln.slice(0, 60)}`);
       continue;
     }
-    edited.set(Number(m[1]), parseTokens(m[2], Number(m[1])));
+    const n = Number(m[1]);
+    let body = m[2];
+    const at = body.indexOf(COLD_OPEN);
+    if (at >= 0) {
+      if (mark || body.includes(COLD_OPEN, at + 1)) {
+        throw new EditFileError(
+          `edit.txt line ${n}: a second ${COLD_OPEN} — a take has one cold open; delete the extra marker`,
+        );
+      }
+      mark = { line: n, before: parseTokens(body.slice(0, at), n).length };
+      body = body.slice(0, at) + " " + body.slice(at + COLD_OPEN.length);
+    }
+    edited.set(n, parseTokens(body, n));
   }
+  let coldOpenUntil: number | undefined;
+  let previous: Item | undefined;
   for (const [n, its] of linesOf(items)) {
     const toks = edited.get(n) ?? [];
     for (const it of its) it.keep = false;
@@ -163,10 +202,17 @@ export function applyEditFile(
       its.map((it) => alignKey(it.token)),
       toks.map(([t]) => alignKey(t)),
     );
+    // The item each of the line's tokens landed on, to place the marker.
+    const owner: (Item | undefined)[] = toks.map(() => undefined);
     for (const [op, i1, i2, j1, j2] of ops) {
       if (op !== "equal" && op !== "replace") continue;
       const items = its.slice(i1, i2);
       const span = toks.slice(j1, j2);
+      for (let j = j1; j < j2; j++) {
+        owner[j] = items.length === span.length
+          ? items[j - j1]
+          : items[items.length - 1];
+      }
       // Pair one for one only when every pair is word-to-word or
       // wait-to-wait: a word must never take a wait's token, or the reverse.
       const pairwise = items.length === span.length &&
@@ -210,6 +256,22 @@ export function applyEditFile(
         it.text = k === 0 ? text : "";
       });
     }
+    if (mark?.line === n) {
+      const after = owner.slice(0, mark.before).findLast((it) => it) ??
+        previous;
+      if (!after) {
+        throw new EditFileError(
+          `edit.txt line ${n}: ${COLD_OPEN} has nothing before it — put it after the hook's last word`,
+        );
+      }
+      coldOpenUntil = after.e;
+    }
+    previous = its[its.length - 1];
   }
-  return { maxPause, warnings };
+  if (mark && coldOpenUntil === undefined) {
+    throw new EditFileError(
+      `edit.txt line ${mark.line}: ${COLD_OPEN} is on a line this take doesn't have`,
+    );
+  }
+  return { maxPause, coldOpenUntil, warnings };
 }

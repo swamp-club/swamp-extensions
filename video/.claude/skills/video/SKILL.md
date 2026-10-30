@@ -65,6 +65,8 @@ Then call the edit methods on `video-edit` (each rewrites edit.txt to match):
 | "put back the part about X"       | `keep --input quote="X"`                                                    |
 | "don't speed up the part where X" | `speed --input quote="X" --input untilQuote="<next words>" --input speed=1` |
 | "speed that wait back up"         | `speed --input start=... --input end=... --input speed=auto`                |
+| "open cold, up to where I say X"  | `cold-open --input quote="X"` (or `--input end=0:07`)                       |
+| "no cold open"                    | `cold-open --input clear=true`                                              |
 
 ```bash
 swamp model method run video-edit cut \
@@ -85,6 +87,14 @@ word changes only its caption, deleting or bracing words cuts them, `>>` ↔ `~`
 switches a wait between fast-forward and normal speed, and bracing a wait
 (`{>>30.1s}`) cuts it. Never turn `>>` into `~` to cut a wait: that plays it in
 real time. Braces must not nest (the import says which line is wrong).
+
+A cold open plays the opening words (the hook) before the title card and its
+music; the bed never plays under it. In edit.txt it is a `[cold-open]` token
+after the hook's last word: move it to move the hook, delete it for none. A
+first cut can open cold with video-edit's `coldOpenUntil` (the words ending the
+hook, or a time). The hook needs an intro card (any cards mode but `none`);
+`coldOpenTransition: fade` on the media instance crossfades into the card
+instead of cutting.
 
 Then re-render, which reads edit.txt back first:
 

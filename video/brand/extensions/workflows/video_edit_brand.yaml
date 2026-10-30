@@ -31,6 +31,10 @@ inputs:
         type: number
       description: Raw times (seconds) a retake was marked, e.g. by a hotkey
       default: []
+    coldOpenUntil:
+      type: string
+      description: "Open cold: the words that end the hook (or a raw time like 0:07), played before the intro; empty for none"
+      default: ""
     pixelate:
       type: boolean
       description: Pixelate credentials found on screen
@@ -77,5 +81,6 @@ jobs:
             cardsFrom: video-brand
             media: ${{ inputs.media }}
             retakeMarkers: ${{ inputs.retakeMarkers }}
+            coldOpenUntil: ${{ inputs.coldOpenUntil }}
             pixelate: ${{ inputs.pixelate }}
             burn: ${{ inputs.burn }}

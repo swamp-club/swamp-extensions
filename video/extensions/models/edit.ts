@@ -18,6 +18,7 @@
  * render plays. Built from a transcript (fillers, stutters, long pauses and
  * retakes cut; waits fast-forwarded, faster where the screen sat idle), then
  * changed from chat (time ranges or quoted words) or through edit.txt.
+ * It can also mark a cold open: the opening words render ahead of the title.
  *
  * @module
  */
@@ -101,6 +102,8 @@ export const EditListSchema = z.object({
   transcriptFrom: z.string(),
   screenFrom: z.string().optional(),
   retakeMarkers: z.array(z.number()),
+  /** Raw end of a cold open's hook; absent means no cold open. */
+  coldOpenUntil: z.number().optional(),
   items: z.array(ItemSchema),
   spans: z.array(z.tuple([z.number(), z.number(), z.number()])),
   editFile: z.string(),
@@ -149,6 +152,23 @@ const BuildArgs = z.object({
   spokenRetakes: z.boolean().default(true).describe(
     'Also treat the spoken word "retake" as a marker (best effort: Whisper may drop it)',
   ),
+  coldOpenUntil: z.union([z.number(), z.string()]).optional().describe(
+    "Open cold: the words ending the hook (or a raw time) that plays before the title; empty for none",
+  ),
+});
+
+const ColdOpenArgs = z.object({
+  recordingPath: z.string(),
+  quote: z.string().optional().describe(
+    "Words as spoken; the hook ends after them",
+  ),
+  occurrence: z.number().int().positive().default(1).describe(
+    "Which occurrence of the quote, counting from the start",
+  ),
+  end: Time.optional().describe(
+    "Raw time the hook ends by: it ends after the last word starting before it",
+  ),
+  clear: z.boolean().default(false).describe("Remove the cold open"),
 });
 
 const FileArgs = z.object({
@@ -264,6 +284,7 @@ async function finish(
       take.recording.split("/").pop()!,
       items,
       list.settings.maxPause,
+      list.coldOpenUntil,
     );
     await Deno.writeTextFile(list.editFile, content);
     list.editFileHash = await sha256(content);
@@ -333,6 +354,7 @@ async function keepUnimported(ctx: VideoContext, take: Take): Promise<void> {
         take.recording.split("/").pop()!,
         list.items as Item[],
         list.settings.maxPause,
+        list.coldOpenUntil,
       ));
     if (await sha256(onDisk) === synced) return;
   }
@@ -355,6 +377,7 @@ async function guardUnimported(list: EditList, take: Take): Promise<void> {
       take.recording.split("/").pop()!,
       list.items as Item[],
       list.settings.maxPause,
+      list.coldOpenUntil,
     ));
   if (await sha256(onDisk) !== synced) {
     throw new Error(
@@ -436,6 +459,68 @@ export function selectRange(
   return out;
 }
 
+/**
+ * The raw end of a cold open: after the quote's last word, or after the
+ * last word that starts before `end`. Refused when it would leave no words
+ * on either side.
+ */
+export function coldOpenEnd(
+  items: Item[],
+  where: { quote?: string; occurrence?: number; end?: number | string },
+): number {
+  let until: number;
+  if (where.quote !== undefined) {
+    const found = findQuote(items, where.quote, where.occurrence ?? 1);
+    if (!found) {
+      throw new Error(`could not find "${where.quote}" in the transcript`);
+    }
+    until = items[found[1]].e;
+  } else if (where.end !== undefined) {
+    const end = parseTime(where.end);
+    const last = items.findLast((it) => it.kind === "word" && it.s < end);
+    if (!last) throw new Error(`no words before ${clock(end)} to open with`);
+    until = last.e;
+  } else {
+    throw new Error("give the quote or the time the cold open ends at");
+  }
+  return checkColdOpen(items, until);
+}
+
+/** A cold open must keep words on both sides of it. */
+function checkColdOpen(items: Item[], until: number): number {
+  const kept = items.filter((it) => it.kind === "word" && it.keep);
+  if (!kept.some((it) => it.e <= until + 1e-6)) {
+    throw new Error(
+      `the cold open ending at ${
+        clock(until)
+      } keeps no words: end it after something that is said`,
+    );
+  }
+  if (!kept.some((it) => it.s >= until)) {
+    throw new Error(
+      `the cold open ending at ${
+        clock(until)
+      } leaves nothing of the take after it`,
+    );
+  }
+  return until;
+}
+
+/** build's coldOpenUntil: a time when it reads as one, else a quote. */
+function coldOpenFrom(
+  items: Item[],
+  value: number | string | undefined,
+): number | undefined {
+  if (value === undefined || value === "") return undefined;
+  let end: number | undefined;
+  try {
+    end = parseTime(value);
+  } catch {
+    return coldOpenEnd(items, { quote: String(value) });
+  }
+  return coldOpenEnd(items, { end });
+}
+
 async function chatEdit(
   ctx: VideoContext,
   args: z.infer<typeof RangeArgs>,
@@ -458,8 +543,16 @@ async function chatEdit(
 
 export const model = {
   type: "@swamp/video/edit",
-  version: "2026.10.29.1",
+  version: "2026.10.30.1",
   globalArguments: GlobalArgs,
+  upgrades: [
+    {
+      toVersion: "2026.10.30.1",
+      description:
+        "Add cold opens: build's coldOpenUntil, the cold-open method and the [cold-open] edit.txt marker (no change without one)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     editList: {
       description:
@@ -485,6 +578,7 @@ export const model = {
         const markers = args.retakeMarkers.map(parseTime);
         if (args.spokenRetakes) markers.push(...spokenRetakes(items));
         applyRetakes(items, markers);
+        const coldOpenUntil = coldOpenFrom(items, args.coldOpenUntil);
         return await finish(ctx, g, take, {
           recording: take.recording,
           take: take.name,
@@ -495,6 +589,7 @@ export const model = {
           transcriptFrom: args.transcript,
           screenFrom: args.screen,
           retakeMarkers: markers,
+          coldOpenUntil,
           items,
           editFile: editFilePath(ctx, take),
           source: "build",
@@ -555,7 +650,11 @@ export const model = {
           settings,
           await idleRanges(ctx, screenFrom, take),
         );
-        const { warnings } = applyEditFile(text, items, settings);
+        const { warnings, coldOpenUntil } = applyEditFile(
+          text,
+          items,
+          settings,
+        );
         for (const w of warnings) ctx.logger.warn(w);
         // edit.txt can't say how fast a wait plays: keep a speed set from
         // chat when the wait is still fast-forwarded.
@@ -588,6 +687,9 @@ export const model = {
           transcriptFrom,
           screenFrom,
           retakeMarkers: [],
+          coldOpenUntil: coldOpenUntil === undefined
+            ? undefined
+            : checkColdOpen(items, coldOpenUntil),
           items,
           editFile: path,
           editFileHash: await sha256(text),
@@ -635,6 +737,32 @@ export const model = {
             }s`;
           }
         }),
+    },
+    "cold-open": {
+      description:
+        "Open cold: the hook up to a quote (or time) plays before the title card; clear removes it",
+      arguments: ColdOpenArgs,
+      execute: async (
+        args: z.infer<typeof ColdOpenArgs>,
+        ctx: VideoContext,
+      ) => {
+        const g = GlobalArgs.parse(ctx.globalArgs);
+        const take = takeOf(resolvePath(ctx, args.recordingPath));
+        const list = await current(ctx, take);
+        await guardUnimported(list, take);
+        const items = list.items as Item[];
+        const coldOpenUntil = args.clear ? undefined : coldOpenEnd(items, args);
+        ctx.logger.info(
+          coldOpenUntil === undefined
+            ? "no cold open"
+            : `cold open: the hook ends at ${clock(coldOpenUntil)}`,
+        );
+        return await finish(ctx, g, take, {
+          ...list,
+          coldOpenUntil,
+          source: "chat",
+        }, true);
+      },
     },
   },
 };

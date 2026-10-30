@@ -21,7 +21,8 @@
  * speed-th frame, and the voice is muted under fast-forwards where a racing
  * clock shows wall time. Around that: Adam's pixelation of credentials (on
  * raw time, before the remap) and voice cleanup, the cards contract (intro,
- * outro, lower third, fast-forward badge), intro music and a quiet bed.
+ * outro, lower third, fast-forward badge), intro music and a quiet bed, and
+ * an optional cold open: the take's first seconds play before the intro.
  *
  * @module
  */
@@ -91,6 +92,13 @@ export interface RenderPlan {
   bedFade?: number;
   /** Fast-forwards closer than this share one bed (default 0: never). */
   bedMerge?: number;
+  /**
+   * Cold open: seconds into the edited take where the hook ends. The hook
+   * plays first, then the intro card and its music, then the rest.
+   */
+  hook?: number;
+  /** How the hook gives way to the intro card (default cut). */
+  hookTransition?: "cut" | "fade";
   voiceCleanup: boolean;
   /** Integrated loudness target, LUFS. */
   loudnessTarget: number;
@@ -182,6 +190,24 @@ export function bedStretches(
 /** Seconds the intro shifts the take by. */
 export function introShift(cards: Cards): number {
   return cards.intro ? cards.intro.seconds - XFADE : 0;
+}
+
+/**
+ * Where the opening sits: the take before `hook` plays first, the intro card
+ * comes in at `cardAt`, and the take from `hook` on is `shift` seconds
+ * later than it would be alone. A cold open needs an intro card; without
+ * one (or a hook) this is today's opening: card at 0, hook 0.
+ */
+export function opening(
+  cards: Cards,
+  hook = 0,
+  transition: "cut" | "fade" = "cut",
+): { hook: number; cardAt: number; shift: number } {
+  const shift = introShift(cards);
+  if (!cards.intro || hook <= 0) return { hook: 0, cardAt: 0, shift };
+  return transition === "fade"
+    ? { hook, cardAt: hook - XFADE, shift: shift - XFADE }
+    : { hook, cardAt: hook, shift };
 }
 
 function loudnorm(plan: RenderPlan, measure: boolean): string {
@@ -369,9 +395,30 @@ export function buildGraph(plan: RenderPlan): BuiltGraph {
 
   let v1 = "v1", v2 = "v2", a = "a";
   const shift = introShift(cards);
+  const open = opening(cards, plan.hook, plan.hookTransition);
+  if (open.hook) {
+    if (open.hook >= total) {
+      throw new Error(
+        `the cold open (${
+          open.hook.toFixed(2)
+        }s) leaves nothing of the take after it: ` +
+          `end it earlier, or keep more of the take`,
+      );
+    }
+    for (const { span: [a, b, speed], i } of fast) {
+      if (starts[i] < open.hook && open.hook < starts[i] + (b - a) / speed) {
+        throw new Error(
+          `the cold open ends inside the fast-forwarded wait at ${
+            a.toFixed(1)
+          }s-${b.toFixed(1)}s: end it before or after the wait`,
+        );
+      }
+    }
+  }
   if (cards.intro) {
     // The card is the very first frame (link previews use it), then fades
     // into the take; music swells under the card and ducks for the voice.
+    // With a cold open the hook plays first and the card follows it.
     const card = cards.intro;
     const k = isStill(card.path)
       ? addInput(
@@ -386,19 +433,53 @@ export function buildGraph(plan: RenderPlan): BuiltGraph {
       )
       : addInput("-t", String(card.seconds), "-i", card.path);
     graph.push(`[${k}:v]${fit(w, h, fps)},split=2[t1][t2]`);
-    graph.push(
-      `[t1][${v1}]xfade=transition=fade:duration=${XFADE}:offset=${shift}[v1i]`,
-    );
-    v1 = "v1i";
-    if (plan.burn) {
+    if (open.hook) {
+      const n = Math.round(open.hook * fps);
+      const coldOpen = (take: string, title: string) => {
+        graph.push(
+          `[${take}]split=2[${take}h][${take}b]`,
+          `[${take}h]trim=end_frame=${n},setpts=PTS-STARTPTS[${take}hook]`,
+          `[${take}b]trim=start_frame=${n},setpts=PTS-STARTPTS[${take}body]`,
+          `[${title}][${take}body]xfade=transition=fade:duration=${XFADE}:offset=${shift}[${take}cb]`,
+          plan.hookTransition === "fade"
+            ? `[${take}hook][${take}cb]xfade=transition=fade:duration=${XFADE}:offset=${
+              open.cardAt.toFixed(4)
+            }[${take}i]`
+            : `[${take}hook][${take}cb]concat=n=2:v=1:a=0[${take}i]`,
+        );
+      };
+      coldOpen(v1, "t1");
+      v1 = "v1i";
+      if (plan.burn) {
+        coldOpen(v2, "t2");
+        v2 = "v2i";
+      } else {
+        graph.push("[t2]nullsink");
+      }
+      // The voice stops under the card and picks up with the body.
+      const hook = open.hook.toFixed(4);
       graph.push(
-        `[t2][${v2}]xfade=transition=fade:duration=${XFADE}:offset=${shift}[v2i]`,
+        `[${a}]asplit=2[ah][ab]`,
+        `[ah]atrim=end=${hook},asetpts=PTS-STARTPTS[ahook]`,
+        `[ab]atrim=start=${hook},asetpts=PTS-STARTPTS,` +
+          `adelay=${Math.round(open.shift * 1000)}:all=1[abody]`,
+        `[ahook][abody]concat=n=2:v=0:a=1[ad]`,
       );
-      v2 = "v2i";
     } else {
-      graph.push("[t2]nullsink");
+      graph.push(
+        `[t1][${v1}]xfade=transition=fade:duration=${XFADE}:offset=${shift}[v1i]`,
+      );
+      v1 = "v1i";
+      if (plan.burn) {
+        graph.push(
+          `[t2][${v2}]xfade=transition=fade:duration=${XFADE}:offset=${shift}[v2i]`,
+        );
+        v2 = "v2i";
+      } else {
+        graph.push("[t2]nullsink");
+      }
+      graph.push(`[${a}]adelay=${Math.round(shift * 1000)}:all=1[ad]`);
     }
-    graph.push(`[${a}]adelay=${Math.round(shift * 1000)}:all=1[ad]`);
     a = "ad";
     if (plan.music) {
       const end = shift + 3.0;
@@ -410,16 +491,21 @@ export function buildGraph(plan: RenderPlan): BuiltGraph {
           `aresample=48000,atrim=0:${
             end.toFixed(3)
           },volume='${duck}':eval=frame,` +
-          `afade=t=out:st=${(end - 2).toFixed(3)}:d=2[m]`,
+          `afade=t=out:st=${(end - 2).toFixed(3)}:d=2` +
+          (open.cardAt
+            ? `,adelay=${Math.round(open.cardAt * 1000)}:all=1`
+            : "") +
+          "[m]",
         `[${a}][m]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.89:level=false[amx]`,
       );
       a = "amx";
     }
   }
+  // No bed under a cold open's hook: it comes in only after the card.
   const stretches = bedStretches(
-    fast,
+    open.hook ? fast.filter(({ i }) => starts[i] >= open.hook) : fast,
     starts,
-    shift,
+    open.shift,
     plan.bedMerge ?? 0,
     plan.bedMin ?? 0,
   );
@@ -437,13 +523,13 @@ export function buildGraph(plan: RenderPlan): BuiltGraph {
     graph.push(
       `[${k}:a]aresample=48000,aformat=channel_layouts=stereo,loudnorm=I=-16:TP=-2,` +
         `aresample=48000,atrim=0:${
-          (total + shift).toFixed(3)
+          (total + open.shift).toFixed(3)
         },volume='${BED}*(${env})':eval=frame[bed]`,
       `[${a}][bed]amix=inputs=2:duration=first:normalize=0,alimiter=limit=0.89:level=false[abed]`,
     );
     a = "abed";
   }
-  let duration = total + shift;
+  let duration = total + open.shift;
   if (cards.outro) {
     const card = cards.outro;
     const off = duration - XFADE;

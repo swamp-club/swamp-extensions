@@ -435,3 +435,151 @@ Deno.test("edit: cut and keep refuse a time range covering part of a wait", asyn
     await teardown(env);
   }
 });
+
+type Listed = Awaited<ReturnType<typeof built>> & { coldOpenUntil?: number };
+
+Deno.test("edit build: a cold open by quote or by time, marked in edit.txt", async () => {
+  const env = await setup();
+  try {
+    let list: Listed = await built(env, { coldOpenUntil: "this is a demo" });
+    assertEquals(list.coldOpenUntil, 2.9);
+    const file = await Deno.readTextFile(list.editFile);
+    assertStringIncludes(file, "this is a demo. [cold-open]\n");
+    assertStringIncludes(file, "# [cold-open] ends the cold open");
+    // A time ends the hook after the last word starting before it.
+    list = await built(env, { coldOpenUntil: "0:02.2" });
+    assertEquals(list.coldOpenUntil, 2.3);
+    // Empty (the workflow's default) is no cold open, and no marker.
+    list = await built(env, { coldOpenUntil: "" });
+    assertEquals(list.coldOpenUntil, undefined);
+    assert(!(await Deno.readTextFile(list.editFile)).includes("cold-open"));
+  } finally {
+    await teardown(env);
+  }
+});
+
+Deno.test("edit: cold-open from chat sets, moves and clears it; chat edits still work", async () => {
+  const env = await setup();
+  try {
+    await built(env);
+    const ctx = () => env.swamp.context("edit", {});
+    const latest = () => env.swamp.latest("edit", "take") as Listed;
+    await edit.methods["cold-open"].execute(
+      { recordingPath: env.rec, quote: "Hello", occurrence: 1, clear: false },
+      ctx(),
+    );
+    assertEquals(latest().coldOpenUntil, 1.4);
+    assertStringIncludes(
+      await Deno.readTextFile(latest().editFile),
+      "Hello, [cold-open] {um,} this",
+    );
+    // The rewritten edit.txt counts as in sync: a chat edit is not refused.
+    await edit.methods.cut.execute(
+      { recordingPath: env.rec, quote: "really", occurrence: 1 },
+      ctx(),
+    );
+    assertEquals(latest().coldOpenUntil, 1.4);
+    await edit.methods["cold-open"].execute(
+      { recordingPath: env.rec, occurrence: 1, clear: true },
+      ctx(),
+    );
+    assertEquals(latest().coldOpenUntil, undefined);
+    assert(!(await Deno.readTextFile(latest().editFile)).includes("cold-open"));
+    await assertRejects(
+      () =>
+        edit.methods["cold-open"].execute(
+          {
+            recordingPath: env.rec,
+            quote: "It really works",
+            occurrence: 1,
+            clear: false,
+          },
+          ctx(),
+        ),
+      Error,
+      "leaves nothing of the take after it",
+    );
+    await assertRejects(
+      () =>
+        edit.methods["cold-open"].execute(
+          {
+            recordingPath: env.rec,
+            end: "0:00.5",
+            occurrence: 1,
+            clear: false,
+          },
+          ctx(),
+        ),
+      Error,
+      "no words before 0:00",
+    );
+    // With the opening word cut, a hook up to it keeps nothing.
+    await edit.methods.cut.execute(
+      { recordingPath: env.rec, quote: "Hello", occurrence: 1 },
+      ctx(),
+    );
+    await assertRejects(
+      () =>
+        edit.methods["cold-open"].execute(
+          {
+            recordingPath: env.rec,
+            quote: "Hello",
+            occurrence: 1,
+            clear: false,
+          },
+          ctx(),
+        ),
+      Error,
+      "keeps no words",
+    );
+  } finally {
+    await teardown(env);
+  }
+});
+
+Deno.test("edit: the [cold-open] marker moves, survives import and can be deleted", async () => {
+  const env = await setup();
+  try {
+    const list: Listed = await built(env, { coldOpenUntil: "this is a demo" });
+    const ctx = () => env.swamp.context("edit", {});
+    const latest = () => env.swamp.latest("edit", "take") as Listed;
+    const original = await Deno.readTextFile(list.editFile);
+    const moved = original.replace("demo. [cold-open]", "demo.")
+      .replace("Hello, {um,}", "Hello, [cold-open] {um,}");
+    await Deno.writeTextFile(list.editFile, moved);
+    await edit.methods.import.execute({ recordingPath: env.rec }, ctx());
+    assertEquals(latest().coldOpenUntil, 1.4);
+    // Re-exported where it was put, and importing again changes nothing.
+    await edit.methods.export.execute({ recordingPath: env.rec }, ctx());
+    assertEquals(await Deno.readTextFile(list.editFile), moved);
+    await edit.methods.import.execute({ recordingPath: env.rec }, ctx());
+    assertEquals(latest().coldOpenUntil, 1.4);
+    // At the start of a line it ends the hook with the line before.
+    await Deno.writeTextFile(
+      list.editFile,
+      original.replace("demo. [cold-open]", "demo.").replace(
+        "| >>30.1s",
+        "| [cold-open] >>30.1s",
+      ),
+    );
+    await edit.methods.import.execute({ recordingPath: env.rec }, ctx());
+    assertEquals(latest().coldOpenUntil, 2.9);
+    await Deno.writeTextFile(
+      list.editFile,
+      original.replace("works. {~23.4s}", "works. [cold-open] {~23.4s}"),
+    );
+    await assertRejects(
+      () => edit.methods.import.execute({ recordingPath: env.rec }, ctx()),
+      Error,
+      "a second [cold-open]",
+    );
+    await Deno.writeTextFile(
+      list.editFile,
+      original.replace("demo. [cold-open]", "demo."),
+    );
+    await edit.methods.import.execute({ recordingPath: env.rec }, ctx());
+    assertEquals(latest().coldOpenUntil, undefined);
+  } finally {
+    await teardown(env);
+  }
+});

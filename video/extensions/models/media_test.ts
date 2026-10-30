@@ -62,3 +62,15 @@ Deno.test("media: a zero fade or a negative bed length is rejected", () => {
   assertEquals(ok({ bedMergeSeconds: -1 }), false);
   assertEquals(ok({ bedMinSeconds: 3, bedFadeSeconds: 1 }), true);
 });
+
+Deno.test("media: a cold open cuts to the title by default; fade or cut only", async () => {
+  const swamp = new FakeSwamp();
+  await media.methods.show.execute({}, swamp.context("media", {}));
+  assertEquals(swamp.latest("media", "settings")!.coldOpenTransition, "cut");
+  const ok = (v: string) =>
+    media.globalArguments.safeParse({ coldOpenTransition: v }).success;
+  assertEquals([ok("fade"), ok("cut"), ok("wipe")], [true, true, false]);
+  // Settings saved before cold opens upgrade unchanged.
+  const old = { encoder: "vaapi", bedMinSeconds: 2 };
+  assertEquals(media.upgrades.at(-1)!.upgradeAttributes(old), old);
+});

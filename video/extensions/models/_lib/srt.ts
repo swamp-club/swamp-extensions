@@ -30,12 +30,17 @@ export function srtTime(t: number): string {
   }:${pad(Math.floor(ms / 1000) % 60)},${pad(ms % 1000, 3)}`;
 }
 
-/** SRT text for the kept words, shifted by `shift` seconds (an intro card). */
+/**
+ * SRT text for the kept words, shifted by `shift` seconds (an intro card).
+ * With a cold open, `hookAt` is where the hook ends (take seconds): cues
+ * break there, the hook's stay put and end by it, and only later ones shift.
+ */
 export function buildSrt(
   items: Item[],
   spans: Span[],
   fps: number,
   shift = 0.0,
+  hookAt = 0.0,
 ): string {
   const remap = remapper(spans, fps);
   const cues: [number, number, string][][] = [];
@@ -51,6 +56,7 @@ export function buildSrt(
       const length = cur.map(([, , w]) => w).join(" ").length + 1 + text.length;
       if (
         length > 42 || s - cur[cur.length - 1][1] > 0.6 ||
+        (cur[0][0] < hookAt && s >= hookAt) ||
         e - cur[0][0] > 3.5 || /[.?!]$/.test(cur[cur.length - 1][2])
       ) {
         cues.push(cur);
@@ -60,10 +66,12 @@ export function buildSrt(
     cur.push([s, e, text]);
   }
   if (cur.length) cues.push(cur);
+  const place = (t: number) => t < hookAt ? t : t + shift;
   const out = cues.map((cue, n) => {
-    const start = cue[0][0] + shift;
-    let end = cue[cue.length - 1][1] + shift + 0.3;
-    if (n + 1 < cues.length) end = Math.min(end, cues[n + 1][0][0] + shift);
+    const start = place(cue[0][0]);
+    let end = place(cue[cue.length - 1][1]) + 0.3;
+    if (n + 1 < cues.length) end = Math.min(end, place(cues[n + 1][0][0]));
+    if (cue[0][0] < hookAt) end = Math.min(end, hookAt);
     return `${n + 1}\n${srtTime(start)} --> ${
       srtTime(Math.max(end, start + 0.3))
     }\n` +

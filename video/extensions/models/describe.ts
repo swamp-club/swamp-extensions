@@ -131,8 +131,15 @@ export function descriptionText(
 
 export const model = {
   type: "@swamp/video/describe",
-  version: "2026.10.29.1",
+  version: "2026.10.30.1",
   globalArguments: z.object({}),
+  upgrades: [
+    {
+      toVersion: "2026.10.30.1",
+      description: "Chapters follow a cold open (no change without one)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     youtube: {
       description: "Title, description and chapters for a finished take",
@@ -162,6 +169,8 @@ export const model = {
           ? await readTakeData(ctx, args.render, "video", take)
           : undefined;
         const shift = (video?.introSeconds as number | undefined) ?? 0;
+        // A cold open's hook plays before the intro: only later times shift.
+        const hook = (video?.hookSeconds as number | undefined) ?? 0;
         const duration = (video?.durationSeconds as number | undefined) ??
           outputStarts(list.spans, list.fps).total;
         const remap = remapper(list.spans, list.fps);
@@ -170,7 +179,7 @@ export const model = {
             start: parseTime(c.start),
             title: c.title,
           })),
-          (t) => remap(t) + shift,
+          (t) => remap(t) < hook ? remap(t) : remap(t) + shift,
           duration,
         );
         if (!included && args.chapters.length) {

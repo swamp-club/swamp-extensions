@@ -26,8 +26,8 @@ The workflow renders the brand cards for the take, then runs @swamp/video's
 cards themselves land in `demo.video/brand/`, with `thumbnail.png`, the
 settled intro, for a custom thumbnail.
 
-Needs @swamp/video 2026.10.29.2 or later (it plays the animated lower third
-and badge), `chromium` (any Chromium or Chrome, headless) and `ffmpeg` with
+Needs @swamp/video 2026.10.30.1 or later (it plays the animated lower third
+and badge, and cold opens), `chromium` (any Chromium or Chrome, headless) and `ffmpeg` with
 the `libx264`, `qtrle` and `libvpx-vp9` encoders.
 
 ## Who is on screen
@@ -51,7 +51,13 @@ presenter=<instance>` to use another one.
 
 `video-edit` inputs: `recordingPath`, `title` (both required), `subtitle`,
 `episode` (the label above the title, `Demo` by default), `presenter`,
-`media`, `retakeMarkers`, `pixelate`, `burn`.
+`media`, `retakeMarkers`, `coldOpenUntil`, `pixelate`, `burn`.
+
+`coldOpenUntil` opens cold: the words that end the hook (or a time like
+`0:07`) play before the intro, which then comes in with its music (see
+@swamp/video's README, Cold open). The lower third keeps its take time, so
+the presenter's name shows during the hook and finishes after the intro when
+the hook is shorter than `lowerThirdAt` plus `lowerThirdSeconds`.
 
 To re-render after changing the cut, use @swamp/video's `video-recut` with
 `--input cards=brand --input cardsFrom=video-brand`: the cards are already

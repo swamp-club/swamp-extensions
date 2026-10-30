@@ -17,7 +17,8 @@
  * `@swamp/video/render`: apply a take's edit list and produce the finished
  * video: `<recording>.polished.mp4` (soft captions, plus `.polished.srt`),
  * `<recording>.captioned.mp4` (burned captions) and a 1280x720 thumbnail,
- * next to the recording.
+ * next to the recording. A take with a cold open plays its hook before the
+ * intro card.
  *
  * @module
  */
@@ -31,15 +32,15 @@ import {
   type VideoContext,
 } from "./_lib/context.ts";
 import { drawTitleCard, resolveCards } from "./_lib/cards.ts";
-import type { Item, Span } from "./_lib/edit_list.ts";
+import { coldOpenAt, type Item, type Span } from "./_lib/edit_list.ts";
 import { run } from "./_lib/exec.ts";
 import {
   buildGraph,
   type Encoder,
   encoderArgs,
   encoderGlobals,
-  introShift,
   measureArgs,
+  opening,
   parseLoudness,
   type RenderPlan,
 } from "./_lib/graph.ts";
@@ -113,6 +114,8 @@ export const VideoSchema = z.object({
   thumbnail: z.string(),
   durationSeconds: z.number(),
   introSeconds: z.number(),
+  /** Seconds of cold open before the intro card, when there is one. */
+  hookSeconds: z.number().optional(),
   cardsMode: z.string(),
   encoder: z.string(),
   redactions: z.number(),
@@ -121,8 +124,16 @@ export const VideoSchema = z.object({
 
 export const model = {
   type: "@swamp/video/render",
-  version: "2026.10.29.1",
+  version: "2026.10.30.1",
   globalArguments: GlobalArgs,
+  upgrades: [
+    {
+      toVersion: "2026.10.30.1",
+      description:
+        "Render a take's cold open ahead of the intro card (no change without one)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     video: {
       description: "The finished video's files and length",
@@ -151,6 +162,7 @@ export const model = {
           spans: Span[];
           fps: number;
           speechTrack: number;
+          coldOpenUntil?: number;
         };
         const media = MediaSettingsSchema.parse(
           args.media ? await readLatest(ctx, args.media, "settings") ?? {} : {},
@@ -215,18 +227,45 @@ export const model = {
               ctx.signal,
             ),
         );
-        const shift = introShift(cards);
+        let hook = 0;
+        if (list.coldOpenUntil !== undefined) {
+          if (cards.intro) {
+            hook = coldOpenAt(
+              list.items,
+              list.spans,
+              list.fps,
+              list.coldOpenUntil,
+            );
+          } else {
+            ctx.logger.warn(
+              "this take has a cold open but no intro card to follow it: rendering without one",
+            );
+          }
+        }
+        const open = opening(cards, hook, media.coldOpenTransition);
 
         // Burned captions go on the take before the intro; the soft ones
-        // are shifted past it.
+        // are shifted past it (from the hook's end, with a cold open).
         await Deno.writeTextFile(
           `${take.workDir}/captions.srt`,
-          buildSrt(structuredClone(list.items), list.spans, list.fps),
+          buildSrt(
+            structuredClone(list.items),
+            list.spans,
+            list.fps,
+            0,
+            open.hook,
+          ),
         );
         const srt = `${take.stem}.polished.srt`;
         await Deno.writeTextFile(
           srt,
-          buildSrt(structuredClone(list.items), list.spans, list.fps, shift),
+          buildSrt(
+            structuredClone(list.items),
+            list.spans,
+            list.fps,
+            open.shift,
+            open.hook,
+          ),
         );
 
         const plan: RenderPlan = {
@@ -243,6 +282,8 @@ export const model = {
           bedMin: media.bedMinSeconds,
           bedFade: media.bedFadeSeconds,
           bedMerge: media.bedMergeSeconds,
+          hook: open.hook,
+          hookTransition: media.coldOpenTransition,
           voiceCleanup: args.voiceCleanup,
           loudnessTarget: media.loudness,
           burn: args.burn,
@@ -314,7 +355,7 @@ export const model = {
         ctx.logger.info(
           `rendering ${take.name} (${encoder}, ${
             cards.intro ? "intro" : "no intro"
-          }, ` +
+          }${open.hook ? `, ${open.hook.toFixed(1)}s cold open` : ""}, ` +
             `${redactions.length} pixelated)`,
         );
         await run({
@@ -358,7 +399,8 @@ export const model = {
           srt,
           thumbnail,
           durationSeconds: built.duration,
-          introSeconds: shift,
+          introSeconds: open.shift,
+          hookSeconds: open.hook || undefined,
           cardsMode: args.cards.mode,
           encoder,
           redactions: redactions.length,

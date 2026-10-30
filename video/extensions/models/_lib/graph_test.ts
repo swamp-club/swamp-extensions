@@ -22,9 +22,11 @@ import {
 import {
   bedStretches,
   buildGraph,
+  type BuiltGraph,
   chunkRate,
   encoderArgs,
   measureArgs,
+  opening,
   parseLoudness,
   type RenderPlan,
   safeFilterText,
@@ -303,4 +305,168 @@ Deno.test("bedStretches: a gap equal to merge stays apart; a window equal to min
   assertEquals(bedStretches(fast, [0, 2, 3], 0, 1, 2), [[0, 2], [3, 5]]);
   assertEquals(bedStretches(fast, [0, 2, 3], 0, 1.01, 0), [[0, 5]]);
   assertEquals(bedStretches(fast, [0, 2, 3], 0, 0, 2.01), []);
+});
+
+// The renderer's output for these plans was captured before cold opens
+// existed (testdata/golden/graph_no_hook.json): without a hook it must not
+// change by a byte.
+const goldenBase: RenderPlan = {
+  ...plan,
+  spans: [[0, 5, 1], [5, 45, 10], [45, 50, 1], [52, 60, 1], [60, 100, 8], [
+    100,
+    104,
+    1,
+  ]],
+  redactions: [
+    { x: 10, y: 20, width: 120, height: 24, start: 3, end: 9, kind: "aws" },
+  ],
+  voiceCleanup: false,
+  burn: true,
+};
+const GOLDEN_PLANS: Record<string, RenderPlan> = {
+  bare: { ...goldenBase, burn: false },
+  stills: {
+    ...goldenBase,
+    cards: {
+      intro: { path: "/c/intro.png", seconds: 4.5 },
+      outro: { path: "/c/outro.png", seconds: 5 },
+      lowerThird: { path: "/c/lt.png", seconds: 6, at: 1.5 },
+      fastForwardBadge: { path: "/c/badge.png" },
+    },
+    music: "/m/sting.wav",
+    bed: "/m/bed.mp3",
+  },
+  animated: {
+    ...goldenBase,
+    voiceCleanup: true,
+    cards: {
+      intro: { path: "/c/intro.mp4", seconds: 5.5 },
+      outro: { path: "/c/outro.mp4", seconds: 8 },
+      lowerThird: { path: "/c/lt.mov", seconds: 6, at: 1.5 },
+      fastForwardBadge: { path: "/c/badge.webm" },
+    },
+    music: "/m/sting.wav",
+    bed: "/m/bed.mp3",
+    bedMin: 2,
+    bedFade: 0.6,
+    bedMerge: 3,
+    measured: {
+      input_i: "-20",
+      input_tp: "-3",
+      input_lra: "5",
+      input_thresh: "-30",
+      target_offset: "0.2",
+    },
+  },
+};
+// As stored: JSON drops the fields a graph leaves undefined.
+const asStored = (g: BuiltGraph): BuiltGraph => JSON.parse(JSON.stringify(g));
+const GOLDEN: Record<string, BuiltGraph> = JSON.parse(
+  Deno.readTextFileSync(
+    new URL("../../../testdata/golden/graph_no_hook.json", import.meta.url),
+  ),
+);
+
+Deno.test("no cold open: the graph is byte for byte what it was", () => {
+  for (const [name, p] of Object.entries(GOLDEN_PLANS)) {
+    assertEquals(asStored(buildGraph(p)), GOLDEN[name], name);
+    assertEquals(asStored(buildGraph({ ...p, hook: 0 })), GOLDEN[name], name);
+  }
+});
+
+Deno.test("a cold open without an intro card renders as if there were none", () => {
+  assertEquals(
+    asStored(buildGraph({ ...GOLDEN_PLANS.bare, hook: 3 })),
+    GOLDEN.bare,
+  );
+});
+
+// stills: 4.5s card (3.8s shift), a 3s hook; take out: 0-5, 5-9 (ff),
+// 9-14, 14-22, 22-27 (ff), 27-31.
+const hooked: RenderPlan = { ...GOLDEN_PLANS.stills, hook: 3 };
+
+Deno.test("cold open: the hook plays first, then the card, then the body", () => {
+  const g = buildGraph(hooked);
+  // Overlays are on the take before it is split, so `at` stays take time
+  // and the lower third shows during the hook.
+  assertStringIncludes(
+    g.graph,
+    "[vbadge][lt]overlay=0:0:shortest=1:enable='between(t,1.5,7.5)'[vlt]",
+  );
+  for (const v of ["v1", "v2"]) {
+    assertStringIncludes(
+      g.graph,
+      `[${v}]split=2[${v}h][${v}b];\n` +
+        `[${v}h]trim=end_frame=90,setpts=PTS-STARTPTS[${v}hook];\n` +
+        `[${v}b]trim=start_frame=90,setpts=PTS-STARTPTS[${v}body];\n` +
+        `[t${
+          v[1]
+        }][${v}body]xfade=transition=fade:duration=0.7:offset=3.8[${v}cb];\n` +
+        `[${v}hook][${v}cb]concat=n=2:v=1:a=0[${v}i]`,
+    );
+  }
+  // The voice stops under the card and picks up with the body.
+  assertStringIncludes(
+    g.graph,
+    "[a]asplit=2[ah][ab];\n" +
+      "[ah]atrim=end=3.0000,asetpts=PTS-STARTPTS[ahook];\n" +
+      "[ab]atrim=start=3.0000,asetpts=PTS-STARTPTS,adelay=3800:all=1[abody];\n" +
+      "[ahook][abody]concat=n=2:v=0:a=1[ad]",
+  );
+  // The music comes in with the card, not at the start.
+  assertStringIncludes(
+    g.graph,
+    "afade=t=out:st=4.800:d=2,adelay=3000:all=1[m]",
+  );
+  assertEquals(g.duration, GOLDEN.stills.duration);
+});
+
+Deno.test("cold open: the bed stays out of the hook and follows the body", () => {
+  const h = buildGraph(hooked);
+  // Both fast-forwards are after the hook: placed 3.8s later, as today.
+  assertEquals(
+    bedOf(h.graph),
+    bedOf(GOLDEN.stills.graph),
+  );
+  // A fast-forward inside the hook keeps its clock but gets no bed.
+  const g = buildGraph({ ...hooked, hook: 12 });
+  assertEquals(
+    bedOf(g.graph),
+    "clip((t-25.800)/0.4,0,1)*clip((30.800-t)/0.4,0,1)",
+  );
+  assertStringIncludes(g.graph, "between(t,5.0000,9.0000)");
+});
+
+Deno.test("cold open: a crossfade into the card when asked", () => {
+  const g = buildGraph({ ...hooked, hookTransition: "fade" });
+  assertStringIncludes(
+    g.graph,
+    "[t1][v1body]xfade=transition=fade:duration=0.7:offset=3.8[v1cb];\n" +
+      "[v1hook][v1cb]xfade=transition=fade:duration=0.7:offset=2.3000[v1i]",
+  );
+  // A second crossfade: the body comes 3.1s later, the music at 2.3s.
+  assertStringIncludes(g.graph, "adelay=3100:all=1[abody]");
+  assertStringIncludes(g.graph, "adelay=2300:all=1[m]");
+  assertEquals(
+    g.duration.toFixed(6),
+    (GOLDEN.stills.duration - 0.7).toFixed(6),
+  );
+  assertEquals(opening(hooked.cards, 3, "fade"), {
+    hook: 3,
+    cardAt: 2.3,
+    shift: 3.0999999999999996,
+  });
+});
+
+Deno.test("cold open: refused inside a fast-forward or with nothing after it", () => {
+  assertThrows(
+    () => buildGraph({ ...hooked, hook: 7 }),
+    Error,
+    "inside the fast-forwarded wait at 5.0s-45.0s",
+  );
+  assertThrows(
+    () => buildGraph({ ...hooked, hook: 31 }),
+    Error,
+    "leaves nothing of the take after it",
+  );
 });

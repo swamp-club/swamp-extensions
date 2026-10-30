@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/video"
-version: "2026.10.29.3"
+version: "2026.10.30.1"
 license: "AGPL-3.0-or-later"
 visibility: private
 description: |
@@ -10,7 +10,8 @@ description: |
   racing clock), faster where the screen sat idle. Change the cut from chat
   by quoting what was said, or by hand in edit.txt; then render with a title
   card, music, soft and burned captions, credentials pixelated, loudness
-  normalized and a thumbnail.
+  normalized and a thumbnail. A take can open cold: its first words play
+  before the title card and music.
 
   ## Behaviors
 
@@ -19,7 +20,7 @@ description: |
   - `@swamp/video/screen`: idle stretches, on-screen text timeline,
     credential detection, storyboard
   - `@swamp/video/edit`: the edit list; `build`, `cut`, `keep`, `speed`,
-    `export` and `import` of edit.txt
+    `cold-open`, `export` and `import` of edit.txt
   - `@swamp/video/render`: the finished video, thumbnail and captions
   - `@swamp/video/describe`: YouTube title, description and chapters
   - `@swamp/video/presenter`, `@swamp/video/media`: per-person details and

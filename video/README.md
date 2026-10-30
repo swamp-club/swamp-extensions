@@ -85,7 +85,7 @@ named after the recording, so many takes share them.
 
 `video-edit` inputs: `recordingPath`, `title`, `subtitle`, `kicker`, `cards`
 (`simple` | `none` | `custom` | `brand`), `cardsFrom`, `media`,
-`retakeMarkers`, `pixelate`, `burn`.
+`retakeMarkers`, `coldOpenUntil`, `pixelate`, `burn`.
 
 ## Changing the cut
 
@@ -120,11 +120,49 @@ import unchanged):
   build writes trimmed pauses) to cut it;
 - retyping a word changes only its caption ("Cooper Netties" → "Kubernetes");
 - braces must not nest: `{a {b} c}` is an error naming the line (demo-polish
-  silently kept `c`).
+  silently kept `c`);
+- `[cold-open]` after a word ends a cold open there (see below); move it to
+  move the hook, delete it for none. One per file. demo-polish itself doesn't
+  know the marker, so a marked file no longer imports there unchanged.
 
 Then `swamp workflow run @swamp/video/video-recut --input recordingPath=<rec>`.
 Chat edits rewrite `edit.txt`, so the file always matches the edit list. A wait
 speed set from chat survives re-imports while the wait stays `>>`.
+
+## Cold open
+
+A take can open cold: the presenter's first few seconds (the hook) play before
+anything else, then the intro card comes in with its music, then the rest of
+the take. Mark where the hook ends in any of three ways:
+
+```bash
+swamp workflow run @swamp/video/video-edit --input recordingPath=<rec> \
+  --input "title=..." --input "coldOpenUntil=and that's what we'll build today"
+swamp model method run video-edit cold-open --input recordingPath=<rec> --input "quote=build today"
+swamp model method run video-edit cold-open --input recordingPath=<rec> --input end=0:07
+```
+
+or put `[cold-open]` after the hook's last word in edit.txt. `coldOpenUntil`
+reads a time (`0:07`, `7.5`) as a time and anything else as the words ending
+the hook; a time ends it after the last word that starts before it. Remove one
+with `cold-open --input clear=true` or by deleting the marker.
+
+- The hook keeps a little air after its last word, and stops short of a
+  fast-forward rather than splitting one. A hook that would keep no words, or
+  leave nothing after it, is refused.
+- The hook cuts straight to the card by default; `coldOpenTransition: fade` on
+  the media instance crossfades instead.
+- The bed stays out of the hook: it plays only under the fast-forwards after
+  the card. The intro music comes in with the card.
+- Overlays keep take time: a lower third at `at` shows during the hook, and
+  when it runs past the hook it plays the rest of the way out after the card
+  (an animated one picks up where it left off).
+- Captions and chapters follow the hook: only what comes after it shifts by
+  the card.
+- A cold open needs an intro card; with `cards: none` it is ignored (with a
+  warning). Without one designated, nothing changes.
+- The video's first frame is the presenter, not the card; the thumbnail is
+  still made as before.
 
 ## Cards
 
@@ -132,7 +170,7 @@ Render takes a `cards` object; every source produces the same contract:
 
 | Field              | Shape                         | Use                                         |
 | ------------------ | ----------------------------- | ------------------------------------------- |
-| `intro`            | `{path, seconds}`             | first frame, crossfades into the take       |
+| `intro`            | `{path, seconds}`             | first frame (after a cold open's hook), crossfades into the take |
 | `outro`            | `{path, seconds}`             | crossfades in at the end                    |
 | `lowerThird`       | `{path, seconds, at}`         | full-frame transparent overlay, `at` output seconds into the take |
 | `fastForwardBadge` | `{path}`                      | full-frame transparent overlay over every fast-forward |
@@ -171,7 +209,8 @@ swamp model method run media show
 and pass `--input media=media` to video-edit and video-recut, and `--input presenter=presenter` to video-describe.
 Media settings: `width`/`height` (default: the recording's), `encoder`
 (`libx264`, `vaapi`, `qsv`, `nvenc`), `quality`, `vaapiDevice`, `music`, `bed`,
-`bedMinSeconds`, `bedFadeSeconds`, `bedMergeSeconds`, `loudness` (LUFS), `font`.
+`bedMinSeconds`, `bedFadeSeconds`, `bedMergeSeconds`, `coldOpenTransition`
+(`cut` | `fade`), `loudness` (LUFS), `font`.
 
 ### Tuning the bed
 
@@ -194,7 +233,7 @@ video-recut with `--input media=media`.
 | -------------------------- | ------------------------------------------- | ------------------------- |
 | `@swamp/video/transcript`  | `transcribe`, `import` (a demo-polish transcript.json) | `transcript` per take |
 | `@swamp/video/screen`      | `analyze`                                   | `screen` per take         |
-| `@swamp/video/edit`        | `build`, `cut`, `keep`, `speed`, `export`, `import` | `editList` per take |
+| `@swamp/video/edit`        | `build`, `cut`, `keep`, `speed`, `cold-open`, `export`, `import` | `editList` per take |
 | `@swamp/video/render`      | `render`                                    | `video` per take          |
 | `@swamp/video/describe`    | `describe`                                  | `youtube` per take        |
 | `@swamp/video/presenter`   | `show`                                      | `presenter`               |
