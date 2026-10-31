@@ -18,6 +18,7 @@ import {
   type FactoryLister,
   handleStudioRequest,
   listFactories,
+  parseBasePath,
   parsePublicOrigin,
   type StudioAsset,
   type StudioDeps,
@@ -102,14 +103,16 @@ export async function serveStudio(
   assets: Readonly<Record<string, StudioAsset>>,
   publicOrigin?: string,
   remote?: StudioRemote,
+  basePath?: string,
 ): Promise<MethodOutput> {
   // Checked here as well as in the argument schema, so a bad value stops
   // serve before it binds rather than failing each request.
   if (publicOrigin !== undefined) parsePublicOrigin(publicOrigin);
+  if (basePath !== undefined) parseBasePath(basePath);
   if (remote !== undefined) {
     parseServer(remote.server);
     if (publicOrigin !== undefined) throw new Error(REMOTE_PUBLIC);
-    return await serveRemote(ctx, port, assets, remote);
+    return await serveRemote(ctx, port, assets, remote, basePath);
   }
   const repoDir = ctx.repoDir;
   if (repoDir === undefined) {
@@ -186,6 +189,7 @@ export async function serveStudio(
       // Set once the server has bound, before any request can arrive.
       port: 0,
       publicOrigin,
+      basePath,
       files: denoRepoFiles,
       factories,
       remembered,
@@ -201,7 +205,8 @@ export async function serveStudio(
     await listen(ctx, port, deps, () => {
       if (publicOrigin === undefined) return;
       ctx.logger.info(
-        `studio: also answering at ${publicOrigin}/ through a proxy. ` +
+        `studio: also answering at ${publicOrigin}${basePath ?? ""}/ through ` +
+          "a proxy. " +
           "The studio has no authentication: anyone who can reach that " +
           "address reads every factory definition and work item, so put " +
           "access control in the proxy.",
@@ -262,7 +267,9 @@ async function listen(
     port,
     signal: ctx.signal,
     onListen: ({ port }) => {
-      ctx.logger.info(`studio: http://127.0.0.1:${port}/`);
+      ctx.logger.info(
+        `studio: http://127.0.0.1:${port}${deps.basePath ?? ""}/`,
+      );
       listened();
     },
   }, (req) => handleStudioRequest(req, deps));
@@ -283,6 +290,7 @@ async function serveRemote(
   port: number,
   assets: Readonly<Record<string, StudioAsset>>,
   remote: StudioRemote,
+  basePath?: string,
 ): Promise<MethodOutput> {
   const { server } = remote;
   const paced = pacedRunner(
@@ -391,6 +399,7 @@ async function serveRemote(
     const deps: StudioDeps = {
       repoDir: ctx.repoDir ?? "",
       port: 0,
+      basePath,
       files: denoRepoFiles,
       factories: NO_FACTORIES,
       remote: factories,

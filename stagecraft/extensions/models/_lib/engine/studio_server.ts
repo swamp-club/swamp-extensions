@@ -159,6 +159,13 @@ export interface StudioDeps {
    * loopback is.
    */
   publicOrigin?: string;
+  /**
+   * The path a reverse proxy publishes the studio under, such as
+   * /_stagecraft, as parseBasePath gives it. Requests are answered with or
+   * without it, so a proxy may strip it or pass it through, and the page is
+   * told it, so its files, API calls and addresses carry it.
+   */
+  basePath?: string;
   files: RepoFiles;
   factories: FactoryLister;
   /**
@@ -248,8 +255,8 @@ export function isPagePath(parts: string[]): boolean {
  * it, and frame-ancestors 'none' keeps it out of frames, so it is let
  * through; nothing else from another site is.
  */
-function pageNavigation(req: Request): boolean {
-  const parts = segments(new URL(req.url).pathname);
+function pageNavigation(req: Request, basePath?: string): boolean {
+  const parts = segments(localPath(new URL(req.url).pathname, basePath));
   return req.method === "GET" && parts !== null && isPagePath(parts) &&
     req.headers.get("sec-fetch-mode") === "navigate" &&
     req.headers.get("sec-fetch-dest") === "document";
@@ -286,6 +293,82 @@ export function parsePublicOrigin(text: string): string {
   return text;
 }
 
+/**
+ * The path a reverse proxy publishes the studio under, as given: a leading
+ * slash and one or more segments of letters, digits, '.', '_', '~' and '-',
+ * with no trailing slash and no '.' or '..' segment. Throws on anything
+ * else, saying what is wanted, and the path the text stands for when it has
+ * one (without the trailing slash, say). Its first segment may not be one
+ * the studio routes itself (api, assets, f, w, favicon.ico): behind a proxy
+ * that strips the prefix, a request for such a route would lose it again.
+ */
+export function parseBasePath(text: string): string {
+  const segment = /^[A-Za-z0-9._~-]+$/;
+  const parts = text.split("/");
+  if (
+    parts[0] === "" && parts.length > 1 &&
+    parts.slice(1).every((p) => segment.test(p) && p !== "." && p !== "..")
+  ) {
+    if (ROUTED.includes(parts[1])) {
+      throw new Error(
+        `basePath may not start with /${parts[1]}, a path the studio ` +
+          `serves itself; choose another, such as /_stagecraft`,
+      );
+    }
+    return text;
+  }
+  const trimmed = `/${parts.filter((p) => p !== "").join("/")}`;
+  const meant = trimmed !== "/" && trimmed !== text &&
+      parseable(trimmed)
+    ? `; did you mean '${trimmed}'?`
+    : "";
+  throw new Error(
+    `basePath must be a path such as /_stagecraft (a leading slash, no ` +
+      `trailing slash, letters, digits, '.', '_', '~' and '-'), not ` +
+      `'${text}'${meant}`,
+  );
+}
+
+/** The first path segments the studio routes itself. */
+const ROUTED: readonly string[] = ["api", "assets", "f", "w", "favicon.ico"];
+
+function parseable(text: string): boolean {
+  try {
+    parseBasePath(text);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * A request's path below basePath: the path itself when it is not under
+ * it, so a proxy that strips the prefix and one that passes it through
+ * both reach the same routes.
+ */
+export function localPath(pathname: string, basePath?: string): string {
+  if (basePath === undefined) return pathname;
+  if (pathname === basePath) return "/";
+  return pathname.startsWith(`${basePath}/`)
+    ? pathname.slice(basePath.length)
+    : pathname;
+}
+
+/**
+ * The page under basePath: its files are asked for there, and a meta tag
+ * tells the script the prefix for its API calls and addresses. At the root
+ * the page is served as built.
+ */
+export function pageAt(html: string, basePath?: string): string {
+  if (basePath === undefined) return html;
+  return html
+    .replaceAll('="/assets/', `="${basePath}/assets/`)
+    .replace(
+      "</head>",
+      `  <meta name="stagecraft-base" content="${basePath}">\n  </head>`,
+    );
+}
+
 /** Why a request is refused before routing, or null. */
 function refusal(req: Request, deps: StudioDeps): Response | null {
   const { port, publicOrigin } = deps;
@@ -317,7 +400,7 @@ function refusal(req: Request, deps: StudioDeps): Response | null {
   const site = req.headers.get("sec-fetch-site");
   if (
     site !== null && site !== "same-origin" && site !== "none" &&
-    !pageNavigation(req)
+    !pageNavigation(req, deps.basePath)
   ) {
     return error(403, "requests from another site are refused");
   }
@@ -469,6 +552,19 @@ function asset(deps: StudioDeps, name: string): Response {
     ? Uint8Array.from(atob(found.base64), (c) => c.charCodeAt(0))
     : found.text ?? "";
   return respond(body, 200, { "content-type": found.type });
+}
+
+/** The page itself, told basePath when serve was given one. */
+function page(deps: StudioDeps): Response {
+  const found = Object.hasOwn(deps.assets, "index.html")
+    ? deps.assets["index.html"]
+    : null;
+  if (found?.text === undefined || deps.basePath === undefined) {
+    return asset(deps, "index.html");
+  }
+  return respond(pageAt(found.text, deps.basePath), 200, {
+    "content-type": found.type,
+  });
 }
 
 function eventStream(deps: StudioDeps): Response {
@@ -768,10 +864,10 @@ export async function handleStudioRequest(
   const refused = refusal(req, deps);
   if (refused !== null) return refused;
   const url = new URL(req.url);
-  const parts = segments(url.pathname);
+  const parts = segments(localPath(url.pathname, deps.basePath));
   if (parts === null) return error(400, "the path is not valid");
 
-  if (isPagePath(parts)) return asset(deps, "index.html");
+  if (isPagePath(parts)) return page(deps);
   if (parts[0] === "assets" && parts.length >= 2) {
     return asset(deps, parts.slice(1).join("/"));
   }

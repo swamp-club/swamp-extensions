@@ -361,3 +361,52 @@ Deno.test("studio: with publicOrigin, serve answers a tunnel and a proxied page,
     }
   });
 });
+
+Deno.test("studio: with basePath, serve tells the page its prefix and answers with or without it", async () => {
+  await withRepo(async (repo) => {
+    const { child, stdout, stderr, output } = await serve(repo, [
+      "basePath=/_stagecraft",
+    ]);
+    try {
+      const [, portText] = await within(
+        120_000,
+        "the logged studio URL",
+        Promise.race([
+          stdout.match(/studio: http:\/\/127\.0\.0\.1:(\d+)\/_stagecraft\//),
+          child.status.then((s) => {
+            throw new Error(
+              `serve exited ${s.code} before listening:\n${output()}`,
+            );
+          }),
+        ]),
+      );
+      const port = Number(portText);
+      const host = `127.0.0.1:${port}`;
+      // A proxy that passes the prefix through, and one that strips it.
+      for (const path of ["/_stagecraft/", "/"]) {
+        const page = await rawGet(port, path, host);
+        assertMatch(page, /^HTTP\/1\.1 200/, path);
+        assertMatch(page, /src="\/_stagecraft\/assets\/app\.js"/, path);
+        assertMatch(
+          page,
+          /<meta name="stagecraft-base" content="\/_stagecraft">/,
+          path,
+        );
+      }
+      for (
+        const path of [
+          "/_stagecraft/assets/app.js",
+          "/assets/app.js",
+          "/_stagecraft/api/factories",
+          "/api/factories",
+        ]
+      ) {
+        assertMatch(await rawGet(port, path, host), /^HTTP\/1\.1 200/, path);
+      }
+    } finally {
+      child.kill("SIGINT");
+      await within(30_000, "serve to exit", child.status);
+      await Promise.all([stdout.done, stderr.done]);
+    }
+  });
+});

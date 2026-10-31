@@ -15,7 +15,10 @@
 
 import { z } from "npm:zod@4.6.7";
 import { STUDIO_ASSETS } from "../_lib/engine/studio_assets.ts";
-import { parsePublicOrigin } from "../_lib/engine/studio_server.ts";
+import {
+  parseBasePath,
+  parsePublicOrigin,
+} from "../_lib/engine/studio_server.ts";
 import {
   parseServer,
   REMOTE_PUBLIC,
@@ -66,6 +69,16 @@ export const model = {
           .describe(
             "The origin a reverse proxy or tunnel publishes the studio at, such as https://studio.example.com. Requests with that Host or Origin are answered too; the studio has no authentication, so the proxy must provide it",
           ),
+        basePath: z.string().superRefine((text, ctx) => {
+          try {
+            parseBasePath(text);
+          } catch (e) {
+            ctx.addIssue({ code: "custom", message: (e as Error).message });
+          }
+        }).optional()
+          .describe(
+            "The path a reverse proxy publishes the studio under, such as /_stagecraft. The page's files, API calls and addresses carry it, and requests are answered with or without it, so the proxy may strip it or pass it through. Leave it out to serve at /",
+          ),
         server: z.string().superRefine((text, ctx) => {
           try {
             parseServer(text);
@@ -82,7 +95,12 @@ export const model = {
         }
       }),
       execute: (
-        args: { port: number; publicOrigin?: string; server?: string },
+        args: {
+          port: number;
+          publicOrigin?: string;
+          basePath?: string;
+          server?: string;
+        },
         context: StudioContext,
       ) =>
         serveStudio(
@@ -91,6 +109,7 @@ export const model = {
           STUDIO_ASSETS,
           args.publicOrigin,
           args.server === undefined ? undefined : { server: args.server },
+          args.basePath,
         ),
     },
   },

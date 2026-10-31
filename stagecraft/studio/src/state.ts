@@ -27,7 +27,13 @@ import {
 import { ANY_ID, layout } from "./layout.ts";
 import { loadDefinition, type Loaded, type Located } from "./model.ts";
 import { navModel } from "./nav.ts";
-import { parseRoute, type Route, routeHref, sameRoute } from "./route.ts";
+import {
+  parseRoute,
+  type Route,
+  routeHref,
+  sameRoute,
+  served,
+} from "./route.ts";
 import { itemReferenceLine, referenceLine } from "./reference.ts";
 import { follow, type Target, targetKey } from "./selection.ts";
 import {
@@ -357,7 +363,9 @@ export const rememberedFactory = () => read(PICK_KEY);
 // --- the server ------------------------------------------------------------------
 
 export async function getJson<T>(path: string): Promise<T> {
-  const res = await fetch(path, { headers: { accept: "application/json" } });
+  const res = await fetch(served(path), {
+    headers: { accept: "application/json" },
+  });
   const body = await res.json().catch(() => null);
   if (!res.ok) {
     throw new Error(body?.error ?? `${res.status} ${res.statusText}`);
@@ -1297,7 +1305,7 @@ export async function copyWalk() {
 }
 
 export function listen() {
-  const events = new EventSource("/api/events");
+  const events = new EventSource(served("/api/events"));
   // A change while the stream was down sent nothing, so a reconnect reads
   // the list and the definition again; so does a remote serve answering
   // again after its rate limit refused reads, since those were never read.

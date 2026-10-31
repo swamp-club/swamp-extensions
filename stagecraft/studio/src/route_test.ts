@@ -21,8 +21,11 @@ import {
   navCurrent,
   navHref,
   parseRoute,
+  readBasePath,
   type Route,
   routeHref,
+  served,
+  setBasePath,
   titleFor,
 } from "./route.ts";
 
@@ -145,4 +148,66 @@ Deno.test("route: the browser tab's title says where you are", () => {
     titleFor({ view: "ticket", factory: "blog", id: "blog-3" }, null),
     "blog-3 · Board · blog · Stagecraft Studio",
   );
+});
+
+Deno.test("route: with no base path, addresses and server paths are unchanged", () => {
+  setBasePath("");
+  assertEquals(served("/api/events"), "/api/events");
+  assertEquals(routeHref({ view: "board", factory: "team" }), "/f/team/board");
+  assertEquals(navHref("design", null), "/");
+  assertEquals(parseRoute("/w/k"), { view: "work-item", key: "k" });
+  assertEquals(
+    readBasePath({ querySelector: () => null }),
+    "",
+  );
+});
+
+Deno.test("route: under a base path, addresses carry it and parse without it", () => {
+  setBasePath("/_stagecraft");
+  try {
+    assertEquals(served("/api/events"), "/_stagecraft/api/events");
+    assertEquals(
+      routeHref({ view: "board", factory: "team" }),
+      "/_stagecraft/f/team/board",
+    );
+    assertEquals(
+      routeHref({ view: "work-item", key: "k" }),
+      "/_stagecraft/w/k",
+    );
+    assertEquals(routeHref({ view: "design", factory: null }), "/_stagecraft/");
+    assertEquals(navHref("design", null), "/_stagecraft/");
+    assertEquals(parseRoute("/_stagecraft"), { view: "design", factory: null });
+    assertEquals(parseRoute("/_stagecraft/"), {
+      view: "design",
+      factory: null,
+    });
+    assertEquals(parseRoute("/_stagecraft/f/team/simulate"), {
+      view: "simulate",
+      factory: "team",
+    });
+    // An address without the prefix, as the studio's own port answers it,
+    // is read as it is.
+    assertEquals(parseRoute("/f/team/board"), {
+      view: "board",
+      factory: "team",
+    });
+    assertEquals(parseRoute("/_stagecraftx/f/team/board"), null);
+    const route: Route = { view: "ticket", factory: "team", id: "ts-1" };
+    assertEquals(parseRoute(routeHref(route)), route);
+  } finally {
+    setBasePath("");
+  }
+});
+
+Deno.test("route: readBasePath reads the prefix the server named in the page", () => {
+  const doc = {
+    querySelector: (selector: string) =>
+      selector === 'meta[name="stagecraft-base"]'
+        ? {
+          getAttribute: (name: string) =>
+            name === "content" ? "/_stagecraft" : null,
+        }
+        : null,
+  };
+  assertEquals(readBasePath(doc), "/_stagecraft");
 });

@@ -20,6 +20,9 @@ import {
   type FactorySource,
   handleStudioRequest,
   isPagePath,
+  localPath,
+  pageAt,
+  parseBasePath,
   parsePublicOrigin,
   type StudioDeps,
   type StudioEvent,
@@ -1317,4 +1320,172 @@ Deno.test("studio: with a remote source, /api/work-items needs a factory the rem
   );
   assertEquals(unknown.status, 404);
   await unknown.body?.cancel();
+});
+
+// --- under a path prefix behind a proxy (swamp-club #4227) ----------------------
+
+const BASE = "/_stagecraft";
+
+const PAGE_HTML = '<!doctype html>\n<html lang="en">\n  <head>\n' +
+  '    <link rel="icon" type="image/svg+xml" href="/assets/favicon.svg">\n' +
+  '    <link rel="stylesheet" href="/assets/studio.css">\n' +
+  '    <script type="module" src="/assets/app.js"></script>\n' +
+  "  </head>\n  <body></body>\n</html>\n";
+
+/** setup() with a page that names its files, optionally under BASE. */
+function prefixed(basePath?: string) {
+  const { deps } = setup();
+  deps.assets = {
+    ...deps.assets,
+    "index.html": { type: "text/html; charset=utf-8", text: PAGE_HTML },
+  };
+  deps.basePath = basePath;
+  return deps;
+}
+
+Deno.test("studio: parseBasePath takes a slash-led path with no trailing slash, and nothing else", () => {
+  for (const text of [BASE, "/a", "/team/studio", "/v1.2/x~y-z"]) {
+    assertEquals(parseBasePath(text), text);
+  }
+  for (
+    const text of [
+      "",
+      "/",
+      "_stagecraft",
+      `${BASE}/`,
+      "//x",
+      "/a//b",
+      "/./a",
+      "/a/..",
+      "/a b",
+      "/a?b",
+      "/a#b",
+      '/a"b',
+      "/a<b",
+      "/caf\u00e9",
+      "/a%2Fb",
+    ]
+  ) {
+    let threw = false;
+    try {
+      parseBasePath(text);
+    } catch (e) {
+      threw = true;
+      assertMatch((e as Error).message, /basePath must be a path/);
+    }
+    assert(threw, text);
+  }
+  // A prefix that starts with a route of the studio's would be stripped
+  // twice behind a proxy that strips it.
+  for (
+    const text of ["/api", "/assets/x", "/f", "/w/studio", "/favicon.ico"]
+  ) {
+    let message = "";
+    try {
+      parseBasePath(text);
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    assertMatch(message, /may not start with/, text);
+  }
+  assertEquals(parseBasePath("/apis"), "/apis");
+  for (
+    const [text, meant] of [
+      [`${BASE}/`, BASE],
+      ["_stagecraft", BASE],
+      ["//team//studio/", "/team/studio"],
+    ]
+  ) {
+    let message = "";
+    try {
+      parseBasePath(text);
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    assertMatch(message, new RegExp(`did you mean '${meant}'\\?`));
+  }
+});
+
+Deno.test("studio: localPath takes basePath off a path under it, and leaves the rest", () => {
+  assertEquals(localPath("/assets/app.js"), "/assets/app.js");
+  assertEquals(localPath(`${BASE}/assets/app.js`), `${BASE}/assets/app.js`);
+  assertEquals(localPath(BASE, BASE), "/");
+  assertEquals(localPath(`${BASE}/`, BASE), "/");
+  assertEquals(localPath(`${BASE}/api/events`, BASE), "/api/events");
+  assertEquals(localPath("/api/events", BASE), "/api/events");
+  // Only a whole segment is the prefix.
+  assertEquals(localPath(`${BASE}x/api`, BASE), `${BASE}x/api`);
+});
+
+Deno.test("studio: without basePath the page is served exactly as built", async () => {
+  assertEquals(pageAt(PAGE_HTML), PAGE_HTML);
+  const deps = prefixed();
+  const res = await handleStudioRequest(get("/"), deps);
+  assertEquals(res.status, 200);
+  assertEquals(await res.text(), PAGE_HTML);
+  const prefixedPath = await handleStudioRequest(get(`${BASE}/`), deps);
+  assertEquals(prefixedPath.status, 404);
+  await prefixedPath.body?.cancel();
+});
+
+Deno.test("studio: under basePath the page asks for its files there and names the prefix", async () => {
+  const html = pageAt(PAGE_HTML, BASE);
+  assertMatch(html, /href="\/_stagecraft\/assets\/favicon\.svg"/);
+  assertMatch(html, /href="\/_stagecraft\/assets\/studio\.css"/);
+  assertMatch(html, /src="\/_stagecraft\/assets\/app\.js"/);
+  assertMatch(html, /<meta name="stagecraft-base" content="\/_stagecraft">/);
+  assert(!html.includes('="/assets/'), html);
+
+  const deps = prefixed(BASE);
+  for (const path of ["/", `${BASE}`, `${BASE}/`, `${BASE}/f/team/board`]) {
+    const res = await handleStudioRequest(get(path), deps);
+    assertEquals(res.status, 200, path);
+    assertEquals(res.headers.get("content-type"), "text/html; charset=utf-8");
+    assertEquals(await res.text(), html, path);
+    assertSecurityHeaders(res);
+  }
+});
+
+Deno.test("studio: under basePath every route answers with or without the prefix", async () => {
+  const deps = prefixed(BASE);
+  for (const local of ["/assets/fonts/a.woff2", "/api/factories"]) {
+    for (const path of [local, `${BASE}${local}`]) {
+      const res = await handleStudioRequest(get(path), deps);
+      assertEquals(res.status, 200, path);
+      await res.body?.cancel();
+    }
+  }
+  const listed = await body(
+    await handleStudioRequest(get(`${BASE}/api/factories`), deps),
+  );
+  assert(Array.isArray(listed.factories));
+  for (const path of [`${BASE}x/api/factories`, `${BASE}/elsewhere`]) {
+    const res = await handleStudioRequest(get(path), deps);
+    assertEquals(res.status, 404, path);
+    await res.body?.cancel();
+  }
+});
+
+Deno.test("studio: under basePath a page opened from a link in another site is still allowed", async () => {
+  const deps = prefixed(BASE);
+  const res = await handleStudioRequest(
+    raw(`${BASE}/f/team/board`, {
+      host: HOST,
+      "sec-fetch-site": "cross-site",
+      "sec-fetch-mode": "navigate",
+      "sec-fetch-dest": "document",
+    }),
+    deps,
+  );
+  assertEquals(res.status, 200);
+  await res.body?.cancel();
+  const api = await handleStudioRequest(
+    raw(`${BASE}/api/factories`, {
+      host: HOST,
+      "sec-fetch-site": "cross-site",
+    }),
+    deps,
+  );
+  assertEquals(api.status, 403);
+  await api.body?.cancel();
 });

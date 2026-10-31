@@ -58,6 +58,21 @@ Deno.test("studio: serve's publicOrigin is optional and must be a bare origin", 
   );
 });
 
+Deno.test("studio: serve's basePath is optional and must be a slash-led path", () => {
+  const args = studio.methods.serve.arguments;
+  assertEquals(args.parse({}), { port: 0 });
+  assertEquals(args.parse({ basePath: "/_stagecraft" }), {
+    port: 0,
+    basePath: "/_stagecraft",
+  });
+  for (const basePath of ["", "/", "_stagecraft", "/a//b", "/a/../b"]) {
+    assertFalse(args.safeParse({ basePath }).success, basePath);
+  }
+  const slash = args.safeParse({ basePath: "/_stagecraft/" });
+  assertFalse(slash.success);
+  assertMatch(slash.error.issues[0].message, /did you mean '\/_stagecraft'\?/);
+});
+
 Deno.test("studio: serve's server is optional and must be a swamp serve URL with no credentials", () => {
   const args = studio.methods.serve.arguments;
   for (

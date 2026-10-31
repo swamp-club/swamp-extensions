@@ -24,7 +24,13 @@
 //   /f/<factory>/board      the Board: every work item by stage
 //   /w/<key>                one work item (the work-item page, #2944)
 //
-// Pure: it maps a path to a route and back.
+// Behind a reverse proxy the page may be served under a path prefix, such as
+// /_stagecraft (serve's basePath). The server names it in a meta tag;
+// setBasePath takes it once at startup, routeHref puts it in front of each
+// address and parseRoute takes it off. At the root it is "" and changes
+// nothing.
+//
+// Otherwise pure: it maps a path to a route and back.
 
 import { FACTORY_VIEWS } from "../../extensions/models/_lib/engine/studio_cards.ts";
 
@@ -39,6 +45,33 @@ export type Route =
   /** A ticket on the factory's tracker that no work item has taken. */
   | { view: "ticket"; factory: string; id: string };
 
+let basePath = "";
+
+/** The prefix the page is served under: "" at the root, else /_stagecraft. */
+export function getBasePath(): string {
+  return basePath;
+}
+
+/** Set the prefix the page is served under; "" serves at the root. */
+export function setBasePath(path: string) {
+  basePath = path;
+}
+
+/** The prefix the server named in the page, or "" when it named none. */
+export function readBasePath(doc: {
+  querySelector(
+    selector: string,
+  ): { getAttribute(name: string): string | null } | null;
+}): string {
+  return doc.querySelector('meta[name="stagecraft-base"]')
+    ?.getAttribute("content") ?? "";
+}
+
+/** A path the server answers, such as /api/events, under the prefix. */
+export function served(path: string): string {
+  return `${basePath}${path}`;
+}
+
 function decode(part: string): string | null {
   try {
     return decodeURIComponent(part);
@@ -49,6 +82,13 @@ function decode(part: string): string | null {
 
 /** The route a path names, or null for one the page does not know. */
 export function parseRoute(pathname: string): Route | null {
+  // The server answers with or without the prefix (opened on its own port,
+  // say), so an address without it is read as it is; the page then writes
+  // the prefixed one.
+  if (pathname === basePath) pathname = "/";
+  else if (basePath !== "" && pathname.startsWith(`${basePath}/`)) {
+    pathname = pathname.slice(basePath.length);
+  }
   const raw = pathname.split("/").filter((s) => s !== "");
   const parts = raw.map(decode);
   if (parts.some((p) => p === null || p === "")) return null;
@@ -70,6 +110,10 @@ export function parseRoute(pathname: string): Route | null {
 
 /** The path of a route; a factory view with no factory yet is /. */
 export function routeHref(route: Route): string {
+  return served(routePath(route));
+}
+
+function routePath(route: Route): string {
   if (route.view === "work-item") {
     return `/w/${encodeURIComponent(route.key)}`;
   }
@@ -117,7 +161,7 @@ export function navHref(
   view: FactoryView,
   factory: string | null,
 ): string | null {
-  if (factory === null) return view === "design" ? "/" : null;
+  if (factory === null) return view === "design" ? served("/") : null;
   return routeHref({ view, factory });
 }
 

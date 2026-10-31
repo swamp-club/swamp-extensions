@@ -551,6 +551,37 @@ the public origin can read every factory definition and work item, so `serve`
 logs a warning when `publicOrigin` is set. Put access control in the proxy
 (Cloudflare Access, or Traefik basic or forward auth).
 
+### Serving the studio under a path
+
+By default the studio is served at the root of its host. To publish it under a
+path on a host that serves other things, such as
+`https://tools.example.com/_stagecraft`, give `serve` that path as `basePath`:
+
+```bash
+swamp model method run studio serve --input port=8123 \
+  --input publicOrigin=https://tools.example.com \
+  --input basePath=/_stagecraft
+```
+
+`basePath` starts with a slash and has no trailing slash; its segments are
+letters, digits, `.`, `_`, `~` and `-`. Its first segment may not be one the
+studio routes itself (`api`, `assets`, `f`, `w`, `favicon.ico`). The page asks for its files, API calls
+and event stream under it, and its addresses carry it, so links, reloads and
+bookmarks stay under the prefix. The studio answers each request with or without
+the prefix, so the proxy may strip it (Caddy `handle_path`) or pass it through
+(Caddy `handle`, Traefik without a `StripPrefix` middleware). With Caddy:
+
+```
+tools.example.com {
+  handle_path /_stagecraft/* {
+    reverse_proxy 127.0.0.1:8123
+  }
+}
+```
+
+Leave `basePath` out to serve at `/` as before. It can be given with `server`
+too.
+
 ### Reading a factory on a remote serve
 
 To see the factories and work items of a deployed `swamp serve` from your own

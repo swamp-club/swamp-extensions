@@ -124,7 +124,7 @@ export function ItemHead() {
         <div class="chips">
           <a
             class="lchip"
-            href={`/f/${encodeURIComponent(run.factory)}/board`}
+            href={routeHref({ view: "board", factory: run.factory })}
             onClick={(e) => {
               e.preventDefault();
               void go({ view: "board", factory: run.factory });

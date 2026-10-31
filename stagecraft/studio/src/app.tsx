@@ -35,6 +35,8 @@ import {
   FACTORY_VIEWS,
   navCurrent,
   navHref,
+  readBasePath,
+  setBasePath,
   titleFor,
   VIEW_NAMES,
 } from "./route.ts";
@@ -385,6 +387,8 @@ function App() {
 }
 
 async function main() {
+  // Behind a proxy the server names the prefix the page is served under.
+  setBasePath(readBasePath(document));
   // The address names the view, and the factory if it is a factory view.
   const start = startRoute();
   render(<App />, document.getElementById("root")!);

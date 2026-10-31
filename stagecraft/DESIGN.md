@@ -1733,6 +1733,19 @@ authentication (Seth, 2026-10-11): it changes nothing, but anyone who reaches
 the public origin reads every factory definition and work item, so `serve` logs
 a warning saying so and access control belongs in the proxy.
 
+**Under a path prefix** (swamp-club #4227). A proxy that publishes the studio
+under a path, such as `https://tools.example.com/_stagecraft`, broke the page:
+its files, API calls, event stream and addresses were all root-absolute.
+`serve` takes an optional `basePath`. The server answers each route with or
+without the prefix (`localPath`), so a proxy that strips it and one that passes
+it through both work, and it serves the page with its file URLs under the
+prefix and a `stagecraft-base` meta tag naming it (`pageAt`). The page reads
+the tag once at startup (`setBasePath`): `routeHref` puts the prefix in front of
+each address and `parseRoute` takes it off, and every API call and the event
+stream go through `served`. A meta tag rather than `<base href>`, since the
+CSP's `base-uri 'none'` stays. Without `basePath` the page is served as built
+and every path is as before.
+
 **Reading a remote serve** (swamp-club #3363). To see a deployed factory, the
 studio runs on the operator's machine and `serve` takes an optional `server`, a
 `swamp serve` URL, instead of running on the serve itself (which held a method
