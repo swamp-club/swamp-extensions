@@ -1,5 +1,5 @@
 /**
- * The import: finds this repo's Claude Code sessions, turns each one and its
+ * The import: finds the Claude Code sessions of the repos it is asked for, turns each one and its
  * subagents into agent session records (v2, swamp-club#4178), and writes them
  * as repo data. A session whose transcript and subagent files are unchanged
  * since the last import is skipped, so re-running is cheap and adds no
@@ -9,8 +9,9 @@
  */
 
 import { z } from "npm:zod@4.6.7";
-import { basename } from "jsr:@std/path@1.1.4";
+import { join, resolve } from "jsr:@std/path@1.1.4";
 import {
+  AGENT_SESSION_LIMITS,
   AGENT_SESSION_SCHEMA_VERSION,
   AGENT_SESSION_USER_ID_TAG,
   agentSessionDataName,
@@ -25,15 +26,33 @@ import {
   parseTranscript,
 } from "./claude_code/parse.ts";
 import {
+  checkoutKey,
   type DiscoveredSession,
   discoverSessions,
+  expandHome,
+  identityKey,
 } from "./claude_code/discover.ts";
+import {
+  gitFound,
+  isPathLike,
+  normalizeRemote,
+  prefixUnder,
+  RepoResolver,
+  type Resolved,
+} from "./claude_code/resolve.ts";
 import { linkSubagents } from "./claude_code/subagents.ts";
 import type { RedactContext } from "./redact.ts";
 import type { SwampIdentity, WhoamiResult } from "./whoami.ts";
 
 /** Data name of the index of imported source files. */
 export const IMPORT_INDEX_NAME = "import-index";
+
+/** The tag naming a session's repo, so a list can filter by it. */
+export const REPO_TAG = "repo";
+
+// Bumped when how a directory resolves to a repo changes, which drops the
+// index's resolved transcripts.
+const RESOLVE_FORMAT = 3;
 
 /**
  * Each session's import stamp, by session id: the importer version and its
@@ -46,12 +65,13 @@ export const ImportIndexSchema = z.object({
   version: z.literal(1),
   sessions: z.record(z.string(), z.string()),
   /**
-   * Transcripts that are not this repo's: a hash of each path, never the
-   * path, mapped to its size and mtime, so the next scan skips reading them.
-   * Valid only for the repo paths and globs in `othersKey`.
+   * Each transcript's repo: a hash of its path, never the path, mapped to its
+   * size and mtime and a key of its repo's identity, never the identity, so
+   * the next scan skips reading one whose repo is not imported. Valid only
+   * for the transcript root and resolve format in `resolvedKey`.
    */
-  others: z.record(z.string(), z.string()).optional(),
-  othersKey: z.string().optional(),
+  resolved: z.record(z.string(), z.string()).optional(),
+  resolvedKey: z.string().optional(),
   /** Each session's subagent record ids, so ones no longer produced are removed. */
   children: z.record(z.string(), z.array(z.string())).optional(),
 });
@@ -82,11 +102,17 @@ export interface ImportContext {
 
 /** Where to look and who is importing, resolved by the method. */
 export interface ImportSettings {
+  /** The repo the import runs in; its sessions are always imported. */
   readonly repoDir: string;
   readonly projectsDir: string;
-  readonly repoPaths: readonly string[];
+  /** Other repos whose sessions to import, as paths. */
+  readonly repos: readonly string[];
+  /** Import every session whose repo can be found. */
+  readonly all: boolean;
+  /** Repos to leave out, as paths or remotes. */
+  readonly exclude: readonly string[];
+  /** Globs over removed worktrees; `<repo>` stands for a repo's directory name. */
   readonly worktreeGlobs: readonly string[];
-  readonly repoBranches: ReadonlySet<string>;
   readonly since?: Date;
   readonly home?: string;
   readonly importerVersion: string;
@@ -99,6 +125,8 @@ export interface ImportSummary {
   readonly imported: number;
   readonly unchanged: number;
   readonly skipped: number;
+  /** Sessions whose repo could not be found. */
+  readonly unresolved: number;
   readonly subagents: number;
 }
 
@@ -174,6 +202,7 @@ async function sessionRecords(
   const top = parseTranscript(await Deno.readTextFile(session.transcript), {
     sidechain: false,
     redact,
+    root: session.root,
   });
   const subagents = [];
   for (const source of session.subagents) {
@@ -182,6 +211,7 @@ async function sessionRecords(
       parsed: parseTranscript(await Deno.readTextFile(source.transcript), {
         sidechain: true,
         redact,
+        root: session.root,
       }),
     });
   }
@@ -201,9 +231,8 @@ async function sessionRecords(
     );
   }
 
-  const repo = basename(settings.repoDir) || "repo";
   const base = {
-    repo,
+    repo: recordRepo(session.repo.identity),
     importerVersion: settings.importerVersion,
     invocation: top.invocation,
     ...(identity ? { identity } : {}),
@@ -257,6 +286,137 @@ async function sessionRecords(
   return records;
 }
 
+/**
+ * A repo identity as the record holds it: one over the record's name limit
+ * keeps its end, the part that tells repos apart.
+ */
+export function recordRepo(identity: string): string {
+  const max = AGENT_SESSION_LIMITS.nameLength;
+  return identity.length <= max ? identity : "…" + identity.slice(-(max - 1));
+}
+
+/** What to import: which repos, which to leave out. */
+interface Selection {
+  readonly selects: (resolved: Resolved) => boolean;
+  readonly mayHold: (identityKey: string, checkoutKey: string) => boolean;
+}
+
+/**
+ * Resolves the repo the import runs in, each of `repos` and each of
+ * `exclude` to repo identities. A `repos` path that is not a git repo is
+ * reported and left out; excluding the repo the import runs in is an error.
+ */
+async function selection(
+  settings: ImportSettings,
+  resolver: RepoResolver,
+  ctx: ImportContext,
+): Promise<Selection> {
+  const pathOf = (entry: string) =>
+    resolve(settings.repoDir, expandHome(entry, settings.home));
+  const run = await resolver.resolveDir(settings.repoDir);
+  const noGit = typeof run === "string" && !(await gitFound());
+  if (noGit) {
+    ctx.logger.warn(
+      "git is not on PATH: only sessions at or below this repo's path are imported",
+    );
+  } else if (
+    typeof run === "string" && await exists(join(settings.repoDir, ".git"))
+  ) {
+    // A git repo git could not read (it timed out, or refused the folder):
+    // taken as a plain folder, it would import almost nothing.
+    throw new Error(
+      `git did not answer for ${
+        resolver.display(settings.repoDir)
+      }, which is a git repo; try the import again`,
+    );
+  }
+
+  // A swamp repo that is not a git repo (or with no git to ask) is a repo by
+  // its path.
+  const runPlace = typeof run === "string"
+    ? { repo: resolver.addPlain(settings.repoDir), prefix: "" }
+    : run;
+  if (typeof run !== "string") resolver.addAnchor(run);
+  const targets = [{
+    identity: runPlace.repo.identity,
+    mainCheckout: runPlace.repo.mainCheckout,
+    prefix: runPlace.prefix,
+  }];
+  for (const entry of settings.repos) {
+    const r = await resolver.resolveDir(pathOf(entry));
+    if (typeof r === "string") {
+      ctx.logger.warn(
+        `repos: ${resolver.display(pathOf(entry))} is ${
+          r === "gone" ? "not there" : "not a git repo"
+        }; left out`,
+      );
+      continue;
+    }
+    resolver.addAnchor(r);
+    targets.push({
+      identity: r.repo.identity,
+      mainCheckout: r.repo.mainCheckout,
+      prefix: r.prefix,
+    });
+  }
+  const excluded = new Set<string>();
+  for (const entry of settings.exclude) {
+    let identity: string;
+    if (isPathLike(entry)) {
+      const r = await resolver.resolveDir(pathOf(entry));
+      if (r === "gone") {
+        ctx.logger.warn(
+          `exclude: ${resolver.display(pathOf(entry))} is not there`,
+        );
+      }
+      // A bare repo is excluded as its clones name it, without `.git`.
+      identity = typeof r === "string"
+        ? resolver.display(pathOf(entry).replace(/\.git$/, ""))
+        : r.repo.identity;
+    } else {
+      identity = normalizeRemote(entry);
+    }
+    if (identity === runPlace.repo.identity) {
+      throw new Error(
+        `exclude names ${identity}, the repo this import runs in; its sessions are always imported`,
+      );
+    }
+    excluded.add(identity);
+  }
+  if (settings.all && settings.repos.length > 0) {
+    ctx.logger.info("all imports every repo; repos adds nothing");
+  }
+  const targetKeys = new Set(
+    await Promise.all(targets.map((t) => identityKey(t.identity))),
+  );
+  const targetCheckouts = new Set(
+    await Promise.all(targets.map((t) => checkoutKey(t.mainCheckout))),
+  );
+  const excludedKeys = new Set(
+    await Promise.all([...excluded].map((i) => identityKey(i))),
+  );
+  return {
+    selects: (r) =>
+      !excluded.has(r.repo.identity) &&
+      (settings.all ||
+        targets.some((t) =>
+          t.identity === r.repo.identity && prefixUnder(r.prefix, t.prefix)
+        )),
+    mayHold: (key, checkout) =>
+      !excludedKeys.has(key) &&
+      (settings.all || targetKeys.has(key) || targetCheckouts.has(checkout)),
+  };
+}
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await Deno.stat(path);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function sha256(text: string): Promise<string> {
   const digest = await crypto.subtle.digest(
     "SHA-256",
@@ -282,33 +442,36 @@ function sameRecord(
     keys.every((k) => a[k] === b[k]);
 }
 
-/** Imports this repo's Claude Code sessions. */
+/** Imports the Claude Code sessions of the selected repos. */
 export async function importSessions(
   ctx: ImportContext,
   settings: ImportSettings,
 ): Promise<{ dataHandles: DataHandle[]; summary: ImportSummary }> {
   const index = await readIndex(ctx);
-  // Which transcripts are not this repo's depends on where the repo is. The
-  // key is a hash, so the index never holds the paths themselves.
-  const othersKey = await sha256(JSON.stringify([
-    settings.projectsDir,
-    [...settings.repoPaths].sort(),
-    [...settings.worktreeGlobs].sort(),
-  ]));
-  const { sessions, others, unreadable } = await discoverSessions({
-    repoDir: settings.repoDir,
-    projectsDir: settings.projectsDir,
-    repoPaths: settings.repoPaths,
-    worktreeGlobs: settings.worktreeGlobs,
-    repoBranches: settings.repoBranches,
-    ...(settings.since ? { since: settings.since } : {}),
-    ...(index.othersKey === othersKey && index.others
-      ? { knownOthers: new Map(Object.entries(index.others)) }
-      : {}),
-  });
+  const resolver = new RepoResolver(settings.home, settings.worktreeGlobs);
+  const { selects, mayHold } = await selection(settings, resolver, ctx);
+  // A transcript's repo does not depend on which repos are imported, so only
+  // a new transcript root or resolve format drops what is known. The key is
+  // a hash, so the index never holds the path itself.
+  const resolvedKey = await sha256(
+    JSON.stringify([settings.projectsDir, RESOLVE_FORMAT]),
+  );
+  const { sessions, resolved, unresolved, unreadable, seen } =
+    await discoverSessions(
+      {
+        projectsDir: settings.projectsDir,
+        resolver,
+        selects,
+        mayHold,
+        ...(settings.since ? { since: settings.since } : {}),
+        ...(index.resolvedKey === resolvedKey && index.resolved
+          ? { knownResolved: new Map(Object.entries(index.resolved)) }
+          : {}),
+      },
+    );
   if (sessions.length === 0) {
     ctx.logger.warn(
-      `No Claude Code sessions for this repo under ${settings.projectsDir}`,
+      `No Claude Code sessions for the selected repos under ${settings.projectsDir}`,
     );
   }
 
@@ -346,16 +509,16 @@ export async function importSessions(
   let imported = 0;
   let skipped = 0;
   let subagents = 0;
-  const nextOthers = Object.fromEntries(others);
+  const nextResolved = Object.fromEntries(resolved);
   const nextIndex: ImportIndex = {
     version: 1,
     sessions: { ...index.sessions },
-    others: nextOthers,
-    othersKey,
+    resolved: nextResolved,
+    resolvedKey,
     children: { ...index.children },
   };
-  const othersChanged = index.othersKey !== othersKey ||
-    !sameRecord(index.others, nextOthers);
+  const resolvedChanged = index.resolvedKey !== resolvedKey ||
+    !sameRecord(index.resolved, nextResolved);
   for (const session of changed) {
     const id = session.sessionId.toLowerCase();
     let records: AgentSessionRecord[] | string;
@@ -399,6 +562,7 @@ export async function importSessions(
             {
               tags: {
                 ...agentSessionTags(record),
+                [REPO_TAG]: record.repo,
                 ...(identity
                   ? { [AGENT_SESSION_USER_ID_TAG]: identity.swampUserId }
                   : {}),
@@ -440,13 +604,13 @@ export async function importSessions(
       : stamp(session);
   }
   // A session whose transcript is gone keeps its records, the lasting copy,
-  // but its index entries go. A since-limited scan does not see every
-  // session, so it prunes nothing.
+  // but its index entries go. One only left out by this run's repos, all or
+  // exclude keeps them, so a wider run later does not rewrite it. A
+  // since-limited scan does not see every session, so it prunes nothing.
   if (!settings.since) {
-    const found = new Set(sessions.map((s) => s.sessionId.toLowerCase()));
     for (const id of Object.keys(nextIndex.sessions)) {
       // A session whose files could not be read this time may well be back.
-      if (!found.has(id) && !unreadable.has(id)) {
+      if (!seen.has(id) && !unreadable.has(id)) {
         delete nextIndex.sessions[id];
         delete nextIndex.children![id];
       }
@@ -455,7 +619,7 @@ export async function importSessions(
   const childrenChanged = JSON.stringify(index.children ?? {}) !==
     JSON.stringify(nextIndex.children);
   if (
-    !sameRecord(index.sessions, nextIndex.sessions) || othersChanged ||
+    !sameRecord(index.sessions, nextIndex.sessions) || resolvedChanged ||
     childrenChanged
   ) {
     dataHandles.push(
@@ -468,10 +632,14 @@ export async function importSessions(
     imported,
     unchanged: sessions.length - changed.length,
     skipped,
+    unresolved,
     subagents,
   };
   ctx.logger.info(
-    `Imported ${imported} of ${sessions.length} sessions (${subagents} subagents); ${summary.unchanged} unchanged, ${skipped} skipped`,
+    `Imported ${imported} of ${sessions.length} sessions (${subagents} subagents); ${summary.unchanged} unchanged, ${skipped} skipped` +
+      (unresolved > 0
+        ? `; ${unresolved} sessions skipped whose repo could not be found`
+        : ""),
   );
   return { dataHandles, summary };
 }

@@ -1,48 +1,52 @@
 /**
- * Finds the Claude Code sessions that ran in this repo. Claude Code files a
- * session under a folder named after its working directory, but the naming
- * loses information (every non-alphanumeric character becomes `-`), so a
- * session belongs to the repo only by the `cwd` its own records carry: the
- * repo or one of its live worktrees, or a path matching a worktree glob (cue
- * removes worktrees after merge, so git no longer lists them) whose session
- * ran on a branch this repo has. A directory name alone is never enough: two
- * repos can share one.
+ * Finds the Claude Code sessions to import. Claude Code files a session under
+ * a folder named after its working directory, but the naming loses
+ * information (every non-alphanumeric character becomes `-`), so a session's
+ * repo rests only on the `cwd` its own records carry, resolved to a repo by
+ * {@link RepoResolver}. A directory name alone is never enough: two repos can
+ * share one.
  *
  * @module
  */
 
-import { basename, globToRegExp, join, SEPARATOR } from "jsr:@std/path@1.1.4";
+import { basename, join } from "jsr:@std/path@1.1.4";
 import { listSubagents, type SubagentSource } from "./subagents.ts";
+import type { Repo, RepoResolver, Resolved } from "./resolve.ts";
 
-/** How the importer finds transcripts and decides which belong to the repo. */
+/** How the importer finds transcripts and decides which to import. */
 export interface DiscoverOptions {
-  readonly repoDir: string;
   readonly projectsDir: string;
-  /** Paths that are this repo: the repo itself and its live worktrees. */
-  readonly repoPaths: readonly string[];
-  /** Globs over working directories that are also this repo. */
-  readonly worktreeGlobs: readonly string[];
+  readonly resolver: RepoResolver;
+  /** Whether a resolved session is one to import. */
+  readonly selects: (resolved: Resolved) => boolean;
   /**
-   * This repo's branch names. A glob match counts only when the session ran
-   * on one of them, other than a name every repo has (main, master).
+   * Whether any session of the repo with this identity key, or main checkout
+   * key, could be imported; false lets a transcript already resolved go
+   * unread. The checkout key catches a repo whose identity changed since (a
+   * remote added), which the identity key alone would hide.
    */
-  readonly repoBranches: ReadonlySet<string>;
+  readonly mayHold: (identityKey: string, checkoutKey: string) => boolean;
   /** Skip sessions whose transcript and subagents all changed before this. */
   readonly since?: Date;
   /**
-   * Transcripts already known not to be this repo's, as the hash of their
-   * path mapped to their size and mtime, so their heads are not read again.
+   * Transcripts already resolved, as the hash of their path mapped to their
+   * size and mtime and the keys of their repo's identity, main checkout and
+   * directory name, so their heads are not read again.
    */
-  readonly knownOthers?: ReadonlyMap<string, string>;
+  readonly knownResolved?: ReadonlyMap<string, string>;
 }
 
-/** What a scan found: this repo's sessions, and every transcript that is not. */
+/** What a scan found: the sessions to import, and every transcript resolved. */
 export interface DiscoveryResult {
   readonly sessions: DiscoveredSession[];
-  /** Every other transcript seen, hashed path to size and mtime, for the next scan. */
-  readonly others: Map<string, string>;
+  /** Every transcript resolved for good, hashed path to stamp and identity key, for the next scan. */
+  readonly resolved: Map<string, string>;
+  /** Sessions whose repo could not be found: not a git folder, or a repo that is gone. */
+  readonly unresolved: number;
   /** Session ids whose files could not be read this scan; not proof they are gone. */
   readonly unreadable: Set<string>;
+  /** Every session id with a transcript under the root, imported or not. */
+  readonly seen: Set<string>;
 }
 
 /** One session found on disk. */
@@ -53,6 +57,10 @@ export interface DiscoveredSession {
   /** The session's folder of subagents and tool results. */
   readonly sessionDir: string;
   readonly cwd: string;
+  /** The repo the session ran in. */
+  readonly repo: Repo;
+  /** The session's worktree root, which its paths are made relative to. */
+  readonly root: string;
   readonly subagents: readonly SubagentSource[];
   /** Size and mtime of the transcript and every subagent file. */
   readonly fingerprint: string;
@@ -80,82 +88,12 @@ export function defaultProjectsDir(
   return home ? join(home, ".claude", "projects") : undefined;
 }
 
-/** Expands a leading `~` and the `<repo>` placeholder in a worktree glob. */
-export function expandGlob(
-  pattern: string,
-  home: string | undefined,
-  repoDir: string,
-): string {
-  const withRepo = pattern.replaceAll("<repo>", basename(repoDir));
-  if (home && (withRepo === "~" || withRepo.startsWith("~/"))) {
-    return home + withRepo.slice(1);
+/** Expands a leading `~` in a path or glob. */
+export function expandHome(pattern: string, home: string | undefined): string {
+  if (home && (pattern === "~" || pattern.startsWith("~/"))) {
+    return home + pattern.slice(1);
   }
-  return withRepo;
-}
-
-function trimSep(p: string): string {
-  return p.length > 1 ? p.replace(/[\\/]+$/, "") : p;
-}
-
-// Branch names every repo can have, which say nothing about which repo it is.
-const GENERIC_BRANCHES = new Set([
-  "main",
-  "master",
-  "HEAD",
-  "trunk",
-  "develop",
-]);
-
-/**
- * How a session relates to this repo: `repo` when its cwd is the repo, below
- * it, or a live worktree, or it matches a worktree glob and ran on one of
- * this repo's own branches; `branch` when only the branch check refused a
- * glob match, which a later fetch can change; `other` otherwise.
- */
-export type RepoMatch = "repo" | "branch" | "other";
-
-/** Whether a session belongs to this repo (see {@link repoMatch}). */
-export function belongsToRepo(
-  head: TranscriptHead,
-  repoPaths: readonly string[],
-  globs: readonly RegExp[],
-  repoBranches: ReadonlySet<string>,
-): boolean {
-  return repoMatch(head, repoPaths, globs, repoBranches) === "repo";
-}
-
-/** How a session relates to this repo. */
-export function repoMatch(
-  head: TranscriptHead,
-  repoPaths: readonly string[],
-  globs: readonly RegExp[],
-  repoBranches: ReadonlySet<string>,
-): RepoMatch {
-  const { cwd, gitBranch } = head;
-  if (!cwd) return "other";
-  const dir = trimSep(cwd);
-  for (const p of repoPaths) {
-    const root = trimSep(p);
-    if (
-      dir === root || dir.startsWith(root + "/") ||
-      dir.startsWith(root + SEPARATOR)
-    ) {
-      return "repo";
-    }
-  }
-  if (globs.length === 0) return "other";
-  // A glob matches the worktree root, so test the cwd and each ancestor.
-  const parts = dir.split(/[\\/]/);
-  let globbed = false;
-  for (let i = parts.length; i > 1 && !globbed; i--) {
-    const prefix = parts.slice(0, i).join("/");
-    globbed = globs.some((g) => g.test(prefix));
-  }
-  if (!globbed) return "other";
-  return gitBranch && !GENERIC_BRANCHES.has(gitBranch) &&
-      repoBranches.has(gitBranch)
-    ? "repo"
-    : "branch";
+  return pattern;
 }
 
 // The cwd is on every user and assistant record, after its message, so the
@@ -220,7 +158,7 @@ export async function transcriptHead(path: string): Promise<TranscriptHead> {
   }
 }
 
-/** A short hash of a transcript path, so the index never stores other repos' paths. */
+/** A short hash of a transcript path, so the index never stores its path. */
 async function pathKey(path: string): Promise<string> {
   const digest = await crypto.subtle.digest(
     "SHA-256",
@@ -263,7 +201,41 @@ async function fingerprintOf(
   return parts.join(";");
 }
 
-/** Lists this repo's sessions under the transcript root. */
+/**
+ * A short key for a repo identity, so the index does not hold it in plain
+ * text. It is unsalted: anyone with the index can test a guessed repo.
+ */
+export function identityKey(identity: string): Promise<string> {
+  return pathKey(`repo:${identity}`);
+}
+
+/** A short key for a repo's main checkout path, as {@link identityKey}. */
+export function checkoutKey(mainCheckout: string): Promise<string> {
+  return pathKey(`checkout:${mainCheckout}`);
+}
+
+/** A short key for a repo's directory name, as {@link identityKey}. */
+function nameKey(name: string): Promise<string> {
+  return pathKey(`name:${name}`);
+}
+
+interface Hidden {
+  readonly name: string;
+  readonly transcript: string;
+  readonly nameKey: string;
+}
+
+interface Pending {
+  readonly name: string;
+  readonly transcript: string;
+  readonly key: string;
+  readonly stamp: string;
+  readonly mtime: number;
+  readonly cwd: string;
+  readonly gitBranch?: string;
+}
+
+/** Lists the sessions to import under the transcript root. */
 export async function discoverSessions(
   options: DiscoverOptions,
 ): Promise<DiscoveryResult> {
@@ -281,12 +253,21 @@ export async function discoverSessions(
     throw new NoTranscriptsError(host, options.projectsDir);
   }
 
-  const globs = options.worktreeGlobs.map((g) =>
-    globToRegExp(g, { extended: true, globstar: false })
-  );
-  const found: DiscoveredSession[] = [];
-  const others = new Map<string, string>();
+  const resolved = new Map<string, string>();
   const unreadable = new Set<string>();
+  const seen = new Set<string>();
+  const idOf = (name: string) => name.slice(0, -".jsonl".length);
+  const gone = (name: string, error: unknown) => {
+    if (!isFileGone(error)) throw error;
+    unreadable.add(idOf(name).toLowerCase());
+  };
+
+  // First every head, then every live directory, then the gone ones: a
+  // removed worktree resolves only against repos this scan has found.
+  const pending: Pending[] = [];
+  // Transcripts the cache let go unread, kept in case a gone worktree needs
+  // their repo to be known.
+  const hidden: Hidden[] = [];
   for await (const project of Deno.readDir(options.projectsDir)) {
     if (!project.isDirectory) continue;
     const projectDir = join(options.projectsDir, project.name);
@@ -300,121 +281,142 @@ export async function discoverSessions(
     for (const entry of entries) {
       if (!entry.isFile || !entry.name.endsWith(".jsonl")) continue;
       const transcript = join(projectDir, entry.name);
+      seen.add(idOf(entry.name).toLowerCase());
       // Claude Code's cleanup can delete a transcript mid-scan: skip that one
       // file, not the whole import.
       try {
         const info = await Deno.stat(transcript);
         const stamp = `${info.size}:${info.mtime?.getTime() ?? 0}`;
         const key = await pathKey(transcript);
-        if (options.knownOthers?.get(key) === stamp) {
-          others.set(key, stamp);
-          continue;
+        const known = options.knownResolved?.get(key);
+        if (known?.startsWith(`${stamp}|`)) {
+          const [identity, checkout, name] = known.slice(stamp.length + 1)
+            .split("|");
+          if (
+            identity && checkout && name && !options.mayHold(identity, checkout)
+          ) {
+            resolved.set(key, known);
+            hidden.push({ name: entry.name, transcript, nameKey: name });
+            continue;
+          }
         }
         const head = await transcriptHead(transcript);
-        const match = repoMatch(
-          head,
-          options.repoPaths,
-          globs,
-          options.repoBranches,
-        );
-        if (match !== "repo") {
-          // Only a verdict no later fetch can change is remembered.
-          if (match === "other") others.set(key, stamp);
-          continue;
-        }
-        const sessionId = entry.name.slice(0, -".jsonl".length);
-        const sessionDir = join(projectDir, sessionId);
-        // A subagent file deleted mid-scan drops only that subagent.
-        const subagents = [];
-        for (const sub of await listSubagents(sessionDir)) {
-          try {
-            await Deno.stat(sub.transcript);
-            subagents.push(sub);
-          } catch (error) {
-            if (!isFileGone(error)) throw error;
-          }
-        }
-        if (options.since) {
-          // A session is active since `since` if its transcript or any
-          // subagent changed since then.
-          let newest = info.mtime?.getTime() ?? 0;
-          for (const s of subagents) {
-            newest = Math.max(
-              newest,
-              (await Deno.stat(s.transcript)).mtime?.getTime() ?? 0,
-            );
-          }
-          if (newest < options.since.getTime()) continue;
-        }
-        found.push({
-          sessionId,
+        // A transcript with no working directory is no session to place.
+        if (!head.cwd) continue;
+        pending.push({
+          name: entry.name,
           transcript,
-          sessionDir,
-          cwd: head.cwd!,
-          subagents,
-          fingerprint: await fingerprintOf(transcript, subagents),
+          key,
+          stamp,
+          mtime: info.mtime?.getTime() ?? 0,
+          cwd: head.cwd,
+          ...(head.gitBranch ? { gitBranch: head.gitBranch } : {}),
         });
       } catch (error) {
-        if (!isFileGone(error)) throw error;
-        unreadable.add(entry.name.slice(0, -".jsonl".length).toLowerCase());
+        gone(entry.name, error);
       }
+    }
+  }
+
+  const places = new Map<Pending, Resolved>();
+  const lost: Pending[] = [];
+  for (const p of pending) {
+    const r = await options.resolver.resolveDir(p.cwd);
+    if (r === "gone") lost.push(p);
+    else if (r !== "unresolved") places.set(p, r);
+  }
+  let unresolved = pending.length - places.size - lost.length;
+  // A gone worktree is placed only against every repo it could be, so the
+  // repos the cache hid that share a name with it are resolved first;
+  // otherwise whether a shared branch is ambiguous would depend on the cache.
+  if (lost.length > 0 && hidden.length > 0) {
+    let names: Set<string> | "any" = new Set();
+    for (const p of lost) {
+      const c = options.resolver.candidateNames(p.cwd);
+      if (c === "any") {
+        names = "any";
+        break;
+      }
+      c.forEach((n) => (names as Set<string>).add(n));
+    }
+    const keys = names === "any"
+      ? undefined
+      : new Set(await Promise.all([...names].map(nameKey)));
+    for (const h of hidden) {
+      if (keys && !keys.has(h.nameKey)) continue;
+      try {
+        const head = await transcriptHead(h.transcript);
+        if (head.cwd) await options.resolver.resolveDir(head.cwd);
+      } catch (error) {
+        gone(h.name, error);
+      }
+    }
+  }
+  for (const p of lost) {
+    const r = await options.resolver.resolveGone(p.cwd, p.gitBranch);
+    if (r) places.set(p, r);
+    else unresolved++;
+  }
+
+  const found: DiscoveredSession[] = [];
+  for (const [p, place] of places) {
+    // Only a verdict no later fetch or remote can change is remembered.
+    if (place.settled && !place.repo.byPath) {
+      resolved.set(
+        p.key,
+        [
+          p.stamp,
+          await identityKey(place.repo.identity),
+          await checkoutKey(place.repo.mainCheckout),
+          await nameKey(place.repo.name),
+        ].join("|"),
+      );
+    }
+    if (!options.selects(place)) continue;
+    try {
+      const sessionId = idOf(p.name);
+      const sessionDir = join(p.transcript, "..", sessionId);
+      // A subagent file deleted mid-scan drops only that subagent.
+      const subagents = [];
+      for (const sub of await listSubagents(sessionDir)) {
+        try {
+          await Deno.stat(sub.transcript);
+          subagents.push(sub);
+        } catch (error) {
+          if (!isFileGone(error)) throw error;
+        }
+      }
+      if (options.since) {
+        // A session is active since `since` if its transcript or any
+        // subagent changed since then.
+        let newest = p.mtime;
+        for (const s of subagents) {
+          newest = Math.max(
+            newest,
+            (await Deno.stat(s.transcript)).mtime?.getTime() ?? 0,
+          );
+        }
+        if (newest < options.since.getTime()) continue;
+      }
+      found.push({
+        sessionId,
+        transcript: p.transcript,
+        sessionDir,
+        cwd: p.cwd,
+        repo: place.repo,
+        root: place.root,
+        subagents,
+        fingerprint: await fingerprintOf(p.transcript, subagents),
+      });
+    } catch (error) {
+      gone(p.name, error);
     }
   }
   return {
     sessions: found.sort((a, b) => a.sessionId.localeCompare(b.sessionId)),
-    others,
+    resolved,
+    unresolved,
     unreadable,
+    seen,
   };
-}
-
-/** This repo's local and remote branch names, with remote prefixes removed. */
-export async function gitBranches(repoDir: string): Promise<Set<string>> {
-  try {
-    const out = await new Deno.Command("git", {
-      args: [
-        "-C",
-        repoDir,
-        "for-each-ref",
-        "--format=%(refname)",
-        "refs/heads",
-        "refs/remotes",
-      ],
-      stdout: "piped",
-      stderr: "null",
-    }).output();
-    if (!out.success) return new Set();
-    const names = new Set<string>();
-    for (const ref of new TextDecoder().decode(out.stdout).split("\n")) {
-      if (ref.startsWith("refs/heads/")) {
-        names.add(ref.slice("refs/heads/".length));
-      } else if (ref.startsWith("refs/remotes/")) {
-        // refs/remotes/<remote>/<branch>
-        const rest = ref.slice("refs/remotes/".length);
-        const slash = rest.indexOf("/");
-        if (slash > 0) names.add(rest.slice(slash + 1));
-      }
-    }
-    return names;
-  } catch {
-    // No git on PATH: globs then match nothing, and the repo paths still apply.
-    return new Set();
-  }
-}
-
-/** The repo and its live worktrees, from `git worktree list --porcelain`. */
-export async function gitWorktrees(repoDir: string): Promise<string[]> {
-  try {
-    const out = await new Deno.Command("git", {
-      args: ["-C", repoDir, "worktree", "list", "--porcelain"],
-      stdout: "piped",
-      stderr: "null",
-    }).output();
-    if (!out.success) return [];
-    return new TextDecoder().decode(out.stdout).split("\n")
-      .filter((l) => l.startsWith("worktree "))
-      .map((l) => l.slice("worktree ".length));
-  } catch {
-    // No git on PATH: the repo dir and the globs still apply.
-    return [];
-  }
 }

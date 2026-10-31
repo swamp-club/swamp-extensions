@@ -1,6 +1,7 @@
 /**
  * Synthetic Claude Code transcripts for tests, written into a temp home so
- * the absolute paths redaction works on are real. Never copied from a real
+ * the absolute paths redaction works on are real, beside real git repos that
+ * sessions resolve to. Never copied from a real
  * session. Every prompt, reply, brief, description, query and tool output
  * holds a `CANARY` string, so a test can prove none of it reaches a record.
  *
@@ -22,14 +23,78 @@ export const FOREIGN_ID = "66666666-2222-4333-8444-555555555555";
 /** The branch the removed worktree ran on; the repo still has it. */
 export const WORKTREE_BRANCH = "cue/123-feature";
 
+/** The demo repo's remote, and the identity it normalizes to. */
+export const DEMO_REMOTE = "git@example.com:acme/demo.git";
+export const DEMO_REPO = "example.com/acme/demo";
+
+async function gitOk(args: string[], cwd?: string): Promise<boolean> {
+  try {
+    const out = await new Deno.Command("git", {
+      args,
+      ...(cwd ? { cwd } : {}),
+      stdin: "null",
+      stdout: "null",
+      stderr: "piped",
+      env: {
+        GIT_CONFIG_NOSYSTEM: "1",
+        ...(Deno.build.os === "windows"
+          ? {}
+          : { GIT_CONFIG_GLOBAL: "/dev/null" }),
+        GIT_AUTHOR_NAME: "test",
+        GIT_AUTHOR_EMAIL: "test@example.invalid",
+        GIT_COMMITTER_NAME: "test",
+        GIT_COMMITTER_EMAIL: "test@example.invalid",
+      },
+    }).output();
+    return out.success;
+  } catch {
+    return false;
+  }
+}
+
+/** Whether git is on PATH: sessions resolve through it, so tests need it. */
+export const GIT_AVAILABLE: boolean = await gitOk(["--version"]);
+
+/** Makes a git repo with one commit, an optional remote and extra branches. */
+export async function gitInit(
+  dir: string,
+  options: { remote?: string; branches?: readonly string[] } = {},
+): Promise<void> {
+  await Deno.mkdir(dir, { recursive: true });
+  const steps: string[][] = [
+    ["init", "-q", "-b", "main"],
+    ["commit", "-q", "--allow-empty", "-m", "init"],
+    ...(options.remote ? [["remote", "add", "origin", options.remote]] : []),
+    ...(options.branches ?? []).map((b) => ["branch", b]),
+  ];
+  for (const args of steps) {
+    if (!(await gitOk(args, dir))) {
+      throw new Error(`git ${args.join(" ")} failed in a test repo`);
+    }
+  }
+}
+
+/** Adds a live worktree of a repo on a new branch. */
+export async function gitWorktree(
+  repo: string,
+  dir: string,
+  branch: string,
+): Promise<void> {
+  if (!(await gitOk(["worktree", "add", "-q", "-b", branch, dir], repo))) {
+    throw new Error("git worktree add failed in a test repo");
+  }
+}
+
 /** The temp tree a fixture lives in. */
 export interface Fixture {
   readonly root: string;
   readonly home: string;
   readonly repoDir: string;
   readonly projectsDir: string;
-  /** A removed cue worktree of the repo, matched by glob only. */
+  /** Where removed cue worktrees were; `<repo>` is a repo's directory name. */
   readonly worktreeGlob: string;
+  /** Another repo, with no remote, whose folder name shares a prefix. */
+  readonly otherRepo: string;
   readonly sessionDir: string;
   /** The interactive session's transcript, for touching it in tests. */
   readonly transcript: string;
@@ -42,6 +107,11 @@ const at = (s: number) => new Date(T0 + s * 1000).toISOString();
 
 function encode(path: string): string {
   return path.replace(/[^A-Za-z0-9]/g, "-");
+}
+
+/** The transcript of a session that ran in `cwd`, as Claude Code files it. */
+export function transcriptPath(f: Fixture, cwd: string, id: string): string {
+  return join(f.projectsDir, encode(cwd), `${id}.jsonl`);
 }
 
 function common(cwd: string, sessionId: string, sidechain = false): Rec {
@@ -125,6 +195,42 @@ function result(
   };
 }
 
+/**
+ * Writes a one-turn session that ran in `cwd`: a prompt holding the canary,
+ * and a Bash call naming a file under `file` and one under home. Returns the
+ * transcript's path.
+ */
+export async function writeSession(
+  f: Fixture,
+  options: {
+    readonly cwd: string;
+    readonly id: string;
+    readonly gitBranch?: string;
+    /** A path the session reads; defaults to `<cwd>/a.ts`. */
+    readonly file?: string;
+  },
+): Promise<string> {
+  const project = join(f.projectsDir, encode(options.cwd));
+  await Deno.mkdir(project, { recursive: true });
+  const c = {
+    ...common(options.cwd, options.id),
+    gitBranch: options.gitBranch ?? "main",
+  };
+  const transcript = join(project, `${options.id}.jsonl`);
+  await writeJsonl(transcript, [
+    prompt(c, 0, "look"),
+    reply(c, 1, `msg_${options.id.slice(0, 8)}`, [
+      toolUse("toolu_x1", "Read", {
+        file_path: options.file ?? join(options.cwd, "a.ts"),
+      }),
+      toolUse("toolu_x2", "Bash", { command: `cat ${f.home}/notes` }),
+    ], usage(1, 1)),
+    result(c, 2, "toolu_x1"),
+    result(c, 2, "toolu_x2"),
+  ]);
+  return transcript;
+}
+
 async function writeJsonl(path: string, records: Array<Rec | string>) {
   await Deno.writeTextFile(
     path,
@@ -142,9 +248,9 @@ export async function writeFixture(): Promise<Fixture> {
   const worktree = join(home, ".cue", "work", "123-feature", "demo");
   const otherRepo = join(home, "src", "other");
   const projectsDir = join(home, ".claude", "projects");
-  for (const d of [repoDir, otherRepo]) {
-    await Deno.mkdir(d, { recursive: true });
-  }
+  await gitInit(repoDir, { remote: DEMO_REMOTE, branches: [WORKTREE_BRANCH] });
+  await gitInit(otherRepo);
+  await Deno.mkdir(join(repoDir, "src"));
 
   // The interactive session, with a subagent that starts a nested subagent.
   const project = join(projectsDir, encode(repoDir));
@@ -355,7 +461,8 @@ export async function writeFixture(): Promise<Fixture> {
     home,
     repoDir,
     projectsDir,
-    worktreeGlob: join(home, ".cue", "work", "*", "demo"),
+    otherRepo,
+    worktreeGlob: join(home, ".cue", "work", "*", "<repo>"),
     sessionDir,
     transcript,
   };

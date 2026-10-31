@@ -104,6 +104,11 @@ export interface ParseOptions {
   /** Read the subagent's own records (`isSidechain: true`) instead of the parent's. */
   readonly sidechain: boolean;
   readonly redact: Omit<RedactContext, "cwd">;
+  /**
+   * The directory paths become relative to: the session's repo root. When
+   * absent, the transcript's own cwd.
+   */
+  readonly root?: string;
 }
 
 type Json = Record<string, unknown>;
@@ -344,7 +349,7 @@ export function parseTranscript(
       const tool = b.name.slice(0, 200);
       const { text, truncated } = callText(tool, b.input, {
         ...options.redact,
-        cwd: cwd ?? "",
+        cwd: options.root ?? cwd ?? "",
       });
       const start = rel(startMs);
       const call: OpenCall["call"] = {

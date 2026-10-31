@@ -1,12 +1,13 @@
-import { assert, assertEquals, assertFalse } from "jsr:@std/assert@1.0.19";
-import { globToRegExp, join } from "jsr:@std/path@1.1.4";
+import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
+import { join } from "jsr:@std/path@1.1.4";
 import {
-  belongsToRepo,
   defaultProjectsDir,
+  type DiscoverOptions,
   discoverSessions,
-  expandGlob,
+  expandHome,
   transcriptHead,
 } from "./discover.ts";
+import { RepoResolver } from "./resolve.ts";
 
 const env = (vars: Record<string, string>) => ({ get: (k: string) => vars[k] });
 
@@ -22,47 +23,37 @@ Deno.test("defaultProjectsDir: CLAUDE_CONFIG_DIR wins over home", () => {
   assertEquals(defaultProjectsDir(env({}), undefined), undefined);
 });
 
-Deno.test("expandGlob: expands ~ and <repo>", () => {
+Deno.test("expandHome: expands a leading ~ only", () => {
   assertEquals(
-    expandGlob("~/.cue/work/*/<repo>", "/home/a", "/home/a/sc/demo"),
-    "/home/a/.cue/work/*/demo",
+    expandHome("~/.cue/work/*/<repo>", "/home/a"),
+    "/home/a/.cue/work/*/<repo>",
   );
-  assertEquals(expandGlob("/abs/<repo>", undefined, "/r/x"), "/abs/x");
+  assertEquals(expandHome("/abs/~x", "/home/a"), "/abs/~x");
+  assertEquals(expandHome("~/x", undefined), "~/x");
 });
 
-Deno.test("belongsToRepo: the repo or below it; never a sibling sharing a prefix", () => {
-  const paths = ["/h/src/demo"];
-  const yes = (cwd: string) => belongsToRepo({ cwd }, paths, [], new Set());
-  assert(yes("/h/src/demo"));
-  assert(yes("/h/src/demo/sub/dir"));
-  assert(yes("/h/src/demo/"));
-  assertFalse(yes("/h/src/demo-two"));
-  assertFalse(belongsToRepo({}, paths, [], new Set()));
-});
-
-Deno.test("belongsToRepo: a glob match counts only on one of this repo's own branches", () => {
-  const globs = [globToRegExp("/h/.cue/work/*/demo", { globstar: false })];
-  const branches = new Set(["main", "cue/12-x"]);
-  const at = (cwd: string, gitBranch?: string) =>
-    belongsToRepo(
-      gitBranch ? { cwd, gitBranch } : { cwd },
-      [],
-      globs,
-      branches,
-    );
-  assert(at("/h/.cue/work/12-x/demo", "cue/12-x"));
-  assert(at("/h/.cue/work/12-x/demo/a", "cue/12-x"));
-  assertFalse(at("/h/.cue/work/12-x/other", "cue/12-x"));
-  // Another repo with the same name, on a branch this repo lacks.
-  assertFalse(at("/h/.cue/work/99-y/demo", "cue/99-y"));
-  // A name every repo has proves nothing.
-  assertFalse(at("/h/.cue/work/99-y/demo", "main"));
-  assertFalse(at("/h/.cue/work/12-x/demo"));
-});
+/**
+ * Options that import the sessions of `dir`, a folder that is not a git
+ * repo, so these tests need no git.
+ */
+function plainRepo(projectsDir: string, dir: string): DiscoverOptions {
+  const resolver = new RepoResolver(undefined, []);
+  const repo = resolver.addPlain(dir);
+  return {
+    projectsDir,
+    resolver,
+    selects: (r) => r.repo.identity === repo.identity,
+    mayHold: () => true,
+  };
+}
 
 Deno.test("discoverSessions: membership rests on cwd, not on the folder's name", async () => {
   const root = await Deno.makeTempDir();
+  const work = await Deno.makeTempDir();
   try {
+    const demo = join(work, "demo");
+    await Deno.mkdir(demo);
+    await Deno.mkdir(join(work, "demo-two"));
     // A folder named nothing like the repo, holding a session that ran in it.
     const odd = join(root, "renamed-by-a-future-claude");
     await Deno.mkdir(odd);
@@ -71,7 +62,7 @@ Deno.test("discoverSessions: membership rests on cwd, not on the folder's name",
       JSON.stringify({ type: "summary" }) + "\n" +
         JSON.stringify({
           type: "user",
-          cwd: "/r/demo",
+          cwd: demo,
           message: { content: "x" },
         }) + "\n",
     );
@@ -80,23 +71,21 @@ Deno.test("discoverSessions: membership rests on cwd, not on the folder's name",
     await Deno.mkdir(look);
     await Deno.writeTextFile(
       join(look, "s2.jsonl"),
-      JSON.stringify({ type: "user", cwd: "/r/demo-two" }) + "\n",
+      JSON.stringify({ type: "user", cwd: join(work, "demo-two") }) + "\n",
     );
     await Deno.writeTextFile(join(look, "s3.jsonl"), "");
-    const { sessions: found, others } = await discoverSessions({
-      repoDir: "/r/demo",
-      projectsDir: root,
-      repoPaths: ["/r/demo"],
-      worktreeGlobs: [],
-      repoBranches: new Set(),
-    });
-    // s2 and the empty s3 are other repos' (or nobody's), by hash only.
-    assertEquals(others.size, 2);
-    assertFalse([...others.keys()].some((k) => k.includes("/")));
+    const { sessions: found, unresolved } = await discoverSessions(
+      plainRepo(root, demo),
+    );
+    // s2 ran in a sibling sharing the repo's prefix, which is no git repo;
+    // the empty s3 ran nowhere and is not counted.
+    assertEquals(unresolved, 1);
     assertEquals(found.map((s) => s.sessionId), ["s1"]);
+    assertEquals(found[0].root, demo);
     assert(found[0].fingerprint.startsWith("s1.jsonl:"));
   } finally {
     await Deno.remove(root, { recursive: true });
+    await Deno.remove(work, { recursive: true });
   }
 });
 
@@ -146,20 +135,13 @@ Deno.test("discoverSessions: a subagent's meta is part of the fingerprint", asyn
     await Deno.mkdir(join(project, "s1", "subagents"), { recursive: true });
     await Deno.writeTextFile(
       join(project, "s1.jsonl"),
-      JSON.stringify({ type: "user", cwd: "/r/demo" }) + "\n",
+      JSON.stringify({ type: "user", cwd: project }) + "\n",
     );
     await Deno.writeTextFile(
       join(project, "s1", "subagents", "agent-a.jsonl"),
       "",
     );
-    const scan = () =>
-      discoverSessions({
-        repoDir: "/r/demo",
-        projectsDir: root,
-        repoPaths: ["/r/demo"],
-        worktreeGlobs: [],
-        repoBranches: new Set(),
-      });
+    const scan = () => discoverSessions(plainRepo(root, project));
     const before = (await scan()).sessions[0].fingerprint;
     await Deno.writeTextFile(
       join(project, "s1", "subagents", "agent-a.meta.json"),

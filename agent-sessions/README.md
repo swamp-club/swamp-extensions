@@ -35,7 +35,7 @@ The target is redacted before it is written:
 
 | Rule | Example |
 | ---- | ------- |
-| The session's cwd becomes relative | `/home/a/repo/models/x.yaml` → `models/x.yaml` |
+| Paths in the session's repo become relative to its root (the worktree's top directory) | `/home/a/repo/models/x.yaml` → `models/x.yaml` |
 | Home becomes `~` | `/home/a/notes` → `~/notes` |
 | The harness's scratch folders and transcript root are masked | `$SCRATCH`, `$HARNESS_LOGS/…` |
 | Git SHAs (40 hex in a git command, after `@`/`#`, in a `/commit/` URL) and `sha256:` digests are shortened; any other 40-hex, 64-hex or longer hex value is redacted | first 10 characters |
@@ -72,23 +72,62 @@ names its parent session and its subagent type, and copies the parent's
 
 ## Which sessions
 
-A session belongs to this repo when the working directory its transcript
-records is:
+Each session's repo is found from the working directory its transcript
+records:
 
-- the repo or a directory below it;
-- a worktree that `git worktree list` shows;
-- or a path matching one of `worktreeGlobs`, for worktrees git no longer
-  lists, when the session ran on one of this repo's branches. The default,
-  `~/.cue/work/*/<repo>`, covers cue's worktrees; `<repo>` is the repo
-  directory's name. Two repos can share a directory name, so the branch is
-  what tells them apart; `main` and `master` prove nothing and never count.
+1. **The directory exists.** Git names its top directory and its main
+   repo, so a worktree counts as the repo it was made from. The repo is
+   known by its `origin` remote, normalized (`git@example.com:acme/demo.git`
+   and `https://example.com/acme/demo` are both `example.com/acme/demo`;
+   credentials in a URL are dropped), so two clones of one remote are one
+   repo. A repo with no remote is known by its main checkout's path, home as
+   `~`; outside home that is an absolute path.
+2. **The directory is gone** (a removed worktree). It counts when it matches
+   one of `worktreeGlobs` for a repo already found and the session ran on one
+   of that repo's branches. The default, `~/.cue/work/*/<repo>`, covers cue's
+   worktrees; `<repo>` is a repo's directory name. Two repos can share a
+   directory name, so the branch is what tells them apart; `main` and
+   `master` prove nothing and never count, and a branch two such repos both
+   have leaves the session unplaced (repos the import has seen sessions of
+   count, including ones it skipped reading).
+3. **Otherwise** (not a git folder, a repo that is gone) the session is
+   skipped, and the import reports how many were.
 
-Sessions from other repos on the machine are never read beyond the first
-lines that name their directory and branch. The import remembers them by a
-hash of their path, size and modification time, so the next import does not
-read them again, and no other repo's paths are stored. A worktree session
-left out only because its branch was missing is not remembered, so it is
-imported once the branch is fetched.
+Git runs once per distinct directory. By default the import takes the
+sessions of the repo it runs in: the repo, a directory below it (one since
+deleted too), or any of its worktrees. Without git on PATH it takes the
+sessions at or below the repo's path, and says so. When the swamp repo is a folder inside a larger git repo,
+only sessions in that folder (in any worktree) count. A swamp repo that is
+not a git repo takes the sessions at or below its path. A git repo nested in
+the swamp repo is its own repo and is not taken.
+
+- `repos` adds other repos, by path. Each is matched the same way, and its
+  records land in the repo the import runs in.
+- `all` takes every session on the machine whose repo can be found.
+- `exclude` leaves repos out, by path or remote URL. Excluding one clone
+  leaves out every clone of its remote. Excluding the repo the import runs in
+  is an error.
+
+> **`all` is for internal or local testing only.** It puts every project's
+> commands and paths, personal and client repos included, into one repo's
+> data. Use `exclude` for repos that must stay out, and never push that data
+> anywhere shared.
+
+Each record names its repo in `repo` (also in its `summary` tag) and in a
+`repo` tag, so a list can filter by repo. Two swamp repos in different
+folders of one git repo share one name.
+
+Sessions not imported are never read beyond the first lines that name their
+directory and branch. The import remembers each transcript, by a hash of
+its path, with its size and modification time and hashes of its repo's name
+and main checkout, so the next import does not read it again, even with
+different `repos`, `all` or `exclude`. No path or repo name is stored in
+plain text, though the hashes are unsalted: someone holding the data can
+test a guessed repo name. A repo known by its path (no remote) is not
+remembered, so once it gains a remote it is read again under its new name. A
+session placed by its branch, or not placed at all, is not remembered, so a
+later fetch or clone can place it. A run that imports fewer repos than an
+earlier one leaves the others' records and import state alone.
 
 ## Re-importing
 
@@ -109,20 +148,26 @@ Claude Code deletes old transcripts after a while, so the import is the
 lasting copy. Records are kept until removed.
 
 Use one `@swamp/agent-sessions` behavior per repo: each one keeps its own
-copy of every session.
+copy of every session it imports.
 
 ## Usage
 
 ```bash
 swamp model create @swamp/agent-sessions sessions
 swamp model method run sessions import
+swamp model method run sessions import --input 'repos:json=["~/src/other"]'
+swamp model method run sessions import --input all=true \
+  --input 'exclude:json=["~/src/client-repo"]'
 ```
 
 | Argument | Default | Meaning |
 | -------- | ------- | ------- |
 | `since` | none | Only sessions whose transcript or any subagent changed on or after this date: `2026-10-01` (local midnight) or an ISO 8601 time. A session started earlier but active since is imported. |
 | `projectsDir` | `CLAUDE_CONFIG_DIR/projects`, else `~/.claude/projects` | Where Claude Code keeps transcripts. |
-| `worktreeGlobs` | `["~/.cue/work/*/<repo>"]` | Extra working directories that are this repo, counted only on this repo's branches. |
+| `worktreeGlobs` | `["~/.cue/work/*/<repo>"]` | Where removed worktrees were. `<repo>` is a repo's directory name; a match counts only on one of that repo's branches. |
+| `repos` | `[]` | Other repos whose sessions to import too, as paths (`~` and paths relative to this repo work). One that is not there or not a git repo is reported and left out. |
+| `all` | `false` | Import every session whose repo can be found. Internal or local testing only (see above). |
+| `exclude` | `[]` | Repos to leave out, as paths or remote URLs. |
 
 When you are logged in to swamp-club, each record carries your swamp-club
 user id and username, taken once per import from `swamp auth whoami`.
