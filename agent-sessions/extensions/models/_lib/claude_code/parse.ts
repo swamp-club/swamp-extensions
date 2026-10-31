@@ -15,6 +15,7 @@ import {
   type AgentSessionTurn,
 } from "../contract/session_record.ts";
 import { callText, type RedactContext } from "../redact.ts";
+import type { CallLabel } from "../classify/label.ts";
 
 /** The harness slug every Claude Code record is written under. */
 export const CLAUDE_CODE_HARNESS = "claude-code";
@@ -109,6 +110,8 @@ export interface ParseOptions {
    * absent, the transcript's own cwd.
    */
   readonly root?: string;
+  /** Labels each call from its tool name and raw input; without it calls stay unlabeled. */
+  readonly label?: (tool: string, input: unknown) => CallLabel;
 }
 
 type Json = Record<string, unknown>;
@@ -361,7 +364,7 @@ export function parseTranscript(
         ok: true,
         text,
         ...(truncated ? { truncated } : {}),
-        label: "unlabeled",
+        ...(options.label?.(tool, b.input) ?? { label: "unlabeled" }),
       };
       turn.calls.push(call);
       calls.set(b.id, { call, turn, startMs });

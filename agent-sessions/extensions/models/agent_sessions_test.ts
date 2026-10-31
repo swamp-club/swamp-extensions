@@ -190,8 +190,11 @@ gitTest(
       const bash = calls.get("toolu_bash1")!;
       assertEquals(bash.ok, false);
       assertEquals(bash.exitCode, 2);
-      assertEquals(bash.label, "unlabeled");
-      assertEquals(bash.category, undefined);
+      // A write into models/ goes around swamp, so it is a bypass.
+      assertEquals(bash.label, "bypass");
+      assertEquals(bash.category, "hand-edited definition");
+      assertEquals(bash.rule, "shell write to a swamp-managed path");
+      assertEquals(calls.get("toolu_read1")!.label, "neutral");
       assertEquals(bash.start, 3000);
       assertEquals(bash.end, 5000);
       assertEquals(
@@ -286,6 +289,33 @@ gitTest(
       assert(rewritten.includes(name(SESSION_ID)));
       assertFalse(rewritten.includes(name(HEADLESS_ID)));
       assert(rewritten.includes("import-index"));
+    });
+  },
+);
+
+gitTest(
+  "import: every call is labelled; pulling an extension relabels the repo's sessions",
+  async () => {
+    await withFixture(async (f) => {
+      const h = harness();
+      await importSessions(h.ctx, settings(f));
+      for (const record of sessions(h.writes).values()) {
+        for (const call of allCalls(record)) {
+          assert(call.label !== "unlabeled", `${call.id} is labelled`);
+        }
+      }
+      const first = h.writes.length;
+      await Deno.mkdir(join(f.repoDir, ".swamp"));
+      await Deno.writeTextFile(
+        join(f.repoDir, ".swamp", "upstream_extensions.json"),
+        JSON.stringify({ extensions: [{ name: "@swamp/git" }] }),
+      );
+      const pulled = await importSessions(h.ctx, settings(f));
+      // Every session here is the demo repo's, its worktree's included.
+      assertEquals(pulled.summary.imported, 4);
+      assert(h.writes.length > first);
+      const again = await importSessions(h.ctx, settings(f));
+      assertEquals(again.summary.unchanged, 4);
     });
   },
 );

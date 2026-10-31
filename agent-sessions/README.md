@@ -21,8 +21,51 @@ Claude Code session and one per subagent, named
 - whether a person steered it (`interactive`) or automation did (`headless`,
   for example `claude -p`).
 
-Calls are written `unlabeled`. Classifying them as swamp, bypass or neutral
-is a later step (swamp-club#4157).
+Every call is labelled, and each record carries findings (below).
+
+## Labels
+
+Each call is labelled `swamp` (it used swamp), `bypass` (it did a job swamp
+could have done, around it) or `neutral` (neither), with a category and the
+rule that decided it. Rules only, no model. They read the call's raw input,
+heredoc bodies included, before redaction; the first that matches wins. A
+category or rule keeps only a program's plain file name and swamp's
+subcommand words, never a path, a flag's value or an assignment:
+
+| Rule | Label | Category |
+| ---- | ----- | -------- |
+| A shell write (`cat >`, `sed -i`, `tee`, a redirect, a script writing a file) to a swamp-managed path: `models/`, `workflows/`, `vaults/`, `grants/`, `.swamp.yaml` (not an extension's own `extensions/models/`). Wins over a swamp call in the same command | bypass | hand-edited definition |
+| Any shell segment whose program is `swamp` | swamp | `swamp <command>` |
+| Any other shell write | neutral | user code (shell write) |
+| Reading `.swamp/data`, `.swamp/outputs` or `.swamp/logs` directly | bypass | read swamp state directly |
+| Running a program an installed extension covers; read-only git subcommands (`status`, `log`, `diff`, `show`, …) are not | bypass | `git — covered by @swamp/git` |
+| Reading `.swamp/pulled-extensions` with read-only programs | neutral | read extension source |
+| Any other program that is not read-only | bypass | `other CLI: <program>` |
+| Read-only programs (`ls`, `cat`, `grep`, `jq`, …) and other git | neutral | read-only shell, git |
+| An edit or write to a swamp-managed path, or under `.swamp/` | bypass | hand-edited definition |
+| An edit or write under `extensions/`, or elsewhere | neutral | extension authoring, user code |
+| A Read of `.swamp/data`; of `.swamp/pulled-extensions` | bypass; neutral | read swamp state directly; read extension source |
+| Skills, searches, web, MCP, subagents and other tools | neutral | the tool |
+
+**Coverage** comes from the extensions installed in the session's repo, read
+from its `.swamp/upstream_extensions.json` (a worktree, whose `.swamp` is
+not checked in, reads its main checkout's). No manifest says which program
+an extension wraps, so the extension's name stands in: its name after the
+scope, without a `-runner` or `-cli` suffix. `@swamp/git` covers `git`,
+`@swamp/deno-runner` covers `deno`.
+
+## Findings
+
+Each record gets findings from its own calls, so a subagent's findings are
+about that subagent and its calls are never counted in its parent's. Each
+names where to tune: a skill, a rule or swamp.
+
+| Finding | Severity |
+| ------- | -------- |
+| The same definition hand-edited 3 or more times, with the calls that failed between the first and last edit | high when any failed between, else medium |
+| Failed calls less than 3 minutes apart | medium for 2, high for 3 or more |
+| Running a program an installed extension covers, one finding per program | medium |
+| 3 or more reads of pulled extension source (a docs or skill gap) | medium |
 
 ### Never stored
 
@@ -133,7 +176,9 @@ earlier one leaves the others' records and import state alone.
 
 Run `import` as often as you like. A session whose transcript and subagent
 files have the same size and modification time as at the last import, by the
-same importer version, is skipped and writes nothing. A changed one is
+same importer version, with the same extensions installed in its repo, is
+skipped and writes nothing. Pulling or removing an extension relabels that
+repo's sessions on the next import. A changed one is
 rewritten under the same name, and swamp keeps one version of it. A new
 version of this extension re-imports every session, so a fix reaches records
 already written. A session that does not fit the record is reported once and

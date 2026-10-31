@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/agent-sessions"
-version: "2026.10.31.1"
+version: "2026.10.31.2"
 license: "AGPL-3.0-or-later"
 visibility: private
 description: |
@@ -15,8 +15,14 @@ description: |
   relative, home becomes `~`, secrets, bearer tokens and emails are masked,
   heredoc bodies are dropped, and text is capped at 1000 characters.
 
-  Private while it is a prototype. Calls are written `unlabeled`; a later
-  classifier labels them swamp, bypass or neutral.
+  Every call is labelled swamp, bypass or neutral with a category and the
+  rule that decided it, by rules alone. Running a program an installed
+  extension covers (`git` with `@swamp/git`) is a bypass. Each record also
+  carries findings that say what to tune: hand-edit loops on a definition,
+  failure streaks, covered CLIs run directly, and reads of pulled extension
+  source.
+
+  Private while it is a prototype.
 
   ## Methods
 

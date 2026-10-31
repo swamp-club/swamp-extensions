@@ -13,12 +13,13 @@ import { swampWhoami } from "./_lib/whoami.ts";
 
 /**
  * Import coding-agent sessions (Claude Code transcripts) as agent session
- * records the dashboard's agent sessions page reads (swamp-club#4156).
+ * records the dashboard's agent sessions page reads (swamp-club#4156), with
+ * every call labelled and findings per session (swamp-club#4157).
  *
  * @module
  */
 
-const VERSION = "2026.10.31.1";
+const VERSION = "2026.10.31.2";
 
 /** Arguments of the import method. */
 export const ImportArgsSchema = z.object({
@@ -69,6 +70,12 @@ export const model = {
       toVersion: "2026.10.31.1",
       description:
         "Import sessions by repo identity: repos, all and exclude arguments, a repo tag (no global arguments to change)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.31.2",
+      description:
+        "Label every call swamp, bypass or neutral and write findings; every session is imported again once (no arguments to change)",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

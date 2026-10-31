@@ -260,3 +260,45 @@ Deno.test("parseTranscript: an out-of-range exit code is left out and token sums
   assertEquals(parsed.turns[0].calls[0].exitCode, undefined);
   assertEquals(parsed.turns[0].tokens.input, Number.MAX_SAFE_INTEGER);
 });
+
+Deno.test("parseTranscript: calls are labelled from their raw input, unlabeled without a labeller", () => {
+  const text = lines(
+    {
+      ...base,
+      type: "user",
+      timestamp: "2026-10-30T10:00:00Z",
+      message: { content: "go" },
+    },
+    {
+      ...base,
+      type: "assistant",
+      timestamp: "2026-10-30T10:00:01Z",
+      message: {
+        id: "m",
+        content: [{
+          type: "tool_use",
+          id: "t1",
+          name: "Bash",
+          input: { command: "cat > a <<EOF\nbody\nEOF" },
+        }],
+      },
+    },
+  );
+  const seen: unknown[] = [];
+  const labelled = parseTranscript(text, {
+    sidechain: false,
+    redact: {},
+    label: (tool, input) => {
+      seen.push([tool, input]);
+      return { label: "neutral", category: "c", rule: "r" };
+    },
+  });
+  // The labeller sees the heredoc body that the stored text drops.
+  assertEquals(seen, [["Bash", { command: "cat > a <<EOF\nbody\nEOF" }]]);
+  const call = labelled.turns[0].calls[0];
+  assertEquals([call.label, call.category, call.rule], ["neutral", "c", "r"]);
+  assertEquals(call.text, "cat > a <<EOF … EOF");
+  const plain = parseTranscript(text, { sidechain: false, redact: {} });
+  assertEquals(plain.turns[0].calls[0].label, "unlabeled");
+  assertEquals(plain.turns[0].calls[0].category, undefined);
+});

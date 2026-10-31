@@ -41,6 +41,9 @@ import {
   type Resolved,
 } from "./claude_code/resolve.ts";
 import { linkSubagents } from "./claude_code/subagents.ts";
+import { type Coverage, CoverageReader } from "./classify/coverage.ts";
+import { findingsFor } from "./classify/findings.ts";
+import { labelCall } from "./classify/label.ts";
 import type { RedactContext } from "./redact.ts";
 import type { SwampIdentity, WhoamiResult } from "./whoami.ts";
 
@@ -55,9 +58,10 @@ export const REPO_TAG = "repo";
 const RESOLVE_FORMAT = 3;
 
 /**
- * Each session's import stamp, by session id: the importer version and its
- * source fingerprint (sizes and mtimes). A session is imported again when
- * either changes, so a fix in a later importer reaches finished sessions.
+ * Each session's import stamp, by session id: the importer version, its
+ * repo's installed extensions (which its labels depend on) and its source
+ * fingerprint (sizes and mtimes). A session is imported again when any
+ * changes, so a fix in a later importer reaches finished sessions.
  * A session that could not be imported is stamped too, and is retried only
  * when its files or the importer change.
  */
@@ -166,7 +170,7 @@ function buildRecord(
     ...(base.agentType ? { agentType: base.agentType } : {}),
     importerVersion: base.importerVersion,
     turns: parsed.turns,
-    findings: [],
+    findings: findingsFor(parsed.turns),
   };
 }
 
@@ -190,6 +194,7 @@ async function sessionRecords(
   session: DiscoveredSession,
   settings: ImportSettings,
   identity: SwampIdentity | undefined,
+  coverage: Coverage,
   ctx: ImportContext,
 ): Promise<AgentSessionRecord[] | string> {
   const id = session.sessionId.toLowerCase();
@@ -197,12 +202,15 @@ async function sessionRecords(
     projectsDir: settings.projectsDir,
     ...(settings.home ? { home: settings.home } : {}),
   };
+  const label = (tool: string, input: unknown) =>
+    labelCall(tool, input, { root: session.root, coverage });
   const mtime = (await Deno.stat(session.transcript)).mtime?.getTime() ??
     Date.now();
   const top = parseTranscript(await Deno.readTextFile(session.transcript), {
     sidechain: false,
     redact,
     root: session.root,
+    label,
   });
   const subagents = [];
   for (const source of session.subagents) {
@@ -212,6 +220,7 @@ async function sessionRecords(
         sidechain: true,
         redact,
         root: session.root,
+        label,
       }),
     });
   }
@@ -475,8 +484,15 @@ export async function importSessions(
     );
   }
 
+  // A session's labels depend on what its repo has installed, so a pulled or
+  // removed extension relabels that repo's sessions.
+  const reader = new CoverageReader();
+  const coverage = new Map<DiscoveredSession, Coverage>();
+  for (const s of sessions) {
+    coverage.set(s, await reader.read(s.root, s.repo.mainCheckout));
+  }
   const stamp = (s: DiscoveredSession) =>
-    `${settings.importerVersion}|${s.fingerprint}`;
+    `${settings.importerVersion}|${coverage.get(s)!.key}|${s.fingerprint}`;
   const changed = sessions.filter((s) =>
     index.sessions[s.sessionId.toLowerCase()] !== stamp(s)
   );
@@ -526,7 +542,13 @@ export async function importSessions(
     try {
       agentSessionDataName(CLAUDE_CODE_HARNESS, id);
       identity = await identityFor(id);
-      records = await sessionRecords(session, settings, identity, ctx);
+      records = await sessionRecords(
+        session,
+        settings,
+        identity,
+        coverage.get(session)!,
+        ctx,
+      );
     } catch (error) {
       if (isIoError(error)) {
         // A read that failed may work next time: leave the stamp as it was.
