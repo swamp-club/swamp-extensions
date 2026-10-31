@@ -175,6 +175,16 @@ const GlobalArgsSchema = z.object({
   exportPsc: z.boolean().describe(
     "Optional. Whether Private Service Connect connection propagation is enabled for the hub. If true, Private Service Connect endpoints in VPC spokes attached to the hub are made accessible to other VPC spokes attached to the hub. The default value is false.",
   ).optional(),
+  exportPscConfig: z.object({
+    globalGoogleApis: z.boolean().describe(
+      "Optional. Controls whether Private Service Connect endpoints for global Google APIs should be propagated. The default value is false.",
+    ).optional(),
+    publishedServicesAndRegionalGoogleApis: z.boolean().describe(
+      "Optional. Controls whether Private Service Connect endpoints for regional ILBs and regional Google APIs should be propagated. Default value is true if export_psc is true. Otherwise, the default value is false.",
+    ).optional(),
+  }).describe(
+    "Optional. Config for more granular control of Private Service Connect transitivity.",
+  ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional labels in key-value pair format. For more information about labels, see [Requirements for labels](https://cloud.google.com/resource-manager/docs/creating-managing-labels#requirements).",
   ).optional(),
@@ -209,6 +219,10 @@ const StateSchema = z.object({
   createTime: z.string().optional(),
   description: z.string().optional(),
   exportPsc: z.boolean().optional(),
+  exportPscConfig: z.object({
+    globalGoogleApis: z.boolean(),
+    publishedServicesAndRegionalGoogleApis: z.boolean(),
+  }).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   policyMode: z.string().optional(),
@@ -251,6 +265,16 @@ const InputsSchema = z.object({
   ).optional(),
   exportPsc: z.boolean().describe(
     "Optional. Whether Private Service Connect connection propagation is enabled for the hub. If true, Private Service Connect endpoints in VPC spokes attached to the hub are made accessible to other VPC spokes attached to the hub. The default value is false.",
+  ).optional(),
+  exportPscConfig: z.object({
+    globalGoogleApis: z.boolean().describe(
+      "Optional. Controls whether Private Service Connect endpoints for global Google APIs should be propagated. The default value is false.",
+    ).optional(),
+    publishedServicesAndRegionalGoogleApis: z.boolean().describe(
+      "Optional. Controls whether Private Service Connect endpoints for regional ILBs and regional Google APIs should be propagated. Default value is true if export_psc is true. Otherwise, the default value is false.",
+    ).optional(),
+  }).describe(
+    "Optional. Config for more granular control of Private Service Connect transitivity.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional labels in key-value pair format. For more information about labels, see [Requirements for labels](https://cloud.google.com/resource-manager/docs/creating-managing-labels#requirements).",
@@ -308,7 +332,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Connectivity Global.Hubs. Registered at `@swamp/gcp/networkconnectivity/global-hubs`. */
 export const model = {
   type: "@swamp/gcp/networkconnectivity/global-hubs",
-  version: "2026.10.23.1",
+  version: "2026.10.31.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -488,6 +512,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.31.1",
+      description: "Added: exportPscConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -521,6 +550,9 @@ export const model = {
           body["description"] = g["description"];
         }
         if (g["exportPsc"] !== undefined) body["exportPsc"] = g["exportPsc"];
+        if (g["exportPscConfig"] !== undefined) {
+          body["exportPscConfig"] = g["exportPscConfig"];
+        }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["policyMode"] !== undefined) body["policyMode"] = g["policyMode"];
@@ -655,6 +687,9 @@ export const model = {
           body["description"] = g["description"];
         }
         if (g["exportPsc"] !== undefined) body["exportPsc"] = g["exportPsc"];
+        if (g["exportPscConfig"] !== undefined) {
+          body["exportPscConfig"] = g["exportPscConfig"];
+        }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["policyMode"] !== undefined) body["policyMode"] = g["policyMode"];
         if (g["presetTopology"] !== undefined) {

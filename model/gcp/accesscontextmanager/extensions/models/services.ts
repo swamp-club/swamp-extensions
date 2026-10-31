@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Access Context Manager Services.
  *
- * `SupportedService` specifies the VPC Service Controls and its properties.
+ * `SupportedService` specifies a service supported by VPC Service Controls and its properties.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -145,7 +145,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Access Context Manager Services. Registered at `@swamp/gcp/accesscontextmanager/services`. */
 export const model = {
   type: "@swamp/gcp/accesscontextmanager/services",
-  version: "2026.10.23.1",
+  version: "2026.10.31.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -287,13 +287,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.31.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
       description:
-        "`SupportedService` specifies the VPC Service Controls and its properties.",
+        "`SupportedService` specifies a service supported by VPC Service Controls and ...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,

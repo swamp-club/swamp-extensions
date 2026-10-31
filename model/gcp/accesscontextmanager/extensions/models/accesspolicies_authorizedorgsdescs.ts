@@ -156,14 +156,14 @@ const GlobalArgsSchema = z.object({
     "ASSET_TYPE_DEVICE",
     "ASSET_TYPE_CREDENTIAL_STRENGTH",
   ]).describe(
-    "The asset type of this authorized orgs desc. Valid values are `ASSET_TYPE_DEVICE`, and `ASSET_TYPE_CREDENTIAL_STRENGTH`.",
+    "The asset type of this authorized orgs desc. Valid values are `ASSET_TYPE_DEVICE` and `ASSET_TYPE_CREDENTIAL_STRENGTH`.",
   ).optional(),
   authorizationDirection: z.enum([
     "AUTHORIZATION_DIRECTION_UNSPECIFIED",
     "AUTHORIZATION_DIRECTION_TO",
     "AUTHORIZATION_DIRECTION_FROM",
   ]).describe(
-    "The direction of the authorization relationship between this organization and the organizations listed in the `orgs` field. The valid values for this field include the following: `AUTHORIZATION_DIRECTION_FROM`: Allows this organization to evaluate traffic in the organizations listed in the `orgs` field. `AUTHORIZATION_DIRECTION_TO`: Allows the organizations listed in the `orgs` field to evaluate the traffic in this organization. For the authorization relationship to take effect, all of the organizations must authorize and specify the appropriate relationship direction. For example, if organization A authorized organization B and C to evaluate its traffic, by specifying `AUTHORIZATION_DIRECTION_TO` as the authorization direction, organizations B and C must specify `AUTHORIZATION_DIRECTION_FROM` as the authorization direction in their `AuthorizedOrgsDesc` resource.",
+    "The direction of the authorization relationship between this organization and the organizations listed in the `orgs` field. The valid values for this field include the following: `AUTHORIZATION_DIRECTION_FROM`: Allows this organization to evaluate traffic in the organizations listed in the `orgs` field. `AUTHORIZATION_DIRECTION_TO`: Allows the organizations listed in the `orgs` field to evaluate the traffic in this organization. For the authorization relationship to take effect, all of the organizations must authorize and specify the appropriate relationship direction. For example, if organization A authorizes organizations B and C to evaluate its traffic by specifying `AUTHORIZATION_DIRECTION_TO` as the authorization direction, organizations B and C must specify `AUTHORIZATION_DIRECTION_FROM` as the authorization direction in their `AuthorizedOrgsDesc` resource.",
   ).optional(),
   authorizationType: z.enum([
     "AUTHORIZATION_TYPE_UNSPECIFIED",
@@ -175,7 +175,7 @@ const GlobalArgsSchema = z.object({
     "Identifier. Resource name for the `AuthorizedOrgsDesc`. Format: `accessPolicies/{access_policy}/authorizedOrgsDescs/{authorized_orgs_desc}`. The `authorized_orgs_desc` component must begin with a letter, followed by alphanumeric characters or `_`. After you create an `AuthorizedOrgsDesc`, you cannot change its `name`.",
   ).optional(),
   orgs: z.array(z.string()).describe(
-    "The list of organization ids in this AuthorizedOrgsDesc. Format: `organizations/` Example: `organizations/123456`",
+    "The list of organization IDs in this `AuthorizedOrgsDesc`. Format: `organizations/{org_number}` Example: `organizations/123456`",
   ).optional(),
   parent: z.string().describe(
     "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
@@ -204,14 +204,14 @@ const InputsSchema = z.object({
     "ASSET_TYPE_DEVICE",
     "ASSET_TYPE_CREDENTIAL_STRENGTH",
   ]).describe(
-    "The asset type of this authorized orgs desc. Valid values are `ASSET_TYPE_DEVICE`, and `ASSET_TYPE_CREDENTIAL_STRENGTH`.",
+    "The asset type of this authorized orgs desc. Valid values are `ASSET_TYPE_DEVICE` and `ASSET_TYPE_CREDENTIAL_STRENGTH`.",
   ).optional(),
   authorizationDirection: z.enum([
     "AUTHORIZATION_DIRECTION_UNSPECIFIED",
     "AUTHORIZATION_DIRECTION_TO",
     "AUTHORIZATION_DIRECTION_FROM",
   ]).describe(
-    "The direction of the authorization relationship between this organization and the organizations listed in the `orgs` field. The valid values for this field include the following: `AUTHORIZATION_DIRECTION_FROM`: Allows this organization to evaluate traffic in the organizations listed in the `orgs` field. `AUTHORIZATION_DIRECTION_TO`: Allows the organizations listed in the `orgs` field to evaluate the traffic in this organization. For the authorization relationship to take effect, all of the organizations must authorize and specify the appropriate relationship direction. For example, if organization A authorized organization B and C to evaluate its traffic, by specifying `AUTHORIZATION_DIRECTION_TO` as the authorization direction, organizations B and C must specify `AUTHORIZATION_DIRECTION_FROM` as the authorization direction in their `AuthorizedOrgsDesc` resource.",
+    "The direction of the authorization relationship between this organization and the organizations listed in the `orgs` field. The valid values for this field include the following: `AUTHORIZATION_DIRECTION_FROM`: Allows this organization to evaluate traffic in the organizations listed in the `orgs` field. `AUTHORIZATION_DIRECTION_TO`: Allows the organizations listed in the `orgs` field to evaluate the traffic in this organization. For the authorization relationship to take effect, all of the organizations must authorize and specify the appropriate relationship direction. For example, if organization A authorizes organizations B and C to evaluate its traffic by specifying `AUTHORIZATION_DIRECTION_TO` as the authorization direction, organizations B and C must specify `AUTHORIZATION_DIRECTION_FROM` as the authorization direction in their `AuthorizedOrgsDesc` resource.",
   ).optional(),
   authorizationType: z.enum([
     "AUTHORIZATION_TYPE_UNSPECIFIED",
@@ -223,7 +223,7 @@ const InputsSchema = z.object({
     "Identifier. Resource name for the `AuthorizedOrgsDesc`. Format: `accessPolicies/{access_policy}/authorizedOrgsDescs/{authorized_orgs_desc}`. The `authorized_orgs_desc` component must begin with a letter, followed by alphanumeric characters or `_`. After you create an `AuthorizedOrgsDesc`, you cannot change its `name`.",
   ).optional(),
   orgs: z.array(z.string()).describe(
-    "The list of organization ids in this AuthorizedOrgsDesc. Format: `organizations/` Example: `organizations/123456`",
+    "The list of organization IDs in this `AuthorizedOrgsDesc`. Format: `organizations/{org_number}` Example: `organizations/123456`",
   ).optional(),
   parent: z.string().describe(
     "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
@@ -256,7 +256,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Access Context Manager AccessPolicies.AuthorizedOrgsDescs. Registered at `@swamp/gcp/accesscontextmanager/accesspolicies-authorizedorgsdescs`. */
 export const model = {
   type: "@swamp/gcp/accesscontextmanager/accesspolicies-authorizedorgsdescs",
-  version: "2026.10.23.1",
+  version: "2026.10.31.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -385,6 +385,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.31.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

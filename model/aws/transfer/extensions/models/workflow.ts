@@ -190,6 +190,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Description: z.string().min(0).max(256).regex(new RegExp("^[\\w\\- ]*$"))
     .describe("A textual description for the workflow.").optional(),
+  StructuredLogDestinations: z.array(
+    z.string().min(20).max(1600).regex(new RegExp("^arn:\\S+$")),
+  ).describe("Specifies the log destinations for the workflow.").optional(),
 });
 
 const StateSchema = z.object({
@@ -197,6 +200,7 @@ const StateSchema = z.object({
   Steps: z.array(WorkflowStepSchema).optional(),
   Tags: z.array(TagSchema).optional(),
   Description: z.string().optional(),
+  StructuredLogDestinations: z.array(z.string()).optional(),
   WorkflowId: z.string(),
   Arn: z.string().optional(),
 }).passthrough();
@@ -220,6 +224,9 @@ const InputsSchema = z.object({
   ).optional(),
   Description: z.string().min(0).max(256).regex(new RegExp("^[\\w\\- ]*$"))
     .describe("A textual description for the workflow.").optional(),
+  StructuredLogDestinations: z.array(
+    z.string().min(20).max(1600).regex(new RegExp("^arn:\\S+$")),
+  ).describe("Specifies the log destinations for the workflow.").optional(),
 });
 
 const _credentialKeys = new Set([
@@ -241,7 +248,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Transfer Workflow. Registered at `@swamp/aws/transfer/workflow`. */
 export const model = {
   type: "@swamp/aws/transfer/workflow",
-  version: "2026.10.23.1",
+  version: "2026.10.31.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -301,6 +308,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.31.1",
+      description: "Added: StructuredLogDestinations",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -410,7 +422,12 @@ export const model = {
           identifier,
           currentState,
           desiredState,
-          ["Steps", "OnExceptionSteps", "Description"],
+          [
+            "Steps",
+            "OnExceptionSteps",
+            "Description",
+            "StructuredLogDestinations",
+          ],
           credentials,
         );
         const handle = await context.writeResource(

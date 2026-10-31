@@ -196,6 +196,7 @@ const ResourceSchema = z.object({
     source: z.string().optional(),
     provider: z.string().optional(),
   })).optional(),
+  region: z.string().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -216,10 +217,15 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean agent config. Registered at `@swamp/digitalocean/agent-config`. */
 export const model = {
   type: "@swamp/digitalocean/agent-config",
-  version: "2026.10.23.1",
+  version: "2026.10.31.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.31.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

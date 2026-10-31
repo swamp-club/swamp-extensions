@@ -266,6 +266,20 @@ const GlobalArgsSchema = z.object({
       destination: z.enum(["internal", "external"]).optional(),
     })).optional(),
   }).describe("Tracing configuration for this project").optional(),
+  gitComments: z.object({
+    onPullRequest: z.boolean(),
+    onCommit: z.boolean(),
+  }).describe(
+    "Opt-in to Git pull request and commit comments on the project level. Replaces `github.silent`.",
+  ).optional(),
+  gitProviderOptions: z.object({
+    createDeployments: z.enum(["enabled", "disabled"]).optional(),
+    disableRepositoryDispatchEvents: z.boolean().optional(),
+    requireVerifiedCommits: z.boolean().optional(),
+    gitCommitStatus: z.boolean().optional(),
+  }).describe(
+    "Miscellaneous options related to how this projects interacts with the linked git source.",
+  ).optional(),
   oidcTokenConfig: z.object({
     enabled: z.boolean().optional(),
     issuerMode: z.enum(["team", "global"]).optional(),
@@ -1574,6 +1588,16 @@ const InputsSchema = z.object({
       destination: z.enum(["internal", "external"]).optional(),
     })).optional(),
   }).optional(),
+  gitComments: z.object({
+    onPullRequest: z.boolean(),
+    onCommit: z.boolean(),
+  }).optional(),
+  gitProviderOptions: z.object({
+    createDeployments: z.enum(["enabled", "disabled"]).optional(),
+    disableRepositoryDispatchEvents: z.boolean().optional(),
+    requireVerifiedCommits: z.boolean().optional(),
+    gitCommitStatus: z.boolean().optional(),
+  }).optional(),
   oidcTokenConfig: z.object({
     enabled: z.boolean().optional(),
     issuerMode: z.enum(["team", "global"]).optional(),
@@ -1732,7 +1756,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.10.28.1",
+  version: "2026.10.31.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -1987,6 +2011,11 @@ export const model = {
     {
       toVersion: "2026.10.28.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.31.1",
+      description: "Added: gitComments, gitProviderOptions",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -2460,6 +2489,10 @@ export const model = {
         }
         if (g.staticIps !== undefined) body.staticIps = g.staticIps;
         if (g.tracing !== undefined) body.tracing = g.tracing;
+        if (g.gitComments !== undefined) body.gitComments = g.gitComments;
+        if (g.gitProviderOptions !== undefined) {
+          body.gitProviderOptions = g.gitProviderOptions;
+        }
         if (g.oidcTokenConfig !== undefined) {
           body.oidcTokenConfig = g.oidcTokenConfig;
         }

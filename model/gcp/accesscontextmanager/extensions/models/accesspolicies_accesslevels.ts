@@ -159,45 +159,45 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   basic: z.object({
     combiningFunction: z.enum(["AND", "OR"]).describe(
-      "How the `conditions` list should be combined to determine if a request is granted this `AccessLevel`. If AND is used, each `Condition` in `conditions` must be satisfied for the `AccessLevel` to be applied. If OR is used, at least one `Condition` in `conditions` must be satisfied for the `AccessLevel` to be applied. Default behavior is AND.",
+      "How the `conditions` list should be combined to determine if a request is granted this `AccessLevel`. If `AND` is used, each `Condition` in `conditions` must be satisfied for the `AccessLevel` to be applied. If `OR` is used, at least one `Condition` in `conditions` must be satisfied for the `AccessLevel` to be applied. Default behavior is `AND`.",
     ).optional(),
     conditions: z.array(z.object({
       devicePolicy: z.object({
         allowedDeviceManagementLevels: z.array(z.unknown()).describe(
-          "Allowed device management levels, an empty list allows all management levels.",
+          "Allowed device management levels. An empty list allows all management levels.",
         ).optional(),
         allowedEncryptionStatuses: z.array(z.unknown()).describe(
-          "Allowed encryptions statuses, an empty list allows all statuses.",
+          "Allowed encryption statuses. An empty list allows all statuses.",
         ).optional(),
         osConstraints: z.array(z.unknown()).describe(
-          "Allowed OS versions, an empty list allows all types and all versions.",
+          "Allowed OS versions. An empty list allows all types and all versions.",
         ).optional(),
         requireAdminApproval: z.boolean().describe(
           "Whether the device needs to be approved by the customer admin.",
         ).optional(),
         requireCorpOwned: z.boolean().describe(
-          "Whether the device needs to be corp owned.",
+          "Whether the device needs to be corp-owned.",
         ).optional(),
         requireScreenlock: z.boolean().describe(
-          "Whether or not screenlock is required for the DevicePolicy to be true. Defaults to `false`.",
+          "Whether or not screenlock is required for the `DevicePolicy` to be true. Defaults to `false`.",
         ).optional(),
       }).describe(
-        "Device specific restrictions, all restrictions must hold for the Condition to be true. If not specified, all devices are allowed.",
+        "Device-specific restrictions. All restrictions must hold for the `Condition` to be true. If not specified, all devices are allowed.",
       ).optional(),
       ipSubnetworks: z.array(z.string()).describe(
-        'CIDR block IP subnetwork specification. May be IPv4 or IPv6. Note that for a CIDR IP address block, the specified IP address portion must be properly truncated (i.e. all the host bits must be zero) or the input is considered malformed. For example, "192.0.2.0/24" is accepted but "192.0.2.1/24" is not. Similarly, for IPv6, "2001:db8::/32" is accepted whereas "2001:db8::1/32" is not. The originating IP of a request must be in one of the listed subnets in order for this Condition to be true. If empty, all IP addresses are allowed.',
+        'CIDR block IP subnetwork specification. May be IPv4 or IPv6. Note that for a CIDR IP address block, the specified IP address portion must be properly truncated (that is, all the host bits must be zero) or the input is considered malformed. For example, `"192.0.2.0/24"` is accepted, but `"192.0.2.1/24"` is not. Similarly, for IPv6, `"2001:db8::/32"` is accepted, whereas `"2001:db8::1/32"` is not. The originating IP of a request must be in one of the listed subnets in order for this `Condition` to be true. If empty, all IP addresses are allowed.',
       ).optional(),
       members: z.array(z.string()).describe(
         "The request must be made by one of the provided user or service accounts. Groups are not supported. Syntax: `user:{emailid}` `serviceAccount:{emailid}` If not specified, a request may come from any user.",
       ).optional(),
       negate: z.boolean().describe(
-        "Whether to negate the Condition. If true, the Condition becomes a NAND over its non-empty fields. Any non-empty field criteria evaluating to false will result in the Condition to be satisfied. Defaults to false.",
+        "Whether to negate the `Condition`. If `true`, the `Condition` becomes a NAND over its non-empty fields. Any non-empty field criteria evaluating to `false` will result in the `Condition` being satisfied. Defaults to `false`.",
       ).optional(),
       regions: z.array(z.string()).describe(
         "The request must originate from one of the provided countries/regions. Must be valid ISO 3166-1 alpha-2 codes.",
       ).optional(),
       requiredAccessLevels: z.array(z.string()).describe(
-        'A list of other access levels defined in the same `Policy`, referenced by resource name. Referencing an `AccessLevel` which does not exist is an error. All access levels listed must be granted for the Condition to be true. Example: "`accessPolicies/MY_POLICY/accessLevels/LEVEL_NAME"`',
+        'A list of other access levels defined in the same `Policy`, referenced by resource name. Referencing an `AccessLevel` that does not exist is an error. All access levels listed must be granted for the `Condition` to be true. Example: `"accessPolicies/MY_POLICY/accessLevels/LEVEL_NAME"`',
       ).optional(),
       vpcNetworkSources: z.array(z.object({
         vpcSubnetwork: z.unknown().describe(
@@ -235,7 +235,7 @@ const GlobalArgsSchema = z.object({
     "Identifier. Resource name for the `AccessLevel`. Format: `accessPolicies/{access_policy}/accessLevels/{access_level}`. The `access_level` component must begin with a letter, followed by alphanumeric characters or `_`. Its maximum length is 50 characters. After you create an `AccessLevel`, you cannot change its `name`.",
   ).optional(),
   title: z.string().describe(
-    "Human readable title. Must be unique within the Policy.",
+    "Human-readable title. Must be unique within the policy.",
   ).optional(),
   parent: z.string().describe(
     "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
@@ -288,45 +288,45 @@ const InputsSchema = z.object({
   apiEndpoint: z.string().optional(),
   basic: z.object({
     combiningFunction: z.enum(["AND", "OR"]).describe(
-      "How the `conditions` list should be combined to determine if a request is granted this `AccessLevel`. If AND is used, each `Condition` in `conditions` must be satisfied for the `AccessLevel` to be applied. If OR is used, at least one `Condition` in `conditions` must be satisfied for the `AccessLevel` to be applied. Default behavior is AND.",
+      "How the `conditions` list should be combined to determine if a request is granted this `AccessLevel`. If `AND` is used, each `Condition` in `conditions` must be satisfied for the `AccessLevel` to be applied. If `OR` is used, at least one `Condition` in `conditions` must be satisfied for the `AccessLevel` to be applied. Default behavior is `AND`.",
     ).optional(),
     conditions: z.array(z.object({
       devicePolicy: z.object({
         allowedDeviceManagementLevels: z.array(z.unknown()).describe(
-          "Allowed device management levels, an empty list allows all management levels.",
+          "Allowed device management levels. An empty list allows all management levels.",
         ).optional(),
         allowedEncryptionStatuses: z.array(z.unknown()).describe(
-          "Allowed encryptions statuses, an empty list allows all statuses.",
+          "Allowed encryption statuses. An empty list allows all statuses.",
         ).optional(),
         osConstraints: z.array(z.unknown()).describe(
-          "Allowed OS versions, an empty list allows all types and all versions.",
+          "Allowed OS versions. An empty list allows all types and all versions.",
         ).optional(),
         requireAdminApproval: z.boolean().describe(
           "Whether the device needs to be approved by the customer admin.",
         ).optional(),
         requireCorpOwned: z.boolean().describe(
-          "Whether the device needs to be corp owned.",
+          "Whether the device needs to be corp-owned.",
         ).optional(),
         requireScreenlock: z.boolean().describe(
-          "Whether or not screenlock is required for the DevicePolicy to be true. Defaults to `false`.",
+          "Whether or not screenlock is required for the `DevicePolicy` to be true. Defaults to `false`.",
         ).optional(),
       }).describe(
-        "Device specific restrictions, all restrictions must hold for the Condition to be true. If not specified, all devices are allowed.",
+        "Device-specific restrictions. All restrictions must hold for the `Condition` to be true. If not specified, all devices are allowed.",
       ).optional(),
       ipSubnetworks: z.array(z.string()).describe(
-        'CIDR block IP subnetwork specification. May be IPv4 or IPv6. Note that for a CIDR IP address block, the specified IP address portion must be properly truncated (i.e. all the host bits must be zero) or the input is considered malformed. For example, "192.0.2.0/24" is accepted but "192.0.2.1/24" is not. Similarly, for IPv6, "2001:db8::/32" is accepted whereas "2001:db8::1/32" is not. The originating IP of a request must be in one of the listed subnets in order for this Condition to be true. If empty, all IP addresses are allowed.',
+        'CIDR block IP subnetwork specification. May be IPv4 or IPv6. Note that for a CIDR IP address block, the specified IP address portion must be properly truncated (that is, all the host bits must be zero) or the input is considered malformed. For example, `"192.0.2.0/24"` is accepted, but `"192.0.2.1/24"` is not. Similarly, for IPv6, `"2001:db8::/32"` is accepted, whereas `"2001:db8::1/32"` is not. The originating IP of a request must be in one of the listed subnets in order for this `Condition` to be true. If empty, all IP addresses are allowed.',
       ).optional(),
       members: z.array(z.string()).describe(
         "The request must be made by one of the provided user or service accounts. Groups are not supported. Syntax: `user:{emailid}` `serviceAccount:{emailid}` If not specified, a request may come from any user.",
       ).optional(),
       negate: z.boolean().describe(
-        "Whether to negate the Condition. If true, the Condition becomes a NAND over its non-empty fields. Any non-empty field criteria evaluating to false will result in the Condition to be satisfied. Defaults to false.",
+        "Whether to negate the `Condition`. If `true`, the `Condition` becomes a NAND over its non-empty fields. Any non-empty field criteria evaluating to `false` will result in the `Condition` being satisfied. Defaults to `false`.",
       ).optional(),
       regions: z.array(z.string()).describe(
         "The request must originate from one of the provided countries/regions. Must be valid ISO 3166-1 alpha-2 codes.",
       ).optional(),
       requiredAccessLevels: z.array(z.string()).describe(
-        'A list of other access levels defined in the same `Policy`, referenced by resource name. Referencing an `AccessLevel` which does not exist is an error. All access levels listed must be granted for the Condition to be true. Example: "`accessPolicies/MY_POLICY/accessLevels/LEVEL_NAME"`',
+        'A list of other access levels defined in the same `Policy`, referenced by resource name. Referencing an `AccessLevel` that does not exist is an error. All access levels listed must be granted for the `Condition` to be true. Example: `"accessPolicies/MY_POLICY/accessLevels/LEVEL_NAME"`',
       ).optional(),
       vpcNetworkSources: z.array(z.object({
         vpcSubnetwork: z.unknown().describe(
@@ -364,7 +364,7 @@ const InputsSchema = z.object({
     "Identifier. Resource name for the `AccessLevel`. Format: `accessPolicies/{access_policy}/accessLevels/{access_level}`. The `access_level` component must begin with a letter, followed by alphanumeric characters or `_`. Its maximum length is 50 characters. After you create an `AccessLevel`, you cannot change its `name`.",
   ).optional(),
   title: z.string().describe(
-    "Human readable title. Must be unique within the Policy.",
+    "Human-readable title. Must be unique within the policy.",
   ).optional(),
   parent: z.string().describe(
     "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
@@ -397,7 +397,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Access Context Manager AccessPolicies.AccessLevels. Registered at `@swamp/gcp/accesscontextmanager/accesspolicies-accesslevels`. */
 export const model = {
   type: "@swamp/gcp/accesscontextmanager/accesspolicies-accesslevels",
-  version: "2026.10.23.1",
+  version: "2026.10.31.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -536,6 +536,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.31.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -819,7 +824,7 @@ export const model = {
       description: "List accessLevels resources",
       arguments: z.object({
         accessLevelFormat: z.string().describe(
-          "Whether to return `BasicLevels` in the Cloud Common Expression language, as `CustomLevels`, rather than as `BasicLevels`. Defaults to returning `AccessLevels` in the format they were defined.",
+          "Whether to return `BasicLevels` in the Cloud Common Expression Language, as `CustomLevels`, rather than as `BasicLevels`. Defaults to returning `AccessLevels` in the format they were defined.",
         ).optional(),
         pageSize: z.number().describe(
           "Number of Access Levels to include in the list. Default 100.",

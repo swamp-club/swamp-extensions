@@ -71,9 +71,6 @@ const INSERT_CONFIG = {
     "parent",
   ],
   "parameters": {
-    "idpNonce": {
-      "location": "query",
-    },
     "parent": {
       "location": "path",
       "required": true,
@@ -210,15 +207,12 @@ const GlobalArgsSchema = z.object({
       "Optional. The tool's Google Cloud resource name, used to resolve the tool. Applicable when `type` is `mcp_server` or `endpoint` (a tool registered in Agent Registry), for example `projects/{project}/locations/{location}/.../mcpServers/{id}` or `projects/{project}/locations/{location}/.../endpoints/{id}`.",
     ).optional(),
     type: z.string().describe(
-      "Required. The type of the tool. Supported types: * `code_execution` * `endpoint` * `filesystem` * `google_search` * `mcp_server` * `url_context`",
+      "Required. The type of the tool. Supported types: * `audio_generation` * `code_execution` * `endpoint` * `filesystem` * `google_search` * `image_generation` * `mcp_server` * `speech_generation` * `url_context` * `video_generation`",
     ).optional(),
     url: z.string().describe(
       "Optional. Fallback for the tool's runtime reference, consumed by `CreateAgent` to create the downstream AI App. Applicable when `type` is `mcp_server` or `endpoint`, and optional: the Agent service derives the runtime reference from `name` via Agent Registry (`GetMcpServer` / `GetEndpoint`), and reads this only when that lookup yields none.",
     ).optional(),
   })).describe("Optional. The tools available to the agent.").optional(),
-  idpNonce: z.string().describe(
-    "Optional. Optional. One-time cryptographic nonce issued by the trusted IdP provisioning iframe for session and device non-repudiation.",
-  ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
   ).optional(),
@@ -309,15 +303,12 @@ const InputsSchema = z.object({
       "Optional. The tool's Google Cloud resource name, used to resolve the tool. Applicable when `type` is `mcp_server` or `endpoint` (a tool registered in Agent Registry), for example `projects/{project}/locations/{location}/.../mcpServers/{id}` or `projects/{project}/locations/{location}/.../endpoints/{id}`.",
     ).optional(),
     type: z.string().describe(
-      "Required. The type of the tool. Supported types: * `code_execution` * `endpoint` * `filesystem` * `google_search` * `mcp_server` * `url_context`",
+      "Required. The type of the tool. Supported types: * `audio_generation` * `code_execution` * `endpoint` * `filesystem` * `google_search` * `image_generation` * `mcp_server` * `speech_generation` * `url_context` * `video_generation`",
     ).optional(),
     url: z.string().describe(
       "Optional. Fallback for the tool's runtime reference, consumed by `CreateAgent` to create the downstream AI App. Applicable when `type` is `mcp_server` or `endpoint`, and optional: the Agent service derives the runtime reference from `name` via Agent Registry (`GetMcpServer` / `GetEndpoint`), and reads this only when that lookup yields none.",
     ).optional(),
   })).describe("Optional. The tools available to the agent.").optional(),
-  idpNonce: z.string().describe(
-    "Optional. Optional. One-time cryptographic nonce issued by the trusted IdP provisioning iframe for session and device non-repudiation.",
-  ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
   ).optional(),
@@ -349,7 +340,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Agents. Registered at `@swamp/gcp/aiplatform/agents`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/agents",
-  version: "2026.10.29.1",
+  version: "2026.10.31.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -439,6 +430,14 @@ export const model = {
       description: "Added: idpNonce",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.31.1",
+      description: "Removed: idpNonce",
+      upgradeAttributes: (old: Record<string, unknown>) => {
+        const { idpNonce: _idpNonce, ...rest } = old;
+        return rest;
+      },
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -486,9 +485,6 @@ export const model = {
           body["system_instruction"] = g["system_instruction"];
         }
         if (g["tools"] !== undefined) body["tools"] = g["tools"];
-        if (g["idpNonce"] !== undefined) {
-          params["idpNonce"] = String(g["idpNonce"]);
-        }
         if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
             `projects/${projectId}/locations/${String(g["location"] ?? "")}`,

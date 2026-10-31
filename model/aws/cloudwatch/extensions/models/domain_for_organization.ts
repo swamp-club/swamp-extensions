@@ -66,19 +66,20 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   Name: z.string().min(3).max(63).regex(new RegExp("^[a-z0-9]+(-[a-z0-9]+)*$"))
-    .describe("A name that identifies the domain."),
+    .describe("A name that identifies the organization domain."),
   IdentityProviders: z.array(z.enum(["IAM", "IDC"])).describe(
-    "The identity providers configured for the domain.",
+    "The identity providers configured for the organization domain.",
   ),
   IdentityProviderConfiguration: z.object({
     IdentityCenterConfiguration: IdentityCenterConfigurationSchema.describe(
       "Identity Center configuration. Required when identityProviders includes IDC.",
     ).optional(),
-  }).describe("Identity provider configuration for the domain.").optional(),
+  }).describe("Identity provider configuration for the organization domain.")
+    .optional(),
   DomainAccessRoleArn: z.string().min(20).max(2048).regex(
     new RegExp("^arn:aws[a-zA-Z-]*:iam::[0-9]{12}:role/.+$"),
   ).describe(
-    "The ARN of an IAM role in the management account that CloudWatch Omni assumes for domain-scoped credential vending.",
+    "The ARN of the customer-provided IAM role in the management account used for domain access.",
   ),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
@@ -115,19 +116,20 @@ const InputsSchema = z.object({
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
   Name: z.string().min(3).max(63).regex(new RegExp("^[a-z0-9]+(-[a-z0-9]+)*$"))
-    .describe("A name that identifies the domain.").optional(),
+    .describe("A name that identifies the organization domain.").optional(),
   IdentityProviders: z.array(z.enum(["IAM", "IDC"])).describe(
-    "The identity providers configured for the domain.",
+    "The identity providers configured for the organization domain.",
   ).optional(),
   IdentityProviderConfiguration: z.object({
     IdentityCenterConfiguration: IdentityCenterConfigurationSchema.describe(
       "Identity Center configuration. Required when identityProviders includes IDC.",
     ).optional(),
-  }).describe("Identity provider configuration for the domain.").optional(),
+  }).describe("Identity provider configuration for the organization domain.")
+    .optional(),
   DomainAccessRoleArn: z.string().min(20).max(2048).regex(
     new RegExp("^arn:aws[a-zA-Z-]*:iam::[0-9]{12}:role/.+$"),
   ).describe(
-    "The ARN of an IAM role in the management account that CloudWatch Omni assumes for domain-scoped credential vending.",
+    "The ARN of the customer-provided IAM role in the management account used for domain access.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
@@ -153,7 +155,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudWatch DomainForOrganization. Registered at `@swamp/aws/cloudwatch/domain-for-organization`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/domain-for-organization",
-  version: "2026.10.24.1",
+  version: "2026.10.31.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.31.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

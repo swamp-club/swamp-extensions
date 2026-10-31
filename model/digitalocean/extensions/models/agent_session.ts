@@ -45,6 +45,25 @@ const GlobalArgsSchema = z.object({
     "Session name, independent of the config name. Must satisfy the existing environment-spec metadata.name rules and must not be UUID-shaped.",
   ),
   config_id: z.string().optional(),
+  region: z.enum([
+    "nyc1",
+    "sfo1",
+    "nyc2",
+    "ams2",
+    "sgp1",
+    "lon1",
+    "nyc3",
+    "ams3",
+    "fra1",
+    "tor1",
+    "sfo2",
+    "blr1",
+    "sfo3",
+    "syd1",
+    "atl1",
+  ]).describe(
+    "Optional placement check, not a placement choice: the session is always created in the region whose API host served the request. If set, it must equal that region, or the request fails with 400 and a region_mismatch message. Honored only for teams on the regional routing rollout; ignored otherwise.",
+  ).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -70,6 +89,7 @@ const ResourceSchema = z.object({
   config_id: z.string().optional(),
   openai_session_id: z.string().optional(),
   openai_environment_id: z.string().optional(),
+  region: z.string().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -78,17 +98,39 @@ const InputsSchema = z.object({
   resume_on_topoff: z.boolean().optional(),
   name: z.string().min(1).max(64).optional(),
   config_id: z.string().optional(),
+  region: z.enum([
+    "nyc1",
+    "sfo1",
+    "nyc2",
+    "ams2",
+    "sgp1",
+    "lon1",
+    "nyc3",
+    "ams3",
+    "fra1",
+    "tor1",
+    "sfo2",
+    "blr1",
+    "sfo3",
+    "syd1",
+    "atl1",
+  ]).optional(),
   token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean agent session. Registered at `@swamp/digitalocean/agent-session`. */
 export const model = {
   type: "@swamp/digitalocean/agent-session",
-  version: "2026.10.23.1",
+  version: "2026.10.31.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.31.1",
+      description: "Added: region",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -139,6 +181,7 @@ export const model = {
         if (g.resume_on_topoff !== undefined) {
           body.resume_on_topoff = g.resume_on_topoff;
         }
+        if (g.region !== undefined) body.region = g.region;
         const result = await create(
           "/v2/agents/sessions",
           body,

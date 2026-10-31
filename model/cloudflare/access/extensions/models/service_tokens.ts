@@ -57,6 +57,9 @@ const GlobalArgsSchema = z.object({
   previous_client_secret_expires_at: z.string().describe(
     "The expiration of the previous `client_secret`. This can be modified at any point after a rotation. For example, you may extend it further into the future if you need more time to update services with the new secret; or move it into the past to immediately invalidate the previous token in case of compromise. Rotating a service token that was reported as leaked discards the previous secret entirely, so no grace period can be set.",
   ).optional(),
+  tags: z.record(z.string(), z.unknown()).describe(
+    "Tags associated with the service token, as key-value pairs. On update, replaces all existing tags.",
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -80,6 +83,7 @@ const ResourceSchema = z.object({
   leak_reported_at: z.string().optional(),
   leak_reporter: z.string().optional(),
   name: z.string().optional(),
+  tags: z.record(z.string(), z.unknown()).optional(),
   updated_at: z.string().optional(),
 }).passthrough();
 
@@ -93,6 +97,7 @@ const InputsSchema = z.object({
   enabled: z.boolean().optional(),
   name: z.string().optional(),
   previous_client_secret_expires_at: z.string().optional(),
+  tags: z.record(z.string(), z.unknown()).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
@@ -101,7 +106,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Service Tokens. Registered at `@swamp/cloudflare/access/service-tokens`. */
 export const model = {
   type: "@swamp/cloudflare/access/service-tokens",
-  version: "2026.10.23.1",
+  version: "2026.10.31.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -163,6 +168,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.31.1",
+      description: "Added: tags",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -216,6 +226,7 @@ export const model = {
           body.previous_client_secret_expires_at =
             g.previous_client_secret_expires_at;
         }
+        if (g.tags !== undefined) body.tags = g.tags;
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -454,7 +465,8 @@ export const model = {
           body.previous_client_secret_expires_at =
             g.previous_client_secret_expires_at;
         }
-        const unset = ["duration", "enabled", "name"].filter((k) =>
+        if (g.tags !== undefined) body.tags = g.tags;
+        const unset = ["duration", "enabled", "name", "tags"].filter((k) =>
           body[k] === undefined
         );
         if (unset.length > 0) {

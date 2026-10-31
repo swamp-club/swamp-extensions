@@ -114,6 +114,10 @@ const GlobalArgsSchema = z.object({
       service_token: z.object({
         token_id: z.string(),
       }).optional(),
+      service_token_tag: z.object({
+        key: z.string().min(1).max(256),
+        value: z.string().min(1).max(256),
+      }).optional(),
       linked_app_token: z.object({
         app_uid: z.string(),
       }).optional(),
@@ -200,6 +204,10 @@ const GlobalArgsSchema = z.object({
       }).optional(),
       service_token: z.object({
         token_id: z.string(),
+      }).optional(),
+      service_token_tag: z.object({
+        key: z.string().min(1).max(256),
+        value: z.string().min(1).max(256),
       }).optional(),
       linked_app_token: z.object({
         app_uid: z.string(),
@@ -289,6 +297,10 @@ const GlobalArgsSchema = z.object({
       }).optional(),
       service_token: z.object({
         token_id: z.string(),
+      }).optional(),
+      service_token_tag: z.object({
+        key: z.string().min(1).max(256),
+        value: z.string().min(1).max(256),
       }).optional(),
       linked_app_token: z.object({
         app_uid: z.string(),
@@ -409,6 +421,10 @@ const InputsSchema = z.object({
       service_token: z.object({
         token_id: z.string(),
       }).optional(),
+      service_token_tag: z.object({
+        key: z.string().min(1).max(256),
+        value: z.string().min(1).max(256),
+      }).optional(),
       linked_app_token: z.object({
         app_uid: z.string(),
       }).optional(),
@@ -495,6 +511,10 @@ const InputsSchema = z.object({
       }).optional(),
       service_token: z.object({
         token_id: z.string(),
+      }).optional(),
+      service_token_tag: z.object({
+        key: z.string().min(1).max(256),
+        value: z.string().min(1).max(256),
       }).optional(),
       linked_app_token: z.object({
         app_uid: z.string(),
@@ -585,6 +605,10 @@ const InputsSchema = z.object({
       service_token: z.object({
         token_id: z.string(),
       }).optional(),
+      service_token_tag: z.object({
+        key: z.string().min(1).max(256),
+        value: z.string().min(1).max(256),
+      }).optional(),
       linked_app_token: z.object({
         app_uid: z.string(),
       }).optional(),
@@ -604,7 +628,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Policy-tests. Registered at `@swamp/cloudflare/access/policy-tests`. */
 export const model = {
   type: "@swamp/cloudflare/access/policy-tests",
-  version: "2026.10.28.1",
+  version: "2026.10.31.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -653,6 +677,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.31.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

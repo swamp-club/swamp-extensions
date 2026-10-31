@@ -42,6 +42,12 @@ const ProxyConfigSchema = z.object({
   SftpMode: z.enum(["PROXY_PROTOCOL_V2_ENFORCED", "NONE"]).optional(),
 });
 
+const SftpPortWithOptionsSchema = z.object({
+  SftpPort: z.number().int().min(1).max(65535),
+  CommunicationMode: z.enum(["CLIENT_TALK_FIRST", "SERVER_TALK_FIRST"])
+    .optional(),
+});
+
 const TagSchema = z.object({
   Key: z.string().min(0).max(128),
   Value: z.string().min(0).max(256),
@@ -130,6 +136,7 @@ const GlobalArgsSchema = z.object({
     SetStatOption: z.enum(["DEFAULT", "ENABLE_NO_OP"]).optional(),
     As2Transports: z.array(z.enum(["HTTP"])).optional(),
     ProxyConfig: ProxyConfigSchema.optional(),
+    SftpPorts: z.array(SftpPortWithOptionsSchema).optional(),
   }).optional(),
   Protocols: z.array(z.enum(["SFTP", "FTP", "FTPS", "AS2"])).optional(),
   S3StorageOptions: z.object({
@@ -182,6 +189,7 @@ const StateSchema = z.object({
     SetStatOption: z.string(),
     As2Transports: z.array(z.string()),
     ProxyConfig: ProxyConfigSchema,
+    SftpPorts: z.array(SftpPortWithOptionsSchema),
   }).optional(),
   Protocols: z.array(z.string()).optional(),
   S3StorageOptions: z.object({
@@ -264,6 +272,7 @@ const InputsSchema = z.object({
     SetStatOption: z.enum(["DEFAULT", "ENABLE_NO_OP"]).optional(),
     As2Transports: z.array(z.enum(["HTTP"])).optional(),
     ProxyConfig: ProxyConfigSchema.optional(),
+    SftpPorts: z.array(SftpPortWithOptionsSchema).optional(),
   }).optional(),
   Protocols: z.array(z.enum(["SFTP", "FTP", "FTPS", "AS2"])).optional(),
   S3StorageOptions: z.object({
@@ -303,7 +312,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Transfer Server. Registered at `@swamp/aws/transfer/server`. */
 export const model = {
   type: "@swamp/aws/transfer/server",
-  version: "2026.10.23.1",
+  version: "2026.10.31.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -372,6 +381,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.31.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

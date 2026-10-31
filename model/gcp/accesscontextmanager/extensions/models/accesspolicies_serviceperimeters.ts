@@ -168,7 +168,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   perimeterType: z.enum(["PERIMETER_TYPE_REGULAR", "PERIMETER_TYPE_BRIDGE"])
     .describe(
-      "Perimeter type indicator. A single project or VPC network is allowed to be a member of single regular perimeter, but multiple service perimeter bridges. A project cannot be a included in a perimeter bridge without being included in regular perimeter. For perimeter bridges, the restricted service list as well as access level lists must be empty.",
+      "Perimeter type indicator. A single project or VPC network is allowed to be a member of a single regular perimeter, but multiple service perimeter bridges. A project cannot be included in a perimeter bridge without being included in a regular perimeter. For perimeter bridges, the restricted service list as well as access level lists must be empty.",
     ).optional(),
   spec: z.object({
     accessLevels: z.array(z.string()).describe(
@@ -192,7 +192,7 @@ const GlobalArgsSchema = z.object({
           "SOURCE_RESTRICTION_ENABLED",
           "SOURCE_RESTRICTION_DISABLED",
         ]).describe(
-          "Whether to enforce traffic restrictions based on `sources` field. If the `sources` fields is non-empty, then this field must be set to `SOURCE_RESTRICTION_ENABLED`.",
+          "Whether to enforce traffic restrictions based on `sources` field. If the `sources` field is not empty, then this field must be set to `SOURCE_RESTRICTION_ENABLED`.",
         ).optional(),
         sources: z.array(z.unknown()).describe(
           "Sources that this EgressPolicy authorizes access from. If this field is not empty, then `source_restriction` must be set to `SOURCE_RESTRICTION_ENABLED`.",
@@ -202,22 +202,22 @@ const GlobalArgsSchema = z.object({
       ).optional(),
       egressTo: z.object({
         externalResources: z.array(z.unknown()).describe(
-          "A list of external resources that are allowed to be accessed. Only AWS and Azure resources are supported. For Amazon S3, the supported formats are s3://BUCKET_NAME, s3a://BUCKET_NAME, and s3n://BUCKET_NAME. For Azure Storage, the supported format is azure://myaccount.blob.core.windows.net/CONTAINER_NAME. A request matches if it contains an external resource in this list (Example: s3://bucket/path). Currently '*' is not allowed.",
+          "A list of external resources that are allowed to be accessed. Only AWS and Azure resources are supported. For Amazon S3, the supported formats are `s3://BUCKET_NAME`, `s3a://BUCKET_NAME`, and `s3n://BUCKET_NAME`. For Azure Storage, the supported format is `azure://myaccount.blob.core.windows.net/CONTAINER_NAME`. A request matches if it contains an external resource in this list (Example: `s3://bucket/path`). Currently `'*'` is not allowed.",
         ).optional(),
         operations: z.array(z.unknown()).describe(
           "A list of ApiOperations allowed to be performed by the sources specified in the corresponding EgressFrom. A request matches if it uses an operation/service in this list.",
         ).optional(),
         resources: z.array(z.unknown()).describe(
-          "A list of resources, currently projects, folders, and organizations in the form `projects/`, `folders/`, and `organizations/`, that are allowed to be accessed by sources defined in the corresponding EgressFrom. A request matches if it contains a resource in this list. If `*` is specified for `resources`, then this EgressTo rule will authorize access to all resources outside the perimeter.",
+          "A list of resources, currently projects, folders, and organizations in the form `projects/{project_number}`, `folders/{folder_id}`, and `organizations/{organization_id}`, that are allowed to be accessed by sources defined in the corresponding EgressFrom. A request matches if it contains a resource in this list. If `*` is specified for `resources`, then this EgressTo rule will authorize access to all resources outside the perimeter.",
         ).optional(),
         roles: z.array(z.unknown()).describe(
-          "IAM roles that represent the set of operations that the sources specified in the corresponding EgressFrom. are allowed to perform in this ServicePerimeter.",
+          "IAM roles that represent the set of operations that the sources specified in the corresponding EgressFrom are allowed to perform in this ServicePerimeter.",
         ).optional(),
       }).describe(
         "Defines the conditions on the ApiOperation and destination resources that cause this EgressPolicy to apply.",
       ).optional(),
       title: z.string().describe(
-        "Optional. Human-readable title for the egress rule. The title must be unique within the perimeter and can not exceed 100 characters. Within the access policy, the combined length of all rule titles must not exceed 240,000 characters.",
+        "Optional. Human-readable title for the egress rule. The title must be unique within the perimeter and cannot exceed 100 characters. Within the access policy, the combined length of all rule titles must not exceed 240,000 characters.",
       ).optional(),
     })).describe(
       "List of EgressPolicies to apply to the perimeter. A perimeter may have multiple EgressPolicies, each of which is evaluated separately. Access is granted if any EgressPolicy grants it. Must be empty for a perimeter bridge.",
@@ -246,7 +246,7 @@ const GlobalArgsSchema = z.object({
           "A list of ApiOperations allowed to be performed by the sources specified in corresponding IngressFrom in this ServicePerimeter.",
         ).optional(),
         resources: z.array(z.unknown()).describe(
-          "A list of resources, currently projects, folders, and organizations in the form `projects/{project_number}`, `folders/{folder_id}`, and `organizations/{organization_id}`, protected by this ServicePerimeter that are allowed to be accessed by sources defined in the corresponding IngressFrom. If a single `*` is specified, then access to all resources inside the perimeter are allowed.",
+          "A list of resources, currently projects, folders, and organizations in the form `projects/{project_number}`, `folders/{folder_id}`, and `organizations/{organization_id}`, protected by this ServicePerimeter that are allowed to be accessed by sources defined in the corresponding IngressFrom. If a single `*` is specified, then access to all resources inside the perimeter is allowed.",
         ).optional(),
         roles: z.array(z.unknown()).describe(
           "IAM roles that represent the set of operations that the sources specified in the corresponding IngressFrom are allowed to perform in this ServicePerimeter.",
@@ -255,7 +255,7 @@ const GlobalArgsSchema = z.object({
         "Defines the conditions on the ApiOperation and request destination that cause this IngressPolicy to apply.",
       ).optional(),
       title: z.string().describe(
-        "Optional. Human-readable title for the ingress rule. The title must be unique within the perimeter and can not exceed 100 characters. Within the access policy, the combined length of all rule titles must not exceed 240,000 characters.",
+        "Optional. Human-readable title for the ingress rule. The title must be unique within the perimeter and cannot exceed 100 characters. Within the access policy, the combined length of all rule titles must not exceed 240,000 characters.",
       ).optional(),
     })).describe(
       "List of IngressPolicies to apply to the perimeter. A perimeter may have multiple IngressPolicies, each of which is evaluated separately. Access is granted if any Ingress Policy grants it. Must be empty for a perimeter bridge.",
@@ -272,17 +272,17 @@ const GlobalArgsSchema = z.object({
           "Modifiers to apply to the requests that match the URL pattern.",
         ).optional(),
         pattern: z.string().describe(
-          'URL pattern to allow. Only patterns of ".googleapis.com/*", "www.googleapis.com//*" and "*.appspot.com/* forms are supported, where should be an alphanumeric name.',
+          'URL pattern to allow. Only patterns of `".googleapis.com/*"`, `"www.googleapis.com//*"`, and `"*.appspot.com/*"` forms are supported, where `` should be an alphanumeric name.',
         ).optional(),
         service: z.string().describe("Supported service to allow.").optional(),
       })).describe(
         "Specifies which Google services are allowed to be accessed from VPC networks in the service perimeter.",
       ).optional(),
       allowedServices: z.array(z.string()).describe(
-        "The list of APIs usable within the Service Perimeter. Must be empty unless 'enable_restriction' is True. You can specify a list of individual services, as well as include the 'RESTRICTED-SERVICES' value, which automatically includes all of the services protected by the perimeter.",
+        "The list of APIs usable within the Service Perimeter. Must be empty unless `enable_restriction` is `true`. You can specify a list of individual services, as well as include the `'RESTRICTED-SERVICES'` value, which automatically includes all of the services protected by the perimeter.",
       ).optional(),
       enableRestriction: z.boolean().describe(
-        "Whether to restrict API calls within the Service Perimeter to the list of APIs specified in 'allowed_services'.",
+        "Whether to restrict API calls within the Service Perimeter to the list of APIs specified in `allowed_services`.",
       ).optional(),
       servicePatternsEnforcementScopes: z.array(
         z.enum([
@@ -293,7 +293,7 @@ const GlobalArgsSchema = z.object({
         .optional(),
     }).describe("Configuration for APIs allowed within Perimeter.").optional(),
   }).describe(
-    'Proposed (or dry run) ServicePerimeter configuration. This configuration allows to specify and test ServicePerimeter configuration without enforcing actual access restrictions. Only allowed to be set when the "use_explicit_dry_run_spec" flag is set.',
+    "Proposed (or dry run) ServicePerimeter configuration. This configuration allows you to specify and test ServicePerimeter configuration without enforcing actual access restrictions. Only allowed to be set when the `use_explicit_dry_run_spec` flag is set.",
   ).optional(),
   status: z.object({
     accessLevels: z.array(z.string()).describe(
@@ -317,7 +317,7 @@ const GlobalArgsSchema = z.object({
           "SOURCE_RESTRICTION_ENABLED",
           "SOURCE_RESTRICTION_DISABLED",
         ]).describe(
-          "Whether to enforce traffic restrictions based on `sources` field. If the `sources` fields is non-empty, then this field must be set to `SOURCE_RESTRICTION_ENABLED`.",
+          "Whether to enforce traffic restrictions based on `sources` field. If the `sources` field is not empty, then this field must be set to `SOURCE_RESTRICTION_ENABLED`.",
         ).optional(),
         sources: z.array(z.unknown()).describe(
           "Sources that this EgressPolicy authorizes access from. If this field is not empty, then `source_restriction` must be set to `SOURCE_RESTRICTION_ENABLED`.",
@@ -327,22 +327,22 @@ const GlobalArgsSchema = z.object({
       ).optional(),
       egressTo: z.object({
         externalResources: z.array(z.unknown()).describe(
-          "A list of external resources that are allowed to be accessed. Only AWS and Azure resources are supported. For Amazon S3, the supported formats are s3://BUCKET_NAME, s3a://BUCKET_NAME, and s3n://BUCKET_NAME. For Azure Storage, the supported format is azure://myaccount.blob.core.windows.net/CONTAINER_NAME. A request matches if it contains an external resource in this list (Example: s3://bucket/path). Currently '*' is not allowed.",
+          "A list of external resources that are allowed to be accessed. Only AWS and Azure resources are supported. For Amazon S3, the supported formats are `s3://BUCKET_NAME`, `s3a://BUCKET_NAME`, and `s3n://BUCKET_NAME`. For Azure Storage, the supported format is `azure://myaccount.blob.core.windows.net/CONTAINER_NAME`. A request matches if it contains an external resource in this list (Example: `s3://bucket/path`). Currently `'*'` is not allowed.",
         ).optional(),
         operations: z.array(z.unknown()).describe(
           "A list of ApiOperations allowed to be performed by the sources specified in the corresponding EgressFrom. A request matches if it uses an operation/service in this list.",
         ).optional(),
         resources: z.array(z.unknown()).describe(
-          "A list of resources, currently projects, folders, and organizations in the form `projects/`, `folders/`, and `organizations/`, that are allowed to be accessed by sources defined in the corresponding EgressFrom. A request matches if it contains a resource in this list. If `*` is specified for `resources`, then this EgressTo rule will authorize access to all resources outside the perimeter.",
+          "A list of resources, currently projects, folders, and organizations in the form `projects/{project_number}`, `folders/{folder_id}`, and `organizations/{organization_id}`, that are allowed to be accessed by sources defined in the corresponding EgressFrom. A request matches if it contains a resource in this list. If `*` is specified for `resources`, then this EgressTo rule will authorize access to all resources outside the perimeter.",
         ).optional(),
         roles: z.array(z.unknown()).describe(
-          "IAM roles that represent the set of operations that the sources specified in the corresponding EgressFrom. are allowed to perform in this ServicePerimeter.",
+          "IAM roles that represent the set of operations that the sources specified in the corresponding EgressFrom are allowed to perform in this ServicePerimeter.",
         ).optional(),
       }).describe(
         "Defines the conditions on the ApiOperation and destination resources that cause this EgressPolicy to apply.",
       ).optional(),
       title: z.string().describe(
-        "Optional. Human-readable title for the egress rule. The title must be unique within the perimeter and can not exceed 100 characters. Within the access policy, the combined length of all rule titles must not exceed 240,000 characters.",
+        "Optional. Human-readable title for the egress rule. The title must be unique within the perimeter and cannot exceed 100 characters. Within the access policy, the combined length of all rule titles must not exceed 240,000 characters.",
       ).optional(),
     })).describe(
       "List of EgressPolicies to apply to the perimeter. A perimeter may have multiple EgressPolicies, each of which is evaluated separately. Access is granted if any EgressPolicy grants it. Must be empty for a perimeter bridge.",
@@ -371,7 +371,7 @@ const GlobalArgsSchema = z.object({
           "A list of ApiOperations allowed to be performed by the sources specified in corresponding IngressFrom in this ServicePerimeter.",
         ).optional(),
         resources: z.array(z.unknown()).describe(
-          "A list of resources, currently projects, folders, and organizations in the form `projects/{project_number}`, `folders/{folder_id}`, and `organizations/{organization_id}`, protected by this ServicePerimeter that are allowed to be accessed by sources defined in the corresponding IngressFrom. If a single `*` is specified, then access to all resources inside the perimeter are allowed.",
+          "A list of resources, currently projects, folders, and organizations in the form `projects/{project_number}`, `folders/{folder_id}`, and `organizations/{organization_id}`, protected by this ServicePerimeter that are allowed to be accessed by sources defined in the corresponding IngressFrom. If a single `*` is specified, then access to all resources inside the perimeter is allowed.",
         ).optional(),
         roles: z.array(z.unknown()).describe(
           "IAM roles that represent the set of operations that the sources specified in the corresponding IngressFrom are allowed to perform in this ServicePerimeter.",
@@ -380,7 +380,7 @@ const GlobalArgsSchema = z.object({
         "Defines the conditions on the ApiOperation and request destination that cause this IngressPolicy to apply.",
       ).optional(),
       title: z.string().describe(
-        "Optional. Human-readable title for the ingress rule. The title must be unique within the perimeter and can not exceed 100 characters. Within the access policy, the combined length of all rule titles must not exceed 240,000 characters.",
+        "Optional. Human-readable title for the ingress rule. The title must be unique within the perimeter and cannot exceed 100 characters. Within the access policy, the combined length of all rule titles must not exceed 240,000 characters.",
       ).optional(),
     })).describe(
       "List of IngressPolicies to apply to the perimeter. A perimeter may have multiple IngressPolicies, each of which is evaluated separately. Access is granted if any Ingress Policy grants it. Must be empty for a perimeter bridge.",
@@ -397,17 +397,17 @@ const GlobalArgsSchema = z.object({
           "Modifiers to apply to the requests that match the URL pattern.",
         ).optional(),
         pattern: z.string().describe(
-          'URL pattern to allow. Only patterns of ".googleapis.com/*", "www.googleapis.com//*" and "*.appspot.com/* forms are supported, where should be an alphanumeric name.',
+          'URL pattern to allow. Only patterns of `".googleapis.com/*"`, `"www.googleapis.com//*"`, and `"*.appspot.com/*"` forms are supported, where `` should be an alphanumeric name.',
         ).optional(),
         service: z.string().describe("Supported service to allow.").optional(),
       })).describe(
         "Specifies which Google services are allowed to be accessed from VPC networks in the service perimeter.",
       ).optional(),
       allowedServices: z.array(z.string()).describe(
-        "The list of APIs usable within the Service Perimeter. Must be empty unless 'enable_restriction' is True. You can specify a list of individual services, as well as include the 'RESTRICTED-SERVICES' value, which automatically includes all of the services protected by the perimeter.",
+        "The list of APIs usable within the Service Perimeter. Must be empty unless `enable_restriction` is `true`. You can specify a list of individual services, as well as include the `'RESTRICTED-SERVICES'` value, which automatically includes all of the services protected by the perimeter.",
       ).optional(),
       enableRestriction: z.boolean().describe(
-        "Whether to restrict API calls within the Service Perimeter to the list of APIs specified in 'allowed_services'.",
+        "Whether to restrict API calls within the Service Perimeter to the list of APIs specified in `allowed_services`.",
       ).optional(),
       servicePatternsEnforcementScopes: z.array(
         z.enum([
@@ -418,13 +418,13 @@ const GlobalArgsSchema = z.object({
         .optional(),
     }).describe("Configuration for APIs allowed within Perimeter.").optional(),
   }).describe(
-    "Current ServicePerimeter configuration. Specifies sets of resources, restricted services and access levels that determine perimeter content and boundaries.",
+    "Current ServicePerimeter configuration. Specifies sets of resources, restricted services, and access levels that determine perimeter content and boundaries.",
   ).optional(),
   title: z.string().describe(
     "Human readable title. Must be unique within the Policy.",
   ).optional(),
   useExplicitDryRunSpec: z.boolean().describe(
-    'Use explicit dry run spec flag. Ordinarily, a dry-run spec implicitly exists for all Service Perimeters, and that spec is identical to the status for those Service Perimeters. When this flag is set, it inhibits the generation of the implicit spec, thereby allowing the user to explicitly provide a configuration ("spec") to use in a dry-run version of the Service Perimeter. This allows the user to test changes to the enforced config ("status") without actually enforcing them. This testing is done through analyzing the differences between currently enforced and suggested restrictions. use_explicit_dry_run_spec must bet set to True if any of the fields in the spec are set to non-default values.',
+    'Use explicit dry run spec flag. Ordinarily, a dry-run spec implicitly exists for all Service Perimeters, and that spec is identical to the status for those Service Perimeters. When this flag is set, it inhibits the generation of the implicit spec, thereby allowing the user to explicitly provide a configuration ("spec") to use in a dry-run version of the Service Perimeter. This allows the user to test changes to the enforced config ("status") without actually enforcing them. This testing is done through analyzing the differences between currently enforced and suggested restrictions. `use_explicit_dry_run_spec` must be set to `true` if any of the fields in the spec are set to non-default values.',
   ).optional(),
   deletedPrincipalSyntax: z.string().describe(
     "Optional. If true, the response will contain the deleted principal syntax for identities that support it and the request can contain identities with deleted principal syntax.",
@@ -546,7 +546,7 @@ const InputsSchema = z.object({
   ).optional(),
   perimeterType: z.enum(["PERIMETER_TYPE_REGULAR", "PERIMETER_TYPE_BRIDGE"])
     .describe(
-      "Perimeter type indicator. A single project or VPC network is allowed to be a member of single regular perimeter, but multiple service perimeter bridges. A project cannot be a included in a perimeter bridge without being included in regular perimeter. For perimeter bridges, the restricted service list as well as access level lists must be empty.",
+      "Perimeter type indicator. A single project or VPC network is allowed to be a member of a single regular perimeter, but multiple service perimeter bridges. A project cannot be included in a perimeter bridge without being included in a regular perimeter. For perimeter bridges, the restricted service list as well as access level lists must be empty.",
     ).optional(),
   spec: z.object({
     accessLevels: z.array(z.string()).describe(
@@ -570,7 +570,7 @@ const InputsSchema = z.object({
           "SOURCE_RESTRICTION_ENABLED",
           "SOURCE_RESTRICTION_DISABLED",
         ]).describe(
-          "Whether to enforce traffic restrictions based on `sources` field. If the `sources` fields is non-empty, then this field must be set to `SOURCE_RESTRICTION_ENABLED`.",
+          "Whether to enforce traffic restrictions based on `sources` field. If the `sources` field is not empty, then this field must be set to `SOURCE_RESTRICTION_ENABLED`.",
         ).optional(),
         sources: z.array(z.unknown()).describe(
           "Sources that this EgressPolicy authorizes access from. If this field is not empty, then `source_restriction` must be set to `SOURCE_RESTRICTION_ENABLED`.",
@@ -580,22 +580,22 @@ const InputsSchema = z.object({
       ).optional(),
       egressTo: z.object({
         externalResources: z.array(z.unknown()).describe(
-          "A list of external resources that are allowed to be accessed. Only AWS and Azure resources are supported. For Amazon S3, the supported formats are s3://BUCKET_NAME, s3a://BUCKET_NAME, and s3n://BUCKET_NAME. For Azure Storage, the supported format is azure://myaccount.blob.core.windows.net/CONTAINER_NAME. A request matches if it contains an external resource in this list (Example: s3://bucket/path). Currently '*' is not allowed.",
+          "A list of external resources that are allowed to be accessed. Only AWS and Azure resources are supported. For Amazon S3, the supported formats are `s3://BUCKET_NAME`, `s3a://BUCKET_NAME`, and `s3n://BUCKET_NAME`. For Azure Storage, the supported format is `azure://myaccount.blob.core.windows.net/CONTAINER_NAME`. A request matches if it contains an external resource in this list (Example: `s3://bucket/path`). Currently `'*'` is not allowed.",
         ).optional(),
         operations: z.array(z.unknown()).describe(
           "A list of ApiOperations allowed to be performed by the sources specified in the corresponding EgressFrom. A request matches if it uses an operation/service in this list.",
         ).optional(),
         resources: z.array(z.unknown()).describe(
-          "A list of resources, currently projects, folders, and organizations in the form `projects/`, `folders/`, and `organizations/`, that are allowed to be accessed by sources defined in the corresponding EgressFrom. A request matches if it contains a resource in this list. If `*` is specified for `resources`, then this EgressTo rule will authorize access to all resources outside the perimeter.",
+          "A list of resources, currently projects, folders, and organizations in the form `projects/{project_number}`, `folders/{folder_id}`, and `organizations/{organization_id}`, that are allowed to be accessed by sources defined in the corresponding EgressFrom. A request matches if it contains a resource in this list. If `*` is specified for `resources`, then this EgressTo rule will authorize access to all resources outside the perimeter.",
         ).optional(),
         roles: z.array(z.unknown()).describe(
-          "IAM roles that represent the set of operations that the sources specified in the corresponding EgressFrom. are allowed to perform in this ServicePerimeter.",
+          "IAM roles that represent the set of operations that the sources specified in the corresponding EgressFrom are allowed to perform in this ServicePerimeter.",
         ).optional(),
       }).describe(
         "Defines the conditions on the ApiOperation and destination resources that cause this EgressPolicy to apply.",
       ).optional(),
       title: z.string().describe(
-        "Optional. Human-readable title for the egress rule. The title must be unique within the perimeter and can not exceed 100 characters. Within the access policy, the combined length of all rule titles must not exceed 240,000 characters.",
+        "Optional. Human-readable title for the egress rule. The title must be unique within the perimeter and cannot exceed 100 characters. Within the access policy, the combined length of all rule titles must not exceed 240,000 characters.",
       ).optional(),
     })).describe(
       "List of EgressPolicies to apply to the perimeter. A perimeter may have multiple EgressPolicies, each of which is evaluated separately. Access is granted if any EgressPolicy grants it. Must be empty for a perimeter bridge.",
@@ -624,7 +624,7 @@ const InputsSchema = z.object({
           "A list of ApiOperations allowed to be performed by the sources specified in corresponding IngressFrom in this ServicePerimeter.",
         ).optional(),
         resources: z.array(z.unknown()).describe(
-          "A list of resources, currently projects, folders, and organizations in the form `projects/{project_number}`, `folders/{folder_id}`, and `organizations/{organization_id}`, protected by this ServicePerimeter that are allowed to be accessed by sources defined in the corresponding IngressFrom. If a single `*` is specified, then access to all resources inside the perimeter are allowed.",
+          "A list of resources, currently projects, folders, and organizations in the form `projects/{project_number}`, `folders/{folder_id}`, and `organizations/{organization_id}`, protected by this ServicePerimeter that are allowed to be accessed by sources defined in the corresponding IngressFrom. If a single `*` is specified, then access to all resources inside the perimeter is allowed.",
         ).optional(),
         roles: z.array(z.unknown()).describe(
           "IAM roles that represent the set of operations that the sources specified in the corresponding IngressFrom are allowed to perform in this ServicePerimeter.",
@@ -633,7 +633,7 @@ const InputsSchema = z.object({
         "Defines the conditions on the ApiOperation and request destination that cause this IngressPolicy to apply.",
       ).optional(),
       title: z.string().describe(
-        "Optional. Human-readable title for the ingress rule. The title must be unique within the perimeter and can not exceed 100 characters. Within the access policy, the combined length of all rule titles must not exceed 240,000 characters.",
+        "Optional. Human-readable title for the ingress rule. The title must be unique within the perimeter and cannot exceed 100 characters. Within the access policy, the combined length of all rule titles must not exceed 240,000 characters.",
       ).optional(),
     })).describe(
       "List of IngressPolicies to apply to the perimeter. A perimeter may have multiple IngressPolicies, each of which is evaluated separately. Access is granted if any Ingress Policy grants it. Must be empty for a perimeter bridge.",
@@ -650,17 +650,17 @@ const InputsSchema = z.object({
           "Modifiers to apply to the requests that match the URL pattern.",
         ).optional(),
         pattern: z.string().describe(
-          'URL pattern to allow. Only patterns of ".googleapis.com/*", "www.googleapis.com//*" and "*.appspot.com/* forms are supported, where should be an alphanumeric name.',
+          'URL pattern to allow. Only patterns of `".googleapis.com/*"`, `"www.googleapis.com//*"`, and `"*.appspot.com/*"` forms are supported, where `` should be an alphanumeric name.',
         ).optional(),
         service: z.string().describe("Supported service to allow.").optional(),
       })).describe(
         "Specifies which Google services are allowed to be accessed from VPC networks in the service perimeter.",
       ).optional(),
       allowedServices: z.array(z.string()).describe(
-        "The list of APIs usable within the Service Perimeter. Must be empty unless 'enable_restriction' is True. You can specify a list of individual services, as well as include the 'RESTRICTED-SERVICES' value, which automatically includes all of the services protected by the perimeter.",
+        "The list of APIs usable within the Service Perimeter. Must be empty unless `enable_restriction` is `true`. You can specify a list of individual services, as well as include the `'RESTRICTED-SERVICES'` value, which automatically includes all of the services protected by the perimeter.",
       ).optional(),
       enableRestriction: z.boolean().describe(
-        "Whether to restrict API calls within the Service Perimeter to the list of APIs specified in 'allowed_services'.",
+        "Whether to restrict API calls within the Service Perimeter to the list of APIs specified in `allowed_services`.",
       ).optional(),
       servicePatternsEnforcementScopes: z.array(
         z.enum([
@@ -671,7 +671,7 @@ const InputsSchema = z.object({
         .optional(),
     }).describe("Configuration for APIs allowed within Perimeter.").optional(),
   }).describe(
-    'Proposed (or dry run) ServicePerimeter configuration. This configuration allows to specify and test ServicePerimeter configuration without enforcing actual access restrictions. Only allowed to be set when the "use_explicit_dry_run_spec" flag is set.',
+    "Proposed (or dry run) ServicePerimeter configuration. This configuration allows you to specify and test ServicePerimeter configuration without enforcing actual access restrictions. Only allowed to be set when the `use_explicit_dry_run_spec` flag is set.",
   ).optional(),
   status: z.object({
     accessLevels: z.array(z.string()).describe(
@@ -695,7 +695,7 @@ const InputsSchema = z.object({
           "SOURCE_RESTRICTION_ENABLED",
           "SOURCE_RESTRICTION_DISABLED",
         ]).describe(
-          "Whether to enforce traffic restrictions based on `sources` field. If the `sources` fields is non-empty, then this field must be set to `SOURCE_RESTRICTION_ENABLED`.",
+          "Whether to enforce traffic restrictions based on `sources` field. If the `sources` field is not empty, then this field must be set to `SOURCE_RESTRICTION_ENABLED`.",
         ).optional(),
         sources: z.array(z.unknown()).describe(
           "Sources that this EgressPolicy authorizes access from. If this field is not empty, then `source_restriction` must be set to `SOURCE_RESTRICTION_ENABLED`.",
@@ -705,22 +705,22 @@ const InputsSchema = z.object({
       ).optional(),
       egressTo: z.object({
         externalResources: z.array(z.unknown()).describe(
-          "A list of external resources that are allowed to be accessed. Only AWS and Azure resources are supported. For Amazon S3, the supported formats are s3://BUCKET_NAME, s3a://BUCKET_NAME, and s3n://BUCKET_NAME. For Azure Storage, the supported format is azure://myaccount.blob.core.windows.net/CONTAINER_NAME. A request matches if it contains an external resource in this list (Example: s3://bucket/path). Currently '*' is not allowed.",
+          "A list of external resources that are allowed to be accessed. Only AWS and Azure resources are supported. For Amazon S3, the supported formats are `s3://BUCKET_NAME`, `s3a://BUCKET_NAME`, and `s3n://BUCKET_NAME`. For Azure Storage, the supported format is `azure://myaccount.blob.core.windows.net/CONTAINER_NAME`. A request matches if it contains an external resource in this list (Example: `s3://bucket/path`). Currently `'*'` is not allowed.",
         ).optional(),
         operations: z.array(z.unknown()).describe(
           "A list of ApiOperations allowed to be performed by the sources specified in the corresponding EgressFrom. A request matches if it uses an operation/service in this list.",
         ).optional(),
         resources: z.array(z.unknown()).describe(
-          "A list of resources, currently projects, folders, and organizations in the form `projects/`, `folders/`, and `organizations/`, that are allowed to be accessed by sources defined in the corresponding EgressFrom. A request matches if it contains a resource in this list. If `*` is specified for `resources`, then this EgressTo rule will authorize access to all resources outside the perimeter.",
+          "A list of resources, currently projects, folders, and organizations in the form `projects/{project_number}`, `folders/{folder_id}`, and `organizations/{organization_id}`, that are allowed to be accessed by sources defined in the corresponding EgressFrom. A request matches if it contains a resource in this list. If `*` is specified for `resources`, then this EgressTo rule will authorize access to all resources outside the perimeter.",
         ).optional(),
         roles: z.array(z.unknown()).describe(
-          "IAM roles that represent the set of operations that the sources specified in the corresponding EgressFrom. are allowed to perform in this ServicePerimeter.",
+          "IAM roles that represent the set of operations that the sources specified in the corresponding EgressFrom are allowed to perform in this ServicePerimeter.",
         ).optional(),
       }).describe(
         "Defines the conditions on the ApiOperation and destination resources that cause this EgressPolicy to apply.",
       ).optional(),
       title: z.string().describe(
-        "Optional. Human-readable title for the egress rule. The title must be unique within the perimeter and can not exceed 100 characters. Within the access policy, the combined length of all rule titles must not exceed 240,000 characters.",
+        "Optional. Human-readable title for the egress rule. The title must be unique within the perimeter and cannot exceed 100 characters. Within the access policy, the combined length of all rule titles must not exceed 240,000 characters.",
       ).optional(),
     })).describe(
       "List of EgressPolicies to apply to the perimeter. A perimeter may have multiple EgressPolicies, each of which is evaluated separately. Access is granted if any EgressPolicy grants it. Must be empty for a perimeter bridge.",
@@ -749,7 +749,7 @@ const InputsSchema = z.object({
           "A list of ApiOperations allowed to be performed by the sources specified in corresponding IngressFrom in this ServicePerimeter.",
         ).optional(),
         resources: z.array(z.unknown()).describe(
-          "A list of resources, currently projects, folders, and organizations in the form `projects/{project_number}`, `folders/{folder_id}`, and `organizations/{organization_id}`, protected by this ServicePerimeter that are allowed to be accessed by sources defined in the corresponding IngressFrom. If a single `*` is specified, then access to all resources inside the perimeter are allowed.",
+          "A list of resources, currently projects, folders, and organizations in the form `projects/{project_number}`, `folders/{folder_id}`, and `organizations/{organization_id}`, protected by this ServicePerimeter that are allowed to be accessed by sources defined in the corresponding IngressFrom. If a single `*` is specified, then access to all resources inside the perimeter is allowed.",
         ).optional(),
         roles: z.array(z.unknown()).describe(
           "IAM roles that represent the set of operations that the sources specified in the corresponding IngressFrom are allowed to perform in this ServicePerimeter.",
@@ -758,7 +758,7 @@ const InputsSchema = z.object({
         "Defines the conditions on the ApiOperation and request destination that cause this IngressPolicy to apply.",
       ).optional(),
       title: z.string().describe(
-        "Optional. Human-readable title for the ingress rule. The title must be unique within the perimeter and can not exceed 100 characters. Within the access policy, the combined length of all rule titles must not exceed 240,000 characters.",
+        "Optional. Human-readable title for the ingress rule. The title must be unique within the perimeter and cannot exceed 100 characters. Within the access policy, the combined length of all rule titles must not exceed 240,000 characters.",
       ).optional(),
     })).describe(
       "List of IngressPolicies to apply to the perimeter. A perimeter may have multiple IngressPolicies, each of which is evaluated separately. Access is granted if any Ingress Policy grants it. Must be empty for a perimeter bridge.",
@@ -775,17 +775,17 @@ const InputsSchema = z.object({
           "Modifiers to apply to the requests that match the URL pattern.",
         ).optional(),
         pattern: z.string().describe(
-          'URL pattern to allow. Only patterns of ".googleapis.com/*", "www.googleapis.com//*" and "*.appspot.com/* forms are supported, where should be an alphanumeric name.',
+          'URL pattern to allow. Only patterns of `".googleapis.com/*"`, `"www.googleapis.com//*"`, and `"*.appspot.com/*"` forms are supported, where `` should be an alphanumeric name.',
         ).optional(),
         service: z.string().describe("Supported service to allow.").optional(),
       })).describe(
         "Specifies which Google services are allowed to be accessed from VPC networks in the service perimeter.",
       ).optional(),
       allowedServices: z.array(z.string()).describe(
-        "The list of APIs usable within the Service Perimeter. Must be empty unless 'enable_restriction' is True. You can specify a list of individual services, as well as include the 'RESTRICTED-SERVICES' value, which automatically includes all of the services protected by the perimeter.",
+        "The list of APIs usable within the Service Perimeter. Must be empty unless `enable_restriction` is `true`. You can specify a list of individual services, as well as include the `'RESTRICTED-SERVICES'` value, which automatically includes all of the services protected by the perimeter.",
       ).optional(),
       enableRestriction: z.boolean().describe(
-        "Whether to restrict API calls within the Service Perimeter to the list of APIs specified in 'allowed_services'.",
+        "Whether to restrict API calls within the Service Perimeter to the list of APIs specified in `allowed_services`.",
       ).optional(),
       servicePatternsEnforcementScopes: z.array(
         z.enum([
@@ -796,13 +796,13 @@ const InputsSchema = z.object({
         .optional(),
     }).describe("Configuration for APIs allowed within Perimeter.").optional(),
   }).describe(
-    "Current ServicePerimeter configuration. Specifies sets of resources, restricted services and access levels that determine perimeter content and boundaries.",
+    "Current ServicePerimeter configuration. Specifies sets of resources, restricted services, and access levels that determine perimeter content and boundaries.",
   ).optional(),
   title: z.string().describe(
     "Human readable title. Must be unique within the Policy.",
   ).optional(),
   useExplicitDryRunSpec: z.boolean().describe(
-    'Use explicit dry run spec flag. Ordinarily, a dry-run spec implicitly exists for all Service Perimeters, and that spec is identical to the status for those Service Perimeters. When this flag is set, it inhibits the generation of the implicit spec, thereby allowing the user to explicitly provide a configuration ("spec") to use in a dry-run version of the Service Perimeter. This allows the user to test changes to the enforced config ("status") without actually enforcing them. This testing is done through analyzing the differences between currently enforced and suggested restrictions. use_explicit_dry_run_spec must bet set to True if any of the fields in the spec are set to non-default values.',
+    'Use explicit dry run spec flag. Ordinarily, a dry-run spec implicitly exists for all Service Perimeters, and that spec is identical to the status for those Service Perimeters. When this flag is set, it inhibits the generation of the implicit spec, thereby allowing the user to explicitly provide a configuration ("spec") to use in a dry-run version of the Service Perimeter. This allows the user to test changes to the enforced config ("status") without actually enforcing them. This testing is done through analyzing the differences between currently enforced and suggested restrictions. `use_explicit_dry_run_spec` must be set to `true` if any of the fields in the spec are set to non-default values.',
   ).optional(),
   deletedPrincipalSyntax: z.string().describe(
     "Optional. If true, the response will contain the deleted principal syntax for identities that support it and the request can contain identities with deleted principal syntax.",
@@ -838,7 +838,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Access Context Manager AccessPolicies.ServicePerimeters. Registered at `@swamp/gcp/accesscontextmanager/accesspolicies-serviceperimeters`. */
 export const model = {
   type: "@swamp/gcp/accesscontextmanager/accesspolicies-serviceperimeters",
-  version: "2026.10.23.1",
+  version: "2026.10.31.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1042,6 +1042,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.31.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

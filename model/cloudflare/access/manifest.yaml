@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/cloudflare/access"
-version: "2026.10.30.1"
+version: "2026.10.31.1"
 license: "AGPL-3.0-or-later"
 description: "Cloudflare access infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -11,7 +11,11 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Updated: servers
+  - Updated: apps
+  - Updated: groups
+  - Updated: policies
+  - Updated: policy-tests
+  - Updated: service_tokens
 models:
   - apps.ts
   - certificates.ts

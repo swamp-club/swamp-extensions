@@ -63,14 +63,12 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
     ),
-  ).describe("The unique identifier of the space the dashboard belongs to."),
+  ).describe("The unique ID of the space to create the dashboard in."),
   Name: z.string().min(1).max(256).regex(new RegExp("^[a-zA-Z0-9_.@~()-]+$"))
-    .describe("The name of the dashboard."),
-  Body: z.string().min(1).max(1048576).describe(
-    "The dashboard body, a JSON document describing the dashboard's widgets and layout.",
-  ),
+    .describe("A name that identifies the dashboard."),
+  Body: z.string().min(1).max(1048576).describe("The dashboard definition."),
   Description: z.string().min(1).max(1024).describe(
-    "The description of the dashboard.",
+    "An optional description of the dashboard.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
@@ -102,15 +100,14 @@ const InputsSchema = z.object({
     new RegExp(
       "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
     ),
-  ).describe("The unique identifier of the space the dashboard belongs to.")
+  ).describe("The unique ID of the space to create the dashboard in.")
     .optional(),
   Name: z.string().min(1).max(256).regex(new RegExp("^[a-zA-Z0-9_.@~()-]+$"))
-    .describe("The name of the dashboard.").optional(),
-  Body: z.string().min(1).max(1048576).describe(
-    "The dashboard body, a JSON document describing the dashboard's widgets and layout.",
-  ).optional(),
+    .describe("A name that identifies the dashboard.").optional(),
+  Body: z.string().min(1).max(1048576).describe("The dashboard definition.")
+    .optional(),
   Description: z.string().min(1).max(1024).describe(
-    "The description of the dashboard.",
+    "An optional description of the dashboard.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
@@ -136,7 +133,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudWatch OmniDashboard. Registered at `@swamp/aws/cloudwatch/omni-dashboard`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/omni-dashboard",
-  version: "2026.10.24.1",
+  version: "2026.10.31.1",
+  upgrades: [
+    {
+      toVersion: "2026.10.31.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

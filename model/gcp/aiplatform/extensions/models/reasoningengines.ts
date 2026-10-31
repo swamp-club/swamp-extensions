@@ -452,6 +452,17 @@ const GlobalArgsSchema = z.object({
       }).describe(
         "Source code is in a Git repository managed by Developer Connect.",
       ).optional(),
+      gitSource: z.object({
+        dir: z.string().describe(
+          "Optional. Directory, relative to the source root, in which to run the build.",
+        ).optional(),
+        revision: z.string().describe(
+          "Required. The revision to fetch from the Git repository: a branch, a tag, or a full commit SHA. Abbreviated commit SHAs are not supported.",
+        ).optional(),
+        url: z.string().describe(
+          "Required. The HTTPS URL of the public Git repository to clone.",
+        ).optional(),
+      }).describe("Source code is in a public Git repository.").optional(),
       imageSpec: z.object({
         buildArgs: z.record(z.string(), z.string()).describe(
           "Optional. Build arguments to be used. They will be passed through --build-arg flags.",
@@ -610,6 +621,11 @@ const StateSchema = z.object({
           gitRepositoryLink: z.string(),
           revision: z.string(),
         }),
+      }),
+      gitSource: z.object({
+        dir: z.string(),
+        revision: z.string(),
+        url: z.string(),
       }),
       imageSpec: z.object({
         buildArgs: z.record(z.string(), z.unknown()),
@@ -932,6 +948,17 @@ const InputsSchema = z.object({
       }).describe(
         "Source code is in a Git repository managed by Developer Connect.",
       ).optional(),
+      gitSource: z.object({
+        dir: z.string().describe(
+          "Optional. Directory, relative to the source root, in which to run the build.",
+        ).optional(),
+        revision: z.string().describe(
+          "Required. The revision to fetch from the Git repository: a branch, a tag, or a full commit SHA. Abbreviated commit SHAs are not supported.",
+        ).optional(),
+        url: z.string().describe(
+          "Required. The HTTPS URL of the public Git repository to clone.",
+        ).optional(),
+      }).describe("Source code is in a public Git repository.").optional(),
       imageSpec: z.object({
         buildArgs: z.record(z.string(), z.string()).describe(
           "Optional. Build arguments to be used. They will be passed through --build-arg flags.",
@@ -993,7 +1020,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform ReasoningEngines. Registered at `@swamp/gcp/aiplatform/reasoningengines`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/reasoningengines",
-  version: "2026.10.23.1",
+  version: "2026.10.31.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1308,6 +1335,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.31.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

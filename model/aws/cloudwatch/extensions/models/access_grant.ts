@@ -114,14 +114,14 @@ const GlobalArgsSchema = z.object({
   Name: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
     .describe("A name that identifies the access grant."),
   DomainId: z.string().regex(new RegExp("^d-[0-9a-z]{1,25}$")).describe(
-    "The unique identifier of the domain that contains the space.",
+    "The ID of the domain the grant belongs to.",
   ),
   SpaceId: z.string().regex(
     new RegExp(
       "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
     ),
   ).describe(
-    "The unique identifier of the space the access grant is scoped to.",
+    "The space this grant applies to. Domain-scoped grants are returned by ListDomainAccessGrantsForOrganization instead.",
   ),
   Principal: z.object({
     PrincipalType: z.enum([
@@ -144,11 +144,9 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe("The principal receiving the grant."),
   Permission: z.enum(["SPACE_ADMIN", "READ", "READ_WRITE_DELETE", "CUSTOM"])
-    .describe(
-      "The permission granted. Exactly one permission is granted per access grant.",
-    ),
+    .describe("The permission granted."),
   ScopedActions: z.array(ScopedActionsSchema).describe(
-    "Groups of actions to allow, each with the resource scopes and conditions that limit those actions.",
+    "Groups of actions allowed by the grant, each with the resource scopes and conditions that limit those actions.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
@@ -187,14 +185,14 @@ const InputsSchema = z.object({
   Name: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
     .describe("A name that identifies the access grant.").optional(),
   DomainId: z.string().regex(new RegExp("^d-[0-9a-z]{1,25}$")).describe(
-    "The unique identifier of the domain that contains the space.",
+    "The ID of the domain the grant belongs to.",
   ).optional(),
   SpaceId: z.string().regex(
     new RegExp(
       "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
     ),
   ).describe(
-    "The unique identifier of the space the access grant is scoped to.",
+    "The space this grant applies to. Domain-scoped grants are returned by ListDomainAccessGrantsForOrganization instead.",
   ).optional(),
   Principal: z.object({
     PrincipalType: z.enum([
@@ -217,11 +215,9 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe("The principal receiving the grant.").optional(),
   Permission: z.enum(["SPACE_ADMIN", "READ", "READ_WRITE_DELETE", "CUSTOM"])
-    .describe(
-      "The permission granted. Exactly one permission is granted per access grant.",
-    ).optional(),
+    .describe("The permission granted.").optional(),
   ScopedActions: z.array(ScopedActionsSchema).describe(
-    "Groups of actions to allow, each with the resource scopes and conditions that limit those actions.",
+    "Groups of actions allowed by the grant, each with the resource scopes and conditions that limit those actions.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
@@ -247,10 +243,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudWatch AccessGrant. Registered at `@swamp/aws/cloudwatch/access-grant`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/access-grant",
-  version: "2026.10.30.1",
+  version: "2026.10.31.1",
   upgrades: [
     {
       toVersion: "2026.10.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.31.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -14,8 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/backup/backup_plan` to see the full
-list of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/aws/backup/backup_access_point` to see the
+full list of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -47,17 +47,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new backup_plan model
-swamp model create @swamp/aws/backup/backup_plan my-backup_plan
+# Create a new backup_access_point model
+swamp model create @swamp/aws/backup/backup_access_point my-backup_access_point
 
 # Edit the model to configure its properties
-swamp model edit my-backup_plan
+swamp model edit my-backup_access_point
 
 # Create the resource in AWS
-swamp model method run my-backup_plan create
+swamp model method run my-backup_access_point create
 
 # Sync current state from AWS
-swamp model method run my-backup_plan sync
+swamp model method run my-backup_access_point sync
 ```
 
 ## License

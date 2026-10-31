@@ -63,6 +63,7 @@ const GlobalArgsSchema = z.object({
     "resolve",
     "quarantine",
     "redirect",
+    "forward",
   ]).describe(
     "Specify the action to perform when the associated traffic, identity, and device posture expressions either absent or evaluate to `true`.",
   ).optional(),
@@ -94,7 +95,8 @@ const GlobalArgsSchema = z.object({
       download: z.enum(["enabled", "disabled", "remote_only"]).optional(),
       dp: z.boolean().optional(),
       du: z.boolean().optional(),
-      keyboard: z.enum(["enabled", "disabled"]).optional(),
+      keyboard: z.enum(["enabled", "disabled", "enable_read_only_actions"])
+        .optional(),
       paste: z.enum(["enabled", "disabled", "remote_only"]).optional(),
       printing: z.enum(["enabled", "disabled"]).optional(),
       upload: z.enum(["enabled", "disabled"]).optional(),
@@ -134,6 +136,9 @@ const GlobalArgsSchema = z.object({
     }).optional(),
     forensic_copy: z.object({
       enabled: z.boolean().optional(),
+    }).optional(),
+    forward: z.object({
+      worker_id: z.string().regex(new RegExp("^[0-9a-f]{32}$")),
     }).optional(),
     ignore_cname_category_matches: z.boolean().optional(),
     insecure_disable_dnssec_validation: z.boolean().optional(),
@@ -286,6 +291,9 @@ const ResourceSchema = z.object({
     forensic_copy: z.object({
       enabled: z.boolean().optional(),
     }).optional(),
+    forward: z.object({
+      worker_id: z.string().optional(),
+    }).optional(),
     ignore_cname_category_matches: z.boolean().optional(),
     insecure_disable_dnssec_validation: z.boolean().optional(),
     ip_categories: z.boolean().optional(),
@@ -366,6 +374,7 @@ const InputsSchema = z.object({
     "resolve",
     "quarantine",
     "redirect",
+    "forward",
   ]).optional(),
   device_posture: z.string().optional(),
   expiration: z.object({
@@ -387,7 +396,8 @@ const InputsSchema = z.object({
       download: z.enum(["enabled", "disabled", "remote_only"]).optional(),
       dp: z.boolean().optional(),
       du: z.boolean().optional(),
-      keyboard: z.enum(["enabled", "disabled"]).optional(),
+      keyboard: z.enum(["enabled", "disabled", "enable_read_only_actions"])
+        .optional(),
       paste: z.enum(["enabled", "disabled", "remote_only"]).optional(),
       printing: z.enum(["enabled", "disabled"]).optional(),
       upload: z.enum(["enabled", "disabled"]).optional(),
@@ -427,6 +437,9 @@ const InputsSchema = z.object({
     }).optional(),
     forensic_copy: z.object({
       enabled: z.boolean().optional(),
+    }).optional(),
+    forward: z.object({
+      worker_id: z.string().regex(new RegExp("^[0-9a-f]{32}$")),
     }).optional(),
     ignore_cname_category_matches: z.boolean().optional(),
     insecure_disable_dnssec_validation: z.boolean().optional(),
@@ -500,7 +513,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Rules. Registered at `@swamp/cloudflare/gateway/rules`. */
 export const model = {
   type: "@swamp/cloudflare/gateway/rules",
-  version: "2026.10.23.1",
+  version: "2026.10.31.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -559,6 +572,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.31.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -84,6 +84,7 @@ const ResourceSchema = z.object({
   algorithm: z.string().nullable().optional(),
   claimsSchema: z.record(z.string(), z.unknown()).nullable().optional(),
   createdAt: z.string().nullable().optional(),
+  discoveryLayout: z.string().nullable().optional(),
   id: z.string(),
   managedBy: z.string().nullable().optional(),
   name: z.string().nullable().optional(),
@@ -163,7 +164,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Issuers. Registered at `@swamp/vercel/kms/issuers`. */
 export const model = {
   type: "@swamp/vercel/kms/issuers",
-  version: "2026.10.23.1",
+  version: "2026.10.31.1",
   upgrades: [
     {
       toVersion: "2026.09.08.1",
@@ -212,6 +213,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.31.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -313,6 +319,9 @@ export const model = {
         }
         if (g.createdAt !== undefined) {
           filters.push(["createdAt", String(g.createdAt)]);
+        }
+        if (g.discoveryLayout !== undefined) {
+          filters.push(["discoveryLayout", String(g.discoveryLayout)]);
         }
         if (g.id !== undefined) filters.push(["id", String(g.id)]);
         if (g.managedBy !== undefined) {

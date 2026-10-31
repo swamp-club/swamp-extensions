@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Network Services ServiceLbPolicies.
  *
- * ServiceLbPolicy holds global load balancing and traffic distribution configuration that can be applied to a BackendService.
+ * ServiceLbPolicy holds load balancing and traffic distribution configuration that can be applied to a global or regional BackendService.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -310,7 +310,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Services ServiceLbPolicies. Registered at `@swamp/gcp/networkservices/servicelbpolicies`. */
 export const model = {
   type: "@swamp/gcp/networkservices/servicelbpolicies",
-  version: "2026.10.23.1",
+  version: "2026.10.31.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -452,13 +452,18 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.10.31.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
     state: {
       description:
-        "ServiceLbPolicy holds global load balancing and traffic distribution configur...",
+        "ServiceLbPolicy holds load balancing and traffic distribution configuration t...",
       schema: StateSchema,
       lifetime: "infinite",
       garbageCollection: 10,

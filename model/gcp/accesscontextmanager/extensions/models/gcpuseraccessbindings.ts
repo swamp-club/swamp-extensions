@@ -158,23 +158,23 @@ const GlobalArgsSchema = z.object({
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
   accessLevels: z.array(z.string()).describe(
-    'Optional. Access level that a user must have to be granted access. Only one access level is supported, not multiple. This repeated field must have exactly one element. Example: "accessPolicies/9522/accessLevels/device_trusted"',
+    'Optional. Access level that a user must have to be granted access. Only one access level is supported, not multiple. This repeated field must have exactly one element. Example: `"accessPolicies/9522/accessLevels/device_trusted"`',
   ).optional(),
   dryRunAccessLevels: z.array(z.string()).describe(
-    'Optional. Dry run access level that will be evaluated but will not be enforced. The access denial based on dry run policy will be logged. Only one access level is supported, not multiple. This list must have exactly one element. Example: "accessPolicies/9522/accessLevels/device_trusted"',
+    'Optional. Dry-run access level that is evaluated, but not enforced. Any access denial based on the dry-run policy is logged. Only one access level is supported, not multiple. This list must have exactly one element. Example: `"accessPolicies/9522/accessLevels/device_trusted"`',
   ).optional(),
   groupKey: z.string().describe(
-    'Optional. Immutable. Google Group id whose users are subject to this binding\'s restrictions. See "id" in the [Google Workspace Directory API\'s Group Resource] (https://developers.google.com/admin-sdk/directory/v1/reference/groups#resource). If a group\'s email address/alias is changed, this resource will continue to point at the changed group. This field does not accept group email addresses or aliases. Example: "01d520gv4vjcrht"',
+    'Optional. Immutable. Google Group ID whose users are subject to this binding\'s restrictions. See "id" in the [Google Workspace Directory API\'s Group Resource] (https://developers.google.com/admin-sdk/directory/v1/reference/groups#resource). If a group\'s email address or alias is changed, this resource will continue to point at the changed group. This field does not accept group email addresses or aliases. Example: `"01d520gv4vjcrht"`',
   ).optional(),
   name: z.string().describe(
-    'Immutable. Assigned by the server during creation. The last segment has an arbitrary length and has only URI unreserved characters (as defined by [RFC 3986 Section 2.3](https://tools.ietf.org/html/rfc3986#section-2.3)). Should not be specified by the client during creation. Example: "organizations/256/gcpUserAccessBindings/b3-BhcX_Ud5N"',
+    'Immutable. Assigned by the server during creation. The last segment has an arbitrary length and has only URI unreserved characters (as defined by [RFC 3986 Section 2.3](https://tools.ietf.org/html/rfc3986#section-2.3)). Should not be specified by the client during creation. Example: `"organizations/256/gcpUserAccessBindings/b3-BhcX_Ud5N"`',
   ).optional(),
   principal: z.object({
     federatedPrincipal: z.string().describe(
       "Immutable. The IAM principal identifier of the federated workforce or workload to assign the policy to. Examples include the following: * Single principal: `principal://iam.googleapis.com/projects/{project_number}/locations/global/workloadIdentityPools/{pool_id}/subject/{subject_attribute_value}` * All workloads in a workload identity pool: `principalSet://iam.googleapis.com/projects/{project_number}/locations/global/workloadIdentityPools/{pool_id}/*` * All Workforce Pools in a Google Cloud organization: `principalSet://cloudresourcemanager.googleapis.com/organizations/{organization_id}/type/WorkforcePool` Bindings created for all Workforce Pools in a Google Cloud organization support only `scoped_access_settings` with the `restricted_project` client scope and active `session_settings`. No other configurations are allowed.",
     ).optional(),
     serviceAccount: z.string().describe(
-      "Immutable. Service account email used to assign policies to a specific service account. If a service account is subject to multiple policies (e.g., if there is a policy for all service accounts in a project and a policy for the service account), the closest (i.e. the most specific) dry-run policy will be used for the dry-run functionality and the closest enforcement policy will be used for the enforcement.",
+      "Immutable. Service account email used to assign policies to a specific service account. If a service account is subject to multiple policies (for example, if there is a policy for all service accounts in a project and a policy for the service account), the closest (that is, the most specific) dry-run policy is used for the dry-run functionality and the closest enforcement policy is used for enforcement.",
     ).optional(),
     serviceAccountProjectNumber: z.string().describe(
       "Immutable. Cloud project number used to assign policies to all service accounts owned by the project.",
@@ -185,17 +185,17 @@ const GlobalArgsSchema = z.object({
   scopedAccessSettings: z.array(z.object({
     activeSettings: z.object({
       accessLevels: z.array(z.string()).describe(
-        'Optional. Access level that a user must have to be granted access. Only one access level is supported, not multiple. This repeated field must have exactly one element. Example: "accessPolicies/9522/accessLevels/device_trusted"',
+        'Optional. Access level that a user must have to be granted access. Only one access level is supported, not multiple. This repeated field must have exactly one element. Example: `"accessPolicies/9522/accessLevels/device_trusted"`',
       ).optional(),
       sessionSettings: z.object({
         maxInactivity: z.string().describe(
           "Optional. How long a user is allowed to take between actions before a new access token must be issued. Only set for Google Cloud apps.",
         ).optional(),
         sessionLength: z.string().describe(
-          "Optional. The session length. Setting this field to zero allows for sessions that are active indefinitely. Also, setting `session_length_enabled` to `false` disregards session limits, which means that sessions never expire. If `use_oidc_max_age` is `true`, for OIDC apps, the session length will be the minimum of this field and the OIDC `max_age` param. If this field is set to zero, `session_length_enabled` must be set to `false` or left unset.",
+          "Optional. The session length. Setting this field to zero allows for sessions that are active indefinitely. Also, setting `session_length_enabled` to `false` disregards session limits, which means that sessions never expire. If `use_oidc_max_age` is `true`, for OIDC apps, the session length will be the minimum of this field and the OIDC `max_age` parameter. If this field is set to zero, `session_length_enabled` must be set to `false` or left unset.",
         ).optional(),
         sessionLengthEnabled: z.boolean().describe(
-          "Optional. This field enables or disables Google Cloud session length. When false, all fields set above will be disregarded and the session length is basically infinite. If `session_length` is set to zero, this field must be set to false.",
+          "Optional. This field enables or disables Google Cloud session length. When `false`, all fields set above are disregarded and the session length is effectively infinite. If `session_length` is set to zero, this field must be set to `false`.",
         ).optional(),
         sessionReauthMethod: z.enum([
           "SESSION_REAUTH_METHOD_UNSPECIFIED",
@@ -203,30 +203,30 @@ const GlobalArgsSchema = z.object({
           "SECURITY_KEY",
           "PASSWORD",
         ]).describe(
-          "Optional. Session method when user's Google Cloud session is up.",
+          "Optional. Session challenge method when a user's Google Cloud session expires.",
         ).optional(),
         useOidcMaxAge: z.boolean().describe(
-          "Optional. Only useful for OIDC apps. When false, the OIDC max_age param, if passed in the authentication request will be ignored. When true, the re-auth period will be the minimum of the session_length field and the max_age OIDC param.",
+          "Optional. Only useful for OIDC apps. When `false`, the OIDC `max_age` parameter, if passed in the authentication request, is ignored. When `true`, the re-authentication period is the minimum of the `session_length` field and the `max_age` OIDC parameter.",
         ).optional(),
       }).describe(
-        "Optional. Session settings applied to user access on a given AccessScope.",
+        "Optional. Session settings applied to user access on a given `AccessScope`.",
       ).optional(),
     }).describe(
-      "Optional. Access settings for this scoped access settings. This field may be empty if dry_run_settings is set.",
+      "Optional. Access settings for this `ScopedAccessSettings`. This field may be empty if `dry_run_settings` is set.",
     ).optional(),
     dryRunSettings: z.object({
       accessLevels: z.array(z.string()).describe(
-        'Optional. Access level that a user must have to be granted access. Only one access level is supported, not multiple. This repeated field must have exactly one element. Example: "accessPolicies/9522/accessLevels/device_trusted"',
+        'Optional. Access level that a user must have to be granted access. Only one access level is supported, not multiple. This repeated field must have exactly one element. Example: `"accessPolicies/9522/accessLevels/device_trusted"`',
       ).optional(),
       sessionSettings: z.object({
         maxInactivity: z.string().describe(
           "Optional. How long a user is allowed to take between actions before a new access token must be issued. Only set for Google Cloud apps.",
         ).optional(),
         sessionLength: z.string().describe(
-          "Optional. The session length. Setting this field to zero allows for sessions that are active indefinitely. Also, setting `session_length_enabled` to `false` disregards session limits, which means that sessions never expire. If `use_oidc_max_age` is `true`, for OIDC apps, the session length will be the minimum of this field and the OIDC `max_age` param. If this field is set to zero, `session_length_enabled` must be set to `false` or left unset.",
+          "Optional. The session length. Setting this field to zero allows for sessions that are active indefinitely. Also, setting `session_length_enabled` to `false` disregards session limits, which means that sessions never expire. If `use_oidc_max_age` is `true`, for OIDC apps, the session length will be the minimum of this field and the OIDC `max_age` parameter. If this field is set to zero, `session_length_enabled` must be set to `false` or left unset.",
         ).optional(),
         sessionLengthEnabled: z.boolean().describe(
-          "Optional. This field enables or disables Google Cloud session length. When false, all fields set above will be disregarded and the session length is basically infinite. If `session_length` is set to zero, this field must be set to false.",
+          "Optional. This field enables or disables Google Cloud session length. When `false`, all fields set above are disregarded and the session length is effectively infinite. If `session_length` is set to zero, this field must be set to `false`.",
         ).optional(),
         sessionReauthMethod: z.enum([
           "SESSION_REAUTH_METHOD_UNSPECIFIED",
@@ -234,16 +234,16 @@ const GlobalArgsSchema = z.object({
           "SECURITY_KEY",
           "PASSWORD",
         ]).describe(
-          "Optional. Session method when user's Google Cloud session is up.",
+          "Optional. Session challenge method when a user's Google Cloud session expires.",
         ).optional(),
         useOidcMaxAge: z.boolean().describe(
-          "Optional. Only useful for OIDC apps. When false, the OIDC max_age param, if passed in the authentication request will be ignored. When true, the re-auth period will be the minimum of the session_length field and the max_age OIDC param.",
+          "Optional. Only useful for OIDC apps. When `false`, the OIDC `max_age` parameter, if passed in the authentication request, is ignored. When `true`, the re-authentication period is the minimum of the `session_length` field and the `max_age` OIDC parameter.",
         ).optional(),
       }).describe(
-        "Optional. Session settings applied to user access on a given AccessScope.",
+        "Optional. Session settings applied to user access on a given `AccessScope`.",
       ).optional(),
     }).describe(
-      "Optional. Dry-run access settings for this scoped access settings. This field may be empty if active_settings is set.",
+      "Optional. Dry-run access settings for this `ScopedAccessSettings`. This field may be empty if `active_settings` is set.",
     ).optional(),
     scope: z.object({
       clientScope: z.object({
@@ -266,7 +266,7 @@ const GlobalArgsSchema = z.object({
         ).optional(),
       }).describe("Optional. Client scope for this access scope.").optional(),
     }).describe(
-      "Optional. Application, etc. to which the access settings will be applied to. Implicitly, this is the scoped access settings key; as such, it must be unique and non-empty.",
+      "Optional. Application or other resource to which the access settings are applied. Implicitly, this is the scoped access settings key; as such, it must be unique and non-empty.",
     ).optional(),
   })).describe(
     "Optional. A list of scoped access settings that set this binding's restrictions on a subset of applications.",
@@ -276,10 +276,10 @@ const GlobalArgsSchema = z.object({
       "Optional. How long a user is allowed to take between actions before a new access token must be issued. Only set for Google Cloud apps.",
     ).optional(),
     sessionLength: z.string().describe(
-      "Optional. The session length. Setting this field to zero allows for sessions that are active indefinitely. Also, setting `session_length_enabled` to `false` disregards session limits, which means that sessions never expire. If `use_oidc_max_age` is `true`, for OIDC apps, the session length will be the minimum of this field and the OIDC `max_age` param. If this field is set to zero, `session_length_enabled` must be set to `false` or left unset.",
+      "Optional. The session length. Setting this field to zero allows for sessions that are active indefinitely. Also, setting `session_length_enabled` to `false` disregards session limits, which means that sessions never expire. If `use_oidc_max_age` is `true`, for OIDC apps, the session length will be the minimum of this field and the OIDC `max_age` parameter. If this field is set to zero, `session_length_enabled` must be set to `false` or left unset.",
     ).optional(),
     sessionLengthEnabled: z.boolean().describe(
-      "Optional. This field enables or disables Google Cloud session length. When false, all fields set above will be disregarded and the session length is basically infinite. If `session_length` is set to zero, this field must be set to false.",
+      "Optional. This field enables or disables Google Cloud session length. When `false`, all fields set above are disregarded and the session length is effectively infinite. If `session_length` is set to zero, this field must be set to `false`.",
     ).optional(),
     sessionReauthMethod: z.enum([
       "SESSION_REAUTH_METHOD_UNSPECIFIED",
@@ -287,16 +287,16 @@ const GlobalArgsSchema = z.object({
       "SECURITY_KEY",
       "PASSWORD",
     ]).describe(
-      "Optional. Session method when user's Google Cloud session is up.",
+      "Optional. Session challenge method when a user's Google Cloud session expires.",
     ).optional(),
     useOidcMaxAge: z.boolean().describe(
-      "Optional. Only useful for OIDC apps. When false, the OIDC max_age param, if passed in the authentication request will be ignored. When true, the re-auth period will be the minimum of the session_length field and the max_age OIDC param.",
+      "Optional. Only useful for OIDC apps. When `false`, the OIDC `max_age` parameter, if passed in the authentication request, is ignored. When `true`, the re-authentication period is the minimum of the `session_length` field and the `max_age` OIDC parameter.",
     ).optional(),
   }).describe(
     "Optional. The Google Cloud session length (GCSL) policy for the group key.",
   ).optional(),
   append: z.string().describe(
-    'Optional. This field controls whether or not certain repeated settings in the update request overwrite or append to existing settings on the binding. If true, then append. Otherwise overwrite. So far, only scoped_access_settings with session_settings supports appending. Global access_levels, access_levels in scoped_access_settings, dry_run_access_levels, and session_settings are not compatible with append functionality, and the request will return an error if append=true when these settings are in the update_mask. The request will also return an error if append=true when "scoped_access_settings" is not set in the update_mask.',
+    'Optional. This field controls whether or not certain repeated settings in the update request overwrite or append to existing settings on the binding. If true, then append. Otherwise overwrite. So far, only `scoped_access_settings` with `session_settings` supports appending. Global `access_levels`, `access_levels` in `scoped_access_settings`, `dry_run_access_levels`, and `session_settings` are not compatible with append functionality, and the request will return an error if `append=true` when these settings are in the `update_mask`. The request will also return an error if `append=true` when `"scoped_access_settings"` is not set in the `update_mask`.',
   ).optional(),
   parent: z.string().describe(
     "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
@@ -365,23 +365,23 @@ const InputsSchema = z.object({
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
   accessLevels: z.array(z.string()).describe(
-    'Optional. Access level that a user must have to be granted access. Only one access level is supported, not multiple. This repeated field must have exactly one element. Example: "accessPolicies/9522/accessLevels/device_trusted"',
+    'Optional. Access level that a user must have to be granted access. Only one access level is supported, not multiple. This repeated field must have exactly one element. Example: `"accessPolicies/9522/accessLevels/device_trusted"`',
   ).optional(),
   dryRunAccessLevels: z.array(z.string()).describe(
-    'Optional. Dry run access level that will be evaluated but will not be enforced. The access denial based on dry run policy will be logged. Only one access level is supported, not multiple. This list must have exactly one element. Example: "accessPolicies/9522/accessLevels/device_trusted"',
+    'Optional. Dry-run access level that is evaluated, but not enforced. Any access denial based on the dry-run policy is logged. Only one access level is supported, not multiple. This list must have exactly one element. Example: `"accessPolicies/9522/accessLevels/device_trusted"`',
   ).optional(),
   groupKey: z.string().describe(
-    'Optional. Immutable. Google Group id whose users are subject to this binding\'s restrictions. See "id" in the [Google Workspace Directory API\'s Group Resource] (https://developers.google.com/admin-sdk/directory/v1/reference/groups#resource). If a group\'s email address/alias is changed, this resource will continue to point at the changed group. This field does not accept group email addresses or aliases. Example: "01d520gv4vjcrht"',
+    'Optional. Immutable. Google Group ID whose users are subject to this binding\'s restrictions. See "id" in the [Google Workspace Directory API\'s Group Resource] (https://developers.google.com/admin-sdk/directory/v1/reference/groups#resource). If a group\'s email address or alias is changed, this resource will continue to point at the changed group. This field does not accept group email addresses or aliases. Example: `"01d520gv4vjcrht"`',
   ).optional(),
   name: z.string().describe(
-    'Immutable. Assigned by the server during creation. The last segment has an arbitrary length and has only URI unreserved characters (as defined by [RFC 3986 Section 2.3](https://tools.ietf.org/html/rfc3986#section-2.3)). Should not be specified by the client during creation. Example: "organizations/256/gcpUserAccessBindings/b3-BhcX_Ud5N"',
+    'Immutable. Assigned by the server during creation. The last segment has an arbitrary length and has only URI unreserved characters (as defined by [RFC 3986 Section 2.3](https://tools.ietf.org/html/rfc3986#section-2.3)). Should not be specified by the client during creation. Example: `"organizations/256/gcpUserAccessBindings/b3-BhcX_Ud5N"`',
   ).optional(),
   principal: z.object({
     federatedPrincipal: z.string().describe(
       "Immutable. The IAM principal identifier of the federated workforce or workload to assign the policy to. Examples include the following: * Single principal: `principal://iam.googleapis.com/projects/{project_number}/locations/global/workloadIdentityPools/{pool_id}/subject/{subject_attribute_value}` * All workloads in a workload identity pool: `principalSet://iam.googleapis.com/projects/{project_number}/locations/global/workloadIdentityPools/{pool_id}/*` * All Workforce Pools in a Google Cloud organization: `principalSet://cloudresourcemanager.googleapis.com/organizations/{organization_id}/type/WorkforcePool` Bindings created for all Workforce Pools in a Google Cloud organization support only `scoped_access_settings` with the `restricted_project` client scope and active `session_settings`. No other configurations are allowed.",
     ).optional(),
     serviceAccount: z.string().describe(
-      "Immutable. Service account email used to assign policies to a specific service account. If a service account is subject to multiple policies (e.g., if there is a policy for all service accounts in a project and a policy for the service account), the closest (i.e. the most specific) dry-run policy will be used for the dry-run functionality and the closest enforcement policy will be used for the enforcement.",
+      "Immutable. Service account email used to assign policies to a specific service account. If a service account is subject to multiple policies (for example, if there is a policy for all service accounts in a project and a policy for the service account), the closest (that is, the most specific) dry-run policy is used for the dry-run functionality and the closest enforcement policy is used for enforcement.",
     ).optional(),
     serviceAccountProjectNumber: z.string().describe(
       "Immutable. Cloud project number used to assign policies to all service accounts owned by the project.",
@@ -392,17 +392,17 @@ const InputsSchema = z.object({
   scopedAccessSettings: z.array(z.object({
     activeSettings: z.object({
       accessLevels: z.array(z.string()).describe(
-        'Optional. Access level that a user must have to be granted access. Only one access level is supported, not multiple. This repeated field must have exactly one element. Example: "accessPolicies/9522/accessLevels/device_trusted"',
+        'Optional. Access level that a user must have to be granted access. Only one access level is supported, not multiple. This repeated field must have exactly one element. Example: `"accessPolicies/9522/accessLevels/device_trusted"`',
       ).optional(),
       sessionSettings: z.object({
         maxInactivity: z.string().describe(
           "Optional. How long a user is allowed to take between actions before a new access token must be issued. Only set for Google Cloud apps.",
         ).optional(),
         sessionLength: z.string().describe(
-          "Optional. The session length. Setting this field to zero allows for sessions that are active indefinitely. Also, setting `session_length_enabled` to `false` disregards session limits, which means that sessions never expire. If `use_oidc_max_age` is `true`, for OIDC apps, the session length will be the minimum of this field and the OIDC `max_age` param. If this field is set to zero, `session_length_enabled` must be set to `false` or left unset.",
+          "Optional. The session length. Setting this field to zero allows for sessions that are active indefinitely. Also, setting `session_length_enabled` to `false` disregards session limits, which means that sessions never expire. If `use_oidc_max_age` is `true`, for OIDC apps, the session length will be the minimum of this field and the OIDC `max_age` parameter. If this field is set to zero, `session_length_enabled` must be set to `false` or left unset.",
         ).optional(),
         sessionLengthEnabled: z.boolean().describe(
-          "Optional. This field enables or disables Google Cloud session length. When false, all fields set above will be disregarded and the session length is basically infinite. If `session_length` is set to zero, this field must be set to false.",
+          "Optional. This field enables or disables Google Cloud session length. When `false`, all fields set above are disregarded and the session length is effectively infinite. If `session_length` is set to zero, this field must be set to `false`.",
         ).optional(),
         sessionReauthMethod: z.enum([
           "SESSION_REAUTH_METHOD_UNSPECIFIED",
@@ -410,30 +410,30 @@ const InputsSchema = z.object({
           "SECURITY_KEY",
           "PASSWORD",
         ]).describe(
-          "Optional. Session method when user's Google Cloud session is up.",
+          "Optional. Session challenge method when a user's Google Cloud session expires.",
         ).optional(),
         useOidcMaxAge: z.boolean().describe(
-          "Optional. Only useful for OIDC apps. When false, the OIDC max_age param, if passed in the authentication request will be ignored. When true, the re-auth period will be the minimum of the session_length field and the max_age OIDC param.",
+          "Optional. Only useful for OIDC apps. When `false`, the OIDC `max_age` parameter, if passed in the authentication request, is ignored. When `true`, the re-authentication period is the minimum of the `session_length` field and the `max_age` OIDC parameter.",
         ).optional(),
       }).describe(
-        "Optional. Session settings applied to user access on a given AccessScope.",
+        "Optional. Session settings applied to user access on a given `AccessScope`.",
       ).optional(),
     }).describe(
-      "Optional. Access settings for this scoped access settings. This field may be empty if dry_run_settings is set.",
+      "Optional. Access settings for this `ScopedAccessSettings`. This field may be empty if `dry_run_settings` is set.",
     ).optional(),
     dryRunSettings: z.object({
       accessLevels: z.array(z.string()).describe(
-        'Optional. Access level that a user must have to be granted access. Only one access level is supported, not multiple. This repeated field must have exactly one element. Example: "accessPolicies/9522/accessLevels/device_trusted"',
+        'Optional. Access level that a user must have to be granted access. Only one access level is supported, not multiple. This repeated field must have exactly one element. Example: `"accessPolicies/9522/accessLevels/device_trusted"`',
       ).optional(),
       sessionSettings: z.object({
         maxInactivity: z.string().describe(
           "Optional. How long a user is allowed to take between actions before a new access token must be issued. Only set for Google Cloud apps.",
         ).optional(),
         sessionLength: z.string().describe(
-          "Optional. The session length. Setting this field to zero allows for sessions that are active indefinitely. Also, setting `session_length_enabled` to `false` disregards session limits, which means that sessions never expire. If `use_oidc_max_age` is `true`, for OIDC apps, the session length will be the minimum of this field and the OIDC `max_age` param. If this field is set to zero, `session_length_enabled` must be set to `false` or left unset.",
+          "Optional. The session length. Setting this field to zero allows for sessions that are active indefinitely. Also, setting `session_length_enabled` to `false` disregards session limits, which means that sessions never expire. If `use_oidc_max_age` is `true`, for OIDC apps, the session length will be the minimum of this field and the OIDC `max_age` parameter. If this field is set to zero, `session_length_enabled` must be set to `false` or left unset.",
         ).optional(),
         sessionLengthEnabled: z.boolean().describe(
-          "Optional. This field enables or disables Google Cloud session length. When false, all fields set above will be disregarded and the session length is basically infinite. If `session_length` is set to zero, this field must be set to false.",
+          "Optional. This field enables or disables Google Cloud session length. When `false`, all fields set above are disregarded and the session length is effectively infinite. If `session_length` is set to zero, this field must be set to `false`.",
         ).optional(),
         sessionReauthMethod: z.enum([
           "SESSION_REAUTH_METHOD_UNSPECIFIED",
@@ -441,16 +441,16 @@ const InputsSchema = z.object({
           "SECURITY_KEY",
           "PASSWORD",
         ]).describe(
-          "Optional. Session method when user's Google Cloud session is up.",
+          "Optional. Session challenge method when a user's Google Cloud session expires.",
         ).optional(),
         useOidcMaxAge: z.boolean().describe(
-          "Optional. Only useful for OIDC apps. When false, the OIDC max_age param, if passed in the authentication request will be ignored. When true, the re-auth period will be the minimum of the session_length field and the max_age OIDC param.",
+          "Optional. Only useful for OIDC apps. When `false`, the OIDC `max_age` parameter, if passed in the authentication request, is ignored. When `true`, the re-authentication period is the minimum of the `session_length` field and the `max_age` OIDC parameter.",
         ).optional(),
       }).describe(
-        "Optional. Session settings applied to user access on a given AccessScope.",
+        "Optional. Session settings applied to user access on a given `AccessScope`.",
       ).optional(),
     }).describe(
-      "Optional. Dry-run access settings for this scoped access settings. This field may be empty if active_settings is set.",
+      "Optional. Dry-run access settings for this `ScopedAccessSettings`. This field may be empty if `active_settings` is set.",
     ).optional(),
     scope: z.object({
       clientScope: z.object({
@@ -473,7 +473,7 @@ const InputsSchema = z.object({
         ).optional(),
       }).describe("Optional. Client scope for this access scope.").optional(),
     }).describe(
-      "Optional. Application, etc. to which the access settings will be applied to. Implicitly, this is the scoped access settings key; as such, it must be unique and non-empty.",
+      "Optional. Application or other resource to which the access settings are applied. Implicitly, this is the scoped access settings key; as such, it must be unique and non-empty.",
     ).optional(),
   })).describe(
     "Optional. A list of scoped access settings that set this binding's restrictions on a subset of applications.",
@@ -483,10 +483,10 @@ const InputsSchema = z.object({
       "Optional. How long a user is allowed to take between actions before a new access token must be issued. Only set for Google Cloud apps.",
     ).optional(),
     sessionLength: z.string().describe(
-      "Optional. The session length. Setting this field to zero allows for sessions that are active indefinitely. Also, setting `session_length_enabled` to `false` disregards session limits, which means that sessions never expire. If `use_oidc_max_age` is `true`, for OIDC apps, the session length will be the minimum of this field and the OIDC `max_age` param. If this field is set to zero, `session_length_enabled` must be set to `false` or left unset.",
+      "Optional. The session length. Setting this field to zero allows for sessions that are active indefinitely. Also, setting `session_length_enabled` to `false` disregards session limits, which means that sessions never expire. If `use_oidc_max_age` is `true`, for OIDC apps, the session length will be the minimum of this field and the OIDC `max_age` parameter. If this field is set to zero, `session_length_enabled` must be set to `false` or left unset.",
     ).optional(),
     sessionLengthEnabled: z.boolean().describe(
-      "Optional. This field enables or disables Google Cloud session length. When false, all fields set above will be disregarded and the session length is basically infinite. If `session_length` is set to zero, this field must be set to false.",
+      "Optional. This field enables or disables Google Cloud session length. When `false`, all fields set above are disregarded and the session length is effectively infinite. If `session_length` is set to zero, this field must be set to `false`.",
     ).optional(),
     sessionReauthMethod: z.enum([
       "SESSION_REAUTH_METHOD_UNSPECIFIED",
@@ -494,16 +494,16 @@ const InputsSchema = z.object({
       "SECURITY_KEY",
       "PASSWORD",
     ]).describe(
-      "Optional. Session method when user's Google Cloud session is up.",
+      "Optional. Session challenge method when a user's Google Cloud session expires.",
     ).optional(),
     useOidcMaxAge: z.boolean().describe(
-      "Optional. Only useful for OIDC apps. When false, the OIDC max_age param, if passed in the authentication request will be ignored. When true, the re-auth period will be the minimum of the session_length field and the max_age OIDC param.",
+      "Optional. Only useful for OIDC apps. When `false`, the OIDC `max_age` parameter, if passed in the authentication request, is ignored. When `true`, the re-authentication period is the minimum of the `session_length` field and the `max_age` OIDC parameter.",
     ).optional(),
   }).describe(
     "Optional. The Google Cloud session length (GCSL) policy for the group key.",
   ).optional(),
   append: z.string().describe(
-    'Optional. This field controls whether or not certain repeated settings in the update request overwrite or append to existing settings on the binding. If true, then append. Otherwise overwrite. So far, only scoped_access_settings with session_settings supports appending. Global access_levels, access_levels in scoped_access_settings, dry_run_access_levels, and session_settings are not compatible with append functionality, and the request will return an error if append=true when these settings are in the update_mask. The request will also return an error if append=true when "scoped_access_settings" is not set in the update_mask.',
+    'Optional. This field controls whether or not certain repeated settings in the update request overwrite or append to existing settings on the binding. If true, then append. Otherwise overwrite. So far, only `scoped_access_settings` with `session_settings` supports appending. Global `access_levels`, `access_levels` in `scoped_access_settings`, `dry_run_access_levels`, and `session_settings` are not compatible with append functionality, and the request will return an error if `append=true` when these settings are in the `update_mask`. The request will also return an error if `append=true` when `"scoped_access_settings"` is not set in the `update_mask`.',
   ).optional(),
   parent: z.string().describe(
     "The parent resource name (e.g., projects/my-project/locations/us-central1, organizations/123, folders/456)",
@@ -536,7 +536,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Access Context Manager GcpUserAccessBindings. Registered at `@swamp/gcp/accesscontextmanager/gcpuseraccessbindings`. */
 export const model = {
   type: "@swamp/gcp/accesscontextmanager/gcpuseraccessbindings",
-  version: "2026.10.23.1",
+  version: "2026.10.31.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -706,6 +706,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.31.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1011,7 +1016,7 @@ export const model = {
       description: "List gcpUserAccessBindings resources",
       arguments: z.object({
         filter: z.string().describe(
-          'Optional. The literal filter to apply to the results returned. See https://google.aip.dev/160 for more details. Accepts values: * `principal:group_key` * `principal:service_account` OR `principal:service_account_project_number`. If this field is empty or not one of the above, the default value is `"principal:group_key"`.',
+          "Optional. Filters the results by principal type. Uses the [AIP-160](https://google.aip.dev/160) filter syntax. Only the following filters are supported: * `principal:group_key`: bindings for groups. This is the default when the filter is empty. * `principal:service_account OR principal:service_account_project_number`: bindings for service accounts. * `principal:federated_principal`: bindings for federated principals. Values can be in snake_case or camelCase. Whitespace and the order of `OR` terms don't matter. Any other filter returns an `INVALID_ARGUMENT` error.",
         ).optional(),
         pageSize: z.number().describe(
           "Optional. Maximum number of items to return. The server may return fewer items. If left blank, the server may return any number of items.",

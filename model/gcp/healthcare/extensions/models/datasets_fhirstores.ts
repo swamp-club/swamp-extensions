@@ -316,6 +316,9 @@ const GlobalArgsSchema = z.object({
         }).describe("Optional. Configures de-id of application/FHIR content.")
           .optional(),
         image: z.object({
+          customRegexes: z.unknown().describe(
+            "Optional. Custom regex patterns to redact from the image.",
+          ).optional(),
           textRedactionMode: z.unknown().describe(
             "Optional. Determines how to redact text from image.",
           ).optional(),
@@ -448,6 +451,7 @@ const StateSchema = z.object({
           fieldMetadataList: z.unknown(),
         }),
         image: z.object({
+          customRegexes: z.unknown(),
           textRedactionMode: z.unknown(),
         }),
         text: z.object({
@@ -638,6 +642,9 @@ const InputsSchema = z.object({
         }).describe("Optional. Configures de-id of application/FHIR content.")
           .optional(),
         image: z.object({
+          customRegexes: z.unknown().describe(
+            "Optional. Custom regex patterns to redact from the image.",
+          ).optional(),
           textRedactionMode: z.unknown().describe(
             "Optional. Determines how to redact text from image.",
           ).optional(),
@@ -738,7 +745,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Healthcare Datasets.FhirStores. Registered at `@swamp/gcp/healthcare/datasets-fhirstores`. */
 export const model = {
   type: "@swamp/gcp/healthcare/datasets-fhirstores",
-  version: "2026.10.23.1",
+  version: "2026.10.31.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -979,6 +986,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.10.31.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
