@@ -1,5 +1,6 @@
 import { assertEquals } from "@std/assert";
 import { generateCloudflareModels, parseResources } from "./pipeline.ts";
+import { model as graphqlAnalyticsModel } from "./standalone/analytics/graphql_analytics.ts";
 
 type OApiSpec = Parameters<typeof parseResources>[0];
 
@@ -228,6 +229,46 @@ Deno.test("standalone services with a readmePath ship that README, not the CRUD 
           `name: "@swamp/cloudflare/${service}"`,
         ),
         true,
+      );
+    }
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("analytics ships its hand-written README, which documents the model's real methods", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    const schemaPath = `${dir}/spec.json`;
+    await Deno.writeTextFile(schemaPath, JSON.stringify({ paths: {} }));
+    const { services, errors } = await generateCloudflareModels({
+      services: ["analytics"],
+      outputDir: `${dir}/model`,
+      schemaPath,
+    });
+    assertEquals(errors, []);
+    const readme = services.get("analytics")!.readmeFile.sourceCode;
+    assertEquals(
+      readme,
+      await Deno.readTextFile(
+        new URL("./standalone/analytics/README.md", import.meta.url),
+      ),
+    );
+    const methodSections = [...readme.matchAll(/^### `(\w+)`$/gm)]
+      .map((match) => match[1])
+      .sort();
+    assertEquals(
+      methodSections,
+      Object.keys(graphqlAnalyticsModel.methods).sort(),
+    );
+    const usedMethods = [...readme.matchAll(/method run \S+ (\w+)/g)]
+      .map((match) => match[1]);
+    assertEquals([...new Set(usedMethods)].sort(), methodSections);
+    for (const method of ["create", "lookup", "adopt", "update", "delete"]) {
+      assertEquals(
+        readme.includes(`**${method}**`),
+        false,
+        `README must not list ${method}, which the model lacks`,
       );
     }
   } finally {

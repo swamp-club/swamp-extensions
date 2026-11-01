@@ -74,6 +74,10 @@ const STANDALONE_MODELS: StandaloneModelConfig[] = [
         ).pathname,
       },
     ],
+    readmePath: new URL(
+      "./standalone/analytics/README.md",
+      import.meta.url,
+    ).pathname,
     description: "Cloudflare GraphQL Analytics models",
     labels: ["cloudflare", "analytics", "graphql", "cloud", "infrastructure"],
   },
