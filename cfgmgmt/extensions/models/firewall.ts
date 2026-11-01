@@ -33,6 +33,18 @@ const GlobalArgsSchema = z.object({
   ),
   source: z.string().regex(/^[0-9a-fA-F.:\/]+$/, "Must be valid CIDR notation")
     .optional().describe("Source CIDR (e.g. 10.0.0.0/8)"),
+  destination: z.string().regex(
+    /^[0-9a-fA-F.:\/]+$/,
+    "Must be valid CIDR notation",
+  ).optional().describe(
+    "Destination address or CIDR; the rule matches only with this destination",
+  ),
+  comment: z.string().max(255).regex(
+    /^[A-Za-z0-9._:@\/+=,-]+(?: [A-Za-z0-9._:@\/+=,-]+)*$/,
+    "Letters, digits, single spaces and . _ : @ / + = , - only",
+  ).optional().describe(
+    "Rule comment on ufw and iptables; firewalld has no comments and rejects it",
+  ),
   ensure: z.enum(["present", "absent"]).default("present").describe(
     "Whether the rule should be present or absent",
   ),
@@ -74,6 +86,9 @@ const StateSchema = z.object({
     ),
     ruleExists: z.boolean().describe("Whether the rule currently exists"),
     ruleDetails: z.string().nullable().describe("Details of the matched rule"),
+    narrowerRule: z.string().nullable().describe(
+      "A rule limited to a destination that the wanted rule would widen",
+    ),
   }).describe("Current firewall state"),
   changes: z.array(z.string()).describe("List of changes detected or applied"),
   error: z.string().nullable().describe("Error message if status is failed"),
@@ -128,39 +143,60 @@ const FIREWALLD_ACTION = { allow: "accept", deny: "drop", reject: "reject" };
 const IPTABLES_TARGET = { allow: "ACCEPT", deny: "DROP", reject: "REJECT" };
 const PROTOCOL_NUMBER = { tcp: "6", udp: "17" };
 
+/** ufw prints a single-host address without its prefix. */
+function ufwAddress(cidr: string): string {
+  return cidr.replace(cidr.includes(":") ? /\/128$/ : /\/32$/, "");
+}
+
 /**
  * Matches one line of `ufw status`, e.g. `80/tcp  ALLOW  10.0.0.0/8` or
  * `80/tcp (v6)  DENY OUT  Anywhere (v6)`, on whole tokens: the port/proto,
  * the action, the direction (`OUT`, else inbound) and the source
- * (`Anywhere` when no source is wanted).
+ * (`Anywhere` when no source is wanted). A destination shows before the port,
+ * e.g. `10.0.0.5 80/tcp`: a line with one matches only when it is wanted, and a
+ * ` # text` comment is compared only when one is wanted.
  */
 function ufwLineMatches(line: string, g: GlobalArgs): boolean {
   const m = line.trim().match(
-    /^(\S+)(?:\s+\(v6\))?\s+(ALLOW|DENY|REJECT|LIMIT)(?:\s+(IN|OUT|FWD))?\s+(\S+)/,
+    /^(?:(\S+)\s+)?(\d+\/\w+)(?:\s+\(v6\))?\s+(ALLOW|DENY|REJECT|LIMIT)(?:\s+(IN|OUT|FWD))?\s+(\S+)/,
   );
   if (!m) return false;
-  const [, to, action, dir, from] = m;
+  const [, destination, to, action, dir, from] = m;
+  if (
+    (destination ?? null) !==
+      (g.destination ? ufwAddress(g.destination) : null)
+  ) {
+    return false;
+  }
   if (to !== `${g.port}/${g.protocol}`) return false;
   if (action !== UFW_ACTION[g.action]) return false;
   if ((dir === "OUT" ? "out" : "in") !== g.direction) return false;
-  return from === (g.source ?? "Anywhere");
+  if (from !== (g.source ? ufwAddress(g.source) : "Anywhere")) return false;
+  if (g.comment === undefined) return true;
+  return line.trim().match(/\s#\s(.*)$/)?.[1].trim() === g.comment;
 }
 
-/** firewalld's rich rule for `g`, unquoted; the source is regex-validated. */
+/** firewalld's rich rule for `g`, unquoted; addresses are regex-validated. */
 function firewalldRichRule(g: GlobalArgs): string {
   const parts = ["rule"];
-  if (g.source) {
-    parts.push(`family="${g.source.includes(":") ? "ipv6" : "ipv4"}"`);
-    parts.push(`source address="${g.source}"`);
+  const address = g.source ?? g.destination;
+  if (address) {
+    parts.push(`family="${address.includes(":") ? "ipv6" : "ipv4"}"`);
   }
+  if (g.source) parts.push(`source address="${g.source}"`);
+  if (g.destination) parts.push(`destination address="${g.destination}"`);
   parts.push(`port port="${g.port}" protocol="${g.protocol}"`);
   parts.push(FIREWALLD_ACTION[g.action]);
   return parts.join(" ");
 }
 
+function firewalldDestination(line: string): string | null {
+  return line.match(/\bdestination address="([^"]*)"/)?.[1] ?? null;
+}
+
 /**
  * Matches one line of `firewall-cmd --list-rich-rules` on its quoted port,
- * protocol and source values and its action keyword.
+ * protocol, source and destination values and its action keyword.
  */
 function firewalldRuleMatches(line: string, g: GlobalArgs): boolean {
   const port = line.match(/\bport port="([^"]*)" protocol="([^"]*)"/);
@@ -169,6 +205,10 @@ function firewalldRuleMatches(line: string, g: GlobalArgs): boolean {
   }
   const source = line.match(/\bsource address="([^"]*)"/);
   if ((source?.[1] ?? null) !== (g.source ?? null)) return false;
+  // A negated or ipset destination is not an address this model can name.
+  const unquoted = line.replace(/"[^"]*"/g, '""');
+  if (/\bdestination\s+(?!address=)/.test(unquoted)) return false;
+  if (firewalldDestination(line) !== (g.destination ?? null)) return false;
   const action = line.match(/\s(accept|drop|reject)(?:\s|$)/);
   return action?.[1] === FIREWALLD_ACTION[g.action];
 }
@@ -178,18 +218,38 @@ function withPrefix(cidr: string): string {
   return `${cidr}/${cidr.includes(":") ? 128 : 32}`;
 }
 
-/**
- * Matches one `iptables -S <chain>` rule, e.g.
- * `-A INPUT -s 10.0.0.0/8 -p tcp -m tcp --dport 80 -j ACCEPT`, on its option
- * values: protocol, destination port, source and target.
- */
-function iptablesRuleMatches(line: string, g: GlobalArgs): boolean {
-  const tokens = line.trim().split(/\s+/);
-  if (tokens[0] !== "-A") return false;
-  const opt = (name: string) => {
+const IPTABLES_COMMENT = /\s--comment\s+(?:"((?:[^"\\]|\\.)*)"|(\S+))/;
+
+/** The comment of one `iptables -S` rule, without its quoting. */
+function iptablesComment(line: string): string | null {
+  const m = line.match(IPTABLES_COMMENT);
+  if (!m) return null;
+  return m[1]?.replace(/\\(.)/g, "$1") ?? m[2];
+}
+
+/** Reads an option of one `iptables -S` rule; a comment is never read as one. */
+function iptablesOptions(line: string) {
+  const tokens = line.replace(IPTABLES_COMMENT, "").trim().split(/\s+/);
+  return (name: string) => {
     const i = tokens.indexOf(name);
     return i >= 0 && i + 1 < tokens.length ? tokens[i + 1] : null;
   };
+}
+
+function iptablesDestination(line: string): string | null {
+  return iptablesOptions(line)("-d");
+}
+
+/**
+ * Matches one `iptables -S <chain>` rule, e.g.
+ * `-A INPUT -s 10.0.0.0/8 -p tcp -m tcp --dport 80 -j ACCEPT`, on its option
+ * values: protocol, destination port, source, destination and target. A
+ * comment is compared only when one is wanted.
+ */
+function iptablesRuleMatches(line: string, g: GlobalArgs): boolean {
+  if (!/^\s*-A\s/.test(line)) return false;
+  if (/\s!\s+-d\s/.test(line.replace(IPTABLES_COMMENT, ""))) return false;
+  const opt = iptablesOptions(line);
   const proto = opt("-p");
   if (proto !== g.protocol && proto !== PROTOCOL_NUMBER[g.protocol]) {
     return false;
@@ -197,13 +257,57 @@ function iptablesRuleMatches(line: string, g: GlobalArgs): boolean {
   if (opt("--dport") !== String(g.port)) return false;
   if (opt("-j") !== IPTABLES_TARGET[g.action]) return false;
   const source = opt("-s");
-  return (source === null ? null : withPrefix(source)) ===
-    (g.source ? withPrefix(g.source) : null);
+  if (
+    (source === null ? null : withPrefix(source)) !==
+      (g.source ? withPrefix(g.source) : null)
+  ) {
+    return false;
+  }
+  const destination = opt("-d");
+  if (
+    (destination === null ? null : withPrefix(destination)) !==
+      (g.destination ? withPrefix(g.destination) : null)
+  ) {
+    return false;
+  }
+  return g.comment === undefined || iptablesComment(line) === g.comment;
 }
 
-/** Rules without a source that allow traffic are firewalld plain ports. */
+/** Rules without addresses that allow traffic are firewalld plain ports. */
 function firewalldUsesPort(g: GlobalArgs): boolean {
-  return !g.source && g.action === "allow";
+  return !g.source && !g.destination && g.action === "allow";
+}
+
+/**
+ * Finds the wanted rule in a backend's rule listing. Without one, also finds a
+ * rule that is the same apart from being limited to a destination the config
+ * did not name: adding the wanted rule would widen what it covers.
+ */
+function findRule(
+  listing: string,
+  g: GlobalArgs,
+  matches: (line: string, g: GlobalArgs) => boolean,
+  destinationOf: (line: string) => string | null,
+): Pick<Current, "ruleExists" | "ruleDetails" | "narrowerRule"> {
+  let narrowerRule: string | null = null;
+  for (const line of listing.split("\n")) {
+    if (matches(line, g)) {
+      return {
+        ruleExists: true,
+        ruleDetails: line.trim(),
+        narrowerRule: null,
+      };
+    }
+    if (g.destination || narrowerRule !== null) continue;
+    const destination = destinationOf(line);
+    if (
+      destination !== null &&
+      matches(line, { ...g, destination, comment: undefined })
+    ) {
+      narrowerRule = line.trim();
+    }
+  }
+  return { ruleExists: false, ruleDetails: null, narrowerRule };
 }
 
 async function gather(client: SshConn, g: GlobalArgs): Promise<Current> {
@@ -213,6 +317,7 @@ async function gather(client: SshConn, g: GlobalArgs): Promise<Current> {
 
   let ruleExists = false;
   let ruleDetails: string | null = null;
+  let narrowerRule: string | null = null;
 
   if (backend === "ufw") {
     const result = await execChecked(client, `ufw status`, so, "ufw status");
@@ -226,6 +331,9 @@ async function gather(client: SshConn, g: GlobalArgs): Promise<Current> {
   } else if (backend === "firewalld") {
     if (g.direction !== "in") {
       throw new Error("the firewalld backend manages inbound rules only");
+    }
+    if (g.comment !== undefined) {
+      throw new Error("the firewalld backend has no rule comment to manage");
     }
     if (firewalldUsesPort(g)) {
       const result = await execChecked(
@@ -246,13 +354,12 @@ async function gather(client: SshConn, g: GlobalArgs): Promise<Current> {
         so,
         "firewall-cmd --list-rich-rules",
       );
-      for (const line of result.stdout.split("\n")) {
-        if (firewalldRuleMatches(line, g)) {
-          ruleExists = true;
-          ruleDetails = line.trim();
-          break;
-        }
-      }
+      ({ ruleExists, ruleDetails, narrowerRule } = findRule(
+        result.stdout,
+        g,
+        firewalldRuleMatches,
+        firewalldDestination,
+      ));
     }
   } else if (backend === "iptables") {
     const chain = g.direction === "in" ? "INPUT" : "OUTPUT";
@@ -262,22 +369,25 @@ async function gather(client: SshConn, g: GlobalArgs): Promise<Current> {
       so,
       `iptables -S ${chain}`,
     );
-    for (const line of result.stdout.split("\n")) {
-      if (iptablesRuleMatches(line, g)) {
-        ruleExists = true;
-        ruleDetails = line.trim();
-        break;
-      }
-    }
+    ({ ruleExists, ruleDetails, narrowerRule } = findRule(
+      result.stdout,
+      g,
+      iptablesRuleMatches,
+      iptablesDestination,
+    ));
   }
 
-  return { backend, ruleExists, ruleDetails };
+  return { backend, ruleExists, ruleDetails, narrowerRule };
 }
 
 function detectChanges(g: GlobalArgs, current: Current) {
   const changes: string[] = [];
   if (g.ensure === "present" && !current.ruleExists) {
-    changes.push(`add ${g.action} rule for ${g.port}/${g.protocol}`);
+    changes.push(
+      current.narrowerRule
+        ? `rule for ${g.port}/${g.protocol} exists only for one destination: ${current.narrowerRule}`
+        : `add ${g.action} rule for ${g.port}/${g.protocol}`,
+    );
   }
   if (g.ensure === "absent" && current.ruleExists) {
     changes.push(`remove rule for ${g.port}/${g.protocol}`);
@@ -286,7 +396,12 @@ function detectChanges(g: GlobalArgs, current: Current) {
 }
 
 function emptyCurrent(): Current {
-  return { backend: null, ruleExists: false, ruleDetails: null };
+  return {
+    backend: null,
+    ruleExists: false,
+    ruleDetails: null,
+    narrowerRule: null,
+  };
 }
 
 /**
@@ -296,7 +411,15 @@ function emptyCurrent(): Current {
  */
 export const model = {
   type: "@swamp/cfgmgmt/firewall",
-  version: "2026.10.27.1",
+  version: "2026.11.01.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.01.1",
+      description:
+        "Add optional destination and comment arguments; existing attributes are unchanged",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: z.object({
     nodeHost: z.string().optional().describe(
@@ -433,16 +556,29 @@ export const model = {
             return { dataHandles: [handle] };
           }
 
+          if (g.ensure === "present" && current.narrowerRule) {
+            throw new Error(
+              `refusing to add a rule broader than an existing one (${current.narrowerRule}): set destination to manage that rule, or remove it first`,
+            );
+          }
+
           const so = sudoOpts(g);
 
           if (current.backend === "ufw") {
             const del = g.ensure === "present" ? "" : "delete ";
             const out = g.direction === "out" ? " out" : "";
-            const cmd = g.source
+            // ufw finds no rule to delete when given a differing comment, and
+            // still exits 0, so a delete never carries one.
+            const comment = g.comment && g.ensure === "present"
+              ? ` comment ${shellEscape(g.comment)}`
+              : "";
+            const cmd = g.source || g.destination
               ? `ufw ${del}${g.action}${out} from ${
-                shellEscape(g.source)
-              } to any port ${g.port} proto ${g.protocol}`
-              : `ufw ${del}${g.action}${out} ${g.port}/${g.protocol}`;
+                g.source ? shellEscape(g.source) : "any"
+              } to ${
+                g.destination ? shellEscape(g.destination) : "any"
+              } port ${g.port} proto ${g.protocol}${comment}`
+              : `ufw ${del}${g.action}${out} ${g.port}/${g.protocol}${comment}`;
             await execChecked(client, cmd, so, "ufw");
           } else if (current.backend === "firewalld") {
             const add = g.ensure === "present";
@@ -471,6 +607,16 @@ export const model = {
             let cmd =
               `iptables ${flag} ${chain} -p ${g.protocol} --dport ${g.port}`;
             if (g.source) cmd += ` -s ${shellEscape(g.source)}`;
+            if (g.destination) cmd += ` -d ${shellEscape(g.destination)}`;
+            // iptables -D matches the whole rule, so it needs the rule's comment
+            // even when the config does not name one.
+            const comment = g.comment ??
+              (current.ruleDetails
+                ? iptablesComment(current.ruleDetails)
+                : null);
+            if (comment !== null) {
+              cmd += ` -m comment --comment ${shellEscape(comment)}`;
+            }
             cmd += ` -j ${IPTABLES_TARGET[g.action]}`;
             await execChecked(client, cmd, so, "iptables");
           }

@@ -268,3 +268,510 @@ Deno.test("firewall: a port outside 1-65535 or not an integer is rejected", () =
   assertThrows(() => args({ port: 65536 }));
   assertThrows(() => args({ port: 80.5 }));
 });
+
+// Status lines below are copied from real ufw 0.36.2, `iptables -S` and
+// firewalld 2.1.1 (offline) output.
+const UFW_TWO_DESTINATIONS =
+  "10.0.0.5 8080/tcp          ALLOW       10.0.0.0/24                # app-42-lan\n" +
+  "10.0.0.6 8080/tcp          ALLOW       10.0.0.0/24                # app-43-lan\n";
+const APP_42 = {
+  port: 8080,
+  source: "10.0.0.0/24",
+  destination: "10.0.0.5",
+  comment: "app-42-lan",
+};
+
+async function applyCommands(rules: FakeRule[], overrides = {}) {
+  let commands: string[] = [];
+  await withFakeSsh(rules, async (fake) => {
+    await model.methods.apply.execute({}, fakeContext(args(overrides)));
+    commands = await fake.commands();
+  });
+  return commands;
+}
+
+Deno.test("firewall check: ufw tells rules apart by destination and comment", async () => {
+  const rules = ufw(UFW_TWO_DESTINATIONS);
+  assertEquals(await checkStatus(rules, APP_42), "compliant");
+  assertEquals(
+    await checkStatus(rules, { ...APP_42, comment: "app-43-lan" }),
+    "non_compliant",
+  );
+  assertEquals(
+    await checkStatus(rules, { ...APP_42, destination: "10.0.0.7" }),
+    "non_compliant",
+  );
+  const { comment: _comment, ...noComment } = APP_42;
+  assertEquals(await checkStatus(rules, noComment), "compliant");
+  const { destination: _destination, ...noDestination } = APP_42;
+  assertEquals(await checkStatus(rules, noDestination), "non_compliant");
+});
+
+Deno.test("firewall check: ufw reads v6 and outbound lines", async () => {
+  assertEquals(
+    await checkStatus(
+      ufw("80/tcp (v6)                ALLOW       Anywhere (v6)\n"),
+    ),
+    "compliant",
+  );
+  assertEquals(
+    await checkStatus(
+      ufw(
+        "2001:db8::1 85/tcp         ALLOW       Anywhere (v6)              # six\n",
+      ),
+      { port: 85, destination: "2001:db8::1", comment: "six" },
+    ),
+    "compliant",
+  );
+  assertEquals(
+    await checkStatus(
+      ufw(
+        "10.0.0.8 83/tcp            ALLOW OUT   Anywhere                   # outbound\n",
+      ),
+      { port: 83, destination: "10.0.0.8", direction: "out" },
+    ),
+    "compliant",
+  );
+});
+
+Deno.test("firewall check: an existing config never matches a ufw rule with a destination", async () => {
+  const rules = ufw("10.0.0.5 80/tcp            ALLOW       Anywhere\n");
+  assertEquals(await checkStatus(rules), "non_compliant");
+});
+
+Deno.test("firewall check: ufw prints single-host addresses without a prefix", async () => {
+  const rule = ufw("10.0.0.10 84/tcp           ALLOW       10.0.0.9\n");
+  assertEquals(
+    await checkStatus(rule, {
+      port: 84,
+      source: "10.0.0.9/32",
+      destination: "10.0.0.10/32",
+    }),
+    "compliant",
+  );
+  const v6 = ufw("85/tcp (v6)                ALLOW       2001:db8::1\n");
+  assertEquals(
+    await checkStatus(v6, { port: 85, source: "2001:db8::1/128" }),
+    "compliant",
+  );
+});
+
+Deno.test("firewall check: a /32 IPv6 network keeps its prefix on ufw", async () => {
+  const rule = ufw("85/tcp (v6)                ALLOW       2001:db8::/32\n");
+  assertEquals(
+    await checkStatus(rule, { port: 85, source: "2001:db8::/32" }),
+    "compliant",
+  );
+  assertEquals(
+    await checkStatus(rule, { port: 85, source: "2001:db8::" }),
+    "non_compliant",
+  );
+});
+
+Deno.test("firewall apply: ufw adds with the comment and deletes without it", async () => {
+  const added = await applyCommands(ufw(""), APP_42);
+  assertEquals(
+    added.includes(
+      "ufw allow from '10.0.0.0/24' to '10.0.0.5' port 8080 proto tcp comment 'app-42-lan'",
+    ),
+    true,
+    added.join("\n"),
+  );
+  const deleted = await applyCommands(ufw(UFW_TWO_DESTINATIONS), {
+    ...APP_42,
+    ensure: "absent",
+  });
+  assertEquals(
+    deleted.includes(
+      "ufw delete allow from '10.0.0.0/24' to '10.0.0.5' port 8080 proto tcp",
+    ),
+    true,
+    deleted.join("\n"),
+  );
+  assertEquals(deleted.some((c) => c.includes("app-43-lan")), false);
+});
+
+Deno.test("firewall apply: ufw with a differing comment updates the rule", async () => {
+  const commands = await applyCommands(ufw(UFW_TWO_DESTINATIONS), {
+    ...APP_42,
+    comment: "renamed",
+  });
+  assertEquals(
+    commands.some((c) => c.startsWith("ufw allow") && c.includes("'renamed'")),
+    true,
+    commands.join("\n"),
+  );
+});
+
+Deno.test("firewall apply: ufw destination without a source uses from any", async () => {
+  const commands = await applyCommands(ufw(""), {
+    destination: "10.0.0.7",
+    direction: "out",
+  });
+  assertEquals(
+    commands.includes(
+      "ufw allow out from any to '10.0.0.7' port 80 proto tcp",
+    ),
+    true,
+    commands.join("\n"),
+  );
+});
+
+Deno.test("firewall apply: commands for existing configs are unchanged", async () => {
+  assertEquals(
+    (await applyCommands(ufw(""))).includes("ufw allow 80/tcp"),
+    true,
+  );
+  assertEquals(
+    (await applyCommands(ufw(""), { source: "10.0.0.0/8" })).includes(
+      "ufw allow from '10.0.0.0/8' to any port 80 proto tcp",
+    ),
+    true,
+  );
+  assertEquals(
+    (await applyCommands(iptables(""))).includes(
+      "iptables -A INPUT -p tcp --dport 80 -j ACCEPT",
+    ),
+    true,
+  );
+  assertEquals(
+    (await applyCommands([FIREWALLD])).includes(
+      "firewall-cmd --permanent --add-port=80/tcp",
+    ),
+    true,
+  );
+});
+
+function firewalldRich(rules: string): FakeRule[] {
+  return [FIREWALLD, { match: "--list-rich-rules", stdout: rules }];
+}
+
+Deno.test("firewall apply: firewalld destination sets family and uses a rich rule", async () => {
+  const commands = await applyCommands([FIREWALLD], {
+    destination: "10.0.0.5",
+  });
+  assertEquals(
+    commands.includes(
+      `firewall-cmd --permanent --add-rich-rule='rule family="ipv4" destination address="10.0.0.5" port port="80" protocol="tcp" accept'`,
+    ),
+    true,
+    commands.join("\n"),
+  );
+  const both = await applyCommands([FIREWALLD], {
+    source: "2001:db8::/64",
+    destination: "2001:db8::1",
+    action: "deny",
+  });
+  assertEquals(
+    both.includes(
+      `firewall-cmd --permanent --add-rich-rule='rule family="ipv6" source address="2001:db8::/64" destination address="2001:db8::1" port port="80" protocol="tcp" drop'`,
+    ),
+    true,
+    both.join("\n"),
+  );
+});
+
+Deno.test("firewall check: firewalld matches the destination exactly", async () => {
+  const rules = firewalldRich(
+    `rule family="ipv4" source address="10.0.0.0/24" destination address="10.0.0.6/32" port port="80" protocol="tcp" accept\n`,
+  );
+  const src = { source: "10.0.0.0/24" };
+  assertEquals(
+    await checkStatus(rules, { ...src, destination: "10.0.0.6/32" }),
+    "compliant",
+  );
+  assertEquals(
+    await checkStatus(rules, { ...src, destination: "10.0.0.7" }),
+    "non_compliant",
+  );
+});
+
+Deno.test("firewall: firewalld rejects a comment on check and apply", async () => {
+  await withFakeSsh(firewalldRich(""), async (fake) => {
+    for (const method of [model.methods.check, model.methods.apply]) {
+      const ctx = fakeContext(args({ source: "10.0.0.0/8", comment: "x" }));
+      await assertRejects(() => method.execute({}, ctx), Error, "comment");
+      assertEquals(ctx.writes[0].data.status, "failed");
+    }
+    assertEquals(
+      (await fake.commands()).some((c) => c.includes("--permanent")),
+      false,
+    );
+  });
+});
+
+Deno.test("firewall check: iptables tells rules apart by destination and comment", async () => {
+  const rules = iptables(
+    `-A INPUT -d 10.0.0.5/32 -p tcp -m tcp --dport 80 -m comment --comment "app one" -j ACCEPT\n` +
+      "-A INPUT -d 10.0.0.6/32 -p tcp -m tcp --dport 80 -m comment --comment app2 -j ACCEPT\n",
+  );
+  assertEquals(
+    await checkStatus(rules, { destination: "10.0.0.5", comment: "app one" }),
+    "compliant",
+  );
+  assertEquals(
+    await checkStatus(rules, { destination: "10.0.0.6", comment: "app2" }),
+    "compliant",
+  );
+  assertEquals(
+    await checkStatus(rules, { destination: "10.0.0.5", comment: "app2" }),
+    "non_compliant",
+  );
+  assertEquals(
+    await checkStatus(rules, { destination: "10.0.0.5" }),
+    "compliant",
+  );
+});
+
+Deno.test("firewall check: an iptables comment is not read as options", async () => {
+  const rules = iptables(
+    `-A INPUT -p tcp -m tcp --dport 80 -m comment --comment "a -j DROP -d 10.0.0.9" -j ACCEPT\n`,
+  );
+  assertEquals(await checkStatus(rules), "compliant");
+  assertEquals(await checkStatus(rules, { action: "deny" }), "non_compliant");
+  assertEquals(
+    await checkStatus(
+      iptables(
+        `-A INPUT -p tcp -m tcp --dport 80 -m comment --comment "say \\"-j DROP\\" now" -j ACCEPT\n`,
+      ),
+      { action: "deny" },
+    ),
+    "non_compliant",
+  );
+});
+
+Deno.test("firewall apply: iptables carries destination and comment on add and delete", async () => {
+  const wanted = { destination: "10.0.0.5", comment: "app one" };
+  const added = await applyCommands(iptables(""), wanted);
+  assertEquals(
+    added.includes(
+      "iptables -A INPUT -p tcp --dport 80 -d '10.0.0.5' -m comment --comment 'app one' -j ACCEPT",
+    ),
+    true,
+    added.join("\n"),
+  );
+  const deleted = await applyCommands(
+    iptables(
+      `-A INPUT -d 10.0.0.5/32 -p tcp -m tcp --dport 80 -m comment --comment "app one" -j ACCEPT\n`,
+    ),
+    { ...wanted, ensure: "absent" },
+  );
+  assertEquals(
+    deleted.includes(
+      "iptables -D INPUT -p tcp --dport 80 -d '10.0.0.5' -m comment --comment 'app one' -j ACCEPT",
+    ),
+    true,
+    deleted.join("\n"),
+  );
+});
+
+Deno.test("firewall apply: iptables delete reuses a comment the config does not set", async () => {
+  const deleted = await applyCommands(
+    iptables(
+      `-A INPUT -p tcp -m tcp --dport 80 -m comment --comment "say \\"hi\\"" -j ACCEPT\n`,
+    ),
+    { ensure: "absent" },
+  );
+  assertEquals(
+    deleted.includes(
+      `iptables -D INPUT -p tcp --dport 80 -m comment --comment 'say "hi"' -j ACCEPT`,
+    ),
+    true,
+    deleted.join("\n"),
+  );
+});
+
+const NARROWER_IPTABLES =
+  "-A INPUT -d 10.0.0.5/32 -p tcp -m tcp --dport 80 -j DROP\n";
+const NARROWER_RICH =
+  `rule family="ipv4" destination address="10.0.0.5" port port="80" protocol="tcp" drop\n`;
+
+for (
+  const [name, rules, exact] of [
+    [
+      "iptables",
+      iptables(NARROWER_IPTABLES),
+      iptables(
+        NARROWER_IPTABLES + "-A INPUT -p tcp -m tcp --dport 80 -j DROP\n",
+      ),
+    ],
+    [
+      "firewalld",
+      firewalldRich(NARROWER_RICH),
+      firewalldRich(
+        NARROWER_RICH + `rule port port="80" protocol="tcp" drop\n`,
+      ),
+    ],
+  ] as const
+) {
+  const mutating = /iptables -[AD] |--permanent/;
+
+  Deno.test(`firewall check: ${name} reports a narrower rule instead of compliant`, async () => {
+    await withFakeSsh([...rules], async () => {
+      const ctx = fakeContext(args({ action: "deny" }));
+      await model.methods.check.execute({}, ctx);
+      const data = ctx.writes[0].data;
+      assertEquals(data.status, "non_compliant");
+      const current = data.current as Record<string, unknown>;
+      assertEquals(current.ruleExists, false);
+      assertStringIncludes(String(current.narrowerRule), "10.0.0.5");
+      assertStringIncludes(String(data.changes), "10.0.0.5");
+    });
+  });
+
+  Deno.test(`firewall apply: ${name} refuses to add a rule broader than a narrower one`, async () => {
+    await withFakeSsh([...rules], async (fake) => {
+      const ctx = fakeContext(args({ action: "deny" }));
+      await assertRejects(
+        () => model.methods.apply.execute({}, ctx),
+        Error,
+        "destination",
+      );
+      assertEquals(ctx.writes[0].data.status, "failed");
+      for (const cmd of await fake.commands()) {
+        assertEquals(mutating.test(cmd), false, cmd);
+      }
+    });
+  });
+
+  Deno.test(`firewall apply: ${name} ensure absent leaves a narrower rule alone`, async () => {
+    await withFakeSsh([...rules], async (fake) => {
+      const ctx = fakeContext(args({ action: "deny", ensure: "absent" }));
+      await model.methods.apply.execute({}, ctx);
+      assertEquals(ctx.writes[0].data.status, "compliant");
+      for (const cmd of await fake.commands()) {
+        assertEquals(mutating.test(cmd), false, cmd);
+      }
+    });
+  });
+
+  Deno.test(`firewall check: ${name} finds an exact rule listed after a narrower one`, async () => {
+    await withFakeSsh([...exact], async () => {
+      const ctx = fakeContext(args({ action: "deny" }));
+      await model.methods.check.execute({}, ctx);
+      const data = ctx.writes[0].data;
+      assertEquals(data.status, "compliant");
+      const current = data.current as Record<string, unknown>;
+      assertEquals(current.narrowerRule, null);
+    });
+  });
+}
+
+Deno.test("firewall check: firewalld plain-port configs do not read rich rules", async () => {
+  const rules = [
+    FIREWALLD,
+    {
+      match: "--list-rich-rules",
+      stdout:
+        `rule family="ipv4" destination address="10.0.0.5" port port="80" protocol="tcp" accept\n`,
+    },
+    { match: "--list-ports", stdout: "\n" },
+  ];
+  const commands = await applyCommands(rules);
+  assertEquals(
+    commands.includes("firewall-cmd --permanent --add-port=80/tcp"),
+    true,
+    commands.join("\n"),
+  );
+});
+
+Deno.test("firewall: ufw keeps adding the broader rule, as it always has", async () => {
+  const commands = await applyCommands(
+    ufw("10.0.0.5 80/tcp            ALLOW       Anywhere\n"),
+  );
+  assertEquals(
+    commands.includes("ufw allow 80/tcp"),
+    true,
+    commands.join("\n"),
+  );
+});
+
+Deno.test("firewall: an unsafe comment or destination is rejected", () => {
+  for (
+    const comment of [
+      "",
+      "it's",
+      'a"b',
+      "a#b",
+      "a\\b",
+      "a\nb",
+      "$(id)",
+      " leading",
+      "trailing ",
+      "two  spaces",
+      "x".repeat(256),
+    ]
+  ) {
+    assertThrows(() => args({ comment }), Error, undefined, comment);
+  }
+  assertEquals(args({ comment: "app-42 lan_1.x" }).comment, "app-42 lan_1.x");
+  assertThrows(() => args({ destination: "10.0.0.5; id" }));
+});
+
+Deno.test("firewall apply: iptables with a comment still refuses to widen a narrower rule", async () => {
+  await withFakeSsh(iptables(NARROWER_IPTABLES), async (fake) => {
+    const ctx = fakeContext(args({ action: "deny", comment: "web" }));
+    await assertRejects(
+      () => model.methods.apply.execute({}, ctx),
+      Error,
+      "destination",
+    );
+    for (const cmd of await fake.commands()) {
+      assertEquals(/iptables -[AD] /.test(cmd), false, cmd);
+    }
+  });
+});
+
+Deno.test("firewall check: a negated iptables destination matches nothing", async () => {
+  const rules = iptables(
+    "-A INPUT ! -d 10.0.0.5/32 -p tcp -m tcp --dport 80 -j ACCEPT\n",
+  );
+  assertEquals(
+    await checkStatus(rules, { destination: "10.0.0.5" }),
+    "non_compliant",
+  );
+  await withFakeSsh([...rules], async () => {
+    const ctx = fakeContext(args());
+    await model.methods.check.execute({}, ctx);
+    const current = ctx.writes[0].data.current as Record<string, unknown>;
+    assertEquals(current.ruleExists, false);
+    assertEquals(current.narrowerRule, null);
+  });
+});
+
+Deno.test("firewall check: a negated firewalld destination matches nothing", async () => {
+  const rules = firewalldRich(
+    `rule family="ipv4" destination NOT address="10.0.0.5" port port="80" protocol="tcp" drop\n`,
+  );
+  assertEquals(await checkStatus(rules, { action: "deny" }), "non_compliant");
+  assertEquals(
+    await checkStatus(rules, { action: "deny", destination: "10.0.0.5" }),
+    "non_compliant",
+  );
+});
+
+Deno.test("firewall check: a firewalld log prefix is not read as a destination", async () => {
+  const rules = firewalldRich(
+    `rule family="ipv4" source address="10.0.0.0/8" port port="80" protocol="tcp" log prefix="destination blocked" accept\n`,
+  );
+  assertEquals(
+    await checkStatus(rules, { source: "10.0.0.0/8" }),
+    "compliant",
+  );
+});
+
+Deno.test("firewall apply: iptables delete keeps an empty existing comment", async () => {
+  const deleted = await applyCommands(
+    iptables(
+      `-A INPUT -p tcp -m tcp --dport 80 -m comment --comment "" -j ACCEPT\n`,
+    ),
+    { ensure: "absent" },
+  );
+  assertEquals(
+    deleted.includes(
+      "iptables -D INPUT -p tcp --dport 80 -m comment --comment '' -j ACCEPT",
+    ),
+    true,
+    deleted.join("\n"),
+  );
+});

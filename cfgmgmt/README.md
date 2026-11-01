@@ -1823,6 +1823,8 @@ iptables).
 | `action`          | enum   | —           | yes      | `"allow"`, `"deny"`, or `"reject"`                       |
 | `direction`       | enum   | `"in"`      | no       | `"in"` or `"out"`                                        |
 | `source`          | string | —           | no       | Source CIDR (e.g. `198.51.100.0/24`)                     |
+| `destination`     | string | —           | no       | Destination address or CIDR (e.g. `198.51.100.5`)        |
+| `comment`         | string | —           | no       | Rule comment; ufw and iptables only (see below)          |
 | `ensure`          | enum   | `"present"` | no       | `"present"` or `"absent"`                                |
 | _(SSH fields)_    |        |             |          | See [SSH connection](#ssh-connection)                    |
 | _(become fields)_ |        |             |          | See [Privilege escalation](#privilege-escalation-become) |
@@ -1836,22 +1838,71 @@ iptables).
 
 ### Output — `state`
 
-| Field                 | Type     | Description                                          |
-| --------------------- | -------- | ---------------------------------------------------- |
-| `port`                | number   | Port number                                          |
-| `protocol`            | string   | Protocol                                             |
-| `action`              | string   | Firewall action                                      |
-| `ensure`              | string   | Desired state                                        |
-| `status`              | enum     | `compliant`, `non_compliant`, `applied`, or `failed` |
-| `current.backend`     | string?  | Detected backend (ufw, firewalld, iptables)          |
-| `current.ruleExists`  | boolean  | Whether the rule exists                              |
-| `current.ruleDetails` | string?  | Details of the matched rule                          |
-| `changes`             | string[] | List of changes detected or applied                  |
-| `error`               | string?  | Error message if status is `failed`                  |
-| `timestamp`           | string   | ISO 8601 timestamp                                   |
+| Field                  | Type     | Description                                          |
+| ---------------------- | -------- | ---------------------------------------------------- |
+| `port`                 | number   | Port number                                          |
+| `protocol`             | string   | Protocol                                             |
+| `action`               | string   | Firewall action                                      |
+| `ensure`               | string   | Desired state                                        |
+| `status`               | enum     | `compliant`, `non_compliant`, `applied`, or `failed` |
+| `current.backend`      | string?  | Detected backend (ufw, firewalld, iptables)          |
+| `current.ruleExists`   | boolean  | Whether the rule exists                              |
+| `current.ruleDetails`  | string?  | Details of the matched rule                          |
+| `current.narrowerRule` | string?  | Rule limited to a destination (see below)            |
+| `changes`              | string[] | List of changes detected or applied                  |
+| `error`                | string?  | Error message if status is `failed`                  |
+| `timestamp`            | string   | ISO 8601 timestamp                                   |
 
 > **Note:** iptables rules are not persistent across reboots. Use ufw or
 > firewalld for persistent rules.
+
+### Matching one rule
+
+Set `destination` and `comment` when several rules share a port and source, so
+`ensure` manages exactly one of them.
+
+- **`destination`** must match the rule's destination. Without it, only rules
+  that have no destination match.
+- **`comment`** must match when set. Left unset, a rule matches whatever comment
+  it has. It is one more attribute rather than a way to select a rule, so a rule
+  with a destination still needs `destination` set too. Comments allow letters,
+  digits, single spaces and `. _ : @ / + = , -`, up to 255 characters.
+- **Addresses** are compared as written. ufw and iptables also ignore a
+  single-host prefix (`/32`, or `/128` for IPv6); firewalld does not, so
+  `198.51.100.5` does not match a stored `198.51.100.5/32`. Use canonical form:
+  `198.51.100.5/24` or upper-case IPv6 may never match, and the rule would be
+  re-applied on every run.
+
+Comments differ per backend:
+
+| Backend   | `comment`                                                                      |
+| --------- | ------------------------------------------------------------------------------ |
+| ufw       | One rule per address, port and action: a new comment updates the existing rule |
+| iptables  | A different comment is a separate rule, so `ensure: present` adds a second one |
+| firewalld | Not supported: `check` and `apply` fail if it is set                           |
+
+The iptables backend runs `iptables` only, so it handles IPv4 addresses. With
+`comment` unset, `ensure: absent` removes one matching rule per run, so set
+`comment` when several iptables rules differ only by comment.
+
+Negated destinations (`! -d`, `destination NOT address=`) and firewalld ipset
+destinations never match.
+
+### Narrower rules
+
+On iptables and firewalld, a config without `destination` no longer counts a
+rule limited to one destination as its own. When that is the only such rule, it
+is reported in `current.narrowerRule`, and:
+
+- `ensure: present`: `check` is `non_compliant`, and `apply` fails without
+  changing anything rather than opening the port to every destination. Set
+  `destination` to manage that rule, or remove it first.
+- `ensure: absent`: the wanted rule is already absent, so the result is
+  `compliant` and the narrower rule is left alone.
+
+ufw adds the broader rule alongside the narrower one, and firewalld configs with
+no source or destination that `allow` use plain ports, which rich rules do not
+affect.
 
 ### Example
 
@@ -1863,6 +1914,24 @@ globalArguments:
   protocol: tcp
   action: allow
   ensure: present
+  nodeHost: "192.0.2.50"
+  nodeUser: deploy
+  become: true
+```
+
+Remove one rule among several on the same port and source:
+
+```yaml
+type: "@swamp/cfgmgmt/firewall"
+name: drop-app-42
+globalArguments:
+  port: 8080
+  protocol: tcp
+  action: allow
+  source: 198.51.100.0/24
+  destination: 198.51.100.5
+  comment: app-42-lan
+  ensure: absent
   nodeHost: "192.0.2.50"
   nodeUser: deploy
   become: true

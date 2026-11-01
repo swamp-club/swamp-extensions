@@ -181,7 +181,14 @@ function detectChanges(g: GlobalArgs, current: Current) {
  */
 export const model = {
   type: "@swamp/cfgmgmt/dnf_repository",
-  version: "2026.10.27.1",
+  version: "2026.11.01.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.01.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: z.object({
     nodeHost: z.string().optional().describe(
