@@ -421,6 +421,13 @@ const GlobalArgsSchema = z.object({
   readPoolConfig: z.object({
     autoScalingConfig: z.object({
       policy: z.object({
+        connectionsCount: z.object({
+          targetCount: z.string().describe(
+            "Optional. The target number of connections for the autoscaler to scale the instance to.",
+          ).optional(),
+        }).describe(
+          "Optional. Connections count policy for the autoscaler. If not set, the autoscaler will not use connection count for scaling.",
+        ).optional(),
         coolDownPeriodSec: z.string().describe(
           "The period of time in seconds after a new node is created before the autoscaler will incorporate its resource usage (e.g. CPU utilization) into the autoscaling recommendation algorithm.",
         ).optional(),
@@ -599,6 +606,9 @@ const StateSchema = z.object({
   readPoolConfig: z.object({
     autoScalingConfig: z.object({
       policy: z.object({
+        connectionsCount: z.object({
+          targetCount: z.string(),
+        }),
         coolDownPeriodSec: z.string(),
         cpuUtilization: z.object({
           utilizationTarget: z.number(),
@@ -873,6 +883,13 @@ const InputsSchema = z.object({
   readPoolConfig: z.object({
     autoScalingConfig: z.object({
       policy: z.object({
+        connectionsCount: z.object({
+          targetCount: z.string().describe(
+            "Optional. The target number of connections for the autoscaler to scale the instance to.",
+          ).optional(),
+        }).describe(
+          "Optional. Connections count policy for the autoscaler. If not set, the autoscaler will not use connection count for scaling.",
+        ).optional(),
         coolDownPeriodSec: z.string().describe(
           "The period of time in seconds after a new node is created before the autoscaler will incorporate its resource usage (e.g. CPU utilization) into the autoscaling recommendation algorithm.",
         ).optional(),
@@ -959,7 +976,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud AlloyDB Clusters.Instances. Registered at `@swamp/gcp/alloydb/clusters-instances`. */
 export const model = {
   type: "@swamp/gcp/alloydb/clusters-instances",
-  version: "2026.10.23.1",
+  version: "2026.11.01.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1161,6 +1178,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.01.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
