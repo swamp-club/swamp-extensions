@@ -14,8 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/osis/pipeline` to see the full list of
-configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/aws/osis/pipeline_endpoint` to see the
+full list of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -47,17 +47,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new pipeline model
-swamp model create @swamp/aws/osis/pipeline my-pipeline
+# Create a new pipeline_endpoint model
+swamp model create @swamp/aws/osis/pipeline_endpoint my-pipeline_endpoint
 
 # Edit the model to configure its properties
-swamp model edit my-pipeline
+swamp model edit my-pipeline_endpoint
 
 # Create the resource in AWS
-swamp model method run my-pipeline create
+swamp model method run my-pipeline_endpoint create
 
 # Sync current state from AWS
-swamp model method run my-pipeline sync
+swamp model method run my-pipeline_endpoint sync
 ```
 
 ## License

@@ -1158,6 +1158,7 @@ const ResourceSchema = z.object({
     repository: z.array(z.string()).optional(),
     samlConfig: z.array(z.string()).optional(),
     schedule: z.array(z.string()).optional(),
+    schedulePreview: z.array(z.string()).optional(),
     seawallConfig: z.array(z.string()).optional(),
     secret: z.array(z.string()).optional(),
     securityConfig: z.array(z.string()).optional(),
@@ -1756,7 +1757,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.10.31.1",
+  version: "2026.11.02.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -2016,6 +2017,11 @@ export const model = {
     {
       toVersion: "2026.10.31.1",
       description: "Added: gitComments, gitProviderOptions",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.02.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
