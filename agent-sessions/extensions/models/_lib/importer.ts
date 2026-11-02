@@ -26,23 +26,38 @@ import {
   parseTranscript,
 } from "./claude_code/parse.ts";
 import {
-  checkoutKey,
   type DiscoveredSession,
   discoverSessions,
+} from "./claude_code/discover.ts";
+import {
+  checkoutKey,
   expandHome,
   identityKey,
-} from "./claude_code/discover.ts";
+  NoTranscriptsError,
+} from "./sessions/place.ts";
+import {
+  type CodexSession,
+  discoverCodexSessions,
+  isDirectory,
+} from "./codex/discover.ts";
+import {
+  CODEX_HARNESS,
+  type ParsedRollout,
+  parseRollout,
+} from "./codex/parse.ts";
 import {
   gitFound,
   isPathLike,
   normalizeRemote,
   prefixUnder,
+  type Repo,
   RepoResolver,
   type Resolved,
-} from "./claude_code/resolve.ts";
+} from "./sessions/resolve.ts";
 import { linkSubagents } from "./claude_code/subagents.ts";
 import { type Coverage, CoverageReader } from "./classify/coverage.ts";
 import { findingsFor } from "./classify/findings.ts";
+import type { CallAction } from "./classify/action.ts";
 import { labelCall } from "./classify/label.ts";
 import type { RedactContext } from "./redact.ts";
 import type { SwampIdentity, WhoamiResult } from "./whoami.ts";
@@ -58,7 +73,7 @@ export const REPO_TAG = "repo";
 const RESOLVE_FORMAT = 3;
 
 /**
- * Each session's import stamp, by session id: the importer version, its
+ * Each session's import stamp, by `<harness>:<session id>`: the importer version, its
  * repo's installed extensions (which its labels depend on) and its source
  * fingerprint (sizes and mtimes). A session is imported again when any
  * changes, so a fix in a later importer reaches finished sessions.
@@ -76,7 +91,7 @@ export const ImportIndexSchema = z.object({
    */
   resolved: z.record(z.string(), z.string()).optional(),
   resolvedKey: z.string().optional(),
-  /** Each session's subagent record ids, so ones no longer produced are removed. */
+  /** Each session's subagent record ids, by the same key, so ones no longer produced are removed. */
   children: z.record(z.string(), z.array(z.string())).optional(),
 });
 export type ImportIndex = z.infer<typeof ImportIndexSchema>;
@@ -108,7 +123,10 @@ export interface ImportContext {
 export interface ImportSettings {
   /** The repo the import runs in; its sessions are always imported. */
   readonly repoDir: string;
+  /** Claude Code's transcript root. */
   readonly projectsDir: string;
+  /** Codex's rollout root (`sessions` under CODEX_HOME); absent imports no Codex sessions. */
+  readonly codexDir?: string;
   /** Other repos whose sessions to import, as paths. */
   readonly repos: readonly string[];
   /** Import every session whose repo can be found. */
@@ -145,8 +163,15 @@ interface RecordBase {
   readonly agentType?: string;
 }
 
+/** What a record is built from, whichever harness parsed it. */
+type Parsed = Pick<
+  ParsedTranscript,
+  "startedAtMs" | "harnessVersion" | "model" | "turns"
+>;
+
 function buildRecord(
-  parsed: ParsedTranscript,
+  harness: string,
+  parsed: Parsed,
   base: RecordBase,
   fallbackStart: number,
 ): Record<string, unknown> {
@@ -154,7 +179,7 @@ function buildRecord(
     schemaVersion: AGENT_SESSION_SCHEMA_VERSION,
     id: base.id,
     repo: base.repo,
-    harness: CLAUDE_CODE_HARNESS,
+    harness,
     ...(parsed.harnessVersion ? { harnessVersion: parsed.harnessVersion } : {}),
     ...(parsed.model ? { model: parsed.model } : {}),
     startedAt: new Date(parsed.startedAtMs ?? fallbackStart).toISOString(),
@@ -186,7 +211,25 @@ function describeIssue(error: z.ZodError): string {
 async function readIndex(ctx: ImportContext): Promise<ImportIndex> {
   const stored = await ctx.readResource(IMPORT_INDEX_NAME);
   const parsed = ImportIndexSchema.safeParse(stored);
-  return parsed.success ? parsed.data : { version: 1, sessions: {} };
+  if (!parsed.success) return { version: 1, sessions: {} };
+  // Before Codex (swamp-club#4158) every key was a bare Claude Code id.
+  const keyed = <T>(r: Record<string, T>) =>
+    Object.fromEntries(
+      Object.entries(r).map((
+        [k, v],
+      ) => [k.includes(":") ? k : sessionKey(CLAUDE_CODE_HARNESS, k), v]),
+    );
+  const index = parsed.data;
+  return {
+    ...index,
+    sessions: keyed(index.sessions),
+    ...(index.children ? { children: keyed(index.children) } : {}),
+  };
+}
+
+/** A session's key in the index: its harness and id. */
+function sessionKey(harness: string, id: string): string {
+  return `${harness}:${id.toLowerCase()}`;
 }
 
 /** Builds and validates a session's records: the session, then its subagents. */
@@ -198,12 +241,9 @@ async function sessionRecords(
   ctx: ImportContext,
 ): Promise<AgentSessionRecord[] | string> {
   const id = session.sessionId.toLowerCase();
-  const redact: Omit<RedactContext, "cwd"> = {
-    projectsDir: settings.projectsDir,
-    ...(settings.home ? { home: settings.home } : {}),
-  };
-  const label = (tool: string, input: unknown) =>
-    labelCall(tool, input, { root: session.root, coverage });
+  const redact = redactContext(settings);
+  const label = (tool: string, action: CallAction) =>
+    labelCall(tool, action, { root: session.root, coverage });
   const mtime = (await Deno.stat(session.transcript)).mtime?.getTime() ??
     Date.now();
   const top = parseTranscript(await Deno.readTextFile(session.transcript), {
@@ -247,11 +287,14 @@ async function sessionRecords(
     ...(identity ? { identity } : {}),
   };
   const drafts = new Map<string, Record<string, unknown>>();
-  drafts.set(id, buildRecord(top, { ...base, id }, mtime));
+  drafts.set(
+    id,
+    buildRecord(CLAUDE_CODE_HARNESS, top, { ...base, id }, mtime),
+  );
   for (const child of linked.children) {
     drafts.set(
       child.id,
-      buildRecord(child.parsed, {
+      buildRecord(CLAUDE_CODE_HARNESS, child.parsed, {
         ...base,
         id: child.id,
         parentSessionId: child.parentSessionId,
@@ -284,6 +327,32 @@ async function sessionRecords(
     }
   }
 
+  return validated(drafts);
+}
+
+/** Every harness's transcript root is masked in every harness's calls. */
+function redactContext(settings: ImportSettings): Omit<RedactContext, "cwd"> {
+  return {
+    logDirs: [
+      settings.projectsDir,
+      ...(settings.codexDir ? [settings.codexDir] : []),
+    ],
+    ...(settings.home ? { home: settings.home } : {}),
+  };
+}
+
+const L_ID = AGENT_SESSION_LIMITS.idLength;
+const L_NAME = AGENT_SESSION_LIMITS.nameLength;
+
+/** Text cut to a limit from the start, keeping its end. */
+function fitEnd(text: string, max: number): string {
+  return text.length <= max ? text : "…" + text.slice(-(max - 1));
+}
+
+/** Validates drafts in order, naming where the first one fails. */
+function validated(
+  drafts: Map<string, Record<string, unknown>>,
+): AgentSessionRecord[] | string {
   const records: AgentSessionRecord[] = [];
   for (const [recordId, draft] of drafts) {
     const parsed = AgentSessionRecordV2Schema.safeParse(draft);
@@ -293,6 +362,103 @@ async function sessionRecords(
     records.push(parsed.data);
   }
   return records;
+}
+
+/**
+ * Builds and validates a Codex session's records: the session, then every
+ * subagent below it, each under the thread that spawned it. A subagent's
+ * thread id is unique, so it is its record id.
+ */
+async function codexRecords(
+  session: CodexSession,
+  settings: ImportSettings,
+  identity: SwampIdentity | undefined,
+  coverage: Coverage,
+  ctx: ImportContext,
+): Promise<AgentSessionRecord[] | string> {
+  const id = session.sessionId;
+  const options = {
+    redact: redactContext(settings),
+    root: session.root,
+    label: (tool: string, action: CallAction) =>
+      labelCall(tool, action, { root: session.root, coverage }),
+  };
+  const mtime = (await Deno.stat(session.transcript)).mtime?.getTime() ??
+    Date.now();
+  const top = parseRollout(
+    await Deno.readTextFile(session.transcript),
+    options,
+  );
+  const parsed = new Map<string, ParsedRollout>([[id, top]]);
+  for (const child of session.children) {
+    parsed.set(
+      child.threadId,
+      parseRollout(await Deno.readTextFile(child.transcript), options),
+    );
+  }
+  const dropped = [...parsed.values()].reduce((n, p) => n + p.droppedCalls, 0);
+  if (dropped > 0) {
+    ctx.logger.warn(
+      `Session ${id} is over the record's size limits; ${dropped} calls were left out`,
+    );
+  }
+
+  const base = {
+    repo: recordRepo(session.repo.identity),
+    importerVersion: settings.importerVersion,
+    // A subagent copies whether a person steered the session it serves.
+    invocation: top.invocation,
+    ...(identity ? { identity } : {}),
+  };
+  const drafts = new Map<string, Record<string, unknown>>();
+  drafts.set(id, buildRecord(CODEX_HARNESS, top, { ...base, id }, mtime));
+  for (const child of session.children) {
+    const parentSessionId = parsed.has(child.parentThreadId)
+      ? child.parentThreadId
+      : id;
+    drafts.set(
+      child.threadId,
+      buildRecord(CODEX_HARNESS, parsed.get(child.threadId)!, {
+        ...base,
+        id: child.threadId,
+        parentSessionId,
+        // Codex names an agent by its task path, which nesting can make
+        // longer than the record allows; keep its end, the agent's own name.
+        agentId: fitEnd(child.agentPath ?? child.threadId, L_ID),
+        ...(child.agentRole
+          ? { agentType: child.agentRole.slice(0, L_NAME) }
+          : {}),
+      }, mtime),
+    );
+  }
+  // Point each spawn_agent call at the agent it started.
+  for (const child of session.children) {
+    const parentId = drafts.get(child.parentThreadId)
+      ? child.parentThreadId
+      : id;
+    const spawned = parsed.get(parentId)!.spawned;
+    const callId = [...spawned].find(([, thread]) => thread === child.threadId)
+      ?.[0];
+    const turns = (drafts.get(parentId)!.turns ?? []) as Array<
+      {
+        calls: Array<
+          { id: string; toolKind: string; subagentSessionId?: string }
+        >;
+      }
+    >;
+    const call = callId === undefined
+      ? undefined
+      : turns.flatMap((t) => t.calls).find((c) =>
+        c.id === callId && c.toolKind === "subagent"
+      );
+    if (call) call.subagentSessionId = child.threadId;
+    else {
+      ctx.logger.warn(
+        `Subagent ${child.threadId} of session ${id} names no call that started it; linked to its parent`,
+      );
+    }
+  }
+  return validated(drafts);
 }
 
 /**
@@ -451,11 +617,52 @@ function sameRecord(
     keys.every((k) => a[k] === b[k]);
 }
 
-/** Imports the Claude Code sessions of the selected repos. */
+/** One session found on disk, from either harness, ready to import. */
+interface Found {
+  readonly harness: string;
+  readonly id: string;
+  readonly key: string;
+  readonly root: string;
+  readonly repo: Repo;
+  readonly fingerprint: string;
+  readonly records: (
+    identity: SwampIdentity | undefined,
+    coverage: Coverage,
+  ) => Promise<AgentSessionRecord[] | string>;
+}
+
+/** Imports the Claude Code and Codex sessions of the selected repos. */
 export async function importSessions(
   ctx: ImportContext,
   settings: ImportSettings,
 ): Promise<{ dataHandles: DataHandle[]; summary: ImportSummary }> {
+  const claudeThere = await isDirectory(settings.projectsDir);
+  // Codex's root is looked for on every run, so one that cannot be read is
+  // left out with a warning rather than stopping Claude Code's import.
+  let codexThere = false;
+  if (settings.codexDir !== undefined) {
+    try {
+      codexThere = await isDirectory(settings.codexDir);
+    } catch (error) {
+      ctx.logger.warn(
+        `Cannot read Codex's rollouts at ${settings.codexDir}; no Codex sessions imported: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      );
+    }
+  }
+  if (!claudeThere && !codexThere) {
+    let host = "this host";
+    try {
+      host = Deno.hostname();
+    } catch {
+      // No --allow-sys; the paths alone say enough.
+    }
+    throw new NoTranscriptsError(host, [
+      settings.projectsDir,
+      ...(settings.codexDir ? [settings.codexDir] : []),
+    ]);
+  }
   const index = await readIndex(ctx);
   const resolver = new RepoResolver(settings.home, settings.worktreeGlobs);
   const { selects, mayHold } = await selection(settings, resolver, ctx);
@@ -463,39 +670,91 @@ export async function importSessions(
   // a new transcript root or resolve format drops what is known. The key is
   // a hash, so the index never holds the path itself.
   const resolvedKey = await sha256(
-    JSON.stringify([settings.projectsDir, RESOLVE_FORMAT]),
+    JSON.stringify([settings.projectsDir, settings.codexDir, RESOLVE_FORMAT]),
   );
-  const { sessions, resolved, unresolved, unreadable, seen } =
-    await discoverSessions(
-      {
-        projectsDir: settings.projectsDir,
-        resolver,
-        selects,
-        mayHold,
-        ...(settings.since ? { since: settings.since } : {}),
-        ...(index.resolvedKey === resolvedKey && index.resolved
-          ? { knownResolved: new Map(Object.entries(index.resolved)) }
-          : {}),
-      },
+  const knownResolved = index.resolvedKey === resolvedKey && index.resolved
+    ? new Map(Object.entries(index.resolved))
+    : undefined;
+  const common = {
+    resolver,
+    selects,
+    mayHold,
+    ...(settings.since ? { since: settings.since } : {}),
+    ...(knownResolved ? { knownResolved } : {}),
+  };
+  const sessions: Found[] = [];
+  const resolved = new Map<string, string>();
+  const seen = new Set<string>();
+  const unreadable = new Set<string>();
+  let unresolved = 0;
+  if (claudeThere) {
+    const found = await discoverSessions({
+      projectsDir: settings.projectsDir,
+      ...common,
+    });
+    found.resolved.forEach((v, k) => resolved.set(k, v));
+    found.seen.forEach((id) => seen.add(sessionKey(CLAUDE_CODE_HARNESS, id)));
+    found.unreadable.forEach((id) =>
+      unreadable.add(sessionKey(CLAUDE_CODE_HARNESS, id))
     );
+    unresolved += found.unresolved;
+    for (const s of found.sessions) {
+      sessions.push({
+        harness: CLAUDE_CODE_HARNESS,
+        id: s.sessionId.toLowerCase(),
+        key: sessionKey(CLAUDE_CODE_HARNESS, s.sessionId),
+        root: s.root,
+        repo: s.repo,
+        fingerprint: s.fingerprint,
+        records: (identity, coverage) =>
+          sessionRecords(s, settings, identity, coverage, ctx),
+      });
+    }
+  }
+  if (codexThere) {
+    const found = await discoverCodexSessions({
+      sessionsDir: settings.codexDir!,
+      ...common,
+    });
+    found.resolved.forEach((v, k) => resolved.set(k, v));
+    found.seen.forEach((id) => seen.add(sessionKey(CODEX_HARNESS, id)));
+    found.unreadable.forEach((id) =>
+      unreadable.add(sessionKey(CODEX_HARNESS, id))
+    );
+    unresolved += found.unresolved;
+    for (const s of found.sessions) {
+      sessions.push({
+        harness: CODEX_HARNESS,
+        id: s.sessionId,
+        key: sessionKey(CODEX_HARNESS, s.sessionId),
+        root: s.root,
+        repo: s.repo,
+        fingerprint: s.fingerprint,
+        records: (identity, coverage) =>
+          codexRecords(s, settings, identity, coverage, ctx),
+      });
+    }
+  }
   if (sessions.length === 0) {
+    const roots = [
+      ...(claudeThere ? [settings.projectsDir] : []),
+      ...(codexThere ? [settings.codexDir!] : []),
+    ];
     ctx.logger.warn(
-      `No Claude Code sessions for the selected repos under ${settings.projectsDir}`,
+      `No sessions for the selected repos under ${roots.join(" or ")}`,
     );
   }
 
   // A session's labels depend on what its repo has installed, so a pulled or
   // removed extension relabels that repo's sessions.
   const reader = new CoverageReader();
-  const coverage = new Map<DiscoveredSession, Coverage>();
+  const coverage = new Map<Found, Coverage>();
   for (const s of sessions) {
     coverage.set(s, await reader.read(s.root, s.repo.mainCheckout));
   }
-  const stamp = (s: DiscoveredSession) =>
+  const stamp = (s: Found) =>
     `${settings.importerVersion}|${coverage.get(s)!.key}|${s.fingerprint}`;
-  const changed = sessions.filter((s) =>
-    index.sessions[s.sessionId.toLowerCase()] !== stamp(s)
-  );
+  const changed = sessions.filter((s) => index.sessions[s.key] !== stamp(s));
   const whoami: WhoamiResult = changed.length > 0
     ? await settings.whoami()
     : { kind: "none" };
@@ -507,12 +766,12 @@ export async function importSessions(
   // When whoami did not answer, a session keeps who its last import named,
   // rather than losing its attribution until its transcript changes again.
   const identityFor = async (
-    id: string,
+    s: Found,
   ): Promise<SwampIdentity | undefined> => {
     if (whoami.kind === "identity") return whoami.identity;
     if (whoami.kind === "none") return undefined;
     const previous = await ctx.readResource(
-      agentSessionDataName(CLAUDE_CODE_HARNESS, id),
+      agentSessionDataName(s.harness, s.id),
     );
     const userId = previous?.swampUserId;
     const username = previous?.swampUsername;
@@ -536,19 +795,13 @@ export async function importSessions(
   const resolvedChanged = index.resolvedKey !== resolvedKey ||
     !sameRecord(index.resolved, nextResolved);
   for (const session of changed) {
-    const id = session.sessionId.toLowerCase();
+    const { id, key, harness } = session;
     let records: AgentSessionRecord[] | string;
     let identity: SwampIdentity | undefined;
     try {
-      agentSessionDataName(CLAUDE_CODE_HARNESS, id);
-      identity = await identityFor(id);
-      records = await sessionRecords(
-        session,
-        settings,
-        identity,
-        coverage.get(session)!,
-        ctx,
-      );
+      agentSessionDataName(harness, id);
+      identity = await identityFor(session);
+      records = await session.records(identity, coverage.get(session)!);
     } catch (error) {
       if (isIoError(error)) {
         // A read that failed may work next time: leave the stamp as it was.
@@ -565,7 +818,7 @@ export async function importSessions(
     if (typeof records === "string") {
       // Stamped, so it is retried only when its files or the importer change.
       skipped++;
-      nextIndex.sessions[id] = stamp(session);
+      nextIndex.sessions[key] = stamp(session);
       ctx.logger.warn(`Skipped session ${id}: ${records}`);
       continue;
     }
@@ -579,7 +832,7 @@ export async function importSessions(
         dataHandles.push(
           await ctx.writeResource(
             "session",
-            agentSessionDataName(CLAUDE_CODE_HARNESS, record.id),
+            agentSessionDataName(harness, record.id),
             record as unknown as Record<string, unknown>,
             {
               tags: {
@@ -593,11 +846,11 @@ export async function importSessions(
           ),
         );
       }
-      for (const stale of index.children?.[id] ?? []) {
+      for (const stale of index.children?.[key] ?? []) {
         if (childIds.includes(stale)) continue;
         if (ctx.deleteResource) {
           await ctx.deleteResource(
-            agentSessionDataName(CLAUDE_CODE_HARNESS, stale),
+            agentSessionDataName(harness, stale),
           );
         } else {
           kept.push(stale);
@@ -615,13 +868,13 @@ export async function importSessions(
       continue;
     }
     const tracked = [...childIds, ...kept];
-    if (tracked.length > 0) nextIndex.children![id] = tracked;
-    else delete nextIndex.children![id];
+    if (tracked.length > 0) nextIndex.children![key] = tracked;
+    else delete nextIndex.children![key];
     imported++;
     subagents += records.length - 1;
     // Written with no identity only because whoami did not answer: stamped
     // apart, so the next import, with whoami answering, attributes it.
-    nextIndex.sessions[id] = whoami.kind === "failed" && !identity
+    nextIndex.sessions[key] = whoami.kind === "failed" && !identity
       ? `${stamp(session)}|unattributed`
       : stamp(session);
   }
@@ -630,7 +883,14 @@ export async function importSessions(
   // exclude keeps them, so a wider run later does not rewrite it. A
   // since-limited scan does not see every session, so it prunes nothing.
   if (!settings.since) {
+    // Only the harnesses whose root was there this run: a root missing for
+    // one run says nothing about its sessions.
+    const scanned = [
+      ...(claudeThere ? [`${CLAUDE_CODE_HARNESS}:`] : []),
+      ...(codexThere ? [`${CODEX_HARNESS}:`] : []),
+    ];
     for (const id of Object.keys(nextIndex.sessions)) {
+      if (!scanned.some((prefix) => id.startsWith(prefix))) continue;
       // A session whose files could not be read this time may well be back.
       if (!seen.has(id) && !unreadable.has(id)) {
         delete nextIndex.sessions[id];

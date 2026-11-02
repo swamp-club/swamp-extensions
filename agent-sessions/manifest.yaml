@@ -1,14 +1,14 @@
 manifestVersion: 1
 name: "@swamp/agent-sessions"
-version: "2026.10.31.2"
+version: "2026.11.02.1"
 license: "AGPL-3.0-or-later"
 visibility: private
 description: |
   Import what coding agents did in this repo as agent session records, the
   data the dashboard's agent sessions page reads. The `import` method reads
-  Claude Code's own transcripts on this machine, so no hooks or setup are
-  needed, and writes one record per session and per subagent: its turns,
-  tool calls, times and tokens.
+  Claude Code's own transcripts and Codex's rollouts on this machine, so no
+  hooks or setup are needed, and writes one record per session and per
+  subagent: its turns, tool calls, times and tokens.
 
   Prompts and replies are never stored. A call keeps only its target (a
   command line, a path, a skill name or a URL), redacted: paths become
@@ -28,7 +28,7 @@ description: |
 
   | Method   | What it does |
   | -------- | ------------ |
-  | `import` | Import this repo's Claude Code sessions, its worktrees' and every subagent's, and other repos' with `repos`, or every repo on the machine with `all` (internal or local testing only). Unchanged transcripts are skipped. Optional `since`, `projectsDir`, `worktreeGlobs`, `repos`, `all` and `exclude`. |
+  | `import` | Import this repo's Claude Code and Codex sessions, its worktrees' and every subagent's, and other repos' with `repos`, or every repo on the machine with `all` (internal or local testing only). Unchanged transcripts are skipped. Optional `since`, `projectsDir`, `codexDir`, `worktreeGlobs`, `repos`, `all` and `exclude`. |
 
   ## Usage
 
@@ -57,3 +57,4 @@ labels:
   - agent
   - observability
   - claude
+  - codex

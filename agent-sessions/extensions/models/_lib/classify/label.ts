@@ -4,13 +4,15 @@
  * decided it. No model is asked. The rules and their order are the agent
  * observation prototype's, so the labels match what it found on the same
  * sessions. Labels are decided from the call's raw input, before
- * redaction drops heredoc bodies the write rules look into.
+ * redaction drops heredoc bodies the write rules look into. Rules read a
+ * harness-neutral action, never a harness's tool names (swamp-club#4158).
  *
  * @module
  */
 
 import { AGENT_SESSION_LIMITS } from "../contract/session_record.ts";
 import { redact } from "../redact.ts";
+import type { CallAction } from "./action.ts";
 import type { Coverage } from "./coverage.ts";
 import { program, segments, words } from "./shell.ts";
 
@@ -132,10 +134,6 @@ function result(
   rule: string,
 ): CallLabel {
   return { label, category: cap(category), rule: cap(rule) };
-}
-
-function str(value: unknown): string {
-  return typeof value === "string" ? value : "";
 }
 
 function slashed(path: string): string {
@@ -264,23 +262,21 @@ function isManagedPath(path: string, ctx: LabelContext): boolean {
     slashed(path).includes("/.swamp/") || rel.startsWith(".swamp/");
 }
 
-/** Labels one tool call from its tool name and raw input. */
+/**
+ * Labels one tool call from its action. The tool name only names the call
+ * in a category or rule, so every harness gets the same rules.
+ */
 export function labelCall(
   tool: string,
-  input: unknown,
+  action: CallAction,
   ctx: LabelContext,
 ): CallLabel {
-  const i = typeof input === "object" && input !== null
-    ? input as Record<string, unknown>
-    : {};
-  switch (tool) {
-    case "Bash":
-      return labelShell(str(i.command), ctx);
-    case "Edit":
-    case "Write":
-    case "MultiEdit":
-    case "NotebookEdit": {
-      const path = str(i.file_path) || str(i.notebook_path);
+  switch (action.kind) {
+    case "shell":
+      return labelShell(action.command, ctx);
+    case "file-edit":
+    case "file-write": {
+      const path = action.path;
       if (isManagedPath(path, ctx)) {
         return result("bypass", HAND_EDITED, `${tool} on a swamp-managed path`);
       }
@@ -297,26 +293,26 @@ export function labelCall(
         `${tool} outside swamp-managed paths`,
       );
     }
-    case "Read": {
-      const path = slashed(str(i.file_path));
+    case "file-read": {
+      const path = slashed(action.path);
       if (path.includes("/.swamp/data")) {
         return result(
           "bypass",
           "read swamp state directly",
-          "Read under .swamp/data",
+          `${tool} under .swamp/data`,
         );
       }
       if (path.includes(PULLED_EXTENSIONS)) {
         return result(
           "neutral",
           READ_EXTENSION_SOURCE,
-          "Read under .swamp/pulled-extensions (docs gap signal)",
+          `${tool} under .swamp/pulled-extensions (docs gap signal)`,
         );
       }
-      return result("neutral", "read file", "Read tool");
+      return result("neutral", "read file", `${tool} tool`);
     }
-    case "Skill":
-      return result("neutral", `skill: ${str(i.skill)}`, "Skill tool");
+    case "skill":
+      return result("neutral", `skill: ${action.name}`, `${tool} tool`);
     default:
       return result("neutral", tool.toLowerCase(), `${tool} tool`);
   }

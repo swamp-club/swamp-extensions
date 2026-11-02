@@ -15,7 +15,9 @@ import {
   type AgentSessionTurn,
 } from "../contract/session_record.ts";
 import { callText, type RedactContext } from "../redact.ts";
+import type { CallAction } from "../classify/action.ts";
 import type { CallLabel } from "../classify/label.ts";
+import { claudeAction } from "./actions.ts";
 
 /** The harness slug every Claude Code record is written under. */
 export const CLAUDE_CODE_HARNESS = "claude-code";
@@ -110,8 +112,8 @@ export interface ParseOptions {
    * absent, the transcript's own cwd.
    */
   readonly root?: string;
-  /** Labels each call from its tool name and raw input; without it calls stay unlabeled. */
-  readonly label?: (tool: string, input: unknown) => CallLabel;
+  /** Labels each call from its tool name and action; without it calls stay unlabeled. */
+  readonly label?: (tool: string, action: CallAction) => CallLabel;
 }
 
 type Json = Record<string, unknown>;
@@ -350,7 +352,8 @@ export function parseTranscript(
       }
       callCount++;
       const tool = b.name.slice(0, 200);
-      const { text, truncated } = callText(tool, b.input, {
+      const action = claudeAction(tool, b.input);
+      const { text, truncated } = callText(action, {
         ...options.redact,
         cwd: options.root ?? cwd ?? "",
       });
@@ -364,7 +367,7 @@ export function parseTranscript(
         ok: true,
         text,
         ...(truncated ? { truncated } : {}),
-        ...(options.label?.(tool, b.input) ?? { label: "unlabeled" }),
+        ...(options.label?.(tool, action) ?? { label: "unlabeled" }),
       };
       turn.calls.push(call);
       calls.set(b.id, { call, turn, startMs });

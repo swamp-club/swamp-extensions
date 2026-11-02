@@ -1,0 +1,3356 @@
+{
+  "status-checker": [
+    {
+      "schemaVersion": 2,
+      "id": "1e47fb74-0a08-4d1e-8818-a7c38a0ecddf",
+      "repo": "example.com/demo/status-checker",
+      "harness": "claude-code",
+      "harnessVersion": "2.1.312",
+      "model": "claude-opus-5-5",
+      "startedAt": "2026-10-29T20:58:33.577Z",
+      "invocation": "interactive",
+      "importerVersion": "test",
+      "turns": [
+        {
+          "n": 1,
+          "start": 0,
+          "end": 134826,
+          "tokens": {
+            "input": 48,
+            "output": 11483,
+            "cacheRead": 1786474,
+            "cacheWrite": 74500
+          },
+          "calls": [
+            {
+              "id": "toolu_01LmUzv6uj8UPPocDHp6MtqK",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 1546,
+              "end": 3573,
+              "ok": true,
+              "text": "cat tasks/2026-10-29-use-swamp-to-build-a-status-page-aggregator-we-ll-check-the.md",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01DUznUsR4BWtQtZuYaS6Lzn",
+              "tool": "Skill",
+              "toolKind": "skill",
+              "start": 1563,
+              "end": 3606,
+              "ok": true,
+              "text": "swamp-getting-started",
+              "label": "neutral",
+              "category": "skill: swamp-getting-started",
+              "rule": "Skill tool"
+            },
+            {
+              "id": "toolu_018uJ6UgJjBhvbVeP6DK6Bff",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 6510,
+              "end": 9939,
+              "ok": true,
+              "text": "cat ~/.claude/skills/swamp-getting-started/references/tracks.md; swamp behavior type search status --json; swamp behavior type search http --json; swamp behavior search --json",
+              "label": "swamp",
+              "category": "swamp behavior type",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01DobLKx7L282TpXAazyJYLo",
+              "tool": "Skill",
+              "toolKind": "skill",
+              "start": 14340,
+              "end": 14378,
+              "ok": true,
+              "text": "swamp",
+              "label": "neutral",
+              "category": "skill: swamp",
+              "rule": "Skill tool"
+            },
+            {
+              "id": "toolu_01EFw1SiEzV8ou4aw5Suk1yS",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 14352,
+              "end": 15997,
+              "ok": true,
+              "text": "curl -s -m5 http://127.0.0.1:8788/ | head -c 1500; echo; echo ---; curl -s -m5 http://127.0.0.1:8788/api/v2/summary.json | head -c 2000; echo; echo ---; curl -s -m5 https://www.githubstatus.com/api/v2/summary.json | head -c 1500",
+              "label": "bypass",
+              "category": "other CLI: curl",
+              "rule": "program = curl; no installed extension covers it"
+            },
+            {
+              "id": "toolu_01GV3bbhW4WPEp5vSHJ5uPrF",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 17156,
+              "end": 18328,
+              "ok": true,
+              "text": "cd ~/.claude/skills/swamp/references; cat extension/guide.md; ls extension architecture vault workflow",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01QhdRj8FgY55eQh6kMK2wKD",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 19378,
+              "end": 20404,
+              "ok": true,
+              "text": "cd ~/.claude/skills/swamp/references; ls extension/references; cat extension/reference.md | head -400",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01KQpo8ysdGm7dgtNYekSHx2",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 28207,
+              "end": 30345,
+              "ok": false,
+              "exitCode": 2,
+              "text": "cd ~/.claude/skills/swamp/references; ls extension/references/model; wc -l extension/references/model/*.md workflow/*.md vault/*.md; swamp auth whoami --json; cat .swamp.yaml; ls -la . extensions",
+              "label": "swamp",
+              "category": "swamp auth whoami",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01WunF7bHSSi6FqP51ExZRd7",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 31757,
+              "end": 32752,
+              "ok": true,
+              "text": "cd ~/.claude/skills/swamp/references; sed -n 1,330p extension/references/model/api.md",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01NZcXjWptLW3W5H38se9fBi",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 34317,
+              "end": 35345,
+              "ok": true,
+              "text": "cd ~/.claude/skills/swamp/references; sed -n 330,560p extension/references/model/api.md; grep -n \"vault\" extension/references/model/api.md | head; cat workflow/guide.md vault/guide.md",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01PP71SLS9zHDaH8XmRE3wcP",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 37834,
+              "end": 39879,
+              "ok": false,
+              "exitCode": 1,
+              "text": "cd ~/.claude/skills/swamp/references; grep -n \"^#\" workflow/reference.md | head -80; swamp vault search --json",
+              "label": "swamp",
+              "category": "swamp vault search",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01GhUxVhKL8FhwVjSaLPJbBN",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 41201,
+              "end": 42460,
+              "ok": true,
+              "text": "cd ~/.claude/skills/swamp/references; sed -n 756,1340p workflow/reference.md; sed -n 1443,1515p workflow/reference.md",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01D7Un1NbYPnnaUAJoqRFMS4",
+              "tool": "Read",
+              "toolKind": "file-read",
+              "start": 44228,
+              "end": 44365,
+              "ok": true,
+              "text": "$HARNESS_LOGS/…",
+              "label": "neutral",
+              "category": "read file",
+              "rule": "Read tool"
+            },
+            {
+              "id": "toolu_014CmKBh1giXoXcXnrgoZTYs",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 54874,
+              "end": 57372,
+              "ok": true,
+              "text": "swamp vault search --json; swamp behavior type search command --json | head -20",
+              "label": "swamp",
+              "category": "swamp vault search",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01ETLKyHMNQ9Nrs8KJiZm8cH",
+              "tool": "Write",
+              "toolKind": "file-write",
+              "start": 75696,
+              "end": 83436,
+              "ok": true,
+              "text": "extensions/behaviors/statuspage.ts",
+              "label": "neutral",
+              "category": "extension authoring",
+              "rule": "Write under extensions/"
+            },
+            {
+              "id": "toolu_01LhqX9GVvubyguudEtP1XZQ",
+              "tool": "Write",
+              "toolKind": "file-write",
+              "start": 82690,
+              "end": 83581,
+              "ok": true,
+              "text": "extensions/behaviors/ntfy.ts",
+              "label": "neutral",
+              "category": "extension authoring",
+              "rule": "Write under extensions/"
+            },
+            {
+              "id": "toolu_01Pde9y6hbBB1cD5Dxa59BTd",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 85170,
+              "end": 88331,
+              "ok": true,
+              "text": "cd extensions/behaviors && ~/.swamp/deno/deno check statuspage.ts ntfy.ts && cd ../.. && swamp behavior type search skunk --json && swamp behavior type describe @skunk-ape/statuspage --compact --json | head -40",
+              "label": "swamp",
+              "category": "swamp behavior type",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01Lg4hggi1qYB2TeKf4oXL7A",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 89681,
+              "end": 92654,
+              "ok": true,
+              "text": "swamp behavior create @skunk-ape/statuspage status-checks --json; swamp behavior create @skunk-ape/ntfy notifier --json; swamp vault create local_encryption default --json",
+              "label": "swamp",
+              "category": "swamp behavior create",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01GKN4ZdadgtNPiaXPCR2Exi",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 93946,
+              "end": 95290,
+              "ok": true,
+              "text": "cat models/@skunk-ape/statuspage/status-checks.yaml models/@skunk-ape/ntfy/notifier.yaml; grep -n defaultVault .swamp.yaml",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_017L44jeB1Vw7AKJEpDUoSwq",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 98389,
+              "end": 101045,
+              "ok": true,
+              "text": "python3 - <<EOF … EOF\nswamp behavior validate status-checks --json; swamp behavior validate notifier --json",
+              "label": "bypass",
+              "category": "hand-edited definition",
+              "rule": "shell write to a swamp-managed path then ran swamp"
+            },
+            {
+              "id": "toolu_01Qrq9vkqsa5VF7F3kbEYTZe",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 103376,
+              "end": 106013,
+              "ok": true,
+              "text": "swamp behavior run status-checks check --json 2>&1 | tail -40",
+              "label": "swamp",
+              "category": "swamp behavior run",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01L2tMkpLmqJwZaQe61RENbb",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 107207,
+              "end": 109781,
+              "ok": true,
+              "text": "swamp behavior output get status-checks --json | head -30; echo ---; swamp data query 'behavior(\"status-checks\") && name == \"summary\"' --select content",
+              "label": "swamp",
+              "category": "swamp behavior output",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_013aYskSgZ1drd76CcmMcyQe",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 111443,
+              "end": 113333,
+              "ok": true,
+              "text": "swamp workflow create status-check --json; cat workflows/workflow-status-check.yaml",
+              "label": "swamp",
+              "category": "swamp workflow create",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_019rFqo5VZ2PrZCX8cGTjRLY",
+              "tool": "Write",
+              "toolKind": "file-write",
+              "start": 117597,
+              "end": 118711,
+              "ok": true,
+              "text": "workflows/workflow-status-check.yaml",
+              "label": "bypass",
+              "category": "hand-edited definition",
+              "rule": "Write on a swamp-managed path"
+            },
+            {
+              "id": "toolu_014KPPLDGfePvgWNUjGL9nK8",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 117997,
+              "end": 119959,
+              "ok": true,
+              "text": "swamp workflow validate status-check --json",
+              "label": "swamp",
+              "category": "swamp workflow validate",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_013ZgoornBqbNrXpo1sqRzUd",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 122053,
+              "end": 125684,
+              "ok": true,
+              "text": "swamp workflow run status-check 2>&1 | tail -20",
+              "label": "swamp",
+              "category": "swamp workflow run",
+              "rule": "program = swamp"
+            }
+          ]
+        },
+        {
+          "n": 2,
+          "start": 203722,
+          "end": 211807,
+          "tokens": {
+            "input": 6,
+            "output": 578,
+            "cacheRead": 210755,
+            "cacheWrite": 598
+          },
+          "calls": [
+            {
+              "id": "toolu_01YGkYwBxprsf23nsy6P3bXA",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 205184,
+              "end": 207811,
+              "ok": true,
+              "text": "swamp behavior run status-checks check 2>&1 | tail -25",
+              "label": "swamp",
+              "category": "swamp behavior run",
+              "rule": "program = swamp"
+            }
+          ]
+        },
+        {
+          "n": 3,
+          "start": 328653,
+          "end": 334714,
+          "tokens": {
+            "input": 6,
+            "output": 505,
+            "cacheRead": 212831,
+            "cacheWrite": 228
+          },
+          "calls": [
+            {
+              "id": "toolu_01RLnxyS4AhxBFFh5ihTdBnF",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 330301,
+              "end": 331539,
+              "ok": true,
+              "text": "swamp vault list-keys default --json",
+              "label": "swamp",
+              "category": "swamp vault list-keys",
+              "rule": "program = swamp"
+            }
+          ]
+        },
+        {
+          "n": 4,
+          "start": 401318,
+          "end": 421732,
+          "tokens": {
+            "input": 10,
+            "output": 1134,
+            "cacheRead": 429640,
+            "cacheWrite": 1767
+          },
+          "calls": [
+            {
+              "id": "toolu_01RepEN4wo5y7HzKSGeKdmoi",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 403872,
+              "end": 405762,
+              "ok": true,
+              "text": "swamp vault list-keys default --json | grep -c NTFY_TOPIC; curl -s -m5 -X POST http://127.0.0.1:8788/control/incident; echo; curl -s -m5 http://127.0.0.1:8788/api/v2/summary.json",
+              "label": "swamp",
+              "category": "swamp vault list-keys",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01U7yUWQtYmnQLYzCv48iRZJ",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 406865,
+              "end": 410492,
+              "ok": true,
+              "text": "swamp workflow run status-check 2>&1 | tail -25",
+              "label": "swamp",
+              "category": "swamp workflow run",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01KrVTvNCtpfXwDBFkEiMtAd",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 412279,
+              "end": 416723,
+              "ok": true,
+              "text": "swamp data query 'modelName == \"status-checks\" && name == \"summary\"' --select 'content' --json 2>/dev/null | head -40; swamp data query 'modelName == \"notifier\" && name == \"last\"' --select content --json; curl -s -m5 -X POST http://127.0.0.1:8788/control/resolve; echo; swamp workflow run status-check 2>&1 | grep -E \"notify|Completed\"",
+              "label": "swamp",
+              "category": "swamp data query",
+              "rule": "program = swamp"
+            }
+          ]
+        },
+        {
+          "n": 5,
+          "start": 445638,
+          "end": 453743,
+          "tokens": {
+            "input": 6,
+            "output": 540,
+            "cacheRead": 218573,
+            "cacheWrite": 734
+          },
+          "calls": [
+            {
+              "id": "toolu_017N38RAW89QrF4BcR8dKZFK",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 448842,
+              "end": 451603,
+              "ok": true,
+              "text": "swamp workflow run status-check 2>&1 | grep -E \"check|notify|Completed\"; swamp data query 'modelName == \"status-checks\" && name == \"summary\"' --select content --json",
+              "label": "swamp",
+              "category": "swamp workflow run",
+              "rule": "program = swamp"
+            }
+          ]
+        }
+      ],
+      "findings": [
+        {
+          "severity": "medium",
+          "title": "2 failed calls within 3 minutes of each other (turn 1)",
+          "detail": "Failed: swamp auth whoami, swamp vault search.",
+          "tune": "Diagnose: open the first failure; what it hit is where to tune, a skill that sent the agent the wrong way or a swamp error that did not say what to do.",
+          "callIds": [
+            "toolu_01KQpo8ysdGm7dgtNYekSHx2",
+            "toolu_01PP71SLS9zHDaH8XmRE3wcP"
+          ]
+        }
+      ]
+    }
+  ],
+  "track-star": [
+    {
+      "schemaVersion": 2,
+      "id": "463d9bf4-5af8-4e45-b475-88d418b91701",
+      "repo": "example.com/demo/track-star",
+      "harness": "claude-code",
+      "harnessVersion": "2.1.306",
+      "model": "claude-opus-5-5",
+      "startedAt": "2026-10-23T15:47:09.184Z",
+      "invocation": "interactive",
+      "importerVersion": "test",
+      "turns": [
+        {
+          "n": 1,
+          "start": 0,
+          "end": 46663,
+          "tokens": {
+            "input": 16,
+            "output": 2042,
+            "cacheRead": 392926,
+            "cacheWrite": 50652
+          },
+          "calls": [
+            {
+              "id": "toolu_012MakEfETDT2838ctYyhH2V",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 3580,
+              "end": 4868,
+              "ok": true,
+              "text": "cat tasks/2026-10-23-set-up-a-stagecraft-factory-for-small-changes-to-the-track-s.md; ls -la .",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_011mFgeY7vHE168u4YwAzVwL",
+              "tool": "Skill",
+              "toolKind": "skill",
+              "start": 4110,
+              "end": 4884,
+              "ok": true,
+              "text": "swamp-getting-started",
+              "label": "neutral",
+              "category": "skill: swamp-getting-started",
+              "rule": "Skill tool"
+            },
+            {
+              "id": "toolu_01HjRqxP6RFLsk7BLfGxjVsN",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 10323,
+              "end": 13013,
+              "ok": true,
+              "text": "cat ~/.claude/skills/swamp-getting-started/references/tracks.md | head -150; swamp behavior type search stagecraft --json; swamp extension search stagecraft --json",
+              "label": "swamp",
+              "category": "swamp behavior type",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01MzEVYVqN2F1uuemwXV3VZQ",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 16445,
+              "end": 21317,
+              "ok": true,
+              "text": "swamp extension pull @swamp/stagecraft --json 2>&1 | tail -30; ls .claude/skills; ls ~/sc/demos/track-star; cat ~/sc/demos/track-star/deno.json* 2>/dev/null | head -40",
+              "label": "swamp",
+              "category": "swamp extension pull",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_0173HJn8afVijcHP6p7MgwfP",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 24463,
+              "end": 25321,
+              "ok": true,
+              "text": "cd .claude/skills/stagecraft && ls -R; cat SKILL.md",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_019UpBck5qtQDxvYbkGGZntE",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 28332,
+              "end": 29218,
+              "ok": true,
+              "text": "cd .claude/skills/stagecraft/references && cat getting-started.md authoring.md",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01TzsZGFSAVSwjrengUhSun7",
+              "tool": "Read",
+              "toolKind": "file-read",
+              "start": 32026,
+              "end": 32156,
+              "ok": true,
+              "text": "$HARNESS_LOGS/…",
+              "label": "neutral",
+              "category": "read file",
+              "rule": "Read tool"
+            },
+            {
+              "id": "toolu_011DSsgMhN9P72RNRpCqKVuv",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 37492,
+              "end": 38377,
+              "ok": true,
+              "text": "cd .claude/skills/stagecraft/references/examples && cat starter.yaml; cd ~/sc/demos/track-star && git status -sb 2>&1 | head -5; git log --oneline -3 2>&1; git remote -v 2>&1; cat README.md | head -30",
+              "label": "neutral",
+              "category": "git (read-only)",
+              "rule": "git read-only subcommand"
+            }
+          ]
+        },
+        {
+          "n": 2,
+          "start": 1217710,
+          "end": 1295739,
+          "tokens": {
+            "input": 16,
+            "output": 5382,
+            "cacheRead": 653487,
+            "cacheWrite": 10431
+          },
+          "calls": [
+            {
+              "id": "toolu_01PwSqbdEN8Rzc5bj13mceEh",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 1224751,
+              "end": 1227963,
+              "ok": true,
+              "text": "swamp model search stagecraft --json; swamp model create @swamp/stagecraft/tracker ts --global-arg prefix=ts --json && swamp model create @swamp/stagecraft/factory track-star --global-arg tracker=ts --json && cat models/@swamp/stagecraft/factory/track-star.yaml",
+              "label": "swamp",
+              "category": "swamp model search",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01S5vtpfZ6t3X81C7eVTqbeh",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 1231475,
+              "end": 1233399,
+              "ok": true,
+              "text": "cat models/@swamp/stagecraft/factory/track-star.yaml; grep -n \"manual\" -i .swamp/pulled-extensions/@swamp/stagecraft/models/_lib/engine/definition_schema.ts | head -20; grep -n \"maxCycles\" .swamp/pulled-extensions/@swamp/stagecraft/models/_lib/engine/definition_schema.ts | head",
+              "label": "neutral",
+              "category": "read extension source",
+              "rule": "read-only; .swamp/pulled-extensions (docs gap signal)"
+            },
+            {
+              "id": "toolu_01A3dvbXzRvqaCxBuapSvtA2",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 1237926,
+              "end": 1238628,
+              "ok": true,
+              "text": "cd .swamp/pulled-extensions/@swamp/stagecraft/models/_lib/engine && sed -n 1,80p cel_context.ts | grep -n \"item\\|key\" ",
+              "label": "neutral",
+              "category": "read extension source",
+              "rule": "read-only; .swamp/pulled-extensions (docs gap signal)"
+            },
+            {
+              "id": "toolu_016K3aw3sJhu7oTMQDZLA21h",
+              "tool": "Write",
+              "toolKind": "file-write",
+              "start": 1261754,
+              "end": 1267071,
+              "ok": true,
+              "text": "models/@swamp/stagecraft/factory/track-star.yaml",
+              "label": "bypass",
+              "category": "hand-edited definition",
+              "rule": "Write on a swamp-managed path"
+            },
+            {
+              "id": "toolu_013WoKdEPUpd9s9A8GBZifcp",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 1262345,
+              "end": 1268449,
+              "ok": true,
+              "text": "cd . && swamp model method run track-star validate 2>&1",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_011DERdiH4uBm5Ygd1KwVmCq",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 1271716,
+              "end": 1276995,
+              "ok": true,
+              "text": "swamp model create @swamp/stagecraft/studio studio --json >/dev/null && echo created",
+              "label": "swamp",
+              "category": "swamp model create",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_017DJyYbwzWwE4ir4jPPAeKM",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 1272455,
+              "end": 1277442,
+              "ok": true,
+              "text": "swamp model method run studio serve 2>&1",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_018ZssSCFaqaJBm37LYifRRQ",
+              "tool": "ToolSearch",
+              "toolKind": "search",
+              "start": 1280663,
+              "end": 1280669,
+              "ok": true,
+              "text": "",
+              "label": "neutral",
+              "category": "toolsearch",
+              "rule": "ToolSearch tool"
+            },
+            {
+              "id": "toolu_01KNUQkpWesSzRNXgdSnE39w",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 1285561,
+              "end": 1287738,
+              "ok": true,
+              "text": "f=$SCRATCH for i in $(seq 1 40); do grep -q \"http\" $f && break; sleep 0.5; done; cat $f",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            }
+          ]
+        },
+        {
+          "n": 3,
+          "start": 1411252,
+          "end": 1433641,
+          "tokens": {
+            "input": 6,
+            "output": 1407,
+            "cacheRead": 268758,
+            "cacheWrite": 5362
+          },
+          "calls": [
+            {
+              "id": "toolu_01Hx17VmQ4qUjcfnxDHpMsuF",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 1415747,
+              "end": 1418759,
+              "ok": true,
+              "text": "grep -n \"mode\" .swamp/pulled-extensions/@swamp/stagecraft/models/_lib/engine/definition_schema.ts | head -30; swamp behavior type search git --json; swamp extension search git --json | jq '.extensions[] | {name, description: (.description|.[0:200])}'",
+              "label": "swamp",
+              "category": "swamp behavior type",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01HV6ZtpqxvLRnN7ZAYExciq",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 1422083,
+              "end": 1424028,
+              "ok": true,
+              "text": "sed -n 340,440p .swamp/pulled-extensions/@swamp/stagecraft/models/_lib/engine/definition_schema.ts | grep -n \"WORK_MODES\\|interactive\\|dispatch\\|method\\|workflow\" ; grep -n \"WORK_MODES =\" -A3 -r .swamp/pulled-extensions/@swamp/stagecraft/models/_lib/engine/; swamp extension info @swamp/git --json | jq '{latestVersion, description}'",
+              "label": "swamp",
+              "category": "swamp extension info",
+              "rule": "program = swamp"
+            }
+          ]
+        },
+        {
+          "n": 4,
+          "start": 1933319,
+          "end": 2347299,
+          "tokens": {
+            "input": 78,
+            "output": 27997,
+            "cacheRead": 4836182,
+            "cacheWrite": 60369
+          },
+          "calls": [
+            {
+              "id": "toolu_017MxswaEy3nAyw2THCWwooU",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 1941687,
+              "end": 1946080,
+              "ok": true,
+              "text": "swamp extension search deno --json | jq '.extensions[] | {name, description: (.description|.[0:150])}'; swamp extension pull @swamp/git --json | jq -r '.files[]?' | grep -v bundles | head -30",
+              "label": "swamp",
+              "category": "swamp extension search",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01VNXLpQ8oJZYx4WkLckZ3kU",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 1949208,
+              "end": 1952127,
+              "ok": true,
+              "text": "swamp extension info @swamp/deno-runner --json | jq -r .description; ls .swamp/pulled-extensions/@swamp/; swamp behavior type search git --json | jq -c '.results[] | {type: .raw // .type}'",
+              "label": "swamp",
+              "category": "swamp extension info",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01YDJ5QxZ8sbArjutZUT7L4G",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 1960764,
+              "end": 1961536,
+              "ok": true,
+              "text": "cd .claude/skills/stagecraft/references && grep -n -i \"mode: method\\|mode: workflow\\|method stage\\|workflow stage\\|records\\b\\|recordAs\\|result\" driving.md | head -60; grep -n -B3 -A40 \"mode: workflow\\|mode: method\" examples/*.yaml | head -150",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_0146cHREjELgvxbantpKs77B",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 1964422,
+              "end": 1965147,
+              "ok": true,
+              "text": "sed -n 275,370p driving.md; sed -n 430,470p driving.md; grep -rn \"mode: \\(workflow\\|method\\)\" examples/",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01LSDDxJMCPxL1vHXzc8Mabq",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 1974545,
+              "end": 1980595,
+              "ok": true,
+              "text": "cd . && swamp extension pull @swamp/deno-runner --json >/dev/null; for t in @swamp/deno-runner @swamp/git; do swamp behavior type describe $t --compact --json | jq -c '{global: .globalArguments.properties|keys? , methods: [.methods[] | {name, args: (.arguments.properties|keys?)}]}'; done",
+              "label": "swamp",
+              "category": "swamp extension pull",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01JmHCTfsYL2c1PQGnjK9anB",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 1997853,
+              "end": 2000246,
+              "ok": true,
+              "text": "swamp behavior type describe @swamp/git --json | jq '{global: .globalArguments, ew: (.methods[] | select(.name==\"ensure_worktree\")), rw: (.methods[] | select(.name==\"remove_worktree\") | .description)}'; swamp behavior type describe @swamp/deno-runner --json | jq '.methods[] | select(.name==\"task\")'; ls .swamp/pulled-extensions/@swamp/git/ -R | head -30",
+              "label": "swamp",
+              "category": "swamp behavior type",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_012DSzZUmim4xipqCqFL9EGe",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2012425,
+              "end": 2013233,
+              "ok": true,
+              "text": "ls ~/.claude/skills/swamp/ ~/.claude/skills/swamp/references 2>/dev/null; ls .claude/skills/",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01E37sibZhzqqdpwYM9U6m3B",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2015787,
+              "end": 2016515,
+              "ok": true,
+              "text": "cd ~/.claude/skills/swamp/references && ls extension behavior workflow; grep -rln \"export const extension\" . | head",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01LpCh5Hiw4RCA2CNEgk8Ltf",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2020628,
+              "end": 2021355,
+              "ok": true,
+              "text": "cd ~/.claude/skills/swamp/references && grep -n -B5 -A60 \"export const extension\" extension/guide.md | head -140",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01ECKQ7EnhbmV1CDSAAxUsNE",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2024474,
+              "end": 2025241,
+              "ok": true,
+              "text": "cd ~/.claude/skills/swamp/references && grep -n -B3 -A50 \"export const extension\" extension/reference.md | head -120",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_017xJvorkoHPqSFpRBMNUy7n",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2029416,
+              "end": 2030198,
+              "ok": true,
+              "text": "cd ~/.claude/skills/swamp/references/extension/references/model && grep -n -B3 -A45 \"export const extension\" api.md | head -100; cd .swamp/pulled-extensions/@swamp/git/models && grep -n \"is_ancestor\\|runGit\\|export \" git.ts | head -30; grep -n \"export\" _lib/runner.ts | head",
+              "label": "neutral",
+              "category": "read extension source",
+              "rule": "read-only; .swamp/pulled-extensions (docs gap signal)"
+            },
+            {
+              "id": "toolu_01NdHoEoYDmBPpo29wPA8PdH",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2032989,
+              "end": 2033810,
+              "ok": true,
+              "text": "sed -n 1,75p git.ts; sed -n 300,380p git.ts; sed -n 505,560p git.ts; sed -n 40,110p _lib/runner.ts",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01DVDbmG19amvnA1r8U8v1N4",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2037642,
+              "end": 2038374,
+              "ok": true,
+              "text": "grep -n \"export async function runIsAncestor\" -A60 _lib/operations.ts; grep -n \"IsAncestor\" -A15 _lib/schemas.ts | head -40; cat _lib/types.ts | head -40",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01P4ZfvjzHXucW7BGFLnhrUC",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2057078,
+              "end": 2057819,
+              "ok": true,
+              "text": "cd .swamp/pulled-extensions/@swamp/stagecraft/models/_lib/engine && sed -n 370,465p definition_schema.ts",
+              "label": "neutral",
+              "category": "read extension source",
+              "rule": "read-only; .swamp/pulled-extensions (docs gap signal)"
+            },
+            {
+              "id": "toolu_011ZADZz3c6zwgyqe1P3Rj6t",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2070914,
+              "end": 2071771,
+              "ok": true,
+              "text": "cd .swamp/pulled-extensions/@swamp/stagecraft && grep -rn \"resultEvidence\" --include=*.ts models | grep -v _test | head -20; grep -rn -i \"resultEvidence\\|result evidence\" files/*.md | head -20",
+              "label": "neutral",
+              "category": "read extension source",
+              "rule": "read-only; .swamp/pulled-extensions (docs gap signal)"
+            },
+            {
+              "id": "toolu_01GWpQbStiymcGqsS3A6R5zU",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2075041,
+              "end": 2075800,
+              "ok": true,
+              "text": "cd .swamp/pulled-extensions/@swamp/stagecraft/models/_lib/engine && sed -n 355,368p definition_schema.ts; sed -n 575,650p payload_schema.ts; sed -n 340,380p run_ops.ts; sed -n 780,870p definition_schema.ts",
+              "label": "neutral",
+              "category": "read extension source",
+              "rule": "read-only; .swamp/pulled-extensions (docs gap signal)"
+            },
+            {
+              "id": "toolu_01QKXkxdfwKuxNbpvybDqur4",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2081364,
+              "end": 2082174,
+              "ok": true,
+              "text": "S=$SCRATCH rm -rf $S/gt && mkdir -p $S/gt && git clone -q ~/sc/demos/track-star $S/gt/repo && cd $S/gt/repo && git remote remove origin && SHA=$(git rev-parse HEAD) && git fetch . $SHA && echo \"fetch . ok\"; git worktree add --detach $S/gt/wt $SHA >/dev/null 2>&1 && echo \"detach ok\"",
+              "label": "bypass",
+              "category": "git — covered by @swamp/git",
+              "rule": "program = git; @swamp/git is installed in this repo"
+            },
+            {
+              "id": "toolu_01SJsFSmqhV2csjws5muDd73",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2087704,
+              "end": 2090330,
+              "ok": true,
+              "text": "S=$SCRATCH cd . && git -C $S/gt/repo worktree remove $S/gt/wt; swamp model create @swamp/git scratch-git --global-arg repoPath=$S/gt/repo --global-arg remote=. --json >/dev/null && SHA=$(git -C $S/gt/repo rev-parse HEAD) && swamp model method run scratch-git ensure_worktree --input path=$S/gt/checks/$SHA --input branch=check/$SHA --input base=$SHA --input expectedBaseCommit=$SHA --input root=$S/gt/checks 2>&1 | tail -15; git -C $S/gt/checks/$SHA rev-parse HEAD",
+              "label": "swamp",
+              "category": "swamp model create",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_014QqdcuDkb7pyTQHWDKsEFB",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2098006,
+              "end": 2101238,
+              "ok": true,
+              "text": "S=$SCRATCH cd . && deno --version | head -1; swamp behavior type describe @swamp/deno-runner --json | jq '.globalArguments'; swamp model create @swamp/deno-runner scratch-deno --json >/dev/null && swamp model method run scratch-deno task --input taskName=check --input workingDir=$S/gt/checks/‹redacted› 2>&1 | tail -25",
+              "label": "swamp",
+              "category": "swamp behavior type",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_011QzDD3UAYnHGCxmc7SVkzF",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2105948,
+              "end": 2112353,
+              "ok": true,
+              "text": "S=$SCRATCH cd . && swamp model delete scratch-deno --force --json >/dev/null 2>&1 || swamp model delete scratch-deno --json; swamp model create @swamp/deno-runner scratch-deno --global-arg version=2.9.7 --json >/dev/null && swamp model method run scratch-deno task --input taskName=check --input workingDir=$S/gt/checks/‹redacted› 2>&1 | tail -25",
+              "label": "swamp",
+              "category": "swamp model delete",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01FZ6p5RDYdwQSAqJpmyUM8o",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2118381,
+              "end": 2120751,
+              "ok": true,
+              "text": "swamp model delete scratch-deno --json 2>&1 | tail -2; swamp model delete scratch-git --json 2>&1 | tail -2; cat .swamp.yaml; grep -n \"extensions/models\\|extensions/behaviors\" ~/.claude/skills/swamp/references/extension/guide.md | head; sed -n 20,45p ~/.claude/skills/swamp/references/extension/guide.md",
+              "label": "swamp",
+              "category": "swamp model delete",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01MyR1ajXccJknqnP3Nk6Kod",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2129125,
+              "end": 2131411,
+              "ok": true,
+              "text": "swamp model delete scratch-deno --force --json >/dev/null && swamp model delete scratch-git --force --json >/dev/null && echo cleaned; sed -n 1,40p .swamp/pulled-extensions/@swamp/git/models/_lib/runner.ts; grep -n \"safeRef =\" -A8 .swamp/pulled-extensions/@swamp/git/models/_lib/schemas.ts",
+              "label": "swamp",
+              "category": "swamp model delete",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_011s8QhgjB82sWhbihUycm8p",
+              "tool": "Write",
+              "toolKind": "file-write",
+              "start": 2148972,
+              "end": 2149417,
+              "ok": true,
+              "text": "extensions/behaviors/git_merge.ts",
+              "label": "neutral",
+              "category": "extension authoring",
+              "rule": "Write under extensions/"
+            },
+            {
+              "id": "toolu_01EDqEuFbFVC4F9X7nqgezQ9",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2157890,
+              "end": 2165172,
+              "ok": true,
+              "text": "S=$SCRATCH cd . && deno fmt extensions/behaviors/git_merge.ts >/dev/null 2>&1; swamp behavior type describe @swamp/git --json | jq -c '.methods[] | select(.name==\"merge\") | .name'\nR=$S/gt/repo; git -C $R worktree prune; git -C $R checkout -q -b ts-9 && echo x >> $R/README.md && git -C $R commit -qam \"test change\" && C1=$(git -C $R rev-parse HEAD) && echo y >> $R/README.md && git -C $R commit -qam \"moved\" && git -C $R checkout -q main\nswamp model create @swamp/git scratch-git --global-arg repoPath=$R --json >/dev/null\necho \"--- moved branch:\"; swamp model method run scratch-git merge --input commit=$C1 --input branch=ts-9 2>&1 | grep -i \"error\\|moved\\|succeeded\\|failed\" | head -3\ngit -C $R branch -f ts-9 $C1\necho \"--- clean merge:\"; swamp model method run scratch-git merge --input commit=$C1 --input branch=ts-9 2>&1 | grep -iE \"error|succeeded|failed|mainCommit|branchDeleted\" | head -5\ngit -C $R checkout -q -b ts-10 HEAD~1 && echo z >> $R/README.md && git -C $R commit -qam diverge && C…",
+              "truncated": true,
+              "label": "swamp",
+              "category": "swamp behavior type",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_016vbZmahbW3KfxXY6vYTnvj",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2177469,
+              "end": 2179005,
+              "ok": true,
+              "text": "swamp model delete scratch-git --force --json >/dev/null; rm -rf $SCRATCH sed -n 1,200p ~/.claude/skills/swamp/references/workflow/guide.md | grep -v \"^$\" | head -150",
+              "label": "swamp",
+              "category": "swamp model delete",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01DpQqELwWZ36YGycGFAPrag",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2183028,
+              "end": 2184458,
+              "ok": true,
+              "text": "cat .swamp/pulled-extensions/@swamp/stagecraft/workflows/claim.yaml | head -70; swamp workflow schema get --json | jq -c '.stepTask' | head -c 2500",
+              "label": "swamp",
+              "category": "swamp workflow schema",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_012nuF2NKw9g6Cz7CDqu6KzZ",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2188937,
+              "end": 2199302,
+              "ok": true,
+              "text": "swamp workflow schema get --json | jq -c '.triggerCondition' | head -c 1200; echo; swamp workflow create track-star-check --json | jq -r .path; swamp model create @swamp/git track-star-repo --global-arg repoPath=~/sc/demos/track-star --global-arg remote=. --json | jq -r .path; swamp model create @swamp/deno-runner track-star-deno --global-arg version=2.9.7 --json | jq -r .path",
+              "label": "swamp",
+              "category": "swamp workflow schema",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_011NnvdpMjPDzV4tDpr8YwTJ",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2203484,
+              "end": 2205612,
+              "ok": true,
+              "text": "cat workflows/workflow-track-star-check.yaml",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01F4JK6bTKAWcDuyZEr8fFQ6",
+              "tool": "Write",
+              "toolKind": "file-write",
+              "start": 2213075,
+              "end": 2214776,
+              "ok": true,
+              "text": "workflows/workflow-track-star-check.yaml",
+              "label": "bypass",
+              "category": "hand-edited definition",
+              "rule": "Write on a swamp-managed path"
+            },
+            {
+              "id": "toolu_01YQRNjcRyuu3kEfPJWQrHeP",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2214197,
+              "end": 2216037,
+              "ok": true,
+              "text": "swamp workflow validate track-star-check --json | jq -c '{valid, errors, warnings}' ; git -C ~/sc/demos/track-star status --short | head",
+              "label": "swamp",
+              "category": "swamp workflow validate",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01GztYTSEZf8SVj5oosqutGa",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2219855,
+              "end": 2221635,
+              "ok": true,
+              "text": "swamp workflow validate track-star-check --json | head -30",
+              "label": "swamp",
+              "category": "swamp workflow validate",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01MAmg96bFNxyReAKCyBVhKd",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2226667,
+              "end": 2233168,
+              "ok": true,
+              "text": "SHA=$(git -C ~/sc/demos/track-star rev-parse main) && swamp workflow run track-star-check --input commit=$SHA --json 2>&1 | jq -c '{status, runId: (.id // .runId), jobs: [.jobs[]? | {name, status}]}'; ls ~/sc/demos/track-star-checks 2>&1; git -C ~/sc/demos/track-star branch",
+              "label": "swamp",
+              "category": "swamp workflow run",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_014RX29f5vSkqUxnYpiGd4KF",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2243776,
+              "end": 2245988,
+              "ok": true,
+              "text": "grep -n \"^  methods: \\[\" -A2 extensions/behaviors/git_merge.ts; grep -n \"^const MergeResultSchema\" extensions/behaviors/git_merge.ts; tail -8 extensions/behaviors/git_merge.ts",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01J2gta8AenwS2Q6EsR1eiDf",
+              "tool": "Edit",
+              "toolKind": "file-edit",
+              "start": 2251961,
+              "end": 2263846,
+              "ok": true,
+              "text": "extensions/behaviors/git_merge.ts",
+              "label": "neutral",
+              "category": "extension authoring",
+              "rule": "Edit under extensions/"
+            },
+            {
+              "id": "toolu_01CfRAfzYuB5pea1yy4eqR23",
+              "tool": "Edit",
+              "toolKind": "file-edit",
+              "start": 2253688,
+              "end": 2263879,
+              "ok": true,
+              "text": "extensions/behaviors/git_merge.ts",
+              "label": "neutral",
+              "category": "extension authoring",
+              "rule": "Edit under extensions/"
+            },
+            {
+              "id": "toolu_01Bxzd84J6euJSsJjVpxHnXW",
+              "tool": "Edit",
+              "toolKind": "file-edit",
+              "start": 2255282,
+              "end": 2263896,
+              "ok": true,
+              "text": "extensions/behaviors/git_merge.ts",
+              "label": "neutral",
+              "category": "extension authoring",
+              "rule": "Edit under extensions/"
+            },
+            {
+              "id": "toolu_01DuwonBnXRfQhCg2mzGx1jA",
+              "tool": "Edit",
+              "toolKind": "file-edit",
+              "start": 2257032,
+              "end": 2263912,
+              "ok": true,
+              "text": "workflows/workflow-track-star-check.yaml",
+              "label": "bypass",
+              "category": "hand-edited definition",
+              "rule": "Edit on a swamp-managed path"
+            },
+            {
+              "id": "toolu_01QBBxcCGnJfSgQv4vFX1KDj",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2270925,
+              "end": 2274620,
+              "ok": true,
+              "text": "sed -i 's| \\* Adds a fast-forward-only `merge` method to @swamp/git: move a target branch\\n||' extensions/behaviors/git_merge.ts && python3 - <<EOF … EOF\ndeno fmt extensions/behaviors/git_merge.ts 2>&1 | tail -1; deno check extensions/behaviors/git_merge.ts 2>&1 | tail -3; swamp workflow validate track-star-check --json | jq '[.validations[] | select(.passed|not)]'; SHA=$(git -C ~/sc/demos/track-star rev-parse main); swamp workflow run track-star-check --input commit=$SHA --json 2>&1 | jq -c '{status, jobs: [.jobs[]? | {name, status, steps: [.steps[]? | {name, status}]}]}'; git -C ~/sc/demos/track-star branch; ls ~/sc/demos/track-star-checks",
+              "label": "swamp",
+              "category": "swamp workflow validate",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01ADHJdBsLKFWHfnQp5wkK8n",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2286428,
+              "end": 2287900,
+              "ok": true,
+              "text": "swamp workflow create track-star-merge --json | jq -r '.path, .id'",
+              "label": "swamp",
+              "category": "swamp workflow create",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01NeWmPT8T8hCwYV8J7TaH9F",
+              "tool": "Write",
+              "toolKind": "file-write",
+              "start": 2294204,
+              "end": 2296997,
+              "ok": true,
+              "text": "workflows/workflow-track-star-merge.yaml",
+              "label": "bypass",
+              "category": "hand-edited definition",
+              "rule": "Write on a swamp-managed path"
+            },
+            {
+              "id": "toolu_01MeNzFFYLaLHk56Gj6KxXe9",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2294924,
+              "end": 2298257,
+              "ok": true,
+              "text": "swamp workflow validate track-star-merge --json | jq '[.validations[] | select(.passed|not)]'",
+              "label": "swamp",
+              "category": "swamp workflow validate",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01Xr5K1reKF26fHtMcuaTbwf",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2319184,
+              "end": 2319921,
+              "ok": true,
+              "text": "python3 - <<EOF … EOF\nsed -n '/^  scenarios:/,$p' models/@swamp/stagecraft/factory/track-star.yaml | head -5",
+              "label": "bypass",
+              "category": "hand-edited definition",
+              "rule": "shell write to a swamp-managed path"
+            },
+            {
+              "id": "toolu_01H8NyyZg8arFPvaQckB7gAL",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2333734,
+              "end": 2335595,
+              "ok": true,
+              "text": "python3 - <<EOF … EOF\nswamp model method run track-star validate 2>&1 | head -20",
+              "label": "bypass",
+              "category": "hand-edited definition",
+              "rule": "shell write to a swamp-managed path then ran swamp"
+            }
+          ]
+        },
+        {
+          "n": 5,
+          "start": 2604329,
+          "end": 2624178,
+          "tokens": {
+            "input": 8,
+            "output": 943,
+            "cacheRead": 627683,
+            "cacheWrite": 2392
+          },
+          "calls": [
+            {
+              "id": "toolu_01Ro6BcWJSjoVVPubdHb4TMK",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2609114,
+              "end": 2610900,
+              "ok": true,
+              "text": "swamp workflow run @swamp/stagecraft/create --input tracker=ts --input 'title=Filter talks by track' --input 'body=Add a control above the schedule listing \"All tracks\" and each track; picking one shows only that track'\"'\"'s talks and hides time slots left empty. Keep the logic in public/schedule.js with tests.' --input type=feature 2>&1",
+              "label": "swamp",
+              "category": "swamp workflow run",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01TWzdcWRVVyfs48Dn8QNTJA",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2614333,
+              "end": 2616106,
+              "ok": true,
+              "text": "swamp workflow run @swamp/stagecraft/create --input tracker=ts --input 'title=Star talks into My Schedule' --input 'body=Add a star on each talk to save it to My Schedule, kept in localStorage, with a toggle to show only starred talks. Stars survive a reload.' --input type=feature 2>&1 | grep -E \"created|Completed|rror|failed\"",
+              "label": "swamp",
+              "category": "swamp workflow run",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01DJMDKs1insyzSmupgmgkN6",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2619303,
+              "end": 2621105,
+              "ok": true,
+              "text": "swamp workflow run @swamp/stagecraft/create --input tracker=ts --input 'title=Warn when starred talks overlap' --input 'body=When two starred talks overlap in time, mark both cards with a warning and list the clashes at the top of My Schedule.' --input type=feature 2>&1 | grep -E \"created|Completed|rror|failed\"",
+              "label": "swamp",
+              "category": "swamp workflow run",
+              "rule": "program = swamp"
+            }
+          ]
+        },
+        {
+          "n": 6,
+          "start": 3048432,
+          "end": 3075402,
+          "tokens": {
+            "input": 8,
+            "output": 1684,
+            "cacheRead": 637170,
+            "cacheWrite": 3637
+          },
+          "calls": [
+            {
+              "id": "toolu_017ZXDPziDb1QNoTEn6w6k2r",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 3053074,
+              "end": 3054527,
+              "ok": true,
+              "text": "cd .swamp/pulled-extensions/@swamp/stagecraft && ls models models/_lib; grep -rln -i \"board\" models | grep -v _test | head; grep -rn -i \"backlog\\|unclaimed\\|tickets\" models --include=*.ts | grep -v _test | grep -i \"board\\|studio\" | head -20",
+              "label": "neutral",
+              "category": "read extension source",
+              "rule": "read-only; .swamp/pulled-extensions (docs gap signal)"
+            },
+            {
+              "id": "toolu_01CMHeUePgpMa2DBN4kJHg4k",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 3057865,
+              "end": 3058609,
+              "ok": true,
+              "text": "cd .swamp/pulled-extensions/@swamp/stagecraft/models/_lib/engine && sed -n 1,60p studio_cards.ts; grep -n \"tracker\\|ticket\\|issue\" studio_cards.ts studio_work_items.ts studio_server.ts | head -30; grep -rn -i \"board\" ../../../files/*.md | head -20",
+              "label": "neutral",
+              "category": "read extension source",
+              "rule": "read-only; .swamp/pulled-extensions (docs gap signal)"
+            },
+            {
+              "id": "toolu_01KJ3N8zopXMMtupR2DBeav2",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 3062622,
+              "end": 3063443,
+              "ok": true,
+              "text": "cd .swamp/pulled-extensions/@swamp/stagecraft/files && sed -n 60,90p README.md; grep -n -i \"claim\" README.md | head; grep -n -i \"^#\\|backlog\\|before.*claim\\|open ticket\" ../files/*.md | head -40",
+              "label": "neutral",
+              "category": "read extension source",
+              "rule": "read-only; .swamp/pulled-extensions (docs gap signal)"
+            }
+          ]
+        },
+        {
+          "n": 7,
+          "start": 3121224,
+          "end": 3158877,
+          "tokens": {
+            "input": 10,
+            "output": 1700,
+            "cacheRead": 822885,
+            "cacheWrite": 5946
+          },
+          "calls": [
+            {
+              "id": "toolu_01Aukz1ZkRcfXpKspzrQggY1",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 3124515,
+              "end": 3126011,
+              "ok": true,
+              "text": "cd . && swamp help issue 2>&1 | head -80; ls ~/.claude/skills/swamp/references/issue; ",
+              "label": "swamp",
+              "category": "swamp help issue",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01TKr3oZrPYAYgs7N5iLB58A",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 3129619,
+              "end": 3132706,
+              "ok": true,
+              "text": "grep -v \"^$\" ~/.claude/skills/swamp/references/issue/guide.md | head -90; swamp issue search \"board tickets\" --json 2>&1 | head -40; swamp issue search \"unclaimed\" --json 2>&1 | head -30",
+              "label": "swamp",
+              "category": "swamp issue search",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_015i9SyAhfXvPQiaFrcXALRD",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 3138769,
+              "end": 3142761,
+              "ok": true,
+              "text": "for q in \"stagecraft board\" \"stagecraft studio\" \"stagecraft backlog\"; do swamp issue search \"$q\" --json 2>&1 | jq -c '.issues[] | {number,title,status}'; done",
+              "label": "swamp",
+              "category": "swamp issue search",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01Kg89LjiUsJKxXmZwCyiSWZ",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 3152094,
+              "end": 3154148,
+              "ok": true,
+              "text": "swamp issue feature --extension @swamp/stagecraft --title \"stagecraft studio: show a factory's open tickets that have no work item yet on the Board\" --body \"$(cat <<EOF … EOF\n)\" --json",
+              "label": "swamp",
+              "category": "swamp issue feature",
+              "rule": "program = swamp"
+            }
+          ]
+        },
+        {
+          "n": 8,
+          "start": 3362404,
+          "end": 3402081,
+          "tokens": {
+            "input": 14,
+            "output": 2150,
+            "cacheRead": 1194937,
+            "cacheWrite": 10796
+          },
+          "calls": [
+            {
+              "id": "toolu_01Uc7uEydadxj6P97za1wmWK",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 3365210,
+              "end": 3367122,
+              "ok": true,
+              "text": "swamp workflow run @swamp/stagecraft/claim --input tracker=ts --input issue=ts-1 --input factory=track-star 2>&1 | grep -v \"│ start\\|completed in\\|skipped round\"",
+              "label": "swamp",
+              "category": "swamp workflow run",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01CQG9qQS5CEUzkrAJNtzoxL",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 3369861,
+              "end": 3371468,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run start 'ts-1' --input 'factory=track-star' --input 'title:json=\"Filter talks by track\"' --input 'externalRefs={\"builtin\":\"ts-1\",\"builtin.display\":\"ts-1\"}' 2>&1",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01LUfTU3RTkMWZYRSEkn7Da9",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 3375316,
+              "end": 3376183,
+              "ok": true,
+              "text": "sed -n 1,30p .swamp/pulled-extensions/@swamp/stagecraft/workflows/publish.yaml | grep -A4 \"properties:\\|required\"",
+              "label": "neutral",
+              "category": "read extension source",
+              "rule": "read-only; .swamp/pulled-extensions (docs gap signal)"
+            },
+            {
+              "id": "toolu_01SSDXEPgk2nDf4QqTnX7saj",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 3379629,
+              "end": 3382865,
+              "ok": true,
+              "text": "swamp workflow run @swamp/stagecraft/publish --input tracker=ts --input workItem=ts-1 2>&1 | grep -E \"ts-1|Completed|rror|fail\"; swamp model @swamp/stagecraft/work-item method run dispatch ts-1 --input expectedStage=implement --input expectedCycle=1 --input expectedEra=9e629a65-5231-4799-8e54-1b0ec197b551 2>&1",
+              "label": "swamp",
+              "category": "swamp workflow run",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_012bMKkse65cmhBQdCGVwRBb",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 3389064,
+              "end": 3390707,
+              "ok": true,
+              "text": "swamp model method run track-star-repo ensure_worktree --input path=~/sc/demos/track-star-worktrees/ts-1 --input root=~/sc/demos/track-star-worktrees --input branch=ts-1 --input base=main 2>&1 | grep -E \"Completed|rror|head |action\"; cd ~/sc/demos/track-star-worktrees/ts-1 && git status -sb && find . -path ./.git -prune -o -type f -print | grep -v \"^./data/\" ; wc -l public/* tests/* main.ts",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01Q9WRWQK4uMdScj2hV83Zg4",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 3393710,
+              "end": 3394422,
+              "ok": true,
+              "text": "cd ~/sc/demos/track-star-worktrees/ts-1 && cat public/schedule.js public/app.js public/index.html tests/schedule_test.ts main.ts; cat public/styles.css; head -c 600 data/sessions.json; echo; jq '.[0:2], (map(.track)|unique)' data/sessions.json 2>/dev/null | head -40",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            }
+          ]
+        },
+        {
+          "n": 9,
+          "start": 4070030,
+          "end": 4124811,
+          "tokens": {
+            "input": 10,
+            "output": 4935,
+            "cacheRead": 911435,
+            "cacheWrite": 7877
+          },
+          "calls": [
+            {
+              "id": "toolu_01AhPiLDgFRRYZJrV29yEU8j",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4076901,
+              "end": 4087384,
+              "ok": true,
+              "text": "cd ~/sc/demos/track-star-worktrees/ts-1 && python3 - <<EOF … EOF",
+              "label": "neutral",
+              "category": "user code (shell write)",
+              "rule": "shell write outside swamp-managed paths"
+            },
+            {
+              "id": "toolu_014tMqPdGsR4WBcasiT7S2sT",
+              "tool": "Write",
+              "toolKind": "file-write",
+              "start": 4083308,
+              "end": 4087393,
+              "ok": false,
+              "text": "~/sc/demos/track-star-worktrees/ts-1/public/app.js",
+              "label": "neutral",
+              "category": "user code",
+              "rule": "Write outside swamp-managed paths"
+            },
+            {
+              "id": "toolu_014nU4Ycsx7Q2ozWTJcQmQDd",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4086649,
+              "end": 4088876,
+              "ok": true,
+              "text": "cd ~/sc/demos/track-star-worktrees/ts-1 && python3 - <<EOF … EOF\nsed -i 's|<div id=\"legend\" class=\"legend\"></div>|<nav id=\"legend\" class=\"legend\" aria-label=\"Filter by track\"></nav>|' public/index.html\ndeno fmt >/dev/null 2>&1; deno task check 2>&1 | tail -8; git diff --stat",
+              "label": "neutral",
+              "category": "user code (shell write)",
+              "rule": "shell write outside swamp-managed paths"
+            },
+            {
+              "id": "toolu_01NMTkc356RiRctQSDYVhDue",
+              "tool": "Read",
+              "toolKind": "file-read",
+              "start": 4092263,
+              "end": 4092287,
+              "ok": true,
+              "text": "~/sc/demos/track-star-worktrees/ts-1/public/app.js",
+              "label": "neutral",
+              "category": "read file",
+              "rule": "Read tool"
+            },
+            {
+              "id": "toolu_01JjmARhpqJe7mw47gifZx1d",
+              "tool": "Write",
+              "toolKind": "file-write",
+              "start": 4100496,
+              "end": 4102811,
+              "ok": true,
+              "text": "~/sc/demos/track-star-worktrees/ts-1/public/app.js",
+              "label": "neutral",
+              "category": "user code",
+              "rule": "Write outside swamp-managed paths"
+            },
+            {
+              "id": "toolu_01XsiK8moDcH7MWooLRVYVo6",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4102343,
+              "end": 4104433,
+              "ok": true,
+              "text": "cd ~/sc/demos/track-star-worktrees/ts-1 && deno fmt >/dev/null 2>&1; deno task check 2>&1 | grep -E \"error|passed|failed|Found|warning\" ; git diff --stat; (PORT=8123 timeout 4 deno run --allow-net --allow-read --allow-env=PORT main.ts &) ; sleep 1; curl -s localhost:8123/ | grep legend; curl -s -o /dev/null -w \"%{http_code}\\n\" localhost:8123/app.js",
+              "label": "bypass",
+              "category": "deno — covered by @swamp/deno-runner",
+              "rule": "program = deno; @swamp/deno-runner is installed in this repo"
+            },
+            {
+              "id": "toolu_01XWyrp2CBHzSprvFLAMAF8f",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4112229,
+              "end": 4113635,
+              "ok": true,
+              "text": "cd ~/sc/demos/track-star-worktrees/ts-1 && PORT=8124 deno run --allow-net --allow-read --allow-env=PORT main.ts",
+              "label": "bypass",
+              "category": "deno — covered by @swamp/deno-runner",
+              "rule": "program = deno; @swamp/deno-runner is installed in this repo"
+            },
+            {
+              "id": "toolu_01FSZAHPjCe9EBN5WeJfJzPT",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4112902,
+              "end": 4114104,
+              "ok": true,
+              "text": "cd ~/sc/demos/track-star-worktrees/ts-1 && git diff public/schedule.js public/index.html",
+              "label": "neutral",
+              "category": "git (read-only)",
+              "rule": "git read-only subcommand"
+            }
+          ]
+        },
+        {
+          "n": 10,
+          "start": 4204790,
+          "end": 4331154,
+          "tokens": {
+            "input": 44,
+            "output": 5796,
+            "cacheRead": 4263338,
+            "cacheWrite": 18565
+          },
+          "calls": [
+            {
+              "id": "toolu_012sxUMHecuV6R7Eyah3bSt2",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4209694,
+              "end": 4210432,
+              "ok": true,
+              "text": "cd ~/sc/demos/track-star-worktrees/ts-1 && git add -A && git commit -q -F - <<EOF … EOF\ngit status --short; git log --oneline -2; git rev-parse HEAD",
+              "label": "bypass",
+              "category": "git — covered by @swamp/git",
+              "rule": "program = git; @swamp/git is installed in this repo"
+            },
+            {
+              "id": "toolu_01X1Yq3LjsRJPYmo1wyxdvE1",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4214846,
+              "end": 4216538,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run record_artifact ts-1 --input name=change-summary --input 'payload={\"summary\":\"Filter talks by track: the legend row becomes track buttons (All tracks + one per track); picking one shows only that track and hides empty time slots. filterByTrack in public/schedule.js with tests.\",\"branch\":\"ts-1\",\"commit\":\"‹redacted›\",\"files\":[\"public/app.js\",\"public/index.html\",\"public/schedule.js\",\"public/styles.css\",\"tests/schedule_test.ts\"]}' --input expectedStage=implement --input expectedCycle=1 --input expectedEra=9e629a65-5231-4799-8e54-1b0ec197b551 2>&1 | sed -n '/active at stage/,/Completed/p'",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_011wod6MQGA3TrEvMVNkRZTc",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4220485,
+              "end": 4222058,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run advance ts-1 --input transition=submit --input expectedStage=implement --input expectedCycle=1 --input expectedEra=9e629a65-5231-4799-8e54-1b0ec197b551 2>&1 | sed -n '/Executing/,/Completed/p'",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01Gwgtq1hrUnvuS1XnDyim2q",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4225023,
+              "end": 4226689,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run dispatch ts-1 --input expectedStage=check --input expectedCycle=1 --input expectedEra=9e629a65-5231-4799-8e54-1b0ec197b551 2>&1 | sed -n '/dispatch 1/,/Completed/p'",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01JaCeBrF7PL2bnVMyd73EH6",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4230002,
+              "end": 4232269,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run status ts-1 2>&1 | sed -n '/active at/,/Completed/p'; swamp data query 'modelName == \"ts-1\" && name == \"run\"' --select content 2>/dev/null | jq -c '.[0].dispatches // .dispatches | .[-1]' 2>/dev/null | head -c 1500",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_012op9cM4odsNfMLzaeYbTcS",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4237099,
+              "end": 4238547,
+              "ok": true,
+              "text": "swamp data query 'modelName == \"ts-1\" && name == \"run\"' --select content 2>&1 | jq -c '.. | objects | select(has(\"dispatchId\") and .dispatchId==2)' 2>/dev/null | head -c 3000",
+              "label": "swamp",
+              "category": "swamp data query",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01VJE4kUEUehcA1N13qqykah",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4242061,
+              "end": 4244391,
+              "ok": true,
+              "text": "swamp data query 'modelName == \"ts-1\" && name == \"run\"' --select content 2>&1 | head -c 400; echo; swamp data query 'modelName == \"ts-1\"' --json 2>&1 | jq -r '.. | .name? // empty' | sort -u | head",
+              "label": "swamp",
+              "category": "swamp data query",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01KG4J6jbpEXKKznLZ7c1mas",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4247608,
+              "end": 4249064,
+              "ok": true,
+              "text": "swamp data query 'modelName == \"ts-1\" && name == \"run\"' --select content --json 2>&1 | jq -c '[.. | objects | select(has(\"dispatchId\") or has(\"dispatch\"))] | .[-3:]' | head -c 3000",
+              "label": "swamp",
+              "category": "swamp data query",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_0194FXBCe9HYdmH9138meQz3",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4252778,
+              "end": 4254225,
+              "ok": true,
+              "text": "swamp data list ts-1 --json 2>&1 | jq -r '.. | .name? // empty' | sort -u",
+              "label": "swamp",
+              "category": "swamp data list",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01HehvZewKHjRBbu8wjiwB8H",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4257689,
+              "end": 4259094,
+              "ok": true,
+              "text": "swamp report get @swamp/method-summary --model ts-1 --json 2>&1 | jq -c '.' | head -c 3000",
+              "label": "swamp",
+              "category": "swamp report get",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01WxfLKTbjihQRkRc17D6LPB",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4262800,
+              "end": 4264452,
+              "ok": true,
+              "text": "swamp data query 'modelName == \"ts-1\" && name == \"run\"' --select content --json 2>&1 | jq -c '.[0].dispatches // (.. | objects | select(has(\"dispatches\")) | .dispatches)' | head -c 2500",
+              "label": "swamp",
+              "category": "swamp data query",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01Wr6Hns8Me5mpmWjKTHMmw7",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4267941,
+              "end": 4269458,
+              "ok": true,
+              "text": "swamp data query 'modelName == \"ts-1\" && name == \"run\"' --select content --json 2>&1 | jq -c '[.. | objects | select(has(\"dispatches\")) | .dispatches] | .[-1]' | head -c 2500",
+              "label": "swamp",
+              "category": "swamp data query",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_019ox1hEjxJFsXyDaTdxLPxM",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4275191,
+              "end": 4277842,
+              "ok": true,
+              "text": "swamp workflow run track-star-check --input commit=‹redacted› --json 2>&1 | jq -c '{status, runId: .id, jobs: [.jobs[]? | {name, status, steps: [.steps[]? | {name, status}]}]}'",
+              "label": "swamp",
+              "category": "swamp workflow run",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01BBxiaFZiKeDcbkFkhwx9yW",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4284173,
+              "end": 4285714,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run record_evidence ts-1 --input name=checks --input 'payload={\"status\":\"succeeded\",\"runId\":\"6e7b96be-04ad-49c1-a4d1-14e6dcb2d82b\",\"commit\":\"‹redacted›\"}' --input expectedStage=check --input expectedCycle=1 --input expectedEra=9e629a65-5231-4799-8e54-1b0ec197b551 2>&1",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01SerrFYnrcbhCpHgBnyQdzA",
+              "tool": "ToolSearch",
+              "toolKind": "search",
+              "start": 4289660,
+              "end": 4289665,
+              "ok": true,
+              "text": "",
+              "label": "neutral",
+              "category": "toolsearch",
+              "rule": "ToolSearch tool"
+            },
+            {
+              "id": "toolu_01SN2vBzAtfPacb7iQwLA9eT",
+              "tool": "TaskStop",
+              "toolKind": "other",
+              "start": 4292062,
+              "end": 4292069,
+              "ok": true,
+              "text": "",
+              "label": "neutral",
+              "category": "taskstop",
+              "rule": "TaskStop tool"
+            },
+            {
+              "id": "toolu_01AehJPgJNTZibH9ouh3DSBC",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4292917,
+              "end": 4294703,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run advance ts-1 --input transition=passed --input expectedStage=check --input expectedCycle=1 --input expectedEra=9e629a65-5231-4799-8e54-1b0ec197b551 2>&1",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01SbNsSWSN6VjGrZqXHD2KYG",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4298023,
+              "end": 4299958,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run dispatch ts-1 --input expectedStage=merge --input expectedCycle=1 --input expectedEra=9e629a65-5231-4799-8e54-1b0ec197b551 2>&1",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01NnzHFQdsqkxyeEqtkJZoQW",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4304082,
+              "end": 4305941,
+              "ok": true,
+              "text": "git -C ~/sc/demos/track-star status -sb | head -3; swamp workflow run track-star-merge --input commit=9a68a834b0 --input branch=ts-1 --json 2>&1 | jq -c '{status, runId: .id, jobs: [.jobs[]? | {name, status}]}'; git -C ~/sc/demos/track-star log --oneline -2 main; git -C ~/sc/demos/track-star branch; git -C ~/sc/demos/track-star worktree list",
+              "label": "swamp",
+              "category": "swamp workflow run",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_017Jxh8YBBVBBmVxVg9DuamL",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4309804,
+              "end": 4311679,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run record_evidence ts-1 --input name=merge --input 'payload={\"status\":\"succeeded\",\"runId\":\"b76badc0-5307-4e4e-9e16-334a2c9cbf6e\",\"commit\":\"‹redacted›\"}' --input expectedStage=merge --input expectedCycle=1 --input expectedEra=9e629a65-5231-4799-8e54-1b0ec197b551 2>&1 | sed -n '/Executing/,/Completed/p'",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_017n8tdhQ5bLzpUy375a5Vtk",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4315381,
+              "end": 4318585,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run advance ts-1 --input transition=merged --input expectedStage=merge --input expectedCycle=1 --input expectedEra=9e629a65-5231-4799-8e54-1b0ec197b551 2>&1 | sed -n '/Executing/,/Completed/p'; swamp workflow run @swamp/stagecraft/publish --input tracker=ts --input workItem=ts-1 2>&1 | grep -E \"ts-1|Completed|rror|fail\"",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01CTaNejZdv2mZfWnS2rQaF5",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4321644,
+              "end": 4323255,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run summary ts-1 2>&1 | sed -n '/Executing/,/Completed/p'",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            }
+          ]
+        },
+        {
+          "n": 11,
+          "start": 4783233,
+          "end": 4820225,
+          "tokens": {
+            "input": 10,
+            "output": 2013,
+            "cacheRead": 1039481,
+            "cacheWrite": 3119
+          },
+          "calls": [
+            {
+              "id": "toolu_014RGrtkHy1kWRAkz9vsWPmP",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4787241,
+              "end": 4789022,
+              "ok": true,
+              "text": "swamp workflow run @swamp/stagecraft/claim --input tracker=ts --input issue=ts-2 --input factory=track-star 2>&1 | grep -E \"claimed|Start it|rror|fail|already\"",
+              "label": "swamp",
+              "category": "swamp workflow run",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01SbtKWG8e3h8bfMBbxn1KnH",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4792128,
+              "end": 4793683,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run start 'ts-2' --input 'factory=track-star' --input 'title:json=\"Star talks into My Schedule\"' --input 'externalRefs={\"builtin\":\"ts-2\",\"builtin.display\":\"ts-2\"}' 2>&1 | sed -n '/Executing/,/Completed/p'",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_011DATErPP5kDxndJandw7Cw",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4797100,
+              "end": 4798747,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run dispatch ts-2 --input expectedStage=implement --input expectedCycle=1 --input expectedEra=37df0958-ec43-40e6-b3ef-39bf77338012 2>&1",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_014z7k33oXLsZWgSax5jDpQs",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 4802951,
+              "end": 4806020,
+              "ok": true,
+              "text": "swamp workflow run @swamp/stagecraft/publish --input tracker=ts --input workItem=ts-2 2>&1 | grep -E \"moved|published|rror|fail\"; swamp model method run track-star-repo ensure_worktree --input path=~/sc/demos/track-star-worktrees/ts-2 --input root=~/sc/demos/track-star-worktrees --input branch=ts-2 --input base=main 2>&1 | grep -E \"Completed|rror|head |action\"",
+              "label": "swamp",
+              "category": "swamp workflow run",
+              "rule": "program = swamp"
+            }
+          ]
+        },
+        {
+          "n": 12,
+          "start": 7022961,
+          "end": 7150725,
+          "tokens": {
+            "input": 28,
+            "output": 8396,
+            "cacheRead": 3058217,
+            "cacheWrite": 13165
+          },
+          "calls": [
+            {
+              "id": "toolu_01534wtu2fMoCdUfduoC48BU",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7036861,
+              "end": 7037907,
+              "ok": true,
+              "text": "cd ~/sc/demos/track-star-worktrees/ts-2 && cat public/app.js public/index.html; tail -30 tests/schedule_test.ts; grep -n \"legend-item.selected\" -A5 public/styles.css",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01WnMSrhxjhPz8NmswmgECHr",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7052216,
+              "end": 7053041,
+              "ok": true,
+              "text": "cd ~/sc/demos/track-star-worktrees/ts-2 && python3 - <<EOF … EOF\nsed -i 's|    <main id=\"schedule\"></main>|    <div id=\"notices\"></div>\\n    <main id=\"schedule\"></main>|' public/index.html\ngrep -n \"notices\\|schedule\" public/index.html",
+              "label": "neutral",
+              "category": "user code (shell write)",
+              "rule": "shell write outside swamp-managed paths"
+            },
+            {
+              "id": "toolu_01KUerhaePMA8G8s7QWYvYKc",
+              "tool": "Read",
+              "toolKind": "file-read",
+              "start": 7056489,
+              "end": 7056514,
+              "ok": true,
+              "text": "~/sc/demos/track-star-worktrees/ts-2/public/app.js",
+              "label": "neutral",
+              "category": "read file",
+              "rule": "Read tool"
+            },
+            {
+              "id": "toolu_012HaDWNS5SQdvzXTcQoreoX",
+              "tool": "Write",
+              "toolKind": "file-write",
+              "start": 7070342,
+              "end": 7072005,
+              "ok": true,
+              "text": "~/sc/demos/track-star-worktrees/ts-2/public/app.js",
+              "label": "neutral",
+              "category": "user code",
+              "rule": "Write outside swamp-managed paths"
+            },
+            {
+              "id": "toolu_0156ycYr6t5fBnWrcj86V5y6",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7071514,
+              "end": 7073446,
+              "ok": true,
+              "text": "cd ~/sc/demos/track-star-worktrees/ts-2 && deno fmt >/dev/null 2>&1; deno task check 2>&1 | grep -E \"error|passed|FAILED|ok \\||Found|=>\" | head; git status --short",
+              "label": "bypass",
+              "category": "deno — covered by @swamp/deno-runner",
+              "rule": "program = deno; @swamp/deno-runner is installed in this repo"
+            },
+            {
+              "id": "toolu_01UYwzduKQMBuYxu5jJp1Edv",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7078971,
+              "end": 7079707,
+              "ok": true,
+              "text": "cd ~/sc/demos/track-star-worktrees/ts-2 && git add -A && git commit -q -F - <<EOF … EOF\ngit status --short; git rev-parse HEAD",
+              "label": "bypass",
+              "category": "git — covered by @swamp/git",
+              "rule": "program = git; @swamp/git is installed in this repo"
+            },
+            {
+              "id": "toolu_01M3c52mPPJnfm5k27zTvZKQ",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7084263,
+              "end": 7085891,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run record_artifact ts-2 --input name=change-summary --input 'payload={\"summary\":\"Star talks into My Schedule: a star on each card saves it to localStorage; a My Schedule (n) toggle shows only starred talks, combined with the track filter. Star logic in public/schedule.js with tests. Includes one deliberately failing test to exercise the check stage.\",\"branch\":\"ts-2\",\"commit\":\"‹redacted›\",\"files\":[\"public/app.js\",\"public/index.html\",\"public/schedule.js\",\"public/styles.css\",\"tests/schedule_test.ts\"]}' --input expectedStage=implement --input expectedCycle=1 --input expectedEra=37df0958-ec43-40e6-b3ef-39bf77338012 2>&1 | sed -n '/Executing/,/Completed/p'",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01CAHxVyD3RhumjyVbe3N8Gw",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7088989,
+              "end": 7090818,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run advance ts-2 --input transition=submit --input expectedStage=implement --input expectedCycle=1 --input expectedEra=37df0958-ec43-40e6-b3ef-39bf77338012 2>&1 | sed -n '/Executing/,/Completed/p'",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01NNaQ4o89xEfrxaBRxnBN4A",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7100570,
+              "end": 7102201,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run dispatch ts-2 --input expectedStage=check --input expectedCycle=1 --input expectedEra=37df0958-ec43-40e6-b3ef-39bf77338012 2>&1",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_018Wp9rEQ8mV3gSuQDVQ6fGD",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7108431,
+              "end": 7111138,
+              "ok": true,
+              "text": "swamp workflow run track-star-check --input commit=b43f56cfca --json > $SCRATCH 2>&1; echo \"exit=$?\"; jq -c '{status, runId: .id, jobs: [.jobs[]? | {name, status, steps: [.steps[]? | {name, status}]}]}' $SCRATCH ls ~/sc/demos/track-star-checks; git -C ~/sc/demos/track-star branch",
+              "label": "swamp",
+              "category": "swamp workflow run",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01SGMqi36KjTMEu9HGMeY9GS",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7116522,
+              "end": 7118226,
+              "ok": true,
+              "text": "swamp workflow history logs 8f5adec5-3cae-45c8-86f7-f2111e5c0e18 2>&1 | sed 's/\\x1b\\[[0-9;]*m//g' | grep -iE \"FAILED|error:|expected|deliberately\" | sort -u | head",
+              "label": "swamp",
+              "category": "swamp workflow history",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01D7HhX7NDbGqvRyEhEK9fmJ",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7122241,
+              "end": 7123761,
+              "ok": true,
+              "text": "swamp data query 'workflowRunId == \"8f5adec5-3cae-45c8-86f7-f2111e5c0e18\" && modelName == \"track-star-deno\"' --select content --json 2>&1 | jq -r '.. | .stdout? // empty' | sed 's/\\x1b\\[[0-9;]*m//g' | grep -E \"FAILED|error|=>\" | sort -u",
+              "label": "swamp",
+              "category": "swamp data query",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_012bkZS1yrbYweFxjBrFqsm6",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7130988,
+              "end": 7132598,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run record_evidence ts-2 --input name=checks --input 'payload={\"status\":\"failed\",\"runId\":\"8f5adec5-3cae-45c8-86f7-f2111e5c0e18\",\"commit\":\"‹redacted›\"}' --input expectedStage=check --input expectedCycle=1 --input expectedEra=37df0958-ec43-40e6-b3ef-39bf77338012 2>&1 | sed -n '/Executing/,/Completed/p'",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01MM8weNkwfLc21xRXEgNqBK",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7136656,
+              "end": 7139747,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run advance ts-2 --input transition=failed --input expectedStage=check --input expectedCycle=1 --input expectedEra=37df0958-ec43-40e6-b3ef-39bf77338012 2>&1 | sed -n '/Executing/,/Completed/p'; swamp workflow run @swamp/stagecraft/publish --input tracker=ts --input workItem=ts-2 2>&1 | grep -E \"moved|published|rror|fail\"",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            }
+          ]
+        },
+        {
+          "n": 13,
+          "start": 7408171,
+          "end": 7486008,
+          "tokens": {
+            "input": 26,
+            "output": 4435,
+            "cacheRead": 2984758,
+            "cacheWrite": 9614
+          },
+          "calls": [
+            {
+              "id": "toolu_01Dk1xKf9mG3HhJL5b62Vq8k",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7411877,
+              "end": 7413513,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run dispatch ts-2 --input expectedStage=implement --input expectedCycle=2 --input expectedEra=37df0958-ec43-40e6-b3ef-39bf77338012 2>&1 | sed -n '/Executing/,/^ts-2/p'",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01L6ZgHDjk1w2tg8o33jCUBf",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7419494,
+              "end": 7421641,
+              "ok": true,
+              "text": "swamp model method run track-star-repo ensure_worktree --input path=~/sc/demos/track-star-worktrees/ts-2 --input root=~/sc/demos/track-star-worktrees --input branch=ts-2 --input base=main 2>&1 | grep -E \"Completed|rror|head |action\"; cd ~/sc/demos/track-star-worktrees/ts-2 && python3 - <<EOF … EOF\ntail -5 tests/schedule_test.ts; deno task check 2>&1 | sed 's/\\x1b\\[[0-9;]*m//g' | grep -E \"passed|FAILED|error\"",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01Rd53YCRzpb91vCNJMz1RB9",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7427281,
+              "end": 7428957,
+              "ok": true,
+              "text": "cd ~/sc/demos/track-star-worktrees/ts-2 && git commit -qam \"Remove the deliberately failing ts-2 test\n\nIt was there to exercise the factory's check stage, which sent the\nchange back to implement as designed.\n\nCo-Authored-By: Claude Opus 5.5 <‹email›>\" && git status --short && git rev-parse HEAD && cd . && swamp model @swamp/stagecraft/work-item method run record_artifact ts-2 --input name=change-summary --input \"payload={\\\"summary\\\":\\\"Star talks into My Schedule: a star on each card saves it to localStorage; a My Schedule (n) toggle shows only starred talks, combined with the track filter. Star logic in public/schedule.js with tests. The deliberately failing test from cycle 1 is removed.\\\",\\\"branch\\\":\\\"ts-2\\\",\\\"commit\\\":\\\"$(git -C ~/sc/demos/track-star-worktrees/ts-2 rev-parse HEAD)\\\",\\\"files\\\":[\\\"public/app.js\\\",\\\"public/index.html\\\",\\\"public/schedule.js\\\",\\\"public/styles.css\\\",\\\"tests/schedule_test.ts\\\"]}\" --input expectedStage=implement --input expectedCycle=2 --input expectedEra=3…",
+              "truncated": true,
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_015aCf6otZp8NoGMCn6nvSCw",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7431890,
+              "end": 7433540,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run advance ts-2 --input transition=submit --input expectedStage=implement --input expectedCycle=2 --input expectedEra=37df0958-ec43-40e6-b3ef-39bf77338012 2>&1 | sed -n '/Executing/,/Completed/p'",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01DoRWSrftaUoPhPQLQCidyS",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7437263,
+              "end": 7438957,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run dispatch ts-2 --input expectedStage=check --input expectedCycle=2 --input expectedEra=37df0958-ec43-40e6-b3ef-39bf77338012 2>&1",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01MqPXUnTXFJSfxahUwr3zGD",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7442154,
+              "end": 7444868,
+              "ok": true,
+              "text": "swamp workflow run track-star-check --input commit=‹redacted› --json 2>&1 | jq -c '{status, runId: .id, jobs: [.jobs[]? | {name, status}]}'",
+              "label": "swamp",
+              "category": "swamp workflow run",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_014fJzQnDmx8TAydDgMP57Uw",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7448605,
+              "end": 7450339,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run record_evidence ts-2 --input name=checks --input 'payload={\"status\":\"succeeded\",\"runId\":\"63a92c91-479a-4bb1-8234-e4eb7410dac5\",\"commit\":\"‹redacted›\"}' --input expectedStage=check --input expectedCycle=2 --input expectedEra=37df0958-ec43-40e6-b3ef-39bf77338012 2>&1 | sed -n '/Executing/,/Completed/p'",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01XoWMM6GHkSoXqvDfvrbnww",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7453391,
+              "end": 7455122,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run advance ts-2 --input transition=passed --input expectedStage=check --input expectedCycle=2 --input expectedEra=37df0958-ec43-40e6-b3ef-39bf77338012 2>&1 | sed -n '/Executing/,/Completed/p'",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_015Qt8pwD8uYpS67G2FM4BCm",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7457845,
+              "end": 7459528,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run dispatch ts-2 --input expectedStage=merge --input expectedCycle=1 --input expectedEra=37df0958-ec43-40e6-b3ef-39bf77338012 2>&1",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_014xioBEj7rUXSS4azuWCRCi",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7464732,
+              "end": 7466313,
+              "ok": true,
+              "text": "swamp workflow run track-star-merge --input commit=88c6ecc68b --input branch=ts-2 --json 2>&1 | jq -c '{status, runId: .id, jobs: [.jobs[]? | {name, status}]}'; git -C ~/sc/demos/track-star log --oneline -3 main; git -C ~/sc/demos/track-star branch; git -C ~/sc/demos/track-star worktree list; git -C ~/sc/demos/track-star status --short",
+              "label": "swamp",
+              "category": "swamp workflow run",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01Q8BNmtJZDiTJG9ct88g4sV",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7470214,
+              "end": 7471860,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run record_evidence ts-2 --input name=merge --input 'payload={\"status\":\"succeeded\",\"runId\":\"4fb67c2c-e21c-459c-8d31-39a055ca622e\",\"commit\":\"‹redacted›\"}' --input expectedStage=merge --input expectedCycle=1 --input expectedEra=37df0958-ec43-40e6-b3ef-39bf77338012 2>&1 | sed -n '/Executing/,/Completed/p'",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01T7wvcb8GegUP93LDnht6Zw",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7475442,
+              "end": 7478599,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run advance ts-2 --input transition=merged --input expectedStage=merge --input expectedCycle=1 --input expectedEra=37df0958-ec43-40e6-b3ef-39bf77338012 2>&1 | sed -n '/Executing/,/Completed/p'; swamp workflow run @swamp/stagecraft/publish --input tracker=ts --input workItem=ts-2 2>&1 | grep -E \"moved|published|rror|fail\"",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            }
+          ]
+        },
+        {
+          "n": 14,
+          "start": 7928535,
+          "end": 8007150,
+          "tokens": {
+            "input": 10,
+            "output": 6203,
+            "cacheRead": 1193159,
+            "cacheWrite": 7169
+          },
+          "calls": [
+            {
+              "id": "toolu_0141QqaQZEZc58xR1Woqjrv4",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7940848,
+              "end": 7941841,
+              "ok": true,
+              "text": "cd .swamp/pulled-extensions/@swamp/stagecraft/models/_lib/engine && grep -n \"export const FINDINGS_SCHEMA\" -A40 payload_schema.ts; grep -n \"FindingsClearGateSchema = \\|FindingsOpenGateSchema = \\|ArtifactFreshGateSchema = \" -A12 definition_schema.ts | head -50",
+              "label": "neutral",
+              "category": "read extension source",
+              "rule": "read-only; .swamp/pulled-extensions (docs gap signal)"
+            },
+            {
+              "id": "toolu_017oJjsFXKFZB1RiBaRsgqQJ",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7970290,
+              "end": 7971855,
+              "ok": true,
+              "text": "cd . && python3 - <<EOF … EOF\ngrep -c \"expect: { stage: a11y-review }\" models/@swamp/stagecraft/factory/track-star.yaml; swamp model method run track-star validate 2>&1 | sed -n '/Executing/,/Completed/p'",
+              "label": "bypass",
+              "category": "hand-edited definition",
+              "rule": "shell write to a swamp-managed path then ran swamp"
+            },
+            {
+              "id": "toolu_01VBW99vYN2P8S7kqF2QVFtZ",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7982165,
+              "end": 7983841,
+              "ok": true,
+              "text": "swamp model method run track-star validate 2>&1 | head -40",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01M6kE8HScXgFbDU8S7yNNBs",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7992930,
+              "end": 7994639,
+              "ok": true,
+              "text": "python3 - <<EOF … EOF\ntail -3 models/@swamp/stagecraft/factory/track-star.yaml; swamp model method run track-star validate 2>&1 | head -30",
+              "label": "bypass",
+              "category": "hand-edited definition",
+              "rule": "shell write to a swamp-managed path then ran swamp"
+            }
+          ]
+        },
+        {
+          "n": 15,
+          "start": 8411187,
+          "end": 8443037,
+          "tokens": {
+            "input": 8,
+            "output": 2450,
+            "cacheRead": 980488,
+            "cacheWrite": 3681
+          },
+          "calls": [
+            {
+              "id": "toolu_01GhwKxwdLSEeZMmKNxc9GYS",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 8421981,
+              "end": 8423749,
+              "ok": true,
+              "text": "python3 - <<EOF … EOF\nswamp model method run track-star validate 2>&1 | sed -n '/Executing/,/Completed/p'",
+              "label": "bypass",
+              "category": "hand-edited definition",
+              "rule": "shell write to a swamp-managed path then ran swamp"
+            },
+            {
+              "id": "toolu_01T8y2trWsV13ZfhqX66EJks",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 8428652,
+              "end": 8429426,
+              "ok": true,
+              "text": "cd .swamp/pulled-extensions/@swamp/stagecraft/models/_lib/engine && sed -n 15,60p cel_context.ts; grep -n \"artifact-exists\\|ArtifactExistsGateSchema = \" -A10 definition_schema.ts | head -30",
+              "label": "neutral",
+              "category": "read extension source",
+              "rule": "read-only; .swamp/pulled-extensions (docs gap signal)"
+            },
+            {
+              "id": "toolu_01VCkSWXn6EDsX9cpkrUCPu9",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 8434931,
+              "end": 8436555,
+              "ok": true,
+              "text": "cd . && python3 - <<EOF … EOF\nswamp model method run track-star validate 2>&1 | sed -n '/Executing/,/Completed/p'",
+              "label": "bypass",
+              "category": "hand-edited definition",
+              "rule": "shell write to a swamp-managed path then ran swamp"
+            }
+          ]
+        },
+        {
+          "n": 16,
+          "start": 8503426,
+          "end": 8544957,
+          "tokens": {
+            "input": 10,
+            "output": 2068,
+            "cacheRead": 1246792,
+            "cacheWrite": 5307
+          },
+          "calls": [
+            {
+              "id": "toolu_01RRkRxUiVk66KzxqxptMzng",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 8506846,
+              "end": 8508636,
+              "ok": true,
+              "text": "swamp workflow run @swamp/stagecraft/claim --input tracker=ts --input issue=ts-3 --input factory=track-star 2>&1 | grep -E \"claimed|Start it|rror|fail|already\"",
+              "label": "swamp",
+              "category": "swamp workflow run",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01Dn15QfEf795NbhCnS1oHNW",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 8512281,
+              "end": 8513876,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run start 'ts-3' --input 'factory=track-star' --input 'title:json=\"Warn when starred talks overlap\"' --input 'externalRefs={\"builtin\":\"ts-3\",\"builtin.display\":\"ts-3\"}' 2>&1",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_0117N6ZHXw4wR4nLr73QWyJA",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 8518991,
+              "end": 8520635,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run dispatch ts-3 --input expectedStage=implement --input expectedCycle=1 --input expectedEra=fd4386a2-1a47-4560-8cc5-f199925719a9 2>&1",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01MZSH3NVQB1Nrj2HtV1pE4B",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 8528565,
+              "end": 8531867,
+              "ok": true,
+              "text": "swamp workflow run @swamp/stagecraft/publish --input tracker=ts --input workItem=ts-3 2>&1 | grep -E \"moved|published|rror|fail\"; swamp model method run track-star-repo ensure_worktree --input path=~/sc/demos/track-star-worktrees/ts-3 --input root=~/sc/demos/track-star-worktrees --input branch=ts-3 --input base=main 2>&1 | grep -E \"Completed|rror|head |action\"; cd ~/sc/demos/track-star-worktrees/ts-3 && jq -r 'group_by(.start) | map(\"\\(.[0].start): \" + (map(\"\\(.track[0:6]) \\(.start)-\\(.end)\") | join(\", \"))) | .[]' data/sessions.json | head -20",
+              "label": "swamp",
+              "category": "swamp workflow run",
+              "rule": "program = swamp"
+            }
+          ]
+        },
+        {
+          "n": 17,
+          "start": 9203744,
+          "end": 9452647,
+          "tokens": {
+            "input": 44,
+            "output": 12668,
+            "cacheRead": 5634385,
+            "cacheWrite": 26726
+          },
+          "calls": [
+            {
+              "id": "toolu_01Agek5rVYZv9ePvAXnoAtxS",
+              "tool": "Read",
+              "toolKind": "file-read",
+              "start": 9206342,
+              "end": 9206373,
+              "ok": true,
+              "text": "~/sc/demos/track-star-worktrees/ts-3/public/app.js",
+              "label": "neutral",
+              "category": "read file",
+              "rule": "Read tool"
+            },
+            {
+              "id": "toolu_01FPwAe689Gm2GKM1Z1oXxgz",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 9207979,
+              "end": 9208762,
+              "ok": true,
+              "text": "cd ~/sc/demos/track-star-worktrees/ts-3 && grep -n \"^export function\\|^/\\*\\*\" public/schedule.js; sed -n '/^import/,/from/p' tests/schedule_test.ts; grep -n \"\\.empty\\|\\.star\\b\\|\\.star {\" -A3 public/styles.css | head; cat public/index.html | sed -n 18,24p",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01C8iwbPervGFKYVVQToz1UB",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 9222038,
+              "end": 9223194,
+              "ok": true,
+              "text": "cd ~/sc/demos/track-star-worktrees/ts-3 && python3 - <<EOF … EOF\ndeno test --allow-read tests/schedule_test.ts 2>&1 | sed 's/\\x1b\\[[0-9;]*m//g' | grep -E \"passed|FAILED|error\"",
+              "label": "neutral",
+              "category": "user code (shell write)",
+              "rule": "shell write outside swamp-managed paths"
+            },
+            {
+              "id": "toolu_01UHq8Gj6tr3nnTvpo19GVeD",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 9246135,
+              "end": 9247818,
+              "ok": true,
+              "text": "cd ~/sc/demos/track-star-worktrees/ts-3 && python3 - <<EOF … EOF\ndeno fmt >/dev/null 2>&1; deno task check 2>&1 | sed 's/\\x1b\\[[0-9;]*m//g' | grep -E \"passed|FAILED|error|warning|Found\" ; git status --short",
+              "label": "neutral",
+              "category": "user code (shell write)",
+              "rule": "shell write outside swamp-managed paths"
+            },
+            {
+              "id": "toolu_01NDzYhi8TvTWxZn67KW7LXz",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 9254434,
+              "end": 9256345,
+              "ok": true,
+              "text": "cd ~/sc/demos/track-star-worktrees/ts-3 && (PORT=8125 timeout 3 deno run --allow-net --allow-read --allow-env=PORT main.ts >/dev/null 2>&1 &); sleep 1; curl -s localhost:8125/ | grep -E \"notices|announcer\"; curl -s -o /dev/null -w \"app.js %{http_code}\\n\" localhost:8125/app.js; git add -A && git commit -q -F - <<EOF … EOF\ngit status --short; git rev-parse HEAD",
+              "label": "bypass",
+              "category": "deno — covered by @swamp/deno-runner",
+              "rule": "program = deno; @swamp/deno-runner is installed in this repo"
+            },
+            {
+              "id": "toolu_01AyX39e46HZB3J7To1fMj3t",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 9264889,
+              "end": 9266604,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run record_artifact ts-3 --input name=change-summary --input 'payload={\"summary\":\"Warn when starred talks overlap: a starred card that overlaps another starred talk shows an Overlaps with <title> warning; My Schedule lists every clash at the top under a Schedule clashes heading. A polite status region announces star changes and new clashes, and keyboard focus returns to the star after each redraw (lost since ts-2). overlaps and clashes in public/schedule.js with tests.\",\"branch\":\"ts-3\",\"commit\":\"‹redacted›\",\"files\":[\"public/app.js\",\"public/index.html\",\"public/schedule.js\",\"public/styles.css\",\"tests/schedule_test.ts\"]}' --input expectedStage=implement --input expectedCycle=1 --input expectedEra=fd4386a2-1a47-4560-8cc5-f199925719a9 2>&1 | sed -n '/Executing/,/Completed/p'",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01Li83D3ye2f9owxvY3nxhuC",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 9269665,
+              "end": 9271281,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run advance ts-3 --input transition=submit --input expectedStage=implement --input expectedCycle=1 --input expectedEra=fd4386a2-1a47-4560-8cc5-f199925719a9 2>&1 | sed -n '/Executing/,/Completed/p'",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_012p348fa8afQHAWBp373QzA",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 9274242,
+              "end": 9275824,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run dispatch ts-3 --input expectedStage=check --input expectedCycle=1 --input expectedEra=fd4386a2-1a47-4560-8cc5-f199925719a9 2>&1",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01TWArw6k9SX77EJvYaJPMFb",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 9278986,
+              "end": 9281782,
+              "ok": true,
+              "text": "swamp workflow run track-star-check --input commit=‹redacted› --json 2>&1 | jq -c '{status, runId: .id, jobs: [.jobs[]? | {name, status}]}'",
+              "label": "swamp",
+              "category": "swamp workflow run",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_018T9RatWZNQKwUFr8J1kuhS",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 9288917,
+              "end": 9290566,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run record_evidence ts-3 --input name=checks --input 'payload={\"status\":\"succeeded\",\"runId\":\"4f312c80-fd93-49c1-92e9-a7ef0ddde70b\",\"commit\":\"‹redacted›\"}' --input expectedStage=check --input expectedCycle=1 --input expectedEra=fd4386a2-1a47-4560-8cc5-f199925719a9 2>&1 | sed -n '/Executing/,/Completed/p'",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01SgxyqZhn8yW3Qb736kToPK",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 9294093,
+              "end": 9295751,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run advance ts-3 --input transition=passed --input expectedStage=check --input expectedCycle=1 --input expectedEra=fd4386a2-1a47-4560-8cc5-f199925719a9 2>&1 | sed -n '/Executing/,/Completed/p'",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01DpGWWrGKk4UHsPqmw1aHZy",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 9300200,
+              "end": 9301937,
+              "ok": true,
+              "text": "mkdir -p $SCRATCH && swamp model @swamp/stagecraft/work-item method run dispatch ts-3 --input resultDir=$SCRATCH --input expectedStage=a11y-review --input expectedCycle=1 --input expectedEra=fd4386a2-1a47-4560-8cc5-f199925719a9 2>&1",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01FrXKuUGNM3spuNHJiYztgL",
+              "tool": "Agent",
+              "toolKind": "subagent",
+              "start": 9315282,
+              "end": 9315609,
+              "ok": true,
+              "text": "",
+              "label": "neutral",
+              "category": "agent",
+              "rule": "Agent tool",
+              "subagentSessionId": "463d9bf4-5af8-4e45-b475-88d418b91701_0dd2c51d1d03de140585b51f5d34d3d4"
+            },
+            {
+              "id": "toolu_01EQYAMt9uBTCRygiWHH3Akk",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 9406222,
+              "end": 9407893,
+              "ok": true,
+              "text": "F=$SCRATCH jq -c '[.findings[] | {id, severity}]' $F; swamp model @swamp/stagecraft/work-item method run record_artifact ts-3 --input name=a11y-review --input payload=@$F --input expectedStage=a11y-review --input expectedCycle=1 --input expectedEra=fd4386a2-1a47-4560-8cc5-f199925719a9 2>&1 | sed -n '/Executing/,/Completed/p'",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01JoLzrVwg8PTmo6yqeVkjrh",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 9412394,
+              "end": 9414040,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run record_usage ts-3 --input dispatchId=3 --input totalTokens=52238 --input toolUses=5 --input durationMs=83510 --input model=claude-opus-5-5 2>&1 | sed -n '/Executing/,/Completed/p'",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_0171yrs4AJAQenUom8kabjX9",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 9417719,
+              "end": 9419354,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run advance ts-3 --input transition=accept --input expectedStage=a11y-review --input expectedCycle=1 --input expectedEra=fd4386a2-1a47-4560-8cc5-f199925719a9 2>&1 | sed -n '/Executing/,/Completed/p'",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01RJGjrQqkp4cq63v8CanNqw",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 9423067,
+              "end": 9424719,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run dispatch ts-3 --input expectedStage=merge --input expectedCycle=1 --input expectedEra=fd4386a2-1a47-4560-8cc5-f199925719a9 2>&1",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_014upe92Jzxqd9s3EMFwkZoz",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 9428897,
+              "end": 9430467,
+              "ok": true,
+              "text": "swamp workflow run track-star-merge --input commit=7eb641bb8e --input branch=ts-3 --json 2>&1 | jq -c '{status, runId: .id, jobs: [.jobs[]? | {name, status}]}'; git -C ~/sc/demos/track-star log --oneline -4 main; git -C ~/sc/demos/track-star branch; git -C ~/sc/demos/track-star worktree list; git -C ~/sc/demos/track-star status --short",
+              "label": "swamp",
+              "category": "swamp workflow run",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_011M2TTahgaxq6UV111PrcyU",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 9434930,
+              "end": 9436587,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run record_evidence ts-3 --input name=merge --input 'payload={\"status\":\"succeeded\",\"runId\":\"7ddc872b-7a89-40e4-b303-4125c021b5a3\",\"commit\":\"‹redacted›\"}' --input expectedStage=merge --input expectedCycle=1 --input expectedEra=fd4386a2-1a47-4560-8cc5-f199925719a9 2>&1 | sed -n '/Executing/,/Completed/p'",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01GBnkZUa1oRTVPWHzh8RQx1",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 9440543,
+              "end": 9443696,
+              "ok": true,
+              "text": "swamp model @swamp/stagecraft/work-item method run advance ts-3 --input transition=merged --input expectedStage=merge --input expectedCycle=1 --input expectedEra=fd4386a2-1a47-4560-8cc5-f199925719a9 2>&1 | sed -n '/Executing/,/Completed/p'; swamp workflow run @swamp/stagecraft/publish --input tracker=ts --input workItem=ts-3 2>&1 | grep -E \"moved|published|rror|fail\"",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            }
+          ]
+        }
+      ],
+      "findings": [
+        {
+          "severity": "high",
+          "title": "Edited track-star.yaml by hand 4 times across 3 turns",
+          "detail": "models/@swamp/stagecraft/factory/track-star.yaml is a swamp definition, written with shell scripts and file edits instead of through swamp. 1 call failed between the first and last edit.",
+          "tune": "Skill: point agents at swamp model validate after every edit, or give the definition's type a method that applies the change, so edits go through swamp.",
+          "callIds": [
+            "toolu_016K3aw3sJhu7oTMQDZLA21h",
+            "toolu_01Xr5K1reKF26fHtMcuaTbwf",
+            "toolu_017oJjsFXKFZB1RiBaRsgqQJ",
+            "toolu_01M6kE8HScXgFbDU8S7yNNBs",
+            "toolu_014tMqPdGsR4WBcasiT7S2sT"
+          ]
+        },
+        {
+          "severity": "medium",
+          "title": "Ran git directly 3 times though @swamp/git is installed",
+          "detail": "The repo has an extension for this, and the agent did not use it.",
+          "tune": "Skill or rule: mention @swamp/git where agents look, or accept direct git for this repo if it is intended.",
+          "callIds": [
+            "toolu_01QKXkxdfwKuxNbpvybDqur4",
+            "toolu_012sxUMHecuV6R7Eyah3bSt2",
+            "toolu_01UYwzduKQMBuYxu5jJp1Edv"
+          ]
+        },
+        {
+          "severity": "medium",
+          "title": "Ran deno directly 4 times though @swamp/deno-runner is installed",
+          "detail": "The repo has an extension for this, and the agent did not use it.",
+          "tune": "Skill or rule: mention @swamp/deno-runner where agents look, or accept direct deno for this repo if it is intended.",
+          "callIds": [
+            "toolu_01XsiK8moDcH7MWooLRVYVo6",
+            "toolu_01XWyrp2CBHzSprvFLAMAF8f",
+            "toolu_0156ycYr6t5fBnWrcj86V5y6",
+            "toolu_01NDzYhi8TvTWxZn67KW7LXz"
+          ]
+        },
+        {
+          "severity": "medium",
+          "title": "Read pulled extension source 12 times",
+          "detail": "The agent went into .swamp/pulled-extensions to learn what the extension's skill or docs did not explain.",
+          "tune": "Skill: the extension's skill is missing what these reads looked for.",
+          "callIds": [
+            "toolu_01S5vtpfZ6t3X81C7eVTqbeh",
+            "toolu_01A3dvbXzRvqaCxBuapSvtA2",
+            "toolu_017xJvorkoHPqSFpRBMNUy7n",
+            "toolu_01P4ZfvjzHXucW7BGFLnhrUC",
+            "toolu_011ZADZz3c6zwgyqe1P3Rj6t",
+            "toolu_01GWpQbStiymcGqsS3A6R5zU",
+            "toolu_017ZXDPziDb1QNoTEn6w6k2r",
+            "toolu_01CMHeUePgpMa2DBN4kJHg4k",
+            "toolu_01KJ3N8zopXMMtupR2DBeav2",
+            "toolu_01LUfTU3RTkMWZYRSEkn7Da9",
+            "toolu_0141QqaQZEZc58xR1Woqjrv4",
+            "toolu_01T8y2trWsV13ZfhqX66EJks"
+          ]
+        }
+      ]
+    },
+    {
+      "schemaVersion": 2,
+      "id": "463d9bf4-5af8-4e45-b475-88d418b91701_0dd2c51d1d03de140585b51f5d34d3d4",
+      "repo": "example.com/demo/track-star",
+      "harness": "claude-code",
+      "harnessVersion": "2.1.306",
+      "model": "claude-opus-5-5",
+      "startedAt": "2026-10-23T18:22:24.784Z",
+      "invocation": "interactive",
+      "parentSessionId": "463d9bf4-5af8-4e45-b475-88d418b91701",
+      "agentId": "ab074c6c38f1b6027",
+      "agentType": "general-purpose",
+      "importerVersion": "test",
+      "turns": [
+        {
+          "n": 1,
+          "start": 0,
+          "end": 83502,
+          "tokens": {
+            "input": 10,
+            "output": 64,
+            "cacheRead": 159413,
+            "cacheWrite": 51096
+          },
+          "calls": [
+            {
+              "id": "toolu_01KN3mwTya9gXatFpas8Gsh5",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2478,
+              "end": 4145,
+              "ok": true,
+              "text": "swamp data query 'modelName == \"ts-3\" && name == \"artifact-change-summary\"' --select content --single --json; echo EXIT $?; git -C ~/sc/demos/track-star diff --stat main...7eb641bb8e",
+              "label": "swamp",
+              "category": "swamp data query",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01ENUmPDew43DXd5WZ5s2uzY",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 9286,
+              "end": 9958,
+              "ok": true,
+              "text": "cd ~/sc/demos/track-star && git diff main...7eb641bb8e -- public; for f in index.html app.js styles.css; do echo \"=== $f\"; git show 7eb641bb8e:public/$f | cat -n; done",
+              "label": "neutral",
+              "category": "git (read-only)",
+              "rule": "git read-only subcommand"
+            },
+            {
+              "id": "toolu_019aqFTbhML7iq1oigbiwu6z",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 42570,
+              "end": 43290,
+              "ok": true,
+              "text": "python3 -I -c '\ndef L(h):\n  h=h.lstrip(\"#\");c=[int(h[i:i+2],16)/255 for i in (0,2,4)]\n  c=[x/12.92 if x<=0.03928 else ((x+0.055)/1.055)**2.4 for x in c]\n  return 0.2126*c[0]+0.7152*c[1]+0.0722*c[2]\ndef r(a,b):\n  x,y=sorted([L(a),L(b)],reverse=True);return round((x+0.05)/(y+0.05),2)\nfor a,b in [(\"92400e\",\"ffffff\"),(\"92400e\",\"fffbeb\"),(\"1d1b2c\",\"fffbeb\"),(\"b45309\",\"ffffff\"),(\"b45309\",\"f6f5fb\"),(\"b3b0c0\",\"ffffff\"),(\"c9c6d3\",\"ffffff\"),(\"ffb020\",\"ffffff\"),(\"c9c6d3\",\"f6f5fb\"),(\"6b6880\",\"ffffff\"),(\"b3b0c0\",\"f6f5fb\")]: print(a,b,r(a,b))'",
+              "label": "bypass",
+              "category": "other CLI: python3",
+              "rule": "program = python3; no installed extension covers it"
+            },
+            {
+              "id": "toolu_019LXGE6R1rp3qxagrajZ6sK",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 70275,
+              "end": 71148,
+              "ok": true,
+              "text": "mkdir -p $SCRATCH && cat > $SCRATCH <<EOF … EOF\npython3 -I -c 'import json,sys;d=json.load(open(sys.argv[1]));print(len(d[\"findings\"]))' $SCRATCH",
+              "label": "neutral",
+              "category": "user code (shell write)",
+              "rule": "shell write outside swamp-managed paths"
+            },
+            {
+              "id": "toolu_0172ZviMnD52oyX4RcHiyVZ9",
+              "tool": "SubagentHandback",
+              "toolKind": "other",
+              "start": 83133,
+              "end": 83502,
+              "ok": true,
+              "text": "",
+              "label": "neutral",
+              "category": "subagenthandback",
+              "rule": "SubagentHandback tool"
+            }
+          ]
+        }
+      ],
+      "findings": []
+    }
+  ],
+  "gatorwalk": [
+    {
+      "schemaVersion": 2,
+      "id": "3dc34d08-ebe6-484f-8034-e29c8785dcef",
+      "repo": "example.com/demo/gatorwalk",
+      "harness": "claude-code",
+      "harnessVersion": "2.1.280",
+      "model": "claude-opus-5-5",
+      "startedAt": "2026-10-01T21:43:59.026Z",
+      "invocation": "interactive",
+      "importerVersion": "test",
+      "turns": [
+        {
+          "n": 1,
+          "start": 0,
+          "end": 27260,
+          "tokens": {
+            "input": 10,
+            "output": 2000,
+            "cacheRead": 206038,
+            "cacheWrite": 26491
+          },
+          "calls": [
+            {
+              "id": "toolu_017U2Cer7LCK3LugKQ4JKsQs",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 3020,
+              "end": 4088,
+              "ok": true,
+              "text": "swamp model search --json; ls -la",
+              "label": "swamp",
+              "category": "swamp model search",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01HsGD2jpQryKwJ4AybpEBzE",
+              "tool": "Skill",
+              "toolKind": "skill",
+              "start": 3035,
+              "end": 4113,
+              "ok": true,
+              "text": "gatorwalk-factory",
+              "label": "neutral",
+              "category": "skill: gatorwalk-factory",
+              "rule": "Skill tool"
+            },
+            {
+              "id": "toolu_01TebEkawajt7tsJaPGaRNmR",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 7806,
+              "end": 8852,
+              "ok": true,
+              "text": "cd .claude/skills/gatorwalk-factory && ls -R references && cat references/authoring.md",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01K66gpXBDqZEoR2mrauaaX8",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 11051,
+              "end": 12723,
+              "ok": true,
+              "text": "swamp model search gatorwalk-factory --json; swamp model type search gatorwalk --json 2>&1 | head -50",
+              "label": "swamp",
+              "category": "swamp model search",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01NtFnRRxcNoSz7kkqCNjjk7",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 15130,
+              "end": 16994,
+              "ok": true,
+              "text": "cd .claude/skills/gatorwalk-factory/references/examples && cat build-swamp-extension.yaml",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            }
+          ]
+        },
+        {
+          "n": 2,
+          "start": 289883,
+          "end": 425526,
+          "tokens": {
+            "input": 26,
+            "output": 15597,
+            "cacheRead": 937693,
+            "cacheWrite": 36263
+          },
+          "calls": [
+            {
+              "id": "toolu_01JDQezUKcxyvGUvntNnYQEL",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 292856,
+              "end": 293223,
+              "ok": true,
+              "text": "cat $HARNESS_LOGS/…",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01YF7waLgnCggVnZqqM19E2c",
+              "tool": "Read",
+              "toolKind": "file-read",
+              "start": 295633,
+              "end": 295837,
+              "ok": true,
+              "text": ".claude/skills/gatorwalk-factory/references/examples/build-swamp-extension.yaml",
+              "label": "neutral",
+              "category": "read file",
+              "rule": "Read tool"
+            },
+            {
+              "id": "toolu_01EZkDCY3PRXHUzGuQYz6Znh",
+              "tool": "Read",
+              "toolKind": "file-read",
+              "start": 295925,
+              "end": 295944,
+              "ok": true,
+              "text": ".claude/skills/gatorwalk-factory/references/scenarios.md",
+              "label": "neutral",
+              "category": "read file",
+              "rule": "Read tool"
+            },
+            {
+              "id": "toolu_01Ve9E1pZA4KPrd3XN37R2hH",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 305936,
+              "end": 307697,
+              "ok": true,
+              "text": "swamp model create @swamp/gatorwalk-factory/tracker board --global-arg prefix=oas --json && swamp model create @swamp/gatorwalk-factory/factory openapi --global-arg tracker=board --json && cat models/@swamp/gatorwalk-factory/factory/openapi.yaml",
+              "label": "swamp",
+              "category": "swamp model create",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01FMPYUu1y71iYfpUZDTUSWj",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 309955,
+              "end": 310314,
+              "ok": true,
+              "text": "cat models/@swamp/gatorwalk-factory/factory/openapi.yaml; ls models/@swamp/gatorwalk-factory/*",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01XkrnpGT9ymWStJW5iB99qZ",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 318336,
+              "end": 319026,
+              "ok": true,
+              "text": "cd .claude/skills/gatorwalk-factory/references && grep -n -B2 -A4 \"maxCycles\" *.md examples/*.yaml | head -60; grep -n \"^#\" driving.md",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01KzmZkRJPHgkPAo2Vkyb2X7",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 384359,
+              "end": 385769,
+              "ok": false,
+              "exitCode": 1,
+              "text": "cat > models/@swamp/gatorwalk-factory/factory/openapi.yaml <<EOF …",
+              "truncated": true,
+              "label": "bypass",
+              "category": "hand-edited definition",
+              "rule": "shell write to a swamp-managed path then ran swamp"
+            },
+            {
+              "id": "toolu_019Bv51K21WNDzSJus2iD5DX",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 388564,
+              "end": 390816,
+              "ok": false,
+              "exitCode": 1,
+              "text": "sed -i 's|description: DELETE /pets/{id} is neither planned nor excluded }|description: \"DELETE /pets/{id} is neither planned nor excluded\" }|' models/@swamp/gatorwalk-factory/factory/openapi.yaml && swamp model method run openapi validate 2>&1",
+              "label": "bypass",
+              "category": "hand-edited definition",
+              "rule": "shell write to a swamp-managed path then ran swamp"
+            },
+            {
+              "id": "toolu_01LhETY7AX53iZre76AgGuy6",
+              "tool": "Edit",
+              "toolKind": "file-edit",
+              "start": 394765,
+              "end": 394809,
+              "ok": true,
+              "text": "models/@swamp/gatorwalk-factory/factory/openapi.yaml",
+              "label": "bypass",
+              "category": "hand-edited definition",
+              "rule": "Edit on a swamp-managed path"
+            },
+            {
+              "id": "toolu_01TTPLwd6sRJG2BDVSRYoirs",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 397026,
+              "end": 398553,
+              "ok": false,
+              "exitCode": 1,
+              "text": "swamp model method run openapi validate 2>&1",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01278wnsWxr2Zh5xV6UygkqB",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 405315,
+              "end": 406854,
+              "ok": true,
+              "text": "f=models/@swamp/gatorwalk-factory/factory/openapi.yaml && for d in 1 2 3 4; do s=$(printf \"$d%.0s\" {1..40}); sed -i \"s/commit: $s/commit: \\\"$s\\\"/g\" $f; done && python3 - <<EOF … EOF\nswamp model method run openapi validate 2>&1",
+              "label": "bypass",
+              "category": "hand-edited definition",
+              "rule": "shell write to a swamp-managed path then ran swamp"
+            },
+            {
+              "id": "toolu_013cMq7r6c3W5WZhRLi4WPAo",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 409719,
+              "end": 410777,
+              "ok": true,
+              "text": "swamp model create @swamp/gatorwalk-factory/studio studio --json >/dev/null && echo created",
+              "label": "swamp",
+              "category": "swamp model create",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01KX5qBWYS5w2anshVwEptPW",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 410445,
+              "end": 411248,
+              "ok": true,
+              "text": "swamp model method run studio serve",
+              "label": "swamp",
+              "category": "swamp model method",
+              "rule": "program = swamp"
+            },
+            {
+              "id": "toolu_01FPdnFGpNVuwxWVSNtzutY5",
+              "tool": "Read",
+              "toolKind": "file-read",
+              "start": 413654,
+              "end": 413673,
+              "ok": true,
+              "text": "$SCRATCH",
+              "label": "neutral",
+              "category": "read file",
+              "rule": "Read tool"
+            }
+          ]
+        },
+        {
+          "n": 3,
+          "start": 677907,
+          "end": 745623,
+          "tokens": {
+            "input": 12,
+            "output": 6848,
+            "cacheRead": 556366,
+            "cacheWrite": 8771
+          },
+          "calls": [
+            {
+              "id": "toolu_01JaJgVeqkKXMQJcX1nrdP37",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 691349,
+              "end": 692074,
+              "ok": true,
+              "text": "grep -n \"land-approval\\|id: land$\\|- name: accept\\|to: land\\|People decide\\|scenario: spec-to-landed\" models/@swamp/gatorwalk-factory/factory/openapi.yaml",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01WTq7s1CqaVaWBsW9o4zHYA",
+              "tool": "Read",
+              "toolKind": "file-read",
+              "start": 694304,
+              "end": 694325,
+              "ok": true,
+              "text": "models/@swamp/gatorwalk-factory/factory/openapi.yaml",
+              "label": "neutral",
+              "category": "read file",
+              "rule": "Read tool"
+            },
+            {
+              "id": "toolu_01TWXbRatc3AHKh5wEK7t6d7",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 720932,
+              "end": 722679,
+              "ok": false,
+              "exitCode": 1,
+              "text": "python3 - <<EOF … EOF\nswamp model method run openapi validate 2>&1",
+              "label": "bypass",
+              "category": "hand-edited definition",
+              "rule": "shell write to a swamp-managed path then ran swamp"
+            },
+            {
+              "id": "toolu_01P4aDXjRyXvug7VK2GfqtDV",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 727422,
+              "end": 729117,
+              "ok": true,
+              "text": "python3 - <<EOF … EOF\nswamp model method run openapi validate 2>&1",
+              "label": "bypass",
+              "category": "hand-edited definition",
+              "rule": "shell write to a swamp-managed path then ran swamp"
+            },
+            {
+              "id": "toolu_01CcpN4dBs4MpfsoM8YiWWps",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 735502,
+              "end": 737258,
+              "ok": true,
+              "text": "python3 - <<EOF … EOF\nswamp model method run openapi validate 2>&1",
+              "label": "bypass",
+              "category": "hand-edited definition",
+              "rule": "shell write to a swamp-managed path then ran swamp"
+            }
+          ]
+        },
+        {
+          "n": 4,
+          "start": 1723461,
+          "end": 1746923,
+          "tokens": {
+            "input": 10,
+            "output": 1682,
+            "cacheRead": 500060,
+            "cacheWrite": 2380
+          },
+          "calls": [
+            {
+              "id": "toolu_01V7sNtBagbsFUtBw13ehY4Y",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 1727361,
+              "end": 1728009,
+              "ok": true,
+              "text": "ls .claude/skills/gatorwalk-factory/references/examples/; grep -rli \"swamp-club\" .claude/skills/gatorwalk-factory/ ; find . .swamp -path ./node_modules -prune -o \\( -iname \"*swamp-club*\" -o -iname \"*factory*.yaml\" \\) -print 2>/dev/null | grep -v \"^./models/\" | head -30",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01C5gXUaZJUbUDADLMkrxUUB",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 1730969,
+              "end": 1731805,
+              "ok": true,
+              "text": "grep -rn \"swamp-club\\|swamp-extensions\" .claude/skills/gatorwalk-factory/references/*.md .claude/skills/gatorwalk-factory/references/examples/* | head; ls .swamp; grep -rl \"swamp-club\" .swamp 2>/dev/null | head",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01WRvLbKBC8YfTZeQtt7faGB",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 1734345,
+              "end": 1735170,
+              "ok": true,
+              "text": "sed -n 318,340p .claude/skills/gatorwalk-factory/references/driving.md",
+              "label": "neutral",
+              "category": "read-only shell",
+              "rule": "all programs are read-only"
+            },
+            {
+              "id": "toolu_01RqRUSBX562JifvgXnJFRnR",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 1738893,
+              "end": 1740844,
+              "ok": true,
+              "text": "swamp extension search gatorwalk --json 2>&1 | head -40",
+              "label": "swamp",
+              "category": "swamp extension search",
+              "rule": "program = swamp"
+            }
+          ]
+        },
+        {
+          "n": 5,
+          "start": 2736801,
+          "end": 2761302,
+          "tokens": {
+            "input": 4,
+            "output": 2623,
+            "cacheRead": 204587,
+            "cacheWrite": 2486
+          },
+          "calls": [
+            {
+              "id": "toolu_01SzmNhQ89K9j76tTM1k48Xx",
+              "tool": "Bash",
+              "toolKind": "shell",
+              "start": 2752030,
+              "end": 2753620,
+              "ok": true,
+              "text": "python3 - <<EOF … EOF\ngrep -n \"plan-approval\" models/@swamp/gatorwalk-factory/factory/openapi.yaml; swamp model method run openapi validate 2>&1",
+              "label": "bypass",
+              "category": "hand-edited definition",
+              "rule": "shell write to a swamp-managed path then ran swamp"
+            }
+          ]
+        }
+      ],
+      "findings": [
+        {
+          "severity": "high",
+          "title": "Edited openapi.yaml by hand 5 times across 2 turns",
+          "detail": "models/@swamp/gatorwalk-factory/factory/openapi.yaml is a swamp definition, written with shell scripts and file edits instead of through swamp. 4 calls failed between the first and last edit.",
+          "tune": "Skill: point agents at swamp model validate after every edit, or give the definition's type a method that applies the change, so edits go through swamp.",
+          "callIds": [
+            "toolu_01KzmZkRJPHgkPAo2Vkyb2X7",
+            "toolu_019Bv51K21WNDzSJus2iD5DX",
+            "toolu_01LhETY7AX53iZre76AgGuy6",
+            "toolu_01278wnsWxr2Zh5xV6UygkqB",
+            "toolu_01SzmNhQ89K9j76tTM1k48Xx",
+            "toolu_01TTPLwd6sRJG2BDVSRYoirs",
+            "toolu_01TWXbRatc3AHKh5wEK7t6d7"
+          ]
+        },
+        {
+          "severity": "high",
+          "title": "3 failed calls within 3 minutes of each other (turn 2)",
+          "detail": "Failed: hand-edited definition, swamp model method.",
+          "tune": "Diagnose: open the first failure; what it hit is where to tune, a skill that sent the agent the wrong way or a swamp error that did not say what to do.",
+          "callIds": [
+            "toolu_01KzmZkRJPHgkPAo2Vkyb2X7",
+            "toolu_019Bv51K21WNDzSJus2iD5DX",
+            "toolu_01TTPLwd6sRJG2BDVSRYoirs"
+          ]
+        }
+      ]
+    }
+  ]
+}

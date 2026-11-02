@@ -19,7 +19,7 @@ import {
   importSessions,
   type ImportSettings,
 } from "./_lib/importer.ts";
-import { NoTranscriptsError } from "./_lib/claude_code/discover.ts";
+import { NoTranscriptsError } from "./_lib/sessions/place.ts";
 import {
   CANARY,
   DEMO_REMOTE,
@@ -39,6 +39,9 @@ import {
   writeSession,
 } from "./_lib/testdata/fixtures.ts";
 import { join } from "jsr:@std/path@1.1.4";
+
+/** A Claude Code session's key in the import index. */
+const key = (id: string) => `claude-code:${id}`;
 
 interface Write {
   spec: string;
@@ -598,7 +601,7 @@ gitTest(
       await importSessions(noDelete, settings(f));
       const index = h.writes.filter((w) => w.name === "import-index").at(-1)!;
       const children = index.data.children as Record<string, string[]>;
-      assert(children[SESSION_ID].includes(a2), "kept for a later delete");
+      assert(children[key(SESSION_ID)].includes(a2), "kept for a later delete");
       assertEquals(h.deleted, []);
     });
   },
@@ -689,8 +692,8 @@ gitTest({
     }
     const index = h.writes.filter((w) => w.name === "import-index").at(-1)!;
     const children = index.data.children as Record<string, string[]>;
-    assert(SESSION_ID in (index.data.sessions as Record<string, string>));
-    assertEquals(children[SESSION_ID].length, 2);
+    assert(key(SESSION_ID) in (index.data.sessions as Record<string, string>));
+    assertEquals(children[key(SESSION_ID)].length, 2);
   });
 });
 
@@ -931,6 +934,15 @@ gitTest(
       delete index.resolvedKey;
       index.others = { abc: "1:2" };
       index.othersKey = "key";
+      // Its keys were bare Claude Code ids, before Codex (swamp-club#4158).
+      const bare = <T>(r: Record<string, T>) =>
+        Object.fromEntries(
+          Object.entries(r).map((
+            [k, v],
+          ) => [k.replace(/^claude-code:/, ""), v]),
+        );
+      index.sessions = bare(index.sessions);
+      index.children = bare(index.children);
       const stale = await agentSessionChildId(SESSION_ID, "gone");
       index.children[SESSION_ID].push(stale);
       index.sessions[SESSION_ID] = "older|stamp";
@@ -1002,7 +1014,7 @@ gitTest(
       await importSessions(h.ctx, settings(f));
       const index = h.writes.filter((w) => w.name === "import-index").at(-1)!;
       const stamps = index.data.sessions as Record<string, string>;
-      assert(stamps[THIRD_ID] && stamps[OTHER_REPO_ID]);
+      assert(stamps[key(THIRD_ID)] && stamps[key(OTHER_REPO_ID)]);
       const writes = h.writes.length;
       const again = await importSessions(h.ctx, settings(f, { all: true }));
       assertEquals(again.summary.imported, 0);

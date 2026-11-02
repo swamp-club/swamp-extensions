@@ -163,7 +163,7 @@ function labels(text: string, root: string, sidechain: boolean): string[] {
     sidechain,
     redact: {},
     root,
-    label: (tool, input) => labelCall(tool, input, { root, coverage }),
+    label: (tool, action) => labelCall(tool, action, { root, coverage }),
   }).turns.flatMap((t) =>
     t.calls.map((c) => `${t.n} ${c.label} ${c.category} ${c.ok}`)
   );

@@ -216,3 +216,48 @@ gitTest(
     );
   },
 );
+
+const GOLDEN = join(SESSIONS, "golden.json");
+
+/**
+ * Every record the three real sessions import to, whole: each call's label,
+ * category, rule, text and outcome, and every finding. A change that moves
+ * any of them fails here (swamp-club#4158 makes the classifier
+ * harness-neutral and must leave Claude Code's output byte-identical).
+ * `UPDATE_GOLDEN=1` rewrites the file after an intended change.
+ */
+gitTest("real sessions import exactly as the golden records", async () => {
+  const cases: Case[] = [
+    {
+      name: "status-checker",
+      id: "1e47fb74-0a08-4d1e-8818-a7c38a0ecddf",
+      extensions: [],
+    },
+    {
+      name: "track-star",
+      id: "463d9bf4-5af8-4e45-b475-88d418b91701",
+      extensions: ["@swamp/deno-runner", "@swamp/git", "@swamp/stagecraft"],
+      subagent: {
+        agentId: "ab074c6c38f1b6027",
+        agentType: "general-purpose",
+        toolUseId: "toolu_01FrXKuUGNM3spuNHJiYztgL",
+      },
+    },
+    {
+      name: "gatorwalk",
+      id: "3dc34d08-ebe6-484f-8034-e29c8785dcef",
+      extensions: [],
+    },
+  ];
+  const actual: Record<string, AgentSessionRecord[]> = {};
+  for (const c of cases) {
+    actual[c.name] = (await importCase(c)).sort((a, b) =>
+      a.id.localeCompare(b.id)
+    );
+  }
+  const text = JSON.stringify(actual, null, 1) + "\n";
+  if (Deno.env.get("UPDATE_GOLDEN") === "1") {
+    await Deno.writeTextFile(GOLDEN, text);
+  }
+  assertEquals(JSON.parse(text), JSON.parse(await Deno.readTextFile(GOLDEN)));
+});

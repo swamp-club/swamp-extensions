@@ -1,6 +1,14 @@
 import { assertEquals } from "jsr:@std/assert@1.0.19";
 import { coverageOf, NO_COVERAGE } from "./coverage.ts";
-import { labelCall, type LabelContext } from "./label.ts";
+import { claudeAction } from "../claude_code/actions.ts";
+import { type CallLabel, labelCall, type LabelContext } from "./label.ts";
+
+/** Labels a Claude Code call as the parser does: through its action. */
+const labelClaude = (
+  tool: string,
+  input: unknown,
+  ctx: LabelContext,
+): CallLabel => labelCall(tool, claudeAction(tool, input), ctx);
 
 const bare: LabelContext = { root: "/r", coverage: NO_COVERAGE };
 const covered: LabelContext = {
@@ -9,7 +17,7 @@ const covered: LabelContext = {
 };
 
 const shell = (command: string, ctx = bare) =>
-  labelCall("Bash", { command }, ctx);
+  labelClaude("Bash", { command }, ctx);
 
 Deno.test("labelCall: a swamp segment is a swamp call, named by its subcommand", () => {
   assertEquals(shell("cd x && swamp model method run a sync --json"), {
@@ -55,7 +63,7 @@ Deno.test("labelCall: reading swamp's state directly is a bypass", () => {
     "read swamp state directly",
   );
   assertEquals(
-    labelCall("Read", { file_path: "/r/.swamp/data/a" }, bare).label,
+    labelClaude("Read", { file_path: "/r/.swamp/data/a" }, bare).label,
     "bypass",
   );
 });
@@ -96,7 +104,7 @@ Deno.test("labelCall: reading pulled extension source is neutral, marked as a do
     rule: "read-only; .swamp/pulled-extensions (docs gap signal)",
   });
   assertEquals(
-    labelCall(
+    labelClaude(
       "Read",
       { file_path: "/r/.swamp/pulled-extensions/@x/y/a.ts" },
       bare,
@@ -111,21 +119,21 @@ Deno.test("labelCall: file edits to swamp paths are bypasses; extensions and use
     const path of ["/r/models/a.yaml", "/r/.swamp.yaml", "/r/grants/g.yaml"]
   ) {
     assertEquals(
-      labelCall("Edit", { file_path: path }, bare).category,
+      labelClaude("Edit", { file_path: path }, bare).category,
       "hand-edited definition",
     );
   }
   assertEquals(
-    labelCall("NotebookEdit", { notebook_path: "/r/vaults/n.ipynb" }, bare)
+    labelClaude("NotebookEdit", { notebook_path: "/r/vaults/n.ipynb" }, bare)
       .label,
     "bypass",
   );
   assertEquals(
-    labelCall("Write", { file_path: "/r/extensions/models/a.ts" }, bare)
+    labelClaude("Write", { file_path: "/r/extensions/models/a.ts" }, bare)
       .category,
     "extension authoring",
   );
-  assertEquals(labelCall("Write", { file_path: "/r/src/a.ts" }, bare), {
+  assertEquals(labelClaude("Write", { file_path: "/r/src/a.ts" }, bare), {
     label: "neutral",
     category: "user code",
     rule: "Write outside swamp-managed paths",
@@ -134,10 +142,10 @@ Deno.test("labelCall: file edits to swamp paths are bypasses; extensions and use
 
 Deno.test("labelCall: skills, subagents and other tools are neutral", () => {
   assertEquals(
-    labelCall("Skill", { skill: "swamp" }, bare).category,
+    labelClaude("Skill", { skill: "swamp" }, bare).category,
     "skill: swamp",
   );
-  assertEquals(labelCall("Agent", {}, bare), {
+  assertEquals(labelClaude("Agent", {}, bare), {
     label: "neutral",
     category: "agent",
     rule: "Agent tool",

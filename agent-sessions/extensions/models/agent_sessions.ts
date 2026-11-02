@@ -3,7 +3,9 @@ import {
   AGENT_SESSION_TYPE_TAG,
   AgentSessionRecordV2Schema,
 } from "./_lib/contract/session_record.ts";
-import { defaultProjectsDir, expandHome } from "./_lib/claude_code/discover.ts";
+import { defaultProjectsDir } from "./_lib/claude_code/discover.ts";
+import { defaultCodexDir } from "./_lib/codex/discover.ts";
+import { expandHome } from "./_lib/sessions/place.ts";
 import {
   type ImportContext,
   ImportIndexSchema,
@@ -12,22 +14,26 @@ import {
 import { swampWhoami } from "./_lib/whoami.ts";
 
 /**
- * Import coding-agent sessions (Claude Code transcripts) as agent session
- * records the dashboard's agent sessions page reads (swamp-club#4156), with
- * every call labelled and findings per session (swamp-club#4157).
+ * Import coding-agent sessions (Claude Code transcripts, swamp-club#4156, and
+ * Codex rollouts, swamp-club#4158) as agent session records the dashboard's
+ * agent sessions page reads, with every call labelled and findings per
+ * session (swamp-club#4157).
  *
  * @module
  */
 
-const VERSION = "2026.10.31.2";
+const VERSION = "2026.11.02.1";
 
 /** Arguments of the import method. */
 export const ImportArgsSchema = z.object({
   since: z.iso.date().or(z.iso.datetime()).optional().describe(
-    "Only import sessions whose transcript or any subagent changed on or after this date: YYYY-MM-DD (local midnight) or an ISO 8601 time. A session started earlier but active since is imported.",
+    "Only import sessions whose transcript, rollout or any subagent's changed on or after this date: YYYY-MM-DD (local midnight) or an ISO 8601 time. A session started earlier but active since is imported.",
   ),
   projectsDir: z.string().min(1).optional().describe(
     "Claude Code's transcript root. Defaults to CLAUDE_CONFIG_DIR/projects, else ~/.claude/projects.",
+  ),
+  codexDir: z.string().min(1).optional().describe(
+    "Codex's rollout root. Defaults to CODEX_HOME/sessions, else ~/.codex/sessions.",
   ),
   worktreeGlobs: z.array(z.string().min(1)).default(["~/.cue/work/*/<repo>"])
     .describe(
@@ -78,6 +84,12 @@ export const model = {
         "Label every call swamp, bypass or neutral and write findings; every session is imported again once (no arguments to change)",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.02.1",
+      description:
+        "Import Codex sessions too, with an optional codexDir argument; every session is imported again once (no arguments to change)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
 
   resources: {
@@ -101,7 +113,7 @@ export const model = {
   methods: {
     import: {
       description:
-        "Import this repo's Claude Code sessions, its worktrees' and their subagents' as agent session records, and those of other repos named in repos, or every repo with all. Must run on the machine that holds the transcripts.",
+        "Import this repo's Claude Code and Codex sessions, its worktrees' and their subagents' as agent session records, and those of other repos named in repos, or every repo with all. Must run on the machine that holds the transcripts.",
       arguments: ImportArgsSchema,
       execute: async (args: ImportArgs, ctx: MethodContext) => {
         const home = Deno.env.get("HOME") ?? Deno.env.get("USERPROFILE");
@@ -112,9 +124,11 @@ export const model = {
             "Cannot find Claude Code's transcripts: no HOME or CLAUDE_CONFIG_DIR. Pass projectsDir.",
           );
         }
+        const codexDir = args.codexDir ?? defaultCodexDir(Deno.env, home);
         const { dataHandles } = await importSessions(ctx, {
           repoDir: ctx.repoDir,
           projectsDir,
+          ...(codexDir ? { codexDir } : {}),
           repos: args.repos,
           all: args.all,
           exclude: args.exclude,

@@ -8,10 +8,11 @@ is swamp's agent session record, version 2 (swamp-club#4154, #4178).
 
 ## What it imports
 
-The `import` method reads Claude Code's own transcripts on this machine, so
-nothing needs installing or hooking up. It writes one `session` data item per
-Claude Code session and one per subagent, named
-`agent-session-claude-code_<id>`. Each record holds:
+The `import` method reads Claude Code's own transcripts and Codex's rollouts
+on this machine, so nothing needs installing or hooking up. It writes one
+`session` data item per session and one per subagent, named
+`agent-session-claude-code_<id>` or `agent-session-codex_<id>`. Each record
+holds:
 
 - the session's turns, with tokens per turn (input, output, cache read, cache
   write), counted once per model reply;
@@ -19,9 +20,34 @@ Claude Code session and one per subagent, named
   a failed shell call states one, and its target text. A call that never got
   a result (interrupted, or still running) is not counted as a success;
 - whether a person steered it (`interactive`) or automation did (`headless`,
-  for example `claude -p`).
+  for example `claude -p` or `codex exec`).
 
 Every call is labelled, and each record carries findings (below).
+
+### Codex
+
+Codex (0.165 and later) writes one rollout per session under
+`CODEX_HOME/sessions/YYYY/MM/DD/`, `~/.codex/sessions` by default. Its model
+runs shell through `exec`, a tool whose input is a script that calls
+`exec_command`, `apply_patch` and others, so the record holds what the
+script did rather than the script:
+
+- each command it ran is a shell call (`exec_command`), with its exit code
+  when it failed; a command killed after its turn was interrupted is a
+  failed call in that turn;
+- each file an `apply_patch` touched is a call of its own (`apply_patch`), a
+  new file a write and any other an edit, so a patch over a definition and a
+  source file gives one bypass and one neutral call;
+- `exec`, and the `wait` that resumes it, are not calls;
+- the collaboration tools are calls with no target: `spawn_agent` a
+  subagent call, `followup_task`, `send_message`, `wait_agent` and the rest
+  other calls.
+
+Only commands Codex ran are imported: one it declined to run leaves nothing
+to read. A turn runs from the prompt to its end or interruption. Tokens are
+counted once per model response; Codex counts cached tokens inside its input
+tokens, so the record's `input` is the uncached part, as it is for Claude
+Code, and `output` includes reasoning tokens.
 
 ## Labels
 
@@ -69,8 +95,10 @@ names where to tune: a skill, a rule or swamp.
 
 ### Never stored
 
-Prompts, replies, tool output, file contents, a subagent's brief and
-description, and search queries or patterns. A call keeps only its target,
+Prompts, replies, reasoning, tool output, file contents, a subagent's brief
+and description, search queries or patterns, Codex's `exec` scripts and the
+messages its agents send each other, and the OpenAI account ids its rollouts
+carry. A call keeps only its target,
 from an allowlist per tool: the shell command, the file path, the skill name,
 the fetched URL, or a search's path. Any other tool keeps no text.
 
@@ -80,7 +108,7 @@ The target is redacted before it is written:
 | ---- | ------- |
 | Paths in the session's repo become relative to its root (the worktree's top directory) | `/home/a/repo/models/x.yaml` → `models/x.yaml` |
 | Home becomes `~` | `/home/a/notes` → `~/notes` |
-| The harness's scratch folders and transcript root are masked | `$SCRATCH`, `$HARNESS_LOGS/…` |
+| The harness's scratch folders and both harnesses' transcript roots are masked | `$SCRATCH`, `$HARNESS_LOGS/…` |
 | Git SHAs (40 hex in a git command, after `@`/`#`, in a `/commit/` URL) and `sha256:` digests are shortened; any other 40-hex, 64-hex or longer hex value is redacted | first 10 characters |
 | `token=`, `secret=`, `password=`, `pass=`, `credentials=`, `auth=`, `key=`, `sig=`, `signature=` values, quoted or not (`DB_PASSWORD="two words"`, a signed URL's `X-Goog-Signature=`) | `token=‹redacted›` |
 | Authorization headers and bearer tokens | `Authorization: Bearer ‹redacted›` |
@@ -113,10 +141,16 @@ names its parent session and its subagent type, and copies the parent's
 `interactive` or `headless`. The call that started it points at it through
 `subagentSessionId`.
 
+A Codex subagent has a rollout of its own, which names the thread that
+spawned it; its record's id is its thread id and its `agentId` its task path
+(`/root/git/models`). Its rollout starts with a copy of its parent's
+history, which is skipped, so only the subagent's own calls are in it.
+
 ## Which sessions
 
 Each session's repo is found from the working directory its transcript
-records:
+records (for Codex, the one the session started in; a later `cd` is not
+followed), and Codex's subagents go with the session that spawned them:
 
 1. **The directory exists.** Git names its top directory and its main
    repo, so a worktree counts as the repo it was made from. The repo is
@@ -187,7 +221,9 @@ could not be read is tried again on the next import. When a subagent's
 transcript is gone, or it is placed under a different parent, the record its
 old id left behind is removed. A session that could not be written is tried
 again next import; the others keep their place. When a session's transcript
-is gone, its records stay but the import stops tracking it.
+is gone, its records stay but the import stops tracking it. A resumed Codex
+session adds to its rollout, so the next import rewrites it with the new
+turns.
 
 Claude Code deletes old transcripts after a while, so the import is the
 lasting copy. Records are kept until removed.
@@ -207,8 +243,9 @@ swamp model method run sessions import --input all=true \
 
 | Argument | Default | Meaning |
 | -------- | ------- | ------- |
-| `since` | none | Only sessions whose transcript or any subagent changed on or after this date: `2026-10-01` (local midnight) or an ISO 8601 time. A session started earlier but active since is imported. |
+| `since` | none | Only sessions whose transcript, rollout or any subagent's changed on or after this date: `2026-10-01` (local midnight) or an ISO 8601 time. A session started earlier but active since is imported. |
 | `projectsDir` | `CLAUDE_CONFIG_DIR/projects`, else `~/.claude/projects` | Where Claude Code keeps transcripts. |
+| `codexDir` | `CODEX_HOME/sessions`, else `~/.codex/sessions` | Where Codex keeps rollouts. The import needs only one of the two to exist. |
 | `worktreeGlobs` | `["~/.cue/work/*/<repo>"]` | Where removed worktrees were. `<repo>` is a repo's directory name; a match counts only on one of that repo's branches. |
 | `repos` | `[]` | Other repos whose sessions to import too, as paths (`~` and paths relative to this repo work). One that is not there or not a git repo is reported and left out. |
 | `all` | `false` | Import every session whose repo can be found. Internal or local testing only (see above). |
@@ -226,7 +263,7 @@ one and attributed by the next import that reaches `whoami`.
 The import reads files on the machine it runs on. It must run where the
 transcripts are. Under `swamp serve --remote-only` a method runs on a worker,
 which has no transcripts, and the import fails with an error that names the
-host and the path it looked in.
+host and the paths it looked in.
 
 ## The contract copy
 

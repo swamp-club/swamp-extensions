@@ -8,6 +8,7 @@
  * @module
  */
 
+import { actionTarget, type CallAction } from "./classify/action.ts";
 import { AGENT_SESSION_LIMITS } from "./contract/session_record.ts";
 
 /** Where a session ran, so its paths can be made relative or masked. */
@@ -16,8 +17,8 @@ export interface RedactContext {
   readonly cwd: string;
   /** The user's home directory; it becomes `~`. */
   readonly home?: string;
-  /** The harness's transcript root; paths under it become `$HARNESS_LOGS/…`. */
-  readonly projectsDir?: string;
+  /** The harnesses' transcript roots; paths under them become `$HARNESS_LOGS/…`. */
+  readonly logDirs?: readonly string[];
 }
 
 const REDACTED = "‹redacted›";
@@ -159,14 +160,18 @@ export function redact(text: string, ctx: RedactContext): string {
   let s = text;
   // The harness's own folders first: they can sit under the cwd or home.
   s = s.replace(SCRATCH, () => "$SCRATCH");
-  if (ctx.projectsDir) {
-    const root = trimSlash(ctx.projectsDir);
+  for (const dir of ctx.logDirs ?? []) {
+    const root = trimSlash(dir);
+    if (root.length <= 1) continue;
     s = s.replace(
       new RegExp(`${escapeRegExp(root)}(?:/[^\\s'"]*)?`, "g"),
       () => "$HARNESS_LOGS/…",
     );
   }
-  s = s.replace(/~\/\.claude\/projects\/[^\s'"]+/g, () => "$HARNESS_LOGS/…");
+  s = s.replace(
+    /~\/(?:\.claude\/projects|\.codex\/sessions)\/[^\s'"]+/g,
+    () => "$HARNESS_LOGS/…",
+  );
   const cwd = trimSlash(ctx.cwd);
   if (cwd.length > 1) {
     // Only at a path boundary, so a sibling such as <cwd>-two is left alone.
@@ -245,41 +250,6 @@ export function capText(text: string): CallText {
   return { text: `${cut}…`, truncated: true };
 }
 
-function str(value: unknown): string {
-  return typeof value === "string" ? value : "";
-}
-
-/**
- * The raw target of a call, before redaction: only the fields the record
- * allows. Descriptions, queries, patterns, prompts, file contents and MCP
- * arguments are text the model wrote or file content, so they never appear.
- */
-export function callTarget(tool: string, input: unknown): string {
-  const i = typeof input === "object" && input !== null
-    ? input as Record<string, unknown>
-    : {};
-  switch (tool) {
-    case "Bash":
-      return str(i.command);
-    case "Read":
-    case "Edit":
-    case "MultiEdit":
-    case "Write":
-      return str(i.file_path);
-    case "NotebookEdit":
-      return str(i.notebook_path) || str(i.file_path);
-    case "Skill":
-      return str(i.skill);
-    case "WebFetch":
-      return str(i.url);
-    case "Grep":
-    case "Glob":
-      return str(i.path);
-    default:
-      return "";
-  }
-}
-
 // Every regex runs on a bounded prefix, so a call holding a huge blob (a
 // minified one-liner, an inline hex dump, a giant heredoc) cannot make them
 // slow. Heredocs are stripped from a larger prefix, since their bodies are
@@ -300,15 +270,11 @@ function cutAt(text: string, limit: number): string {
 }
 
 /** A call's stored text: its allowed target, redacted and capped. */
-export function callText(
-  tool: string,
-  input: unknown,
-  ctx: RedactContext,
-): CallText {
-  const target = callTarget(tool, input);
+export function callText(action: CallAction, ctx: RedactContext): CallText {
+  const target = actionTarget(action);
   let cut = target.length > HEREDOC_INPUT_LIMIT;
   let text = cutAt(target, HEREDOC_INPUT_LIMIT);
-  if (tool === "Bash") text = stripHeredocs(text);
+  if (action.kind === "shell") text = stripHeredocs(text);
   cut ||= text.length > REDACT_INPUT_LIMIT;
   text = cutAt(text, REDACT_INPUT_LIMIT);
   const capped = capText(redact(text, ctx));

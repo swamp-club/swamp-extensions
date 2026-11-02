@@ -4,10 +4,10 @@ import {
   defaultProjectsDir,
   type DiscoverOptions,
   discoverSessions,
-  expandHome,
   transcriptHead,
 } from "./discover.ts";
-import { RepoResolver } from "./resolve.ts";
+import { expandHome } from "../sessions/place.ts";
+import { RepoResolver } from "../sessions/resolve.ts";
 
 const env = (vars: Record<string, string>) => ({ get: (k: string) => vars[k] });
 

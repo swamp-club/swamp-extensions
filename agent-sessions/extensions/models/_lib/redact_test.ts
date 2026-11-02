@@ -1,17 +1,24 @@
 import { assert, assertEquals, assertFalse } from "jsr:@std/assert@1.0.19";
 import {
-  callTarget,
   callText,
   capText,
   redact,
   type RedactContext,
   stripHeredocs,
 } from "./redact.ts";
+import { actionTarget } from "./classify/action.ts";
+import { claudeAction } from "./claude_code/actions.ts";
+
+/** A Claude Code call's raw target and stored text, as the parser takes them. */
+const callTarget = (tool: string, input: unknown) =>
+  actionTarget(claudeAction(tool, input));
+const claudeText = (tool: string, input: unknown, ctx: RedactContext) =>
+  callText(claudeAction(tool, input), ctx);
 
 const CTX: RedactContext = {
   cwd: "/home/alice/src/demo",
   home: "/home/alice",
-  projectsDir: "/home/alice/.claude/projects",
+  logDirs: ["/home/alice/.claude/projects", "/home/alice/.codex/sessions"],
 };
 
 Deno.test("redact: the session's cwd becomes relative", () => {
@@ -35,6 +42,15 @@ Deno.test("redact: harness log paths are masked", () => {
   );
   assertEquals(
     redact("ls ~/.claude/projects/-x", { cwd: "/w" }),
+    "ls $HARNESS_LOGS/…",
+  );
+  // Every harness's root, whichever harness ran the command (swamp-club#4158).
+  assertEquals(
+    redact("jq . /home/alice/.codex/sessions/2026/11/02/r.jsonl", CTX),
+    "jq . $HARNESS_LOGS/…",
+  );
+  assertEquals(
+    redact("ls ~/.codex/sessions/2026", { cwd: "/w" }),
     "ls $HARNESS_LOGS/…",
   );
 });
@@ -138,7 +154,7 @@ Deno.test("callTarget: only allowlisted fields, never model-written text", () =>
 
 Deno.test("callText: redacts, then caps", () => {
   assertEquals(
-    callText("Bash", { command: "cat /home/alice/src/demo/a token=1" }, CTX),
+    claudeText("Bash", { command: "cat /home/alice/src/demo/a token=1" }, CTX),
     { text: "cat a token=‹redacted›" },
   );
 });
@@ -309,7 +325,11 @@ Deno.test("redact: a long underscore flag does not backtrack forever", () => {
 
 Deno.test("callText: a huge target is cut before redaction and marked truncated", () => {
   const start = performance.now();
-  const out = callText("Bash", { command: `echo ${"z".repeat(200_000)}` }, CTX);
+  const out = claudeText(
+    "Bash",
+    { command: `echo ${"z".repeat(200_000)}` },
+    CTX,
+  );
   assert(performance.now() - start < 2000);
   assertEquals(out.text.length, 1000);
   assertEquals(out.truncated, true);
@@ -336,7 +356,7 @@ Deno.test("redact: JSON-body secrets, plain or escaped, and cookies are masked",
 
 Deno.test("callText: a heredoc with no terminator and endless blank lines stays fast", () => {
   const start = performance.now();
-  const out = callText(
+  const out = claudeText(
     "Bash",
     { command: `cat <<A\n${" \n".repeat(200_000)}` },
     CTX,
@@ -349,7 +369,7 @@ Deno.test("callText: a token split by the input bound is dropped, not kept in pa
   // Paths under the cwd shrink to almost nothing, so the cut lands well
   // inside the stored cap.
   const filler = "/home/alice/src/demo/x ".repeat(173);
-  const out = callText(
+  const out = claudeText(
     "Bash",
     { command: `${filler}ghp_${"A".repeat(40)} tail` },
     CTX,
