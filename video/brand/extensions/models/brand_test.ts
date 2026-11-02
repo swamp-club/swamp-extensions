@@ -24,6 +24,8 @@ import { ASSET_FILES } from "./_lib/assets.ts";
 import { fakeExec, fakeScenes, FakeSwamp, resetFakes } from "./_lib/testing.ts";
 import { CardsResourceSchema as CoreCards } from "../../../extensions/models/_lib/cards.ts";
 import { PresenterSchema } from "./_lib/contract.ts";
+import { QR_MAX_BYTES } from "./_lib/qr.ts";
+import { INTRO_SETTLED_SECONDS } from "./_lib/templates.ts";
 import { parse as parseYaml } from "jsr:@std/yaml@1.0.10";
 import { model as coreEdit } from "../../../extensions/models/edit.ts";
 
@@ -91,7 +93,7 @@ Deno.test("cards: render's brand cards, named after the take", async () => {
     assertEquals(outro.frames.length, 240);
     assertEquals(lt.frames.length, 180);
     assertEquals(ff.frames.length, 30);
-    assertEquals(thumb.frames, [4.5]);
+    assertEquals(thumb.frames, [INTRO_SETTLED_SECONDS]);
     assertEquals(
       env.scenes.map((s) => s.opts.transparent),
       [false, false, true, true, false],
@@ -108,6 +110,73 @@ Deno.test("cards: render's brand cards, named after the take", async () => {
         `${dir}/fast-forward.mov`,
       ],
     );
+  } finally {
+    await teardown(env);
+  }
+});
+
+Deno.test("cards: an odd or inexact size is refused before any frame", async () => {
+  const env = await setup();
+  try {
+    for (
+      const [width, height, why] of [
+        [1919, 1079, "exactly 16:9"],
+        [3842, 2162, "exactly 16:9"],
+        [1936, 1089, "even width and height"],
+      ] as const
+    ) {
+      await assertRejects(
+        () =>
+          model.methods.cards.execute(
+            cardsArgs,
+            env.swamp.context("video-brand", { width, height }, env.dir),
+          ),
+        Error,
+        why,
+      );
+    }
+    assertEquals(env.scenes.length, 0);
+    assertEquals(env.calls.length, 0);
+  } finally {
+    await teardown(env);
+  }
+});
+
+Deno.test("cards: a campaignUrl too long for the QR code is named", async () => {
+  const env = await setup();
+  try {
+    await env.swamp.context("long").writeResource(
+      "presenter",
+      "presenter",
+      PresenterSchema.parse({
+        name: "Pat Example",
+        campaignUrl: `https://example.com/${"a".repeat(QR_MAX_BYTES)}`,
+      }),
+    );
+    await assertRejects(
+      () =>
+        model.methods.cards.execute(
+          { ...cardsArgs, presenter: "long" },
+          env.swamp.context("video-brand", {}, env.dir),
+        ),
+      Error,
+      `campaignUrl on presenter long is ${QR_MAX_BYTES + 20} bytes`,
+    );
+    assertEquals(env.scenes.length, 0);
+  } finally {
+    await teardown(env);
+  }
+});
+
+Deno.test("cards: a short intro still gets a settled thumbnail", async () => {
+  const env = await setup();
+  try {
+    await model.methods.cards.execute(
+      { ...cardsArgs, introSeconds: 1 },
+      env.swamp.context("video-brand", {}, env.dir),
+    );
+    assertEquals(env.scenes[0].frames.length, 30);
+    assertEquals(env.scenes.at(-1)!.frames, [INTRO_SETTLED_SECONDS]);
   } finally {
     await teardown(env);
   }

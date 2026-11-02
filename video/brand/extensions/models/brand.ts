@@ -50,7 +50,7 @@ import {
 } from "./_lib/contract.ts";
 import { maskArgs, renderClip, renderStill } from "./_lib/encode.ts";
 import { run } from "./_lib/exec.ts";
-import { qrSvg } from "./_lib/qr.ts";
+import { QR_MAX_BYTES, qrBytes, qrSvg } from "./_lib/qr.ts";
 import { checkStageSize } from "./_lib/scene.ts";
 import {
   backdropHtml,
@@ -58,6 +58,7 @@ import {
   cameraRingHtml,
   FAST_FORWARD_LOOP_SECONDS,
   fastForwardHtml,
+  INTRO_SETTLED_SECONDS,
   introHtml,
   lowerThirdHtml,
   outroHtml,
@@ -139,6 +140,20 @@ async function loadPresenter(
   return PresenterSchema.parse(data);
 }
 
+/** The outro's QR code, refusing a campaignUrl too long to encode. */
+function campaignQr(instance: string, presenter: Presenter): string {
+  const url = presenter.campaignUrl;
+  if (!url) return "";
+  const bytes = qrBytes(url);
+  if (bytes > QR_MAX_BYTES) {
+    throw new Error(
+      `campaignUrl on presenter ${instance} is ${bytes} bytes, more than the ` +
+        `outro's QR code holds (${QR_MAX_BYTES}); use a shorter link`,
+    );
+  }
+  return qrSvg(url);
+}
+
 function loadAssets(ctx: BrandContext, g: Globals): Promise<BrandAssets> {
   return g.brandDir
     ? brandDirAssets(resolvePath(ctx, g.brandDir))
@@ -147,8 +162,16 @@ function loadAssets(ctx: BrandContext, g: Globals): Promise<BrandAssets> {
 
 export const model = {
   type: "@swamp/video/brand",
-  version: "2026.10.29.1",
+  version: "2026.11.02.1",
   globalArguments: GlobalArgs,
+  upgrades: [
+    {
+      toVersion: "2026.11.02.1",
+      description:
+        "Fail cleanly on a dead or hung browser; sizes must now be exactly 16:9 and even, so an inexact width or height is refused at run time",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     cards: {
       description:
@@ -191,7 +214,7 @@ export const model = {
           outro: outroHtml({
             assets,
             presenter,
-            qrSvg: presenter.campaignUrl ? qrSvg(presenter.campaignUrl) : "",
+            qrSvg: campaignQr(args.presenter, presenter),
             seconds: args.outroSeconds,
           }),
           "lower-third": lowerThirdHtml({
@@ -242,15 +265,17 @@ export const model = {
           lowerThird,
         );
         await clip("fast-forward", "overlay", FAST_FORWARD_LOOP_SECONDS, badge);
-        // The settled intro, for a custom thumbnail.
+        // The settled intro, for a custom thumbnail: once every intro
+        // animation has ended, however long the intro clip runs.
         await renderStill({
           chromium: g.chromium,
           page: `${dir}/intro.html`,
-          at: Math.max(args.introSeconds - 1, 0),
+          at: INTRO_SETTLED_SECONDS,
           width: g.width,
           height: g.height,
           transparent: false,
           out: thumbnail,
+          signal: ctx.signal,
         });
 
         const data = CardsDataSchema.parse({
@@ -305,6 +330,7 @@ export const model = {
           height: g.height,
           transparent: false,
           out: backdropPath,
+          signal: ctx.signal,
         });
 
         // The ring's box at the output size, even-sized for VP9.

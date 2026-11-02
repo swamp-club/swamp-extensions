@@ -15,7 +15,7 @@
 
 import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
 import { FakeSwamp } from "./_lib/testing.ts";
-import { model as presenter } from "./presenter.ts";
+import { CAMPAIGN_URL_MAX_BYTES, model as presenter } from "./presenter.ts";
 
 Deno.test("presenter: identity has no defaults", () => {
   const parsed = presenter.globalArguments.safeParse({});
@@ -35,4 +35,17 @@ Deno.test("presenter: show records the details for describe and card sources", a
     "",
     [],
   ]);
+});
+
+Deno.test("presenter: a campaignUrl too long for a QR code is refused", () => {
+  const at = (bytes: number) =>
+    presenter.globalArguments.safeParse({
+      name: "Pat Example",
+      campaignUrl: `https://example.com/${"a".repeat(bytes - 20)}`,
+    });
+  assert(at(CAMPAIGN_URL_MAX_BYTES).success);
+  const over = at(CAMPAIGN_URL_MAX_BYTES + 1);
+  assert(!over.success);
+  assertEquals(over.error.issues[0].path, ["campaignUrl"]);
+  assert(over.error.issues[0].message.includes(`${CAMPAIGN_URL_MAX_BYTES}`));
 });

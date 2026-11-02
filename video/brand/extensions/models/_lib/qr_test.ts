@@ -18,8 +18,9 @@ import {
   assertEquals,
   assertNotEquals,
   assertStringIncludes,
+  assertThrows,
 } from "jsr:@std/assert@1.0.19";
-import { encodeQr, qrSvg } from "./qr.ts";
+import { encodeQr, QR_MAX_BYTES, qrSvg } from "./qr.ts";
 
 /** A 7x7 finder pattern's dark ring and centre at (row, col). */
 function finder(qr: ReturnType<typeof encodeQr>, row: number, col: number) {
@@ -60,5 +61,14 @@ Deno.test("the SVG scales, has a quiet zone and crisp modules", () => {
   assert(
     svg.includes("M4 4h1v1h-1z"),
     "the first module sits inside the quiet zone",
+  );
+});
+
+Deno.test("a code holds 2331 bytes; one more is refused with the limit", () => {
+  assertEquals(encodeQr("a".repeat(QR_MAX_BYTES)).size, 177);
+  assertThrows(
+    () => encodeQr("a".repeat(QR_MAX_BYTES + 1)),
+    Error,
+    `${QR_MAX_BYTES + 1} bytes is more than a QR code holds (${QR_MAX_BYTES})`,
   );
 });

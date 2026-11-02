@@ -209,7 +209,9 @@ swamp model create @swamp/video/media media \
 swamp model method run media show
 ```
 
-and pass `--input media=media` to video-edit and video-recut, and `--input presenter=presenter` to video-describe.
+`campaignUrl` is limited to 2331 bytes, what the outro's QR code holds.
+
+Pass `--input media=media` to video-edit and video-recut, and `--input presenter=presenter` to video-describe.
 Media settings: `width`/`height` (default: the recording's), `encoder`
 (`libx264`, `vaapi`, `qsv`, `nvenc`), `quality`, `vaapiDevice`, `music`, `bed`,
 `bedMinSeconds`, `bedFadeSeconds`, `bedMergeSeconds`, `coldOpenTransition`

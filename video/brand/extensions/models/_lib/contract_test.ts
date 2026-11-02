@@ -17,7 +17,11 @@ import { assertEquals } from "jsr:@std/assert@1.0.19";
 import { z } from "zod";
 import { CardsResourceSchema, PresenterSchema } from "./contract.ts";
 import { CardsResourceSchema as CoreCards } from "../../../../extensions/models/_lib/cards.ts";
-import { PresenterSchema as CorePresenter } from "../../../../extensions/models/presenter.ts";
+import {
+  CAMPAIGN_URL_MAX_BYTES,
+  PresenterSchema as CorePresenter,
+} from "../../../../extensions/models/presenter.ts";
+import { QR_MAX_BYTES } from "./qr.ts";
 
 /** A JSON Schema with the human descriptions left out. */
 function shape(schema: z.ZodType): unknown {
@@ -35,4 +39,8 @@ Deno.test("the cards contract is @swamp/video's", () => {
 
 Deno.test("the presenter is @swamp/video/presenter's", () => {
   assertEquals(shape(PresenterSchema), shape(CorePresenter));
+});
+
+Deno.test("the presenter's campaignUrl limit is what the outro's QR code holds", () => {
+  assertEquals(CAMPAIGN_URL_MAX_BYTES, QR_MAX_BYTES);
 });

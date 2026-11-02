@@ -179,6 +179,12 @@ window.__seek = (seconds) => {
 </script></body></html>`;
 }
 
+/**
+ * When the intro has settled: its last animation, the presenter plate's
+ * sweep (1s from 2.6s), has ended. The thumbnail is taken here.
+ */
+export const INTRO_SETTLED_SECONDS = 3.6;
+
 export interface IntroOptions {
   assets: BrandAssets;
   episode: string;

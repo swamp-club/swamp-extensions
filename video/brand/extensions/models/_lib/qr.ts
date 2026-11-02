@@ -28,10 +28,23 @@ export interface Qr {
   dark: (row: number, col: number) => boolean;
 }
 
+/** The most UTF-8 bytes one code holds: version 40, byte mode, level M. */
+export const QR_MAX_BYTES = 2331;
+
+/** How many bytes `text` takes in a code. */
+export function qrBytes(text: string): number {
+  return new TextEncoder().encode(text).length;
+}
+
 /** Encode text as UTF-8 bytes in byte mode, error correction M. */
 export function encodeQr(text: string): Qr {
   // The library writes each char code as one byte; hand it UTF-8 bytes.
   const bytes = new TextEncoder().encode(text);
+  if (bytes.length > QR_MAX_BYTES) {
+    throw new Error(
+      `${bytes.length} bytes is more than a QR code holds (${QR_MAX_BYTES})`,
+    );
+  }
   const qr = qrcode(0, "M");
   qr.addData(String.fromCharCode(...bytes), "Byte");
   qr.make();

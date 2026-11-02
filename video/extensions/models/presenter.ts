@@ -25,12 +25,24 @@
 import { z } from "zod";
 import type { VideoContext } from "./_lib/context.ts";
 
+/**
+ * The most UTF-8 bytes a QR code holds (version 40, byte mode, error
+ * correction M), as brand's outro encodes campaignUrl.
+ */
+export const CAMPAIGN_URL_MAX_BYTES = 2331;
+
 export const PresenterSchema = z.object({
   name: z.string().describe("Name as it should appear on screen"),
   title: z.string().default("").describe("Role, e.g. Principal Engineer"),
   handle: z.string().default("").describe("Handle, e.g. @someone"),
   email: z.string().default(""),
-  campaignUrl: z.string().default("").describe(
+  campaignUrl: z.string().refine(
+    (url) => new TextEncoder().encode(url).length <= CAMPAIGN_URL_MAX_BYTES,
+    {
+      message:
+        `campaignUrl must be at most ${CAMPAIGN_URL_MAX_BYTES} bytes, what a QR code holds`,
+    },
+  ).default("").describe(
     "Where viewers go to follow up (booking page, campaign page)",
   ),
   cta: z.string().default("").describe(
@@ -42,8 +54,16 @@ export const PresenterSchema = z.object({
 
 export const model = {
   type: "@swamp/video/presenter",
-  version: "2026.10.29.1",
+  version: "2026.11.02.1",
   globalArguments: PresenterSchema,
+  upgrades: [
+    {
+      toVersion: "2026.11.02.1",
+      description:
+        "Refuse a campaignUrl longer than a QR code holds (no change to fitting ones)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   resources: {
     presenter: {
       description: "The presenter's details, as the video behaviors read them",

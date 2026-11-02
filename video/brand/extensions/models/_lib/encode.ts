@@ -135,6 +135,7 @@ export async function renderClip(o: ClipOptions): Promise<void> {
       width: o.width,
       height: o.height,
       transparent: o.kind !== "card",
+      signal: o.signal,
     });
     try {
       for (let i = 0; i < frames; i++) {
@@ -166,6 +167,7 @@ export interface StillOptions {
   height: number;
   transparent: boolean;
   out: string;
+  signal?: AbortSignal;
 }
 
 /** One frame of a scene as a PNG. */
@@ -176,6 +178,7 @@ export async function renderStill(o: StillOptions): Promise<void> {
     width: o.width,
     height: o.height,
     transparent: o.transparent,
+    signal: o.signal,
   });
   try {
     await Deno.writeFile(o.out, await scene.frame(o.at));

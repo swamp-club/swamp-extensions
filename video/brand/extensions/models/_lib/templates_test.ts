@@ -25,6 +25,7 @@ import {
   backdropHtml,
   cameraRingHtml,
   fastForwardHtml,
+  INTRO_SETTLED_SECONDS,
   introHtml,
   lowerThirdHtml,
   outroHtml,
@@ -183,4 +184,26 @@ Deno.test("overlays are transparent; the lower third leaves before its time is u
   const ring = cameraRingHtml({ assets, layout });
   assertStringIncludes(ring, "html,body{background:transparent}");
   assertStringIncludes(ring, "left:1476px;top:636px;width:420px;height:420px");
+});
+
+Deno.test("every intro animation has ended by INTRO_SETTLED_SECONDS", () => {
+  const html = introHtml({
+    assets,
+    episode: "Demo",
+    title: "Ship it",
+    subtitle: "",
+    presenter: full,
+  });
+  // The intro's shorthand: animation:<name> <duration>s [<delay>s] ...,
+  // several per rule, comma separated.
+  const ends: number[] = [];
+  for (const [, list] of html.matchAll(/animation:([^;}]+)/g)) {
+    for (const one of list.split(",")) {
+      const [duration = 0, delay = 0] = [...one.matchAll(/(\d*\.?\d+)s\b/g)]
+        .map((m) => Number(m[1]));
+      ends.push(duration + delay);
+    }
+  }
+  assert(ends.length > 10, "found the intro's animations");
+  assertEquals(Math.max(...ends), INTRO_SETTLED_SECONDS);
 });

@@ -46,7 +46,8 @@ swamp model create @swamp/video/presenter presenter \
 swamp model method run presenter show
 ```
 
-The QR code encodes `campaignUrl` exactly as given. Pass `--input
+The QR code encodes `campaignUrl` exactly as given; one code holds at most
+2331 bytes, so a longer link is refused, naming `campaignUrl`. Pass `--input
 presenter=<instance>` to use another one.
 
 `video-edit` inputs: `recordingPath`, `title` (both required), `subtitle`,
@@ -92,7 +93,7 @@ Global arguments on the `video-brand` instance (all optional):
 | `brandDir`    | (built in) | your own brand: `fonts/` (the six fonts below), `palm-silhouette.svg`, `sc-mark.svg` |
 | `screenScale` | `0.8`      | screen share size on the OBS stage                      |
 | `cameraSize`  | `300`      | webcam diameter in stage pixels                         |
-| `width`, `height` | `1920`, `1080` | output size (16:9)                              |
+| `width`, `height` | `1920`, `1080` | output size: exactly 16:9 and even, e.g. 1280x720 or 3840x2160 |
 | `fps`         | `30`       | card frame rate                                         |
 | `chromium`, `ffmpeg` | names on PATH | the binaries                                  |
 

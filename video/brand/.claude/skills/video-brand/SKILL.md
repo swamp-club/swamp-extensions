@@ -60,8 +60,8 @@ shows during the hook.
 Card timings are `cards` arguments: `introSeconds`, `outroSeconds`,
 `lowerThirdSeconds`, `lowerThirdAt` (seconds into the take). Layout and output
 size are global arguments on `video-brand`: `screenScale`, `cameraSize`,
-`width`/`height` (16:9), `fps`, and `brandDir` for the user's own fonts and
-marks.
+`width`/`height` (exactly 16:9 and even, e.g. 1280x720, 1920x1080, 3840x2160),
+`fps`, and `brandDir` for the user's own fonts and marks.
 
 Failures name their fix: a missing presenter says how to create one; a missing
 `chromium` or `ffmpeg` names the binary setting.
