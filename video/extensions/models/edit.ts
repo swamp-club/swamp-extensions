@@ -48,7 +48,11 @@ import {
   spokenRetakes,
   type Word,
 } from "./_lib/edit_list.ts";
-import { applyEditFile, writeEditFile } from "./_lib/edit_file.ts";
+import {
+  applyEditFile,
+  readMaxPause,
+  writeEditFile,
+} from "./_lib/edit_file.ts";
 import { energy, ensureWorkDir, type Take, takeOf } from "./_lib/media.ts";
 
 const GlobalArgs = z.object({
@@ -320,10 +324,7 @@ async function current(ctx: VideoContext, take: Take): Promise<EditList> {
   return list;
 }
 
-/**
- * Chat edits rewrite edit.txt; refuse when it holds hand edits that were
- * never imported, rather than silently dropping them.
- */
+/** Hex SHA-256 of a text, to tell whether edit.txt changed on disk. */
 export async function sha256(text: string): Promise<string> {
   const digest = await crypto.subtle.digest(
     "SHA-256",
@@ -337,11 +338,18 @@ export async function sha256(text: string): Promise<string> {
 }
 
 /**
- * Before build replaces edit.txt, save a copy when it holds hand edits that
- * were never imported.
+ * The edit.txt build writes: the file this recording was last edited
+ * through, else the default. Before build replaces it, save a copy when it
+ * holds hand edits that were never imported.
  */
-async function keepUnimported(ctx: VideoContext, take: Take): Promise<void> {
-  const prev = await ctx.readResource(take.name);
+async function keepUnimported(
+  ctx: VideoContext,
+  take: Take,
+): Promise<string> {
+  const stored = await ctx.readResource(take.name);
+  // An edit list for another recording of the same take name: its file is
+  // not this recording's to overwrite.
+  const prev = stored?.recording === take.recording ? stored : undefined;
   const file = prev
     ? EditListSchema.parse(prev).editFile
     : editFilePath(ctx, take);
@@ -349,7 +357,7 @@ async function keepUnimported(ctx: VideoContext, take: Take): Promise<void> {
   try {
     onDisk = await Deno.readTextFile(file);
   } catch (err) {
-    if (err instanceof Deno.errors.NotFound) return;
+    if (err instanceof Deno.errors.NotFound) return file;
     throw err;
   }
   if (prev) {
@@ -361,14 +369,19 @@ async function keepUnimported(ctx: VideoContext, take: Take): Promise<void> {
         list.settings.maxPause,
         list.coldOpenUntil,
       ));
-    if (await sha256(onDisk) === synced) return;
+    if (await sha256(onDisk) === synced) return file;
   }
   await Deno.writeTextFile(`${file}.bak`, onDisk);
   ctx.logger.warn(
     `${file} had changes that were never imported; saved them to ${file}.bak`,
   );
+  return file;
 }
 
+/**
+ * Chat edits rewrite edit.txt; refuse when it holds hand edits that were
+ * never imported, rather than silently dropping them.
+ */
 async function guardUnimported(list: EditList, take: Take): Promise<void> {
   let onDisk: string;
   try {
@@ -579,7 +592,7 @@ export const model = {
         const idle = await idleRanges(ctx, args.screen, take);
         const settings = editSettings(g);
         const items = buildItems(t.segments, t.duration, settings, idle);
-        await keepUnimported(ctx, take);
+        const editFile = await keepUnimported(ctx, take);
         const markers = args.retakeMarkers.map(parseTime);
         if (args.spokenRetakes) markers.push(...spokenRetakes(items));
         applyRetakes(items, markers);
@@ -596,7 +609,7 @@ export const model = {
           retakeMarkers: markers,
           coldOpenUntil,
           items,
-          editFile: editFilePath(ctx, take),
+          editFile,
           source: "build",
         }, true);
       },
@@ -643,10 +656,10 @@ export const model = {
           ? EditListSchema.parse(prev).screenFrom
           : undefined;
         const t = await readTranscript(ctx, transcriptFrom, take);
-        const header = text.match(/^# max-pause: ([\d.]+)/m);
+        const maxPause = readMaxPause(text);
         const settings = {
           ...editSettings(g),
-          ...(header ? { maxPause: Number(header[1]) } : {}),
+          ...(maxPause !== undefined ? { maxPause } : {}),
         };
         // Like demo-polish: rebuild from the transcript, then apply the file.
         const items = buildItems(

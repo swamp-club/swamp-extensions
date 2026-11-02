@@ -150,6 +150,32 @@ export function parseTokens(
   return toks;
 }
 
+/**
+ * The max-pause header's value (the last one, when there are several), or
+ * undefined when the file has none. A header that doesn't hold just a number
+ * above zero is refused, naming its line, rather than turning every pause
+ * setting into NaN.
+ */
+export function readMaxPause(text: string): number | undefined {
+  const lines = text.split("\n");
+  let maxPause: number | undefined;
+  for (let i = 0; i < lines.length; i++) {
+    if (!lines[i].startsWith("# max-pause:")) continue;
+    // writeEditFile prints the setting as JS does, exponent included.
+    const m = lines[i].match(/^# max-pause:\s*([\d.]+(?:e[-+]?\d+)?)\s*$/i);
+    const value = m ? Number(m[1]) : NaN;
+    if (!Number.isFinite(value) || value <= 0) {
+      const line = i + 1;
+      throw new Error(
+        `edit.txt line ${line}: max-pause must be a number of seconds ` +
+          `above 0, like "# max-pause: 1.5"`,
+      );
+    }
+    maxPause = value;
+  }
+  return maxPause;
+}
+
 export interface ApplyResult {
   maxPause?: number;
   /** Raw end of the item before the [cold-open] marker, when there is one. */
@@ -165,12 +191,10 @@ export function applyEditFile(
 ): ApplyResult {
   const warnings: string[] = [];
   const edited = new Map<number, [string, boolean][]>();
-  let maxPause: number | undefined;
+  const maxPause = readMaxPause(text);
   // The cold-open marker: its line and how many tokens come before it.
   let mark: { line: number; before: number } | undefined;
   for (const ln of text.split("\n")) {
-    const header = ln.match(/^# max-pause: ([\d.]+)/);
-    if (header) maxPause = Number(header[1]);
     if (!ln.trim() || ln.startsWith("#")) continue;
     const m = ln.match(/^(\d+) \[[^\]]*\] \|(.*)$/);
     if (!m) {

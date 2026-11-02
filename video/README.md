@@ -126,7 +126,13 @@ import unchanged):
   silently kept `c`);
 - `[cold-open]` after a word ends a cold open there (see below); move it to
   move the hook, delete it for none. One per file. demo-polish itself doesn't
-  know the marker, so a marked file no longer imports there unchanged.
+  know the marker, so a marked file no longer imports there unchanged;
+- the `# max-pause:` header sets the pause threshold for the import; a value
+  that isn't a number of seconds above 0 is an error naming the line.
+
+Import with `--input path=<file>` to edit a copy elsewhere: later imports,
+chat edits and a rebuild use that file until another path is given. A rebuild
+saves hand edits it would overwrite to `<file>.bak` first.
 
 Then `swamp workflow run @swamp/video/video-recut --input recordingPath=<rec>`.
 Chat edits rewrite `edit.txt`, so the file always matches the edit list. A wait
@@ -154,7 +160,9 @@ with `cold-open --input clear=true` or by deleting the marker.
   fast-forward rather than splitting one. A hook that would keep no words, or
   leave nothing after it, is refused.
 - The hook cuts straight to the card by default; `coldOpenTransition: fade` on
-  the media instance crossfades instead.
+  the media instance crossfades instead. A fade needs a hook longer than the
+  0.7s crossfade and an intro longer than 1.4s (it fades in and out); render
+  refuses shorter ones before it starts, naming which.
 - The bed stays out of the hook: it plays only under the fast-forwards after
   the card. The intro music comes in with the card.
 - Overlays keep take time: a lower third at `at` shows during the hook, and
@@ -179,9 +187,11 @@ Render takes a `cards` object; every source produces the same contract:
 | `fastForwardBadge` | `{path}`                      | full-frame transparent overlay over every fast-forward |
 
 Cards may be stills (PNG/JPEG/WebP, held for `seconds`) or videos (cut to
-`seconds`). Overlays may be stills or videos with alpha (ProRes 4444 `.mov`
-or VP9 `.webm`): an animated lower third plays once from `at`, so its own
-entrance and exit show; an animated badge loops. Modes:
+`seconds`). An intro or outro must be longer than the 0.7s crossfade; a
+shorter one is refused, naming the card. Overlays may be stills or videos
+with alpha (ProRes 4444 `.mov` or VP9 `.webm`): an animated lower third plays
+once from `at`, so its own entrance and exit show; an animated badge loops.
+Modes:
 
 - `simple` (default): demo-polish's kicker / title / subtitle card, drawn by
   headless Chromium at the video's size;
@@ -244,10 +254,12 @@ video-recut with `--input media=media`.
 | `@swamp/video/presenter`   | `show`                                      | `presenter`               |
 | `@swamp/video/media`       | `show`                                      | `settings`                |
 
-Large files (renders, frames, the voice-loudness envelope, edit.txt) stay on
-disk next to the recording; swamp data holds metadata and paths. The screen
-text timeline in swamp data has every detected credential replaced with
-`[<kind> redacted]`; the sampled frames in `<rec>.video/frames/` are raw.
+Large files (renders, the storyboard, the voice-loudness envelope,
+edit.txt) stay on disk next to the recording; swamp data holds metadata and
+paths. The screen text timeline in swamp data has every detected credential
+replaced with `[<kind> redacted]`. The frames sampled for OCR show the screen
+raw, so they are deleted once the analysis and its (pixelated) storyboard are
+done, along with any `<rec>.video/frames/` an earlier version left.
 Busy screens are read every `activeEvery` seconds (5 by default), so a secret
 on screen for less than that can be missed: lower it for takes that show keys,
 and check the `pixelating ...` warnings. A secret seen at two positions in a

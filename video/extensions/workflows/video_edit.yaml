@@ -55,7 +55,7 @@ jobs:
     description: Analyze, build the edit list, render
     steps:
       - name: check-inputs
-        description: Fail before the slow steps when the cards can't be made
+        description: "Fail before the slow steps when the cards can't be made (render's own check: resolveCards in _lib/cards.ts)"
         task:
           type: assert
           expr: >-

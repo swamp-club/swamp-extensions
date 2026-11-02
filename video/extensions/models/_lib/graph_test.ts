@@ -23,9 +23,11 @@ import {
   bedStretches,
   buildGraph,
   type BuiltGraph,
+  checkOpening,
   chunkRate,
   encoderArgs,
   measureArgs,
+  measureFilter,
   opening,
   parseLoudness,
   type RenderPlan,
@@ -90,8 +92,11 @@ Deno.test("the voice mute starts after the air beside a kept word, not on the wo
 });
 
 Deno.test("two-pass loudness: measure, parse, apply", () => {
-  const args = measureArgs(plan);
-  assertStringIncludes(args.join(" "), "print_format=json");
+  const args = measureArgs(plan, "/w/measure.txt");
+  assertEquals(args[args.indexOf("-/af") + 1], "/w/measure.txt");
+  assert(!args.some((a) => a.includes("aselect")));
+  assertStringIncludes(measureFilter(plan), "print_format=json");
+  assertStringIncludes(measureFilter(plan), "aselect='");
   assert(args.includes("-vn"));
   const m = parseLoudness(
     'noise {"input_i" : "-20.0", "input_tp" : "-3.0", "input_lra" : "5.0", "input_thresh" : "-30.0", "target_offset" : "0.2"} tail',
@@ -475,4 +480,30 @@ Deno.test("cold open: refused inside a fast-forward or with nothing after it", (
     Error,
     "leaves nothing of the take after it",
   );
+});
+
+Deno.test("checkOpening: a fade cold open needs a hook past the crossfade and an intro past two", () => {
+  const intro = (seconds: number) => ({ intro: { path: "/c/i.png", seconds } });
+  assertThrows(
+    () => checkOpening(intro(4.5), 0.5, "fade"),
+    Error,
+    "the cold open's hook is 0.50s",
+  );
+  assertThrows(
+    () => checkOpening(intro(1.4), 3, "fade"),
+    Error,
+    "the intro card is 1.4s",
+  );
+  // A cut, no hook or no intro: nothing to fade, nothing refused.
+  checkOpening(intro(1.4), 0.5, "cut");
+  checkOpening(intro(1.4), 0, "fade");
+  checkOpening({}, 0.5, "fade");
+  checkOpening(intro(1.5), 0.8, "fade");
+  // Just past both bounds every offset in the graph stays positive.
+  const g = buildGraph({
+    ...hooked,
+    cards: { ...hooked.cards, intro: { ...hooked.cards.intro!, seconds: 1.5 } },
+    hookTransition: "fade",
+  });
+  assert(!/offset=-|adelay=-|pad_dur=-/.test(g.graph));
 });

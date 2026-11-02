@@ -22,6 +22,7 @@ import {
 } from "jsr:@std/assert@1.0.19";
 import { model as edit, parseTime } from "./edit.ts";
 import { model as screen } from "./screen.ts";
+import { readMaxPause } from "./_lib/edit_file.ts";
 import { built, setup, teardown } from "./_lib/scenario.ts";
 
 Deno.test("edit build: fillers and the retaken sentence cut, the wait fast-forwarded", async () => {
@@ -579,6 +580,107 @@ Deno.test("edit: the [cold-open] marker moves, survives import and can be delete
     );
     await edit.methods.import.execute({ recordingPath: env.rec }, ctx());
     assertEquals(latest().coldOpenUntil, undefined);
+  } finally {
+    await teardown(env);
+  }
+});
+
+Deno.test("edit build: with no earlier edit list it writes the default edit.txt", async () => {
+  const env = await setup();
+  try {
+    const list = await built(env);
+    assertEquals(list.editFile, `${env.dir}/take.video/edit.txt`);
+    await Deno.stat(list.editFile);
+  } finally {
+    await teardown(env);
+  }
+});
+
+Deno.test("edit build: rebuilds through the file the take was last imported from, backing it up", async () => {
+  const env = await setup();
+  try {
+    const list = await built(env);
+    const ctx = () => env.swamp.context("edit", {});
+    const custom = `${env.dir}/my-edit.txt`;
+    const original = await Deno.readTextFile(list.editFile);
+    await Deno.writeTextFile(custom, original);
+    await edit.methods.import.execute(
+      { recordingPath: env.rec, path: custom },
+      ctx(),
+    );
+    // a hand edit in the custom file, and one in the default the take no
+    // longer edits through: build must keep the first and leave the second
+    await Deno.writeTextFile(custom, original.replace("demo.", "Demo."));
+    const defaultText = original.replace("demo.", "DEMO.");
+    await Deno.writeTextFile(list.editFile, defaultText);
+    await built(env);
+    const after = env.swamp.latest("edit", "take") as typeof list;
+    assertEquals(after.editFile, custom);
+    assertStringIncludes(await Deno.readTextFile(`${custom}.bak`), "Demo.");
+    assert(!(await Deno.readTextFile(custom)).includes("Demo."));
+    assertEquals(await Deno.readTextFile(list.editFile), defaultText);
+  } finally {
+    await teardown(env);
+  }
+});
+
+Deno.test("readMaxPause: a header that isn't seconds above 0 names its line", () => {
+  assertEquals(readMaxPause("# demo\n# max-pause: 1.5\n"), 1.5);
+  assertEquals(readMaxPause("# demo\n1 [0:00] | hi"), undefined);
+  assertEquals(readMaxPause("# max-pause: 1.5\n# max-pause: 2.0 \n"), 2);
+  assertEquals(readMaxPause("# max-pause: 1e-7\n"), 1e-7);
+  assertEquals(readMaxPause("# max-pause: 1E-7\n"), 1e-7);
+  for (const bad of ["1.2.3", ".", "0", "abc", "", "1.5s", "2 3"]) {
+    assertThrows(
+      () => readMaxPause(`# demo\n# max-pause: ${bad}\n`),
+      Error,
+      "edit.txt line 2: max-pause must be a number of seconds above 0",
+    );
+  }
+});
+
+Deno.test("edit: importing a malformed max-pause header is refused, not NaN", async () => {
+  const env = await setup();
+  try {
+    const list = await built(env);
+    const original = await Deno.readTextFile(list.editFile);
+    await Deno.writeTextFile(
+      list.editFile,
+      original.replace(/^# max-pause: .*$/m, "# max-pause: 1..5"),
+    );
+    await assertRejects(
+      () =>
+        edit.methods.import.execute(
+          { recordingPath: env.rec },
+          env.swamp.context("edit", {}),
+        ),
+      Error,
+      "max-pause must be a number of seconds above 0",
+    );
+    const after = env.swamp.latest("edit", "take") as typeof list;
+    assertEquals(after.items, list.items);
+  } finally {
+    await teardown(env);
+  }
+});
+
+Deno.test("edit build: an edit list for another recording's take never redirects build to its file", async () => {
+  const env = await setup();
+  try {
+    const list = await built(env);
+    const ctx = env.swamp.context("edit", {});
+    const theirs = `${env.dir}/theirs.txt`;
+    await Deno.writeTextFile(theirs, "their hand edits");
+    await ctx.writeResource("editList", "take", {
+      ...list,
+      recording: `${env.dir}/other/take.mkv`,
+      editFile: theirs,
+    });
+    await built(env);
+    const after = env.swamp.latest("edit", "take") as typeof list;
+    assertEquals(after.editFile, `${env.dir}/take.video/edit.txt`);
+    assertEquals(await Deno.readTextFile(theirs), "their hand edits");
+    await assertRejects(() => Deno.stat(`${theirs}.bak`), Deno.errors.NotFound);
   } finally {
     await teardown(env);
   }

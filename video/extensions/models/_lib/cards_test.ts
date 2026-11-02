@@ -60,3 +60,40 @@ Deno.test("a cards resource that breaks the contract is refused, naming the inst
     "my-cards doesn't match the cards contract: lowerThird.at",
   );
 });
+
+Deno.test("a cards resource with an intro no longer than the crossfade is refused; a short lower third is fine", async () => {
+  const swamp = new FakeSwamp();
+  const ctx = swamp.context("render", {});
+  const take = {
+    recording: "/v/t.mkv",
+    stem: "/v/t",
+    name: "t",
+    workDir: "/v/t.video",
+  };
+  const resolve = () =>
+    resolveCards(
+      ctx,
+      { mode: "custom", from: "my-cards" },
+      take,
+      () => Promise.resolve(""),
+    );
+  await swamp.context("my-cards", {}).writeResource("cards", "t", {
+    intro: { path: "/c/intro.png", seconds: 0.7 },
+  });
+  await assertRejects(
+    resolve,
+    Error,
+    "intro.seconds: must be longer than the 0.7s crossfade",
+  );
+  await swamp.context("my-cards", {}).writeResource("cards", "t", {
+    outro: { path: "/c/outro.png", seconds: 0.5 },
+  });
+  await assertRejects(resolve, Error, "outro.seconds");
+  await swamp.context("my-cards", {}).writeResource("cards", "t", {
+    intro: { path: "/c/intro.png", seconds: 0.8 },
+    lowerThird: { path: "/c/lt.png", seconds: 0.5, at: 1 },
+  });
+  const cards = await resolve();
+  assertEquals(cards.intro?.seconds, 0.8);
+  assertEquals(cards.lowerThird?.seconds, 0.5);
+});

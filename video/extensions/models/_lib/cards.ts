@@ -38,7 +38,7 @@ import {
 } from "./context.ts";
 import { z } from "zod";
 import { run } from "./exec.ts";
-import { type Cards, TITLE_LEN } from "./graph.ts";
+import { type Cards, TITLE_LEN, XFADE } from "./graph.ts";
 import type { Take } from "./media.ts";
 
 export type CardsMode = "simple" | "none" | "custom" | "brand";
@@ -130,15 +130,25 @@ export async function drawTitleCard(
   return png;
 }
 
+/**
+ * An intro or outro card's length: it crossfades with the take, so it must
+ * outlast the crossfade or the filter graph gets negative offsets.
+ */
+export const CrossfadeSeconds = z.number().gt(XFADE, {
+  message: `must be longer than the ${XFADE}s crossfade`,
+});
+
 const Card = z.object({
   path: z.string().min(1),
   seconds: z.number().positive(),
 });
 
+const FadingCard = Card.extend({ seconds: CrossfadeSeconds });
+
 /** The cards contract, as another behavior's `cards` resource must hold it. */
 export const CardsResourceSchema = z.object({
-  intro: Card.optional(),
-  outro: Card.optional(),
+  intro: FadingCard.optional(),
+  outro: FadingCard.optional(),
   lowerThird: Card.extend({ at: z.number().min(0) }).optional(),
   fastForwardBadge: z.object({ path: z.string().min(1) }).optional(),
 });
@@ -178,6 +188,7 @@ export async function resolveCards(
       return {};
     case "simple": {
       if (!input.title) {
+        // video-edit and video-recut check this up front (check-inputs).
         throw new Error("simple cards need a title (or use cards mode none)");
       }
       return { intro: { path: await draw(), seconds: TITLE_LEN } };

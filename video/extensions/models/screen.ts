@@ -33,6 +33,7 @@ import {
   parseDetect,
   parseTesseractTsv,
   type Rect,
+  type Redaction,
   sampleTimes,
   storyboardArgs,
   storyboardFrames,
@@ -100,10 +101,15 @@ async function inBatches<T, R>(
 ): Promise<R[]> {
   const out: R[] = [];
   for (let i = 0; i < items.length; i += size) {
+    // Let the whole batch settle before failing, so nothing is still
+    // writing (a frame, say) when the caller cleans up after the error.
+    const settled = await Promise.allSettled(
+      items.slice(i, i + size).map((item, k) => fn(item, i + k)),
+    );
+    const failed = settled.find((r) => r.status === "rejected");
+    if (failed) throw failed.reason;
     out.push(
-      ...await Promise.all(
-        items.slice(i, i + size).map((item, k) => fn(item, i + k)),
-      ),
+      ...settled.map((r) => (r as PromiseFulfilledResult<R>).value),
     );
   }
   return out;
@@ -168,62 +174,103 @@ export const model = {
         const crop = `crop=${rect.width}:${rect.height}:${rect.x}:${rect.y}`;
         // OCR wants roughly native-size text; upscale small recordings.
         const ocrScale = rect.width < 2000 ? 2 : 1;
-        const framesDir = `${take.workDir}/frames`;
-        await Deno.mkdir(framesDir, { recursive: true });
-        const moments = sampleTimes(idle, info.duration, args.activeEvery);
-        const frames: Frame[] = await inBatches(
-          moments,
-          g.concurrency,
-          async (at, i) => {
-            const path = `${framesDir}/frame-${String(i).padStart(4, "0")}.png`;
+        // Raw frames earlier versions left in <rec>.video/frames/ go too.
+        await Deno.remove(`${take.workDir}/frames`, { recursive: true })
+          .catch((err) => {
+            if (err instanceof Deno.errors.NotFound) return;
+            ctx.logger.warn(
+              `could not delete raw frames an earlier version left in ` +
+                `${take.workDir}/frames: ` +
+                `${
+                  err instanceof Error ? err.message : err
+                }; delete them by hand`,
+            );
+          });
+        // Its own folder per run, so two analyses of one take never share
+        // (or delete) each other's frames.
+        const framesDir = await Deno.makeTempDir({
+          dir: take.workDir,
+          prefix: "frames-",
+        });
+        // The sampled frames show the screen raw, credentials included: they
+        // only feed OCR and the (pixelated) storyboard, so none stay on disk.
+        let frames: Frame[];
+        let redactions: Redaction[];
+        let storyboard: string | undefined;
+        try {
+          const moments = sampleTimes(idle, info.duration, args.activeEvery);
+          frames = await inBatches(
+            moments,
+            g.concurrency,
+            async (at, i) => {
+              const path = `${framesDir}/frame-${
+                String(i).padStart(4, "0")
+              }.png`;
+              await run({
+                bin: g.ffmpeg,
+                args: [
+                  "-y",
+                  "-hide_banner",
+                  "-loglevel",
+                  "error",
+                  "-ss",
+                  `${at}`,
+                  "-i",
+                  take.recording,
+                  "-frames:v",
+                  "1",
+                  "-vf",
+                  `${crop}${
+                    ocrScale > 1 ? `,scale=iw*${ocrScale}:-2:flags=lanczos` : ""
+                  }`,
+                  path,
+                ],
+                signal: ctx.signal,
+              });
+              if (!args.ocr) return { at, path, text: "", words: [] };
+              const tsv = await runText({
+                bin: g.tesseract,
+                args: [path, "-", "--psm", "3", "tsv"],
+                signal: ctx.signal,
+              });
+              return { at, path, ...parseTesseractTsv(tsv) };
+            },
+          );
+          redactions = args.redact
+            ? findRedactions(
+              frames,
+              rect,
+              ocrScale,
+              info.duration,
+              args.allow,
+              {
+                width: info.width,
+                height: info.height,
+              },
+            )
+            : [];
+          const picked = storyboardFrames(frames);
+          if (picked.length) {
+            storyboard = `${take.workDir}/storyboard.png`;
             await run({
               bin: g.ffmpeg,
-              args: [
-                "-y",
-                "-hide_banner",
-                "-loglevel",
-                "error",
-                "-ss",
-                `${at}`,
-                "-i",
-                take.recording,
-                "-frames:v",
-                "1",
-                "-vf",
-                `${crop}${
-                  ocrScale > 1 ? `,scale=iw*${ocrScale}:-2:flags=lanczos` : ""
-                }`,
-                path,
-              ],
+              args: storyboardArgs(
+                picked,
+                storyboard,
+                (f) => frameBoxes(f.at, redactions, rect, ocrScale),
+              ),
               signal: ctx.signal,
             });
-            if (!args.ocr) return { at, path, text: "", words: [] };
-            const tsv = await runText({
-              bin: g.tesseract,
-              args: [path, "-", "--psm", "3", "tsv"],
-              signal: ctx.signal,
-            });
-            return { at, path, ...parseTesseractTsv(tsv) };
-          },
-        );
-        const redactions = args.redact
-          ? findRedactions(frames, rect, ocrScale, info.duration, args.allow, {
-            width: info.width,
-            height: info.height,
-          })
-          : [];
-        let storyboard: string | undefined;
-        const picked = storyboardFrames(frames);
-        if (picked.length) {
-          storyboard = `${take.workDir}/storyboard.png`;
-          await run({
-            bin: g.ffmpeg,
-            args: storyboardArgs(
-              picked,
-              storyboard,
-              (f) => frameBoxes(f.at, redactions, rect, ocrScale),
-            ),
-            signal: ctx.signal,
+          }
+        } finally {
+          await Deno.remove(framesDir, { recursive: true }).catch((err) => {
+            if (err instanceof Deno.errors.NotFound) return;
+            ctx.logger.warn(
+              `could not delete the raw sampled frames in ${framesDir}: ` +
+                `${
+                  err instanceof Error ? err.message : err
+                }; delete them by hand`,
+            );
           });
         }
         const handle = await ctx.writeResource("screen", take.name, {

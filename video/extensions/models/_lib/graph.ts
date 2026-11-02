@@ -210,6 +210,34 @@ export function opening(
     : { hook, cardAt: hook, shift };
 }
 
+/**
+ * Refuse an opening whose crossfades would need negative offsets, naming
+ * what is too short, before any ffmpeg pass runs. A fade cold open fades
+ * the hook into the intro and the intro into the take, so the hook must
+ * outlast one crossfade and the intro two.
+ */
+export function checkOpening(
+  cards: Cards,
+  hook = 0,
+  transition: "cut" | "fade" = "cut",
+): void {
+  if (!cards.intro || hook <= 0 || transition !== "fade") return;
+  if (hook <= XFADE) {
+    throw new Error(
+      `the cold open's hook is ${hook.toFixed(2)}s, too short to fade into ` +
+        `the intro card (the crossfade is ${XFADE}s): end the cold open later, ` +
+        `or set the media coldOpenTransition to cut`,
+    );
+  }
+  if (cards.intro.seconds <= 2 * XFADE) {
+    throw new Error(
+      `the intro card is ${cards.intro.seconds}s; after a fading cold open ` +
+        `it fades in and out, so it must be longer than ${2 * XFADE}s: use a ` +
+        `longer intro, or set the media coldOpenTransition to cut`,
+    );
+  }
+}
+
 function loudnorm(plan: RenderPlan, measure: boolean): string {
   const base = `loudnorm=I=${plan.loudnessTarget}:TP=-1.5:LRA=11`;
   if (measure) return `${base}:print_format=json`;
@@ -238,16 +266,25 @@ function voiceChain(plan: RenderPlan, measure: boolean): string {
     `asetpts=N/SR/TB,${loudnorm(plan, measure)},aresample=48000`;
 }
 
-/** A graph that only measures the edited voice's loudness (first pass). */
-export function measureArgs(plan: RenderPlan): string[] {
+/**
+ * The filter that only measures the edited voice's loudness (first pass).
+ * It holds the whole select expression, so it goes in a script file, not
+ * argv: a long take's expression can pass the per-argument size limit.
+ */
+export function measureFilter(plan: RenderPlan): string {
+  return voiceChain(plan, true).replace(/^\[0:a:\d+\]/, "");
+}
+
+/** The measuring pass, reading `measureFilter`'s output from `script`. */
+export function measureArgs(plan: RenderPlan, script: string): string[] {
   return [
     "-hide_banner",
     "-nostats",
     "-i",
     plan.recording,
     "-vn",
-    "-af",
-    voiceChain(plan, true).replace(/^\[0:a:\d+\]/, ""),
+    "-/af",
+    script,
     "-map",
     `0:a:${plan.speechTrack}`,
     "-f",

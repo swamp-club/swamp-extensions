@@ -25,6 +25,7 @@ import { model as media } from "./media.ts";
 import {
   analyzed,
   built,
+  measureScripts,
   renderArgs,
   setup,
   teardown,
@@ -50,6 +51,14 @@ Deno.test("render: simple card, pixelation, clock, two-pass loudness, captions",
       "xfade=transition=fade:duration=0.7:offset=3.8",
     );
     assertStringIncludes(graph, "subtitles='captions.srt'");
+    // the measuring pass reads its filter from a file, not argv, and the
+    // file is gone afterwards
+    const measure = env.calls.find((c) => c.args.includes("-/af"))!;
+    const script = argAfter(measure, "-/af")!;
+    assert(script.startsWith(`${env.dir}/take.video/measure-`));
+    assert(!measure.args.some((a) => a.includes("aselect")));
+    assertStringIncludes(measureScripts.get(script)!, "print_format=json");
+    await assertRejects(() => Deno.stat(script), Deno.errors.NotFound);
     const main = env.calls.find((c) => c.args.includes("-/filter_complex"))!;
     assertEquals(main.cwd, `${env.dir}/take.video`);
     assert(main.args.includes(`${env.dir}/take.polished.mp4`));
@@ -330,6 +339,88 @@ Deno.test("render: no cold open without an intro card; none designated writes no
       env.swamp.context("render", {}),
     );
     assertEquals(env.swamp.latest("render", "take")!.hookSeconds, undefined);
+  } finally {
+    await teardown(env);
+  }
+});
+
+Deno.test("render: an intro or outro no longer than the crossfade is refused by the arguments", () => {
+  const args = (cards: Record<string, unknown>) =>
+    render.methods.render.arguments.safeParse({
+      recordingPath: "/v/take.mkv",
+      edit: "edit",
+      cards: { mode: "custom", ...cards },
+    });
+  const short = args({ intro: { path: "/c/intro.png", seconds: 0.5 } });
+  assert(!short.success);
+  assertEquals(short.error.issues[0].path.join("."), "cards.intro.seconds");
+  assertStringIncludes(
+    short.error.issues[0].message,
+    "must be longer than the 0.7s crossfade",
+  );
+  assert(!args({ outro: { path: "/c/outro.png", seconds: 0.7 } }).success);
+  assert(
+    args({
+      intro: { path: "/c/intro.png", seconds: 4.5 },
+      outro: { path: "/c/outro.png", seconds: 0.8 },
+      lowerThird: { path: "/c/lt.png", seconds: 0.5, at: 1 },
+    }).success,
+  );
+});
+
+Deno.test("render: a fading cold open with a short intro is refused before ffmpeg runs", async () => {
+  const env = await setup();
+  try {
+    await built(env, { coldOpenUntil: "this is a demo" });
+    await media.methods.show.execute(
+      {},
+      env.swamp.context("media", { coldOpenTransition: "fade" }),
+    );
+    const intro = `${env.dir}/intro.png`;
+    await Deno.writeTextFile(intro, "png");
+    const before = env.calls.length;
+    await assertRejects(
+      () =>
+        render.methods.render.execute(
+          renderArgs(env, {
+            media: "media",
+            pixelate: false,
+            cards: { mode: "custom", intro: { path: intro, seconds: 1 } },
+          }),
+          env.swamp.context("render", {}),
+        ),
+      Error,
+      "the intro card is 1s",
+    );
+    assert(
+      !env.calls.slice(before).some((c) =>
+        c.bin === "ffmpeg" && (c.args.includes("-/af") ||
+          c.args.includes("-/filter_complex"))
+      ),
+    );
+  } finally {
+    await teardown(env);
+  }
+});
+
+Deno.test("render: malformed redactions in the screen analysis are refused, not put in the graph", async () => {
+  const env = await setup();
+  try {
+    await built(env);
+    const s = await analyzed(env);
+    await env.swamp.context("screen", {}).writeResource("screen", "take", {
+      ...s,
+      redactions: [{ ...s.redactions[0], x: "0:0[x];movie=/etc/passwd" }],
+    });
+    await assertRejects(
+      () =>
+        render.methods.render.execute(
+          renderArgs(env, { screen: "screen" }),
+          env.swamp.context("render", {}),
+        ),
+      Error,
+      "malformed redactions: 0.x",
+    );
   } finally {
     await teardown(env);
   }

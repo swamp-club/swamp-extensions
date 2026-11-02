@@ -75,6 +75,9 @@ export const LOUDNORM = `[Parsed_loudnorm_0 @ 0x1]
 \t"target_offset" : "0.10"
 }`;
 
+/** Each measuring pass's filter script, by path, as ffmpeg read it. */
+export const measureScripts = new Map<string, string>();
+
 export interface Env {
   dir: string;
   rec: string;
@@ -99,7 +102,12 @@ export async function setup(extra: Record<string, Handler> = {}): Promise<Env> {
             "[freezedetect] lavfi.freezedetect.freeze_end: 23.5\n",
         };
       }
-      if (args.includes("print_format=json")) return { stderr: LOUDNORM };
+      const af = req.args.indexOf("-/af");
+      if (af >= 0) {
+        const script = await Deno.readTextFile(req.args[af + 1]);
+        measureScripts.set(req.args[af + 1], script);
+        if (script.includes("print_format=json")) return { stderr: LOUDNORM };
+      }
       const out = req.args[req.args.length - 1];
       if (
         out.endsWith(".png") || out.endsWith(".jpg") || out.endsWith(".mp4")

@@ -24,6 +24,15 @@ import { model as screen } from "./screen.ts";
 import { analyzed, DURATION, setup, teardown } from "./_lib/scenario.ts";
 import { argAfter } from "./_lib/testing.ts";
 
+/** The per-run frame folders left in the take's work folder. */
+async function framesDirs(dir: string): Promise<string[]> {
+  const out: string[] = [];
+  for await (const e of Deno.readDir(`${dir}/take.video`)) {
+    if (e.name.startsWith("frames")) out.push(e.name);
+  }
+  return out;
+}
+
 Deno.test("screen: idle stretches, text timeline, credential boxes, storyboard", async () => {
   const env = await setup();
   try {
@@ -42,6 +51,8 @@ Deno.test("screen: idle stretches, text timeline, credential boxes, storyboard",
     assertEquals(s.redactions[0].width, 216);
     assertEquals([s.redactions[0].start, s.redactions[0].end], [0, DURATION]);
     assertMatch(s.storyboard!, /take\.video\/storyboard\.png$/);
+    // the raw frames OCR read are gone; the pixelated storyboard stays
+    assertEquals(await framesDirs(env.dir), []);
     const frame = env.calls.find((c) =>
       c.args.includes("-frames:v") && c.args.includes("-ss")
     )!;
@@ -98,6 +109,82 @@ Deno.test("screen: redact without ocr is refused rather than finding nothing", a
       Error,
       "redact needs ocr",
     );
+  } finally {
+    await teardown(env);
+  }
+});
+
+Deno.test("screen: the raw frames are deleted even when analysis fails", async () => {
+  const env = await setup({
+    tesseract: () => {
+      throw new Error("tesseract crashed");
+    },
+  });
+  try {
+    await assertRejects(() => analyzed(env), Error, "tesseract crashed");
+    assertEquals(await framesDirs(env.dir), []);
+  } finally {
+    await teardown(env);
+  }
+});
+
+Deno.test("screen: a failed frame lets the rest of its batch finish before cleanup", async () => {
+  let running = 0;
+  let finishedAfterFailure = 0;
+  let failed = false;
+  const env = await setup({
+    tesseract: async (req) => {
+      running++;
+      try {
+        if (req.args[0].endsWith("frame-0000.png")) {
+          throw new Error("tesseract crashed");
+        }
+        await new Promise((r) => setTimeout(r, 20));
+        if (failed) finishedAfterFailure++;
+        return { stdout: new TextEncoder().encode("") };
+      } finally {
+        running--;
+        if (req.args[0].endsWith("frame-0000.png")) failed = true;
+      }
+    },
+  });
+  try {
+    await assertRejects(() => analyzed(env), Error, "tesseract crashed");
+    // nothing of the failed batch was still running when the frames went
+    assertEquals(running, 0);
+    assert(finishedAfterFailure > 0);
+    assertEquals(await framesDirs(env.dir), []);
+  } finally {
+    await teardown(env);
+  }
+});
+
+Deno.test("screen: frames are sampled into a folder of the run's own", async () => {
+  const env = await setup();
+  try {
+    await analyzed(env);
+    const frame = env.calls.find((c) =>
+      c.args.includes("-frames:v") && c.args.includes("-ss")
+    )!;
+    assertMatch(
+      frame.args[frame.args.length - 1],
+      /take\.video\/frames-[^/]+\/frame-0000\.png$/,
+    );
+  } finally {
+    await teardown(env);
+  }
+});
+
+Deno.test("screen: raw frames an earlier version left behind are deleted", async () => {
+  const env = await setup();
+  try {
+    await Deno.mkdir(`${env.dir}/take.video/frames`, { recursive: true });
+    await Deno.writeTextFile(
+      `${env.dir}/take.video/frames/frame-0000.png`,
+      "raw",
+    );
+    await analyzed(env);
+    assertEquals(await framesDirs(env.dir), []);
   } finally {
     await teardown(env);
   }

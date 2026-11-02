@@ -31,15 +31,17 @@ import {
   resolvePath,
   type VideoContext,
 } from "./_lib/context.ts";
-import { drawTitleCard, resolveCards } from "./_lib/cards.ts";
+import { CrossfadeSeconds, drawTitleCard, resolveCards } from "./_lib/cards.ts";
 import { coldOpenAt, type Item, type Span } from "./_lib/edit_list.ts";
 import { run } from "./_lib/exec.ts";
 import {
   buildGraph,
+  checkOpening,
   type Encoder,
   encoderArgs,
   encoderGlobals,
   measureArgs,
+  measureFilter,
   opening,
   parseLoudness,
   type RenderPlan,
@@ -48,6 +50,7 @@ import { ensureWorkDir, probe, takeOf } from "./_lib/media.ts";
 import type { Redaction } from "./_lib/screen.ts";
 import { buildSrt } from "./_lib/srt.ts";
 import { MediaSettingsSchema } from "./media.ts";
+import { ScreenSchema } from "./screen.ts";
 
 const GlobalArgs = z.object({
   ffmpeg: z.string().default("ffmpeg"),
@@ -62,6 +65,8 @@ const CardSchema = z.object({
   seconds: z.number().positive(),
 });
 
+const FadingCardSchema = CardSchema.extend({ seconds: CrossfadeSeconds });
+
 const CardsArgs = z.object({
   mode: z.enum(["simple", "none", "custom", "brand"]).default("simple")
     .describe(
@@ -73,8 +78,8 @@ const CardsArgs = z.object({
   from: z.string().optional().describe(
     "custom/brand: the instance whose cards resource to use",
   ),
-  intro: CardSchema.optional(),
-  outro: CardSchema.optional(),
+  intro: FadingCardSchema.optional(),
+  outro: FadingCardSchema.optional(),
   lowerThird: CardSchema.extend({ at: z.number().min(0) }).optional(),
   fastForwardBadge: z.object({ path: z.string() }).optional(),
 });
@@ -190,7 +195,20 @@ export const model = {
                 `method, or pass pixelate=false to render without hiding credentials`,
             );
           }
-          redactions = screen.redactions as Redaction[];
+          const parsed = ScreenSchema.shape.redactions.safeParse(
+            screen.redactions,
+          );
+          if (!parsed.success) {
+            throw new Error(
+              `the screen analysis for ${take.name} on ${args.screen} has ` +
+                `malformed redactions: ` +
+                parsed.error.issues.map((i) =>
+                  `${i.path.join(".")}: ${i.message}`
+                ).join("; ") +
+                `; run its analyze method again`,
+            );
+          }
+          redactions = parsed.data;
         }
 
         const cardsInput = {
@@ -242,6 +260,7 @@ export const model = {
             );
           }
         }
+        checkOpening(cards, hook, media.coldOpenTransition);
         const open = opening(cards, hook, media.coldOpenTransition);
 
         // Burned captions go on the take before the intro; the soft ones
@@ -292,12 +311,24 @@ export const model = {
         };
         if (args.twoPassLoudness) {
           ctx.logger.info("measuring loudness");
-          const measured = await run({
-            bin: g.ffmpeg,
-            args: measureArgs(plan),
-            signal: ctx.signal,
+          // Its own file per render, so two renders of one take can't swap
+          // scripts; it goes once measured.
+          const script = await Deno.makeTempFile({
+            dir: take.workDir,
+            prefix: "measure-",
+            suffix: ".txt",
           });
-          plan.measured = parseLoudness(measured.stderr);
+          try {
+            await Deno.writeTextFile(script, measureFilter(plan));
+            const measured = await run({
+              bin: g.ffmpeg,
+              args: measureArgs(plan, script),
+              signal: ctx.signal,
+            });
+            plan.measured = parseLoudness(measured.stderr);
+          } finally {
+            await Deno.remove(script).catch(() => {});
+          }
         }
 
         const built = buildGraph(plan);
