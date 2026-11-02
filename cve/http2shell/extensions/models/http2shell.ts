@@ -300,7 +300,7 @@ function containerOf(t: Transport): string | undefined {
  */
 export const model = {
   type: "@swamp/cve/http2shell",
-  version: "2026.11.02.1",
+  version: "2026.11.02.2",
   upgrades: [
     {
       toVersion: "2026.10.25.1",
@@ -312,6 +312,12 @@ export const model = {
       toVersion: "2026.11.02.1",
       description:
         "Tracker refresh: adds Ubuntu brotli, nodejs and .NET status and updates Debian and Amazon Linux. Existing arguments are unchanged.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.02.2",
+      description:
+        "Third-party brotli builds rate check-vendor, and a fix the host cannot reach is a stopgap that mitigate does not upgrade or restart for. Existing arguments are unchanged.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

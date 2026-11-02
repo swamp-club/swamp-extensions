@@ -118,18 +118,29 @@ export type TrackerEntry = {
   reference: string;
   /** Only an installed version matching this is the vendor's own build. */
   build?: RegExp;
+  /** What must change on the host before the fixed build can be installed. */
+  prerequisite?: string;
 };
 
 /** NodeSource's and Microsoft's packages share these names but not this mark. */
 const UBUNTU_BUILD = /ubuntu/;
 
+/**
+ * Ubuntu's own fixed brotli builds carry the mark straight after the Debian
+ * revision. A third party's +ubuntu24.04.1 suffix does not, and Ubuntu's stock
+ * builds (build2) sit below the fix, where this is not consulted.
+ */
+const UBUNTU_BROTLI_BUILD = /-[0-9.]+ubuntu/;
+
 const UBUNTU_USN = "Ubuntu USN-8956-1";
 const UBUNTU_ESM = "Ubuntu USN-8956-2, which needs Ubuntu Pro (ESM)";
+const UBUNTU_PRO = "Ubuntu Pro must be attached to install it";
 
 function ubuntuBrotli(
   release: string,
   version: string,
   reference: string,
+  prerequisite?: string,
 ): TrackerEntry {
   return {
     distro: "ubuntu",
@@ -138,6 +149,8 @@ function ubuntuBrotli(
     status: "fixed",
     version,
     reference,
+    build: UBUNTU_BROTLI_BUILD,
+    prerequisite,
   };
 }
 
@@ -154,6 +167,7 @@ export const LIBBROTLI_TRACKER: TrackerEntry[] = [
     status: "fixed",
     version: "1.0.9-2+deb12u1",
     reference: "Debian security tracker, bookworm-security",
+    build: /\+deb12u/,
   },
   {
     distro: "debian",
@@ -162,6 +176,7 @@ export const LIBBROTLI_TRACKER: TrackerEntry[] = [
     status: "fixed",
     version: "1.1.0-2+deb13u1",
     reference: "Debian security tracker, trixie-security",
+    build: /\+deb13u/,
   },
   {
     distro: "debian",
@@ -172,6 +187,8 @@ export const LIBBROTLI_TRACKER: TrackerEntry[] = [
     status: "fixed",
     version: "1.2.0-4.1",
     reference: "Debian security tracker, sid",
+    prerequisite:
+      "the fix is in sid and has not reached forky (sid reports the forky codename, so a sid host may only need fresher package lists)",
   },
   {
     distro: "amzn",
@@ -181,9 +198,14 @@ export const LIBBROTLI_TRACKER: TrackerEntry[] = [
     version: "1.1.0-1.amzn2023.0.2",
     reference: "Amazon Linux security center, ALAS2023-2026-3334",
   },
-  ubuntuBrotli("16.04|xenial", "1.0.3-1ubuntu1~16.04.2+esm1", UBUNTU_ESM),
-  ubuntuBrotli("18.04|bionic", "1.0.3-1ubuntu1.3+esm1", UBUNTU_ESM),
-  ubuntuBrotli("20.04|focal", "1.0.7-6ubuntu0.1+esm1", UBUNTU_ESM),
+  ubuntuBrotli(
+    "16.04|xenial",
+    "1.0.3-1ubuntu1~16.04.2+esm1",
+    UBUNTU_ESM,
+    UBUNTU_PRO,
+  ),
+  ubuntuBrotli("18.04|bionic", "1.0.3-1ubuntu1.3+esm1", UBUNTU_ESM, UBUNTU_PRO),
+  ubuntuBrotli("20.04|focal", "1.0.7-6ubuntu0.1+esm1", UBUNTU_ESM, UBUNTU_PRO),
   ubuntuBrotli("22.04|jammy", "1.0.9-2ubuntu0.1", UBUNTU_USN),
   ubuntuBrotli("24.04|noble", "1.1.0-2ubuntu0.1", UBUNTU_USN),
   ubuntuBrotli("26.04|resolute", "1.2.0-3ubuntu0.1", UBUNTU_USN),

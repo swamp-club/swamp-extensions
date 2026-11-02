@@ -3,7 +3,7 @@ import {
   assertEquals,
   assertStringIncludes,
 } from "jsr:@std/assert@1.0.19";
-import { analyze, parseProbe } from "./analysis.ts";
+import { analyze, isForeignBuild, parseProbe } from "./analysis.ts";
 import {
   allowedSteps,
   type FileWriter,
@@ -811,4 +811,182 @@ Deno.test("mitigate does not upgrade an Ubuntu .NET package it rates vulnerable"
   assert(install.argv.includes("libbrotli1"));
   assert(!install.argv.some((a) => a.startsWith("dotnet")));
   assert(p.notes.some((n) => n.includes("8.0.33-0ubuntu1~24.04.1")));
+});
+
+function hostLines(id: string, versionId: string, codename: string): string[] {
+  return [
+    "HOSTNAME|host1",
+    "UID|0",
+    "KERNEL|Linux",
+    `OS|ID=${id}`,
+    ...(versionId ? [`OS|VERSION_ID=${versionId}`] : []),
+    `OS|VERSION_CODENAME=${codename}`,
+    "TOOL|apt-get|/usr/bin/apt-get",
+    "TOOL|systemctl|/usr/bin/systemctl",
+    "PROCSCOPE|all",
+  ];
+}
+
+const LOADED_API = [
+  "LOADED|501|node|api.service|/usr/lib/x86_64-linux-gnu/libbrotlidec.so.1|1001",
+  "UNIT|api.service|501|1001",
+];
+
+Deno.test("mitigate leaves a fix the host cannot reach alone: no upgrade, no restart (swamp-club #4273)", () => {
+  for (
+    const lines of [
+      [...hostLines("debian", "", "forky"), "PKG|dpkg|libbrotli1|1.2.0-4"],
+      [
+        ...hostLines("ubuntu", "20.04", "focal"),
+        "PKG|dpkg|libbrotli1|1.0.7-6ubuntu0.1",
+      ],
+    ]
+  ) {
+    const p = plan([...lines, ...LOADED_API, "END|1"].join("\n"));
+    assertEquals(p.steps, []);
+    assert(p.notes.some((n) => n.startsWith("libbrotli1: not upgraded")));
+  }
+});
+
+Deno.test("mitigate upgrades a Pro host whose fix is pending, then restarts (swamp-club #4273)", () => {
+  const p = plan([
+    ...hostLines("ubuntu", "20.04", "focal"),
+    "PKG|dpkg|libbrotli1|1.0.7-6ubuntu0.1",
+    "PENDING|dpkg|libbrotli1|1.0.7-6ubuntu0.1+esm1",
+    ...LOADED_API,
+    "END|1",
+  ].join("\n"));
+  assert(p.steps.some((s) => s.argv.includes("--only-upgrade")));
+  assertEquals(p.steps.filter((s) => s.phase === "restart").length, 1);
+});
+
+Deno.test("A unit already running the old library still restarts on a stopgap host (swamp-club #4273)", () => {
+  const p = plan([
+    ...hostLines("debian", "", "forky"),
+    "PKG|dpkg|libbrotli1|1.2.0-4",
+    "MAPS|501|node|api.service|/usr/lib/x86_64-linux-gnu/libbrotlidec.so.1|1001",
+    "UNIT|api.service|501|1001",
+    "END|1",
+  ].join("\n"));
+  assertEquals(p.steps.map((s) => s.phase), ["restart"]);
+});
+
+Deno.test("mitigate does not upgrade focal nodejs, which has no fix (swamp-club #4273)", () => {
+  const p = plan([
+    ...hostLines("ubuntu", "20.04", "focal"),
+    "PKG|dpkg|nodejs|10.19.0~dfsg-3ubuntu1",
+    "NODE|/usr/bin/node|nodejs|v10.19.0 1.0.7|",
+    ...LOADED_API,
+    "END|1",
+  ].join("\n"));
+  assertEquals(p.steps, []);
+  assert(p.notes.some((n) => n.startsWith("nodejs: not upgraded")));
+});
+
+Deno.test("A stopgap host with nothing to run reports no-automatic-fix (swamp-club #4273)", async () => {
+  const text = [
+    ...hostLines("debian", "", "forky"),
+    "PKG|dpkg|libbrotli1|1.2.0-4",
+    ...LOADED_API,
+    "END|1",
+  ].join("\n");
+  const s = sequence([text]);
+  const r = await mitigateTarget(s.run, null, "host1", {
+    ...OPTS,
+    dryRun: false,
+  }, nullLog);
+  assertEquals(r.mitigation.outcome, "no-automatic-fix");
+  assertEquals(s.ran, []);
+});
+
+Deno.test("mitigate leaves a third-party library alone unless an update is listed (swamp-club #4273)", async () => {
+  const lines = [
+    ...hostLines("ubuntu", "24.04", "noble"),
+    "PKG|dpkg|libbrotli1|1.1.0-2+ubuntu24.04.1+ppa1+1",
+    "PKG|dpkg|nodejs|18.19.1+dfsg-6ubuntu5",
+    "NODE|/usr/bin/node|nodejs|v18.19.1 1.1.0|/lib/x86_64-linux-gnu/libbrotlidec.so.1",
+    ...LOADED_API,
+  ];
+  const text = [...lines, "END|1"].join("\n");
+  const p = plan(text);
+  assertEquals(p.steps, []);
+  assert(p.notes.some((n) => n.startsWith("libbrotli1: not upgraded")));
+  const s = sequence([text]);
+  const r = await mitigateTarget(s.run, null, "host1", {
+    ...OPTS,
+    dryRun: false,
+  }, nullLog);
+  assertEquals(r.mitigation.outcome, "no-automatic-fix");
+  assertEquals(s.ran, []);
+  // The package's own repository offers a newer build: that is still taken.
+  const update = plan(
+    [...lines, "PENDING|dpkg|libbrotli1|1.1.0-2+ubuntu24.04.1+ppa1+2", "END|1"]
+      .join("\n"),
+  );
+  assert(update.steps.some((x) => x.argv.includes("--only-upgrade")));
+});
+
+Deno.test("A distro build no tracker covers still upgrades (swamp-club #4273)", () => {
+  const p = plan([
+    "HOSTNAME|host1",
+    "UID|0",
+    "KERNEL|Linux",
+    "OS|ID=fedora",
+    "OS|VERSION_ID=44",
+    "TOOL|dnf|/usr/bin/dnf",
+    "PKG|rpm|brotli|1.1.0-1.fc44",
+    "END|1",
+  ].join("\n"));
+  assert(p.steps.some((x) => x.argv.includes("upgrade")));
+});
+
+Deno.test("A restart on a stopgap host does not claim to load a fix (swamp-club #4273)", () => {
+  const p = plan([
+    ...hostLines("debian", "", "forky"),
+    "PKG|dpkg|libbrotli1|1.2.0-4",
+    "MAPS|501|node|api.service|/usr/lib/x86_64-linux-gnu/libbrotlidec.so.1|1001",
+    "UNIT|api.service|501|1001",
+    "END|1",
+  ].join("\n"));
+  assertStringIncludes(
+    p.steps[0].purpose,
+    "stops running the replaced library",
+  );
+});
+
+Deno.test("A hand-installed node on a third-party library does not trigger the upgrade (swamp-club #4273)", () => {
+  const p = plan([
+    ...hostLines("ubuntu", "24.04", "noble"),
+    "PKG|dpkg|libbrotli1|1.1.0-2+ubuntu24.04.1+ppa1+1",
+    "NODE|/usr/local/bin/node||v24.22.0 1.1.0|/lib/x86_64-linux-gnu/libbrotlidec.so.1",
+    ...LOADED_API,
+    "END|1",
+  ].join("\n"));
+  assertEquals(p.steps, []);
+});
+
+Deno.test("An upstream-fixed library without the vendor's mark is not held back (swamp-club #4273)", () => {
+  const facts = parseProbe(
+    [
+      ...hostLines("ubuntu", "24.04", "noble"),
+      "PKG|dpkg|libbrotli1|1.2.1-1",
+      "END|1",
+    ].join("\n"),
+  );
+  assert(!isForeignBuild(facts.packages[0], facts.os));
+});
+
+Deno.test("A restart on a third-party library host does not claim to load a fix (swamp-club #4273)", () => {
+  const p = plan([
+    ...hostLines("ubuntu", "24.04", "noble"),
+    "PKG|dpkg|libbrotli1|1.1.0-3",
+    "MAPS|501|node|api.service|/usr/lib/x86_64-linux-gnu/libbrotlidec.so.1|1001",
+    "UNIT|api.service|501|1001",
+    "END|1",
+  ].join("\n"));
+  assertEquals(p.steps.map((s) => s.phase), ["restart"]);
+  assertStringIncludes(
+    p.steps[0].purpose,
+    "stops running the replaced library",
+  );
 });

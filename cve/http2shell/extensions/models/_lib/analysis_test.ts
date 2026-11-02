@@ -723,3 +723,139 @@ Deno.test("MAPS and LOADED carry the process uid; the first UNIT line for a unit
     { name: "w.service", mainPid: null, uid: null },
   ]);
 });
+
+const DEBIAN13 = [
+  "OS|ID=debian",
+  "OS|VERSION_ID=13",
+  "OS|VERSION_CODENAME=trixie",
+  "TOOL|apt-get|/usr/bin/apt-get",
+];
+
+Deno.test("A third-party libbrotli1 above the tracker's fix is check-vendor, not patched (swamp-club #4273)", () => {
+  const noble = ubuntu("24.04", "noble");
+  for (
+    const [os, version, fixed] of [
+      [noble, "1.1.0-2+ubuntu24.04.1+ppa1+1", "1.1.0-2ubuntu0.1"],
+      [noble, "1.1.0-3", "1.1.0-2ubuntu0.1"],
+      [DEBIAN12, "1.0.9-3+0~20240101+debian12~1.gbpabc", "1.0.9-2+deb12u1"],
+      [DEBIAN13, "1.1.0-3+0~20240101+debian13~1.gbpabc", "1.1.0-2+deb13u1"],
+    ] as [string[], string, string][]
+  ) {
+    const s = scan(probe(...os, `PKG|dpkg|libbrotli1|${version}`));
+    const lib = only(s, "libbrotli");
+    assertEquals(lib.verdict, "check-vendor", version);
+    assertEquals(lib.action, "check-vendor", version);
+    assertEquals(lib.fixedVersion, fixed, version);
+    assert(s.riskLevel !== "none", version);
+    const binding = scan(probe(...os, `PKG|dpkg|python3-brotli|${version}`));
+    assertEquals(only(binding, "python").verdict, "check-vendor", version);
+  }
+  // A pending update is still offered.
+  const update = scan(probe(
+    ...noble,
+    "PKG|dpkg|libbrotli1|1.1.0-3",
+    "PENDING|dpkg|libbrotli1|1.1.0-4",
+  ));
+  assertEquals(only(update, "libbrotli").action, "upgrade");
+  // What follows the library does not inherit a false patched.
+  const node = scan(probe(
+    ...noble,
+    "PKG|dpkg|libbrotli1|1.1.0-2+ubuntu24.04.1+ppa1+1",
+    "PKG|dpkg|nodejs|18.19.1+dfsg-6ubuntu5",
+    "NODE|/usr/bin/node|nodejs|v18.19.1 1.1.0|/lib/x86_64-linux-gnu/libbrotlidec.so.1",
+  ));
+  assertEquals(only(node, "node").verdict, "check-vendor");
+});
+
+Deno.test("The vendors' own later builds still rate patched (swamp-club #4273)", () => {
+  for (
+    const [os, version] of [
+      [ubuntu("24.04", "noble"), "1.1.0-2ubuntu0.2"],
+      [ubuntu("24.04", "noble"), "1.1.0-2ubuntu0.1build1"],
+      [ubuntu("20.04", "focal"), "1.0.7-6ubuntu0.1+esm2"],
+      [DEBIAN12, "1.0.9-2+deb12u2"],
+      [DEBIAN13, "1.1.0-2+deb13u1"],
+    ] as [string[], string][]
+  ) {
+    const s = scan(probe(...os, `PKG|dpkg|libbrotli1|${version}`));
+    assertEquals(only(s, "libbrotli").verdict, "patched", version);
+  }
+});
+
+Deno.test("A fix the host cannot reach is a stopgap that names what it needs (swamp-club #4273)", () => {
+  const forky = ["OS|ID=debian", "OS|VERSION_CODENAME=forky"];
+  for (
+    const [os, version, needs] of [
+      [forky, "1.2.0-4", "has not reached forky"],
+      [ubuntu("20.04", "focal"), "1.0.7-6ubuntu0.1", "Ubuntu Pro"],
+      [ubuntu("18.04", "bionic"), "1.0.3-1ubuntu1.3", "Ubuntu Pro"],
+      [ubuntu("16.04", "xenial"), "1.0.3-1ubuntu1~16.04.1", "Ubuntu Pro"],
+    ] as [string[], string, string][]
+  ) {
+    const s = scan(probe(...os, `PKG|dpkg|libbrotli1|${version}`));
+    const lib = only(s, "libbrotli");
+    assertEquals(lib.verdict, "vulnerable", version);
+    assertEquals(lib.action, "stopgap", version);
+    assertStringIncludes(lib.note, needs);
+    assertStringIncludes(lib.note, "refresh the package lists and scan again");
+    assert(
+      s.recommendations.some((r) => r.includes("libbrotli1")),
+      `a recommendation for ${version}`,
+    );
+    assert(!s.actions.includes("upgrade"), version);
+  }
+});
+
+Deno.test("An attached Ubuntu Pro host shows the fix as pending, so it upgrades (swamp-club #4273)", () => {
+  const s = scan(probe(
+    ...ubuntu("20.04", "focal"),
+    "PKG|dpkg|libbrotli1|1.0.7-6ubuntu0.1",
+    "PENDING|dpkg|libbrotli1|1.0.7-6ubuntu0.1+esm1",
+  ));
+  assertEquals(only(s, "libbrotli").verdict, "update-available");
+  assertEquals(only(s, "libbrotli").action, "upgrade");
+  // An update that stops short of the fix does not count.
+  const short = scan(probe(
+    "OS|ID=debian",
+    "OS|VERSION_CODENAME=forky",
+    "PKG|dpkg|libbrotli1|1.2.0-3",
+    "PENDING|dpkg|libbrotli1|1.2.0-4",
+  ));
+  assertEquals(only(short, "libbrotli").action, "stopgap");
+});
+
+Deno.test("A release with no prerequisite upgrades even with no update listed yet (swamp-club #4273)", () => {
+  const s = scan(probe(...DEBIAN12, "PKG|dpkg|libbrotli1|1.0.9-2"));
+  assertEquals(only(s, "libbrotli").action, "upgrade");
+});
+
+Deno.test("A vulnerable Ubuntu .NET package and focal nodejs have recommendations (swamp-club #4273)", () => {
+  const dotnet = scan(probe(
+    ...ubuntu("24.04", "noble"),
+    "PKG|dpkg|dotnet-runtime-8.0|8.0.20-0ubuntu1~24.04.1",
+    "DOTNET|/usr/lib/dotnet/shared/Microsoft.NETCore.App/8.0.20|8.0.20|dotnet-runtime-8.0|",
+  ));
+  assert(
+    dotnet.recommendations.some((r) =>
+      r.includes("dotnet-runtime-8.0") && r.includes("8.0.33-0ubuntu1~24.04.1")
+    ),
+  );
+  const node = scan(probe(
+    ...ubuntu("20.04", "focal"),
+    "PKG|dpkg|nodejs|10.19.0~dfsg-3ubuntu1",
+    "NODE|/usr/bin/node|nodejs|v10.19.0 1.0.7|",
+  ));
+  assert(node.recommendations.some((r) => r.includes("nodejs")));
+  // In a container the image is rebuilt; packages are not named one by one.
+  const inImage = scan(
+    probe(
+      ...ubuntu("24.04", "noble"),
+      "PKG|dpkg|dotnet-runtime-8.0|8.0.20-0ubuntu1~24.04.1",
+      "DOTNET|/usr/lib/dotnet/shared/Microsoft.NETCore.App/8.0.20|8.0.20|dotnet-runtime-8.0|",
+    ),
+    true,
+  );
+  assert(
+    !inImage.recommendations.some((r) => r.includes("dotnet-runtime-8.0")),
+  );
+});

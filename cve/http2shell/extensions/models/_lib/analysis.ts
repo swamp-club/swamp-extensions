@@ -647,6 +647,23 @@ function releaseMatches(release: string, os: ProbeFacts["os"]): boolean {
     ids.includes(os.codename));
 }
 
+function libraryEntry(pkg: Pkg, os: ProbeFacts["os"]) {
+  return LIBBROTLI_TRACKER.find((e) =>
+    e.distro === os.id && releaseMatches(e.release, os) &&
+    e.packages.test(pkg.name)
+  );
+}
+
+/** Upstream-affected and at or above the tracker's fix, but not the vendor's own build. */
+export function isForeignBuild(pkg: Pkg, os: ProbeFacts["os"]): boolean {
+  const upstream = judgeBrotli(upstreamOf(pkg.manager, pkg.version)).verdict;
+  if (upstream === "patched" || upstream === "not-affected") return false;
+  const entry = libraryEntry(pkg, os);
+  return entry?.status === "fixed" && !!entry.version && !!entry.build &&
+    !entry.build.test(pkg.version) &&
+    comparePackageVersions(pkg.manager, pkg.version, entry.version) >= 0;
+}
+
 /**
  * A distro build of the brotli library (or of the Python binding built from
  * the same source package): the tracker decides, then the upstream version,
@@ -671,12 +688,20 @@ export function judgeDistroBrotli(
     p.manager === pkg.manager && p.name === pkg.name &&
     comparePackageVersions(pkg.manager, p.version, pkg.version) > 0
   );
-  const entry = LIBBROTLI_TRACKER.find((e) =>
-    e.distro === os.id && releaseMatches(e.release, os) &&
-    e.packages.test(pkg.name)
-  );
+  const entry = libraryEntry(pkg, os);
   if (entry?.status === "fixed" && entry.version) {
     if (comparePackageVersions(pkg.manager, pkg.version, entry.version) >= 0) {
+      if (isForeignBuild(pkg, os)) {
+        return {
+          verdict: "check-vendor",
+          action: update ? "upgrade" : "check-vendor",
+          fixedVersion: entry.version,
+          note:
+            `${pkg.name} ${pkg.version} sorts above the fixed ${entry.version} but is not the vendor's own build, so ${entry.reference} does not cover it; check who built it.${
+              update ? ` ${update.version} is available to install.` : ""
+            }`,
+        };
+      }
       return {
         verdict: "patched",
         action: "none",
@@ -686,6 +711,15 @@ export function judgeDistroBrotli(
     }
     const ready = update &&
       comparePackageVersions(pkg.manager, update.version, entry.version) >= 0;
+    if (!ready && entry.prerequisite) {
+      return {
+        verdict: "vulnerable",
+        action: "stopgap",
+        fixedVersion: entry.version,
+        note:
+          `${pkg.name} ${pkg.version} is affected; ${entry.version} is fixed (${entry.reference}), but no update here reaches it: ${entry.prerequisite}. Block Brotli from untrusted peers; once that changes, refresh the package lists and scan again.`,
+      };
+    }
     return {
       verdict: ready ? "update-available" : "vulnerable",
       action: "upgrade",
@@ -1536,6 +1570,36 @@ function recommend(
     if (by("envoy").length > 0 || by("istio").length > 0) {
       out.push(
         "Upgrade Envoy (1.37.8, 1.38.6, 1.39.3, 1.40.0) or Istio (1.29.9, 1.30.6, 1.31.2) and roll the proxies.",
+      );
+    }
+  }
+  if (!inContainer) {
+    const dotnet = by("dotnet").filter((f) =>
+      f.source === "distro" && !f.linksSystemBrotli && f.fixedVersion
+    );
+    if (dotnet.length > 0) {
+      out.push(
+        `Upgrade ${
+          [
+            ...new Set(
+              dotnet.map((f) => `${f.packageName} to ${f.fixedVersion}`),
+            ),
+          ]
+            .join(", ")
+        } with the package manager, then restart its services; mitigate does not change .NET packages.`,
+      );
+    }
+    const blocked = by("libbrotli").concat(
+      by("python"),
+      by("node"),
+      by("curl"),
+      by("dotnet").filter((f) => f.linksSystemBrotli),
+    ).filter((f) => f.action === "stopgap" && f.source === "distro");
+    if (blocked.length > 0) {
+      out.push(
+        `No update here fixes ${
+          [...new Set(blocked.map((f) => f.packageName ?? f.name))].join(", ")
+        }: each finding's note says why. Use the stopgaps below until one can be installed.`,
       );
     }
   }

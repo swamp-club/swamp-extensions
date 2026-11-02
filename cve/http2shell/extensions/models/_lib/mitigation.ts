@@ -22,7 +22,12 @@
  * @module
  */
 
-import { AFFECTED, type ProbeFacts, UNCERTAIN } from "./analysis.ts";
+import {
+  AFFECTED,
+  isForeignBuild,
+  type ProbeFacts,
+  UNCERTAIN,
+} from "./analysis.ts";
 import { PYTHON_FIXED } from "./advisory.ts";
 import { psQuote } from "./probe_windows.ts";
 import { shQuote, TRUSTED_SH } from "./probe_sh.ts";
@@ -241,8 +246,22 @@ export function planMitigation(
 
   // Package upgrade: every installed brotli library or binding package, and
   // distro Node.js whose own build is affected, when anything needs it. A
-  // fixed library that is only still mapped needs a restart, not an upgrade.
-  const upgradable = pending.filter((f) => f.verdict !== "restart-required");
+  // fixed library that is only still mapped needs a restart, not an upgrade,
+  // and a stopgap has no update that would fix it.
+  // A third party's library above the fix: only its own repository can move
+  // it, so with no update listed there is nothing for the upgrade to install.
+  const foreignLibrary = facts.packages.some((p) =>
+    LIB_PACKAGE.test(p.name) && isForeignBuild(p, facts.os)
+  );
+  const usesLibrary = (f: Finding) =>
+    f.kind === "libbrotli" || (f.kind === "python" && f.source === "distro") ||
+    f.linksSystemBrotli === true;
+  const heldBack = (f: Finding) =>
+    f.action === "stopgap" ||
+    (foreignLibrary && f.action === "check-vendor" && usesLibrary(f));
+  const upgradable = pending.filter((f) =>
+    f.verdict !== "restart-required" && !heldBack(f)
+  );
   const distroNode = upgradable.filter((f) =>
     f.kind === "node" && f.source === "distro" && f.packageName &&
     !f.linksSystemBrotli
@@ -317,6 +336,15 @@ export function planMitigation(
         }; upgrade them by hand.`,
       );
     }
+  }
+
+  for (
+    const f of pending.filter((f) =>
+      heldBack(f) && (usesLibrary(f) ||
+        (f.kind === "node" && f.source === "distro"))
+    )
+  ) {
+    notes.push(`${f.packageName ?? f.name}: not upgraded. ${f.note}`);
   }
 
   // pip-installed Brotli and brotlicffi.
@@ -481,7 +509,9 @@ export function planMitigation(
           phase: "restart",
           argv: ["systemctl", "restart", "--", unit],
           privileged: true,
-          purpose: `Restart ${unit} so it loads the fixed Brotli`,
+          purpose: pending.some(heldBack)
+            ? `Restart ${unit} so it stops running the replaced library`
+            : `Restart ${unit} so it loads the fixed Brotli`,
           unit,
           stale: stale.includes(unit),
         });

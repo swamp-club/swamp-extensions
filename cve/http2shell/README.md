@@ -68,11 +68,26 @@ the builds a security tracker listed as of **2026-11-02 02:50 UTC**:
 | Ubuntu 24.04 (noble), 26.04 (resolute), 26.10 (stonking) | dotnet-runtime-10.0 | fixed in 10.0.14-0ubuntu1~<release>.1 | USN-8958-1 |
 | Ubuntu 26.10 (stonking) | dotnet-runtime-11.0 | fixed in 11.0.0~rc3-0ubuntu1~26.10.1 | USN-8958-1 |
 
-The Ubuntu `nodejs` and .NET rows apply only to Ubuntu's own builds. A package
-of the same name from elsewhere, such as NodeSource or Microsoft, is judged like
-any other build. `mitigate` does not upgrade distro .NET packages: an Ubuntu
-build below its fix is `vulnerable` with a stopgap, and the result names the
-build to install.
+The Ubuntu rows and the bookworm and trixie library rows apply only to the
+vendor's own builds. A library build at or above the fix without the vendor's
+mark (`ubuntu` after the revision, `+deb12u`, `+deb13u`) is `check-vendor`, so a
+third-party package or a Debian backport is never rated `patched` from these
+rows. Forky/sid and Amazon Linux builds are not checked for origin, and a
+third-party build that copies a vendor's version format cannot be told apart.
+A `nodejs` or .NET package of the same name from elsewhere, such as NodeSource
+or Microsoft, is judged like any other build.
+
+Forky, and Ubuntu 20.04 and older without Ubuntu Pro, have a fix they cannot
+install. Below the fix, with no pending update reaching it, they are `vulnerable`
+with a stopgap whose note names what is needed, and `mitigate` neither upgrades
+them nor, unless another package is upgraded, restarts services that merely
+have the library loaded. Ubuntu Pro hosts
+show the fix as a pending update once their package lists are fresh; if they are
+stale, refresh them and scan again. Focal `nodejs` has no fix, so it gets a stopgap
+and no upgrade too.
+
+`mitigate` does not upgrade distro .NET packages: an Ubuntu build below its fix
+is `vulnerable` with a stopgap, and the result names the build to install.
 
 A build at or below a "no fix yet" entry is `vulnerable`; a newer build that
 the snapshot does not know is `check-vendor`. Any other distro build below the
@@ -194,7 +209,8 @@ swamp on the host itself or scan from Linux or macOS.
 | `unknown` | The version could not be read |
 
 Each finding has an `action`: `upgrade`, `restart`, `rebuild-image`
-(containers), `update-pin` (lockfiles), `stopgap` (no fix yet), `check-vendor`
+(containers), `update-pin` (lockfiles), `stopgap` (no fix yet, or
+none this host can install), `check-vendor`
 or `none`, and an `exposure` list naming how untrusted Brotli reaches it.
 
 ## Risk levels
