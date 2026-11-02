@@ -173,12 +173,16 @@ export SWAMP_S3_REQUEST_TIMEOUT_MS=120000
   what its own prefix marks.
 - **Scoped sync**: The extension advertises `scopedSync` capability. When the
   framework passes `context.models`, pull and push operate only on the specified
-  models.
+  models. A model-scoped pull that misses the fast path lists and walks only the
+  entries it read for those models, including their `latest` markers from the
+  type's shard, so it never touches another model's files.
 - **Config refresh / subdir-scoped pull**: The extension advertises
   `configRefresh`. When the framework passes `subdirs` (e.g. `["config"]`), pull
   only lists, walks, prunes, and downloads index entries under those prefixes. A
   scoped pull does not advance the fast-path sidecar or clear lazy hydration, so
-  a later full pull still picks up out-of-scope changes.
+  a later full pull still picks up out-of-scope changes. It keeps a file at or
+  under a path with a dirty mark, so a poll cannot undo a write whose push has
+  not run yet. A bulk mark names no path, so it protects nothing here.
 - **Namespace-scoped sync**: When `options.namespace` is set, index operations
   are scoped to `{namespace}/.datastore-index.json` and data walks are
   restricted to the namespace subtree. The pull's bulk-diff listing is scoped
@@ -459,12 +463,19 @@ The `markDirty` method now accepts an optional `relPath` parameter for per-path
 tracking. When `relPath` is provided, only that directory is walked on the next
 push. Without `relPath`, the entire cache is walked (bulk invalidation).
 
-A pull never marks the cache clean. A pull still replaces a changed file with
-the bucket's copy when they differ, but the cache stays marked dirty until a
-push succeeds. A retry that writes the change again and calls `markDirty` (which
-re-marks a path still listed from the failed push) therefore pushes it instead
-of taking the zero-diff fast path. The cost is one slow-path push after such a
-pull, even when nothing is left to send.
+A pull never marks the cache clean. An unscoped pull, and a model-scoped pull
+for that model's own files, still replace a changed file with the bucket's copy
+when they differ, but the cache stays marked dirty until a push succeeds. A
+retry that writes the change again and calls `markDirty` (which re-marks a path
+still listed from the failed push) therefore pushes it instead of taking the
+zero-diff fast path. The cost is one slow-path push after such a pull, even when
+nothing is left to send.
+
+Pushes that overlap on one service do not cost the pull fast path: a commit this
+service made itself is not treated as another writer's, so the sidecar stays
+with the remote. A real commit by another writer still takes the slow path, and
+a model-scoped or subdir-scoped pull cannot re-arm it, because neither has read
+the whole index. Only a full pull does.
 
 A push clears only the marks it handled. It takes a snapshot of the dirty marks
 before it reads anything, and clears a mark only when nobody marked that path
@@ -508,10 +519,11 @@ dirty path (a data name's `latest` sits in the type shard and its version files
 in the model shard), so it merges its delta into the on-disk
 `.datastore-index.json` rather than replacing it — the shards it did not walk
 stay in the index. When the sidecar was already at the `commitSeq` the push
-read, the push also re-arms the pull fast path: nobody else committed in
-between, so this process wrote the only delta and the cache is still complete. A
-process that writes often (heartbeats, locks, catalog exports) therefore keeps
-its own fast path armed instead of disarming it on every write.
+read, or every commit since was this service's own, the push also re-arms the
+pull fast path: nobody else committed in between, so this process wrote the only
+delta and the cache is still complete. A process that writes often (heartbeats,
+locks, catalog exports) therefore keeps its own fast path armed instead of
+disarming it on every write.
 
 A push with nothing to send records the remote `commitSeq` only after it has
 read the whole index. After a model-scoped pull (which reads only those models'

@@ -293,20 +293,27 @@ The cache sync service maintains a local cache directory and syncs with GCS:
   data name's `latest` sits in the type shard and its version files in the model
   shard), so it merges its delta into the on-disk `.datastore-index.json` rather
   than replacing it, and it re-arms the pull fast path when the sidecar was
-  already at the `commitSeq` the push read — a process that writes often keeps
-  its own fast path armed instead of disarming it on every write. A push with
-  nothing to send records the remote `commitSeq` only after it has read the
+  already at the `commitSeq` the push read, or every commit since was this
+  service's own — a process that writes often, even with overlapping pushes,
+  keeps its own fast path armed instead of disarming it on every write. A real
+  commit by another writer still takes the slow path until a full pull. A push
+  with nothing to send records the remote `commitSeq` only after it has read the
   whole index; after a model-scoped pull it leaves the sidecar's `commitSeq` as
   it was, so the next full pull still fetches what other hosts committed.
 - **Scoped sync** — advertises `capabilities().scopedSync = true`. When core
   passes `context.models`, pull reads partition files for just those models,
-  avoiding the full monolithic index parse.
+  avoiding the full monolithic index parse. A model-scoped pull that misses the
+  fast path lists and walks only the entries it read for those models, including
+  their `latest` markers from the type's shard, so it never touches another
+  model's files.
 - **Config refresh / subdir-scoped pull** — advertises
   `capabilities().configRefresh = true`. When core passes `subdirs` (e.g.
   `["config"]`), pull only lists, walks, prunes, and downloads index entries
   under those prefixes. A scoped pull does not advance the fast-path sidecar or
   clear lazy hydration, so a later full pull still picks up out-of-scope
-  changes.
+  changes. It keeps a file at or under a path with a dirty mark, so a poll
+  cannot undo a write whose push has not run yet. A bulk mark names no path, so
+  it protects nothing here.
 - **Namespace-scoped sync** — when `options.namespace` is set, index operations
   scope to `{namespace}/.datastore-index.json` and data walks are restricted to
   the namespace subtree. The pull's bulk-diff listing is scoped the same way —
@@ -344,11 +351,12 @@ The cache sync service maintains a local cache directory and syncs with GCS:
   `atomicWriteFile`) MUST call `DatastoreSyncService.markDirty()` so the
   fast-path short-circuit knows to run a full walk on the next `pushChanged`.
   Without `markDirty`, the external write is silently skipped on the next sync.
-  A pull never marks the cache clean. It still replaces a changed file with the
-  bucket's copy when they differ, but the cache stays marked dirty until a push
-  succeeds, so a retry that writes the change again and calls `markDirty` pushes
-  it instead of taking the fast path. The cost is one slow-path push after such
-  a pull, even when nothing is left to send. A push clears only the marks it
+  A pull never marks the cache clean. An unscoped pull, and a model-scoped pull
+  for that model's own files, still replace a changed file with the bucket's
+  copy when they differ, but the cache stays marked dirty until a push succeeds,
+  so a retry that writes the change again and calls `markDirty` pushes it
+  instead of taking the fast path. The cost is one slow-path push after such a
+  pull, even when nothing is left to send. A push clears only the marks it
   handled: it takes a snapshot of the dirty marks before it reads anything, and
   clears a mark only when nobody marked that path (or the whole cache) again
   while it ran, so a write that lands during a push, from a parallel workflow
@@ -359,24 +367,23 @@ The cache sync service maintains a local cache directory and syncs with GCS:
   beside it. Only a marked path that is itself absent is deleted from the
   bucket. A whole-cache walk that cannot finish fails the push instead of
   reading what it did not visit as deleted. Atomic-write temp files
-  (`.<uuid>.tmp`) are never synced. A file a peer deletes stays
-  deleted. When a pull or push reads the bucket's index, a local file whose
-  entry was in the last-synced index but is gone from the bucket's is removed
-  from the cache, with any directories that leaves empty. Without this the file
-  would stay cached with no index entry, and the next push would upload it
-  again, undoing the peer's `swamp data gc`. Only a copy that is unchanged since
-  it was synced is removed: same size and a matching sha256, or for an entry
-  without one, this copy's own recorded mtime. A copy changed locally is kept,
-  and a later push that walks it uploads it. The saved index is updated only
-  after the removal, so an interrupted pull is finished by the next one. Nothing
-  is removed when the bucket's index is missing or lists no entries in scope,
-  since that reads the same as a wiped index. Files already orphaned by earlier
-  versions are not in the last-synced index, so they are not removed; run
-  `swamp data gc` once on that peer to clear them. An index entry whose object
-  is missing from the bucket is different: the pull drops the entry but keeps
-  the local copy, so a later push can upload it again, since the object may have
-  gone because of an expiry rule or a mistaken delete and the local copy may be
-  the last one.
+  (`.<uuid>.tmp`) are never synced. A file a peer deletes stays deleted. When a
+  pull or push reads the bucket's index, a local file whose entry was in the
+  last-synced index but is gone from the bucket's is removed from the cache,
+  with any directories that leaves empty. Without this the file would stay
+  cached with no index entry, and the next push would upload it again, undoing
+  the peer's `swamp data gc`. Only a copy that is unchanged since it was synced
+  is removed: same size and a matching sha256, or for an entry without one, this
+  copy's own recorded mtime. A copy changed locally is kept, and a later push
+  that walks it uploads it. The saved index is updated only after the removal,
+  so an interrupted pull is finished by the next one. Nothing is removed when
+  the bucket's index is missing or lists no entries in scope, since that reads
+  the same as a wiped index. Files already orphaned by earlier versions are not
+  in the last-synced index, so they are not removed; run `swamp data gc` once on
+  that peer to clear them. An index entry whose object is missing from the
+  bucket is different: the pull drops the entry but keeps the local copy, so a
+  later push can upload it again, since the object may have gone because of an
+  expiry rule or a mistaken delete and the local copy may be the last one.
 - **Tracing** — set `SWAMP_GCS_SYNC_TRACE=1` to emit coarse per-phase timing
   lines (`[gcs-sync] pullChanged.fastpath <ms> hit`,
   `[gcs-sync] pushChanged.walk <ms> toPush=<n>`, etc.). Off by default; useful

@@ -47,6 +47,7 @@ import {
   S3OperationError,
 } from "./s3_client.ts";
 import {
+  createS3EmulatorHandler,
   type S3EmulatorState,
   withS3Emulator,
 } from "./s3_emulator_test_util.ts";
@@ -14248,6 +14249,926 @@ Deno.test("swamp-club#4192: a very large root listing does not stop the migratio
     const service = new S3CacheSyncService(mock, cachePath);
     const rebuilt = await service.migrateMonolithToShards({ namespace: "ns" });
     assertEquals(rebuilt.partitions, ["data--t1--m1"]);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+// swamp-club#4102: one serve must not fall off the pull fast path, and then
+// invalidate its catalog, over its own overlapping pushes. These run against
+// the emulator because the compare-and-swap and the listing are what they test;
+// neither conformance helper covers arming or which entries a pull walks.
+
+const MODEL_A_4102 = { modelType: "@t/foo", modelId: "a" };
+const MODEL_B_4102 = { modelType: "@t/foo", modelId: "b" };
+const WORKER_4102 = "data/swamp/worker/w-1/state-main/latest";
+const version4102 = (id: string, v: number, file = "metadata.yaml") =>
+  `data/@t/foo/${id}/out/${v}/${file}`;
+const latest4102 = (id: string) => `data/@t/foo/${id}/out/latest`;
+
+interface Gate4102 {
+  s3: S3Client;
+  state: S3EmulatorState;
+  cachePath: string;
+  /**
+   * Holds the first request matching `method` and `key`, after `skip` others,
+   * until `release`. The emulator's own hooks are synchronous and cannot hold.
+   */
+  hold: (
+    method: string,
+    key: (key: string) => boolean,
+    skip?: number,
+  ) => { arrived: Promise<void>; release: () => void };
+  /** Another copy on the same bucket. */
+  peer: () => Promise<{ service: S3CacheSyncService; cachePath: string }>;
+}
+
+async function withGate4102(fn: (g: Gate4102) => Promise<void>): Promise<void> {
+  const { handler, state } = createS3EmulatorHandler({});
+  const holds: Array<{
+    method: string;
+    key: (key: string) => boolean;
+    skip: number;
+    arrive: () => void;
+    released: Promise<void>;
+    used: boolean;
+  }> = [];
+  const releases: Array<() => void> = [];
+  const server = Deno.serve({ port: 0, onListen() {} }, async (req) => {
+    const key = decodeURIComponent(new URL(req.url).pathname).replace(
+      /^\/test-bucket\//,
+      "",
+    );
+    for (const hold of holds) {
+      if (hold.used || hold.method !== req.method || !hold.key(key)) continue;
+      if (hold.skip-- > 0) continue;
+      hold.used = true;
+      hold.arrive();
+      await hold.released;
+      break;
+    }
+    return handler(req);
+  });
+  const { port } = server.addr as Deno.NetAddr;
+  const priorKey = Deno.env.get("AWS_ACCESS_KEY_ID");
+  const priorSecret = Deno.env.get("AWS_SECRET_ACCESS_KEY");
+  Deno.env.set("AWS_ACCESS_KEY_ID", "test");
+  Deno.env.set("AWS_SECRET_ACCESS_KEY", "test");
+  const dirs = [await Deno.makeTempDir({ prefix: "s3sync-4102-" })];
+  const client = () =>
+    new S3Client({
+      bucket: "test-bucket",
+      region: "us-east-1",
+      endpoint: `http://127.0.0.1:${port}`,
+      forcePathStyle: true,
+    });
+  try {
+    await fn({
+      s3: client(),
+      state,
+      cachePath: dirs[0],
+      hold: (method, key, skip = 0) => {
+        let arrive!: () => void;
+        let release!: () => void;
+        const arrived = new Promise<void>((r) => arrive = r);
+        const released = new Promise<void>((r) => release = r);
+        holds.push({ method, key, skip, arrive, released, used: false });
+        releases.push(release);
+        return { arrived, release };
+      },
+      peer: async () => {
+        const cachePath = await Deno.makeTempDir({
+          prefix: "s3sync-4102-peer-",
+        });
+        dirs.push(cachePath);
+        const service = new S3CacheSyncService(client(), cachePath);
+        await service.pullChanged();
+        return { service, cachePath };
+      },
+    });
+  } finally {
+    releases.forEach((release) => release());
+    await server.shutdown();
+    if (priorKey !== undefined) Deno.env.set("AWS_ACCESS_KEY_ID", priorKey);
+    else Deno.env.delete("AWS_ACCESS_KEY_ID");
+    if (priorSecret !== undefined) {
+      Deno.env.set("AWS_SECRET_ACCESS_KEY", priorSecret);
+    } else Deno.env.delete("AWS_SECRET_ACCESS_KEY");
+    for (const dir of dirs) await Deno.remove(dir, { recursive: true });
+  }
+}
+
+/** Two models with shards and a record serve rewrites, synced and armed. */
+async function seed4102(
+  service: S3CacheSyncService,
+  cachePath: string,
+): Promise<void> {
+  await service.pullChanged();
+  for (const id of ["a", "b"]) {
+    await seedFile(cachePath, version4102(id, 1), `v1 ${id}\n`);
+    await seedFile(cachePath, latest4102(id), "1");
+  }
+  await seedFile(cachePath, WORKER_4102, "1");
+  await service.markDirty();
+  await service.pushChanged();
+  await service.pullChanged();
+}
+
+async function write4102(
+  service: S3CacheSyncService,
+  cachePath: string,
+  rel: string,
+  text: string,
+): Promise<void> {
+  await seedFile(cachePath, rel, text);
+  await service.markDirty({ relPath: rel });
+}
+
+/** The commitSeq the fast path compares, on disk and in the bucket. */
+async function seqs4102(
+  g: Gate4102,
+): Promise<{ armed: unknown; remote: unknown }> {
+  const sidecar = JSON.parse(
+    await Deno.readTextFile(join(g.cachePath, ".datastore-sync-state.json")),
+  );
+  return {
+    armed: sidecar.commitSeq,
+    remote: readJson(g.state.objects, "_index/_meta.json").commitSeq,
+  };
+}
+
+/** Runs `pull`, and asserts it read nothing past the fast path's probe. */
+async function assertFastPull4102(
+  g: Gate4102,
+  pull: () => Promise<number | void>,
+): Promise<void> {
+  const before = g.state.requests.length;
+  assertEquals(await pull(), 0);
+  const reads = g.state.requests.slice(before).filter((r) =>
+    r.listPrefix !== null ||
+    (r.key?.startsWith("_index/") && r.key !== "_index/_meta.json")
+  );
+  assertEquals(reads.map((r) => r.listPrefix ?? r.key), []);
+}
+
+/** A commit by another copy: the sidecar is rightly behind after it. */
+async function peerCommit4102(g: Gate4102): Promise<void> {
+  const peer = await g.peer();
+  await write4102(
+    peer.service,
+    peer.cachePath,
+    version4102("b", 9),
+    "peer b\n",
+  );
+  await peer.service.pushChanged();
+}
+
+const scopedA4102 = { context: { models: [MODEL_A_4102] } };
+
+// sanitizeResources: false on each test below — the AWS SDK's pooled
+// connections outlive the test body but are reclaimed by GC.
+Deno.test({
+  name:
+    "swamp-club#4102: overlapping pushChanged calls keep the sidecar with the remote, so the next scoped pull hits the fast path",
+  sanitizeResources: false,
+  fn: () =>
+    withGate4102(async (g) => {
+      const service = new S3CacheSyncService(g.s3, g.cachePath);
+      await seed4102(service, g.cachePath);
+
+      await write4102(service, g.cachePath, version4102("a", 2), "v2 a\n");
+      const held = g.hold("PUT", (k) => k === version4102("a", 2));
+      const first = service.pushChanged();
+      await held.arrived;
+      await write4102(service, g.cachePath, version4102("b", 2), "v2 b\n");
+      await service.pushChanged();
+      held.release();
+      await first;
+
+      const { armed, remote } = await seqs4102(g);
+      assertEquals(armed, remote);
+      await assertFastPull4102(g, () => service.pullChanged(scopedA4102));
+    }),
+});
+
+Deno.test({
+  name:
+    "swamp-club#4102: a two-phase commit keeps the fast path when a later prepare replaced the shared index",
+  sanitizeResources: false,
+  fn: () =>
+    withGate4102(async (g) => {
+      const service = new S3CacheSyncService(g.s3, g.cachePath);
+      await seed4102(service, g.cachePath);
+      const scopedB = { context: { models: [MODEL_B_4102] } };
+
+      await write4102(service, g.cachePath, version4102("b", 2), "v2 b\n");
+      const slow = await service.preparePush(scopedB);
+      // Another run's push handles b's mark, so the next prepare reads only
+      // a's shard into the shared index.
+      await service.commitPush(await service.preparePush(scopedB));
+      await write4102(service, g.cachePath, version4102("a", 2), "v2 a\n");
+      const last = await service.preparePush(scopedA4102);
+      await service.commitPush(slow);
+      await service.commitPush(last);
+
+      const { armed, remote } = await seqs4102(g);
+      assertEquals(armed, remote);
+      await assertFastPull4102(g, () => service.pullChanged(scopedA4102));
+    }),
+});
+
+Deno.test({
+  name:
+    "swamp-club#4102: an upload in an overlapped pushChanged reaches its shard even when the other push never commits",
+  sanitizeResources: false,
+  fn: () =>
+    withGate4102(async (g) => {
+      const service = new S3CacheSyncService(g.s3, g.cachePath, {
+        pushConcurrency: 1,
+      });
+      await seed4102(service, g.cachePath);
+
+      const one = version4102("a", 2);
+      const two = version4102("a", 2, "raw");
+      await write4102(service, g.cachePath, one, "v2 a\n");
+      await write4102(service, g.cachePath, two, "raw a\n");
+      // The second upload: the first has reached the shared index by then.
+      const held = g.hold("PUT", (k) => k === one || k === two, 1);
+      const first = service.pushChanged();
+      await held.arrived;
+      // A second push replaces the shared index, and its commit never comes.
+      await service.preparePush(scopedA4102);
+      held.release();
+      await first;
+
+      const shard = readJson(g.state.objects, "_index/data--@t--foo--a.json");
+      const entries = shard.entries as Record<string, unknown>;
+      assertExists(entries[one], "first upload is missing from the shard");
+      assertExists(entries[two], "second upload is missing from the shard");
+    }),
+});
+
+Deno.test({
+  name:
+    "swamp-club#4102: a scoped pull leaves another model's unpushed write alone, and the next push sends it",
+  sanitizeResources: false,
+  fn: () =>
+    withGate4102(async (g) => {
+      const service = new S3CacheSyncService(g.s3, g.cachePath);
+      await seed4102(service, g.cachePath);
+      await peerCommit4102(g);
+
+      await write4102(service, g.cachePath, WORKER_4102, "2");
+      assertEquals(await service.pullChanged(scopedA4102), 0);
+      assertEquals(
+        await Deno.readTextFile(join(g.cachePath, WORKER_4102)),
+        "2",
+      );
+
+      await service.pushChanged();
+      assertEquals(
+        new TextDecoder().decode(g.state.objects.get(WORKER_4102)!.body),
+        "2",
+      );
+    }),
+});
+
+Deno.test({
+  name:
+    "swamp-club#4102: a scoped pull lists only the prefixes of the entries it walks, and keeps an entry outside the model's directory",
+  sanitizeResources: false,
+  fn: () =>
+    withGate4102(async (g) => {
+      const service = new S3CacheSyncService(g.s3, g.cachePath);
+      await seed4102(service, g.cachePath);
+
+      // A row a computed model path would miss, so a listing built from one
+      // would read it as deleted and remove it from the shard.
+      const outside = "outputs/@t/foo/run/elsewhere.log";
+      const shardKey = "_index/data--@t--foo--a.json";
+      const shard = readJson(g.state.objects, shardKey);
+      const body = new TextEncoder().encode("elsewhere\n");
+      (shard.entries as Record<string, unknown>)[outside] = {
+        key: outside,
+        size: body.length,
+        lastModified: new Date().toISOString(),
+      };
+      g.state.objects.set(outside, { body, etag: "outside" });
+      g.state.objects.set(shardKey, {
+        body: new TextEncoder().encode(JSON.stringify(shard)),
+        etag: "shard-with-outside",
+      });
+      await peerCommit4102(g);
+
+      const before = g.state.requests.length;
+      await service.pullChanged(scopedA4102);
+      const prefixes = g.state.requests.slice(before)
+        .flatMap((r) => r.listPrefix === null ? [] : [r.listPrefix]);
+      assert(prefixes.length > 0, "the pull listed nothing");
+      for (const prefix of prefixes) {
+        assert(
+          prefix.startsWith("data/@t/foo/a/") || prefix.startsWith("outputs/"),
+          `listed outside the walked entries: ${prefix}`,
+        );
+      }
+      const after = readJson(g.state.objects, shardKey);
+      assertExists((after.entries as Record<string, unknown>)[outside]);
+      assertEquals(
+        await Deno.readTextFile(join(g.cachePath, outside)),
+        "elsewhere\n",
+      );
+    }),
+});
+
+Deno.test({
+  name:
+    "swamp-club#4102: a scoped pull receives a peer's latest marker for its model from the type-level shard, and no other model's",
+  sanitizeResources: false,
+  fn: () =>
+    withGate4102(async (g) => {
+      const service = new S3CacheSyncService(g.s3, g.cachePath);
+      await seed4102(service, g.cachePath);
+
+      const peer = await g.peer();
+      for (const id of ["a", "b"]) {
+        await write4102(
+          peer.service,
+          peer.cachePath,
+          version4102(id, 3),
+          `v3 ${id}\n`,
+        );
+        await write4102(peer.service, peer.cachePath, latest4102(id), "3");
+      }
+      await peer.service.pushChanged();
+
+      assertEquals(await service.pullChanged(scopedA4102), 2);
+      assertEquals(
+        await Deno.readTextFile(join(g.cachePath, latest4102("a"))),
+        "3",
+      );
+      assertEquals(
+        await Deno.readTextFile(join(g.cachePath, latest4102("b"))),
+        "1",
+      );
+    }),
+});
+
+Deno.test({
+  name:
+    "swamp-club#4102: a scoped pull refuses an unrecognized latest-marker shard, as other shard readers do",
+  sanitizeResources: false,
+  fn: () =>
+    withGate4102(async (g) => {
+      const service = new S3CacheSyncService(g.s3, g.cachePath);
+      await seed4102(service, g.cachePath);
+      await peerCommit4102(g);
+      g.state.objects.set("_index/data--@t--foo.json", {
+        body: new TextEncoder().encode('{"version":99}'),
+        etag: "unrecognized",
+      });
+      await assertRejects(
+        () => service.pullChanged(scopedA4102),
+        Error,
+        "data--@t--foo",
+      );
+
+      // What a proxy's error page would leave: not JSON at all.
+      g.state.objects.set("_index/data--@t--foo.json", {
+        body: new TextEncoder().encode("<Error>not a shard</Error>"),
+        etag: "garbled",
+      });
+      await assertRejects(() => service.pullChanged(scopedA4102));
+    }),
+});
+
+Deno.test({
+  name:
+    "swamp-club#4102: a scoped pull does without an absent latest-marker shard and does not read the whole index",
+  sanitizeResources: false,
+  fn: () =>
+    withGate4102(async (g) => {
+      const service = new S3CacheSyncService(g.s3, g.cachePath);
+      await seed4102(service, g.cachePath);
+      await peerCommit4102(g);
+      g.state.objects.delete("_index/data--@t--foo.json");
+
+      const before = g.state.requests.length;
+      await service.pullChanged(scopedA4102);
+      const shardReads = g.state.requests.slice(before).flatMap((r) =>
+        r.method === "GET" && r.key?.startsWith("_index/data--") ? [r.key] : []
+      );
+      assertEquals(shardReads.includes("_index/data--@t--foo--b.json"), false);
+    }),
+});
+
+Deno.test({
+  name:
+    "swamp-club#4102: a subdir-scoped pull keeps a marked file and still replaces an unmarked one",
+  sanitizeResources: false,
+  fn: () =>
+    withGate4102(async (g) => {
+      const service = new S3CacheSyncService(g.s3, g.cachePath);
+      await seed4102(service, g.cachePath);
+      await peerCommit4102(g);
+
+      await write4102(service, g.cachePath, WORKER_4102, "2");
+      await seedFile(g.cachePath, version4102("a", 1), "xx a\n");
+
+      assertEquals(await service.pullChanged({ subdirs: ["data"] }), 2);
+      assertEquals(
+        await Deno.readTextFile(join(g.cachePath, WORKER_4102)),
+        "2",
+      );
+      assertEquals(
+        await Deno.readTextFile(join(g.cachePath, version4102("a", 1))),
+        "v1 a\n",
+      );
+    }),
+});
+
+Deno.test({
+  name:
+    "swamp-club#4102: a subdir-scoped pull keeps a file under a marked directory, as core marks a data version",
+  sanitizeResources: false,
+  fn: () =>
+    withGate4102(async (g) => {
+      const service = new S3CacheSyncService(g.s3, g.cachePath);
+      await seed4102(service, g.cachePath);
+      await peerCommit4102(g);
+
+      const rel = version4102("a", 1);
+      await seedFile(g.cachePath, rel, "xx a\n");
+      await service.markDirty({ relPath: dirname(rel) });
+
+      await service.pullChanged({ subdirs: ["data"] });
+      assertEquals(
+        await Deno.readTextFile(join(g.cachePath, rel)),
+        "xx a\n",
+      );
+    }),
+});
+
+Deno.test({
+  name: "swamp-club#4102: a namespaced subdir-scoped pull keeps a marked file",
+  sanitizeResources: false,
+  fn: () =>
+    withGate4102(async (g) => {
+      const ns = { namespace: "ns" };
+      const service = new S3CacheSyncService(g.s3, g.cachePath);
+      await service.pullChanged(ns);
+      const rel = `ns/${version4102("a", 1)}`;
+      await seedFile(g.cachePath, rel, "v1 a\n");
+      await service.markDirty(ns);
+      await service.pushChanged(ns);
+      await service.pullChanged(ns);
+
+      const peerPath = await Deno.makeTempDir({ prefix: "s3sync-4102-ns-" });
+      try {
+        const peer = new S3CacheSyncService(g.s3, peerPath);
+        await peer.pullChanged(ns);
+        await write4102(peer, peerPath, `ns/${version4102("b", 1)}`, "b\n");
+        await peer.pushChanged(ns);
+      } finally {
+        await Deno.remove(peerPath, { recursive: true });
+      }
+
+      await write4102(service, g.cachePath, rel, "xx a\n");
+      await service.pullChanged({ ...ns, subdirs: ["data"] });
+      assertEquals(
+        await Deno.readTextFile(join(g.cachePath, rel)),
+        "xx a\n",
+      );
+    }),
+});
+
+Deno.test({
+  name:
+    "swamp-club#4102: a namespaced scoped pull lists its entries at both roots and prunes none of them",
+  sanitizeResources: false,
+  fn: () =>
+    withGate4102(async (g) => {
+      const ns = { namespace: "ns" };
+      const service = new S3CacheSyncService(g.s3, g.cachePath);
+      await service.pullChanged(ns);
+      const rel = `ns/${version4102("a", 1)}`;
+      await seedFile(g.cachePath, rel, "v1 a\n");
+      await seedFile(g.cachePath, `ns/${latest4102("a")}`, "1");
+      await service.markDirty(ns);
+      await service.pushChanged(ns);
+      await service.pullChanged(ns);
+
+      const peerPath = await Deno.makeTempDir({ prefix: "s3sync-4102-ns-" });
+      try {
+        const peer = new S3CacheSyncService(g.s3, peerPath);
+        await peer.pullChanged(ns);
+        await write4102(peer, peerPath, `ns/${version4102("b", 1)}`, "b\n");
+        await peer.pushChanged(ns);
+      } finally {
+        await Deno.remove(peerPath, { recursive: true });
+      }
+
+      const before = g.state.requests.length;
+      assertEquals(await service.pullChanged({ ...ns, ...scopedA4102 }), 0);
+      const prefixes = g.state.requests.slice(before)
+        .flatMap((r) => r.listPrefix === null ? [] : [r.listPrefix]);
+      assert(prefixes.includes("ns/data/@t/foo/a/out/"), prefixes.join());
+      assert(prefixes.includes("data/@t/foo/a/out/"), prefixes.join());
+      const shard = readJson(
+        g.state.objects,
+        "ns/_index/data--@t--foo--a.json",
+      );
+      assertExists(
+        (shard.entries as Record<string, unknown>)[version4102("a", 1)],
+      );
+    }),
+});
+
+Deno.test({
+  name:
+    "swamp-club#4102: a bulk mark names no path, so a subdir-scoped pull still replaces a changed file",
+  sanitizeResources: false,
+  fn: () =>
+    withGate4102(async (g) => {
+      const service = new S3CacheSyncService(g.s3, g.cachePath);
+      await seed4102(service, g.cachePath);
+      await peerCommit4102(g);
+
+      const rel = version4102("a", 1);
+      await seedFile(g.cachePath, rel, "xx a\n");
+      await service.markDirty();
+
+      await service.pullChanged({ subdirs: ["data"] });
+      assertEquals(
+        await Deno.readTextFile(join(g.cachePath, rel)),
+        "v1 a\n",
+      );
+    }),
+});
+
+Deno.test({
+  name:
+    "swamp-club#4102: a real peer commit inside a push's window still refuses to arm",
+  sanitizeResources: false,
+  fn: () =>
+    withGate4102(async (g) => {
+      const service = new S3CacheSyncService(g.s3, g.cachePath);
+      await seed4102(service, g.cachePath);
+
+      await write4102(service, g.cachePath, version4102("a", 2), "v2 a\n");
+      const held = g.hold("PUT", (k) => k === version4102("a", 2));
+      const push = service.pushChanged();
+      await held.arrived;
+      await peerCommit4102(g);
+      held.release();
+      await push;
+
+      const { armed, remote } = await seqs4102(g);
+      assert(armed !== remote, "armed past a commit this copy never read");
+    }),
+});
+
+Deno.test({
+  name:
+    "swamp-club#4102: a peer's shard write ahead of its meta commit still refuses to arm",
+  sanitizeResources: false,
+  fn: () =>
+    withGate4102(async (g) => {
+      const service = new S3CacheSyncService(g.s3, g.cachePath);
+      await seed4102(service, g.cachePath);
+
+      // Read by this push's assembly or not, this row is one nobody listed.
+      await write4102(service, g.cachePath, version4102("a", 2), "v2 a\n");
+      const shardKey = "_index/data--@t--foo--a.json";
+      const held = g.hold("PUT", (k) => k === version4102("a", 2));
+      const push = service.pushChanged();
+      await held.arrived;
+      const shard = readJson(g.state.objects, shardKey);
+      (shard.entries as Record<string, unknown>)[version4102("a", 8)] = {
+        key: version4102("a", 8),
+        size: 1,
+        lastModified: new Date().toISOString(),
+      };
+      g.state.objects.set(shardKey, {
+        body: new TextEncoder().encode(JSON.stringify(shard)),
+        etag: "peer-wrote-this",
+      });
+      held.release();
+      await push;
+
+      const { armed, remote } = await seqs4102(g);
+      assert(armed !== remote, "armed past a row this copy never read");
+    }),
+});
+
+Deno.test({
+  name:
+    "swamp-club#4102: this copy's own bare bulk walk in the window does not let a later commit arm past a file it lacks",
+  sanitizeResources: false,
+  fn: () =>
+    withGate4102(async (g) => {
+      const service = new S3CacheSyncService(g.s3, g.cachePath);
+      await seed4102(service, g.cachePath);
+
+      await write4102(service, g.cachePath, version4102("a", 2), "v2 a\n");
+      const held = g.hold("PUT", (k) => k === version4102("a", 2));
+      const push = service.pushChanged();
+      await held.arrived;
+      // A bare walk keeps the remote file, so this cache is now incomplete.
+      await Deno.remove(join(g.cachePath, version4102("b", 1)));
+      await service.markDirty();
+      await service.pushChanged();
+      held.release();
+      await push;
+
+      const { armed, remote } = await seqs4102(g);
+      assert(armed !== remote, "armed over a walk that left the cache short");
+    }),
+});
+
+Deno.test({
+  name:
+    "swamp-club#4102: a push that finishes last does not lower the armed commitSeq",
+  sanitizeResources: false,
+  fn: () =>
+    withGate4102(async (g) => {
+      const service = new S3CacheSyncService(g.s3, g.cachePath);
+      await seed4102(service, g.cachePath);
+
+      // Hold the first push between its commit and its arm.
+      const internals = service as unknown as {
+        writeLocalIndexAfterPush: (...a: unknown[]) => Promise<boolean>;
+      };
+      const original = internals.writeLocalIndexAfterPush.bind(service);
+      let committed!: () => void;
+      let resume!: () => void;
+      const firstCommitted = new Promise<void>((r) => committed = r);
+      const resumed = new Promise<void>((r) => resume = r);
+      let calls = 0;
+      internals.writeLocalIndexAfterPush = async (...a: unknown[]) => {
+        if (++calls === 1) {
+          committed();
+          await resumed;
+        }
+        return await original(...a);
+      };
+
+      await write4102(service, g.cachePath, version4102("a", 2), "v2 a\n");
+      const first = service.pushChanged();
+      await firstCommitted;
+      await write4102(service, g.cachePath, version4102("b", 2), "v2 b\n");
+      await service.pushChanged();
+      const newer = (await seqs4102(g)).armed;
+      resume();
+      await first;
+
+      const { armed, remote } = await seqs4102(g);
+      assertEquals(armed, newer);
+      assertEquals(armed, remote);
+    }),
+});
+
+Deno.test({
+  name:
+    "swamp-club#4102: overlapping pushes merge into the local index one at a time, so neither loses the other's entries",
+  sanitizeResources: false,
+  fn: () =>
+    withGate4102(async (g) => {
+      const service = new S3CacheSyncService(g.s3, g.cachePath);
+      await seed4102(service, g.cachePath);
+
+      // Hold the first push's merge after it read the index file and before
+      // it wrote it back, and release it once the second push reaches its own.
+      const internals = service as unknown as {
+        writeLastSynced: (...a: unknown[]) => Promise<void>;
+        writeLocalIndexAfterPush: (...a: unknown[]) => Promise<boolean>;
+      };
+      const writeLastSynced = internals.writeLastSynced.bind(service);
+      const merge = internals.writeLocalIndexAfterPush.bind(service);
+      let firstHeld!: () => void;
+      let releaseFirst!: () => void;
+      const held = new Promise<void>((r) => firstHeld = r);
+      const released = new Promise<void>((r) => releaseFirst = r);
+      let writes = 0;
+      internals.writeLastSynced = async (...a: unknown[]) => {
+        if (++writes === 1) {
+          firstHeld();
+          await released;
+        }
+        return await writeLastSynced(...a);
+      };
+      let merges = 0;
+      internals.writeLocalIndexAfterPush = (...a: unknown[]) => {
+        if (++merges === 2) releaseFirst();
+        return merge(...a);
+      };
+
+      await write4102(service, g.cachePath, version4102("a", 2), "v2 a\n");
+      const first = service.pushChanged(scopedA4102);
+      await held;
+      await write4102(service, g.cachePath, version4102("b", 2), "v2 b\n");
+      await service.pushChanged({ context: { models: [MODEL_B_4102] } });
+      await first;
+
+      const onDisk = JSON.parse(
+        await Deno.readTextFile(join(g.cachePath, ".datastore-index.json")),
+      ).entries as Record<string, unknown>;
+      assertExists(onDisk[version4102("a", 2)], "first push's entry is lost");
+      assertExists(onDisk[version4102("b", 2)], "second push's entry is lost");
+    }),
+});
+
+Deno.test({
+  name:
+    "swamp-club#4102: a push that read its base before an own commit does not arm past that commit when its index write fails",
+  sanitizeResources: false,
+  fn: () =>
+    withGate4102(async (g) => {
+      const service = new S3CacheSyncService(g.s3, g.cachePath);
+      await seed4102(service, g.cachePath);
+
+      const internals = service as unknown as {
+        writeLocalIndexAfterPush: (...a: unknown[]) => Promise<boolean>;
+      };
+      const merge = internals.writeLocalIndexAfterPush.bind(service);
+      let firstWriting!: () => void;
+      let failFirst!: () => void;
+      let firstDone!: () => void;
+      const writing = new Promise<void>((r) => firstWriting = r);
+      const fail = new Promise<void>((r) => failFirst = r);
+      const done = new Promise<void>((r) => firstDone = r);
+      let merges = 0;
+      internals.writeLocalIndexAfterPush = async (...a: unknown[]) => {
+        if (++merges === 1) {
+          firstWriting();
+          await fail;
+          return false;
+        }
+        // The first push's failure lands before this push arms, as the
+        // serialized writes order it.
+        failFirst();
+        await done;
+        return await merge(...a);
+      };
+
+      // Both read their base before either commits.
+      await write4102(service, g.cachePath, version4102("a", 2), "v2 a\n");
+      const heldA = g.hold("PUT", (k) => k === version4102("a", 2));
+      const first = service.pushChanged(scopedA4102).then(() => firstDone());
+      await heldA.arrived;
+      await write4102(service, g.cachePath, version4102("b", 2), "v2 b\n");
+      const heldB = g.hold("PUT", (k) => k === version4102("b", 2));
+      const second = service.pushChanged({
+        context: { models: [MODEL_B_4102] },
+      });
+      await heldB.arrived;
+      heldA.release();
+      await writing;
+      heldB.release();
+      await Promise.all([first, second]);
+
+      const { armed, remote } = await seqs4102(g);
+      assert(armed !== remote, "armed past an own commit missing from disk");
+    }),
+});
+
+Deno.test("swamp-club#4102: a full-index merge after a push applies its deletions as well as its uploads", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "sync-4102-merge-" });
+  try {
+    const service = new S3CacheSyncService(createMockS3Client(), cachePath);
+    const internals = service as unknown as {
+      index: {
+        version: number;
+        lastPulled: string;
+        entries: Record<string, unknown>;
+      };
+      indexIsPartial: boolean;
+      writeLocalIndexAfterPush: (
+        changed: Record<string, unknown>,
+        removed: string[],
+      ) => Promise<boolean>;
+    };
+    const entry = {
+      key: "k",
+      size: 1,
+      lastModified: new Date(0).toISOString(),
+    };
+    // What an overlapping full prepare leaves: the deleted entry back again.
+    internals.index = {
+      version: 1,
+      lastPulled: new Date(0).toISOString(),
+      entries: { "data/t/m/gone/1/raw": entry },
+    };
+    internals.indexIsPartial = false;
+    assert(
+      await internals.writeLocalIndexAfterPush(
+        { "data/t/m/new/1/raw": entry },
+        ["data/t/m/gone/1/raw"],
+      ),
+    );
+    const onDisk = JSON.parse(
+      await Deno.readTextFile(join(cachePath, ".datastore-index.json")),
+    ).entries as Record<string, unknown>;
+    assertExists(onDisk["data/t/m/new/1/raw"]);
+    assertEquals(onDisk["data/t/m/gone/1/raw"], undefined);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test({
+  name:
+    "swamp-club#4102: only a push accepts this service's own commits as up to date; a pull's cleanup commit stays strict",
+  sanitizeResources: false,
+  fn: () =>
+    withGate4102(async (g) => {
+      const service = new S3CacheSyncService(g.s3, g.cachePath);
+      await seed4102(service, g.cachePath);
+      const base = (await seqs4102(g)).remote as number;
+      await write4102(service, g.cachePath, version4102("a", 2), "v2 a\n");
+      await service.pushChanged(scopedA4102);
+
+      // The push's commit is this service's own, yet a cleanup commit based
+      // before it must not count it: its saved index may lack that delta.
+      const internals = service as unknown as {
+        commitShardChanges: (
+          upserts: Record<string, unknown>,
+          removals: string[],
+          base: number,
+        ) => Promise<{ upToDate: boolean }>;
+      };
+      const cleanup = await internals.commitShardChanges(
+        {},
+        [version4102("b", 1)],
+        base,
+      );
+      assertEquals(cleanup.upToDate, false);
+    }),
+});
+
+Deno.test({
+  name:
+    "swamp-club#4102: a failed local index write lets no later commit arm past it, and undoes an arm already past it",
+  sanitizeResources: false,
+  fn: () =>
+    withGate4102(async (g) => {
+      const service = new S3CacheSyncService(g.s3, g.cachePath);
+      await seed4102(service, g.cachePath);
+
+      const internals = service as unknown as {
+        writeLocalIndexAfterPush: (...a: unknown[]) => Promise<boolean>;
+      };
+      const original = internals.writeLocalIndexAfterPush.bind(service);
+
+      // A second push commits and arms while the first is still writing an
+      // index write that then fails.
+      let committed!: () => void;
+      let resume!: () => void;
+      const firstCommitted = new Promise<void>((r) => committed = r);
+      const resumed = new Promise<void>((r) => resume = r);
+      let calls = 0;
+      internals.writeLocalIndexAfterPush = async (...a: unknown[]) => {
+        if (++calls > 1) return await original(...a);
+        committed();
+        await resumed;
+        return false;
+      };
+      await write4102(service, g.cachePath, version4102("a", 2), "v2 a\n");
+      const first = service.pushChanged();
+      await firstCommitted;
+      await write4102(service, g.cachePath, version4102("b", 2), "v2 b\n");
+      await service.pushChanged();
+      const beforeFailure = await seqs4102(g);
+      assertEquals(beforeFailure.armed, beforeFailure.remote);
+      resume();
+      await first;
+      assertEquals((await seqs4102(g)).armed, undefined);
+
+      // And a later commit has nothing to arm from.
+      internals.writeLocalIndexAfterPush = original;
+      await write4102(service, g.cachePath, version4102("a", 3), "v3 a\n");
+      await service.pushChanged();
+      const { armed, remote } = await seqs4102(g);
+      assert(armed !== remote, "armed past a commit missing from disk");
+    }),
+});
+
+Deno.test("swamp-club#4102: a scoped pull's listing never widens to the whole bucket", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "sync-4102-prefix-" });
+  try {
+    const service = new S3CacheSyncService(
+      createMockS3Client(),
+      cachePath,
+    ) as unknown as {
+      entryListPrefixes: (rels: string[]) => string[];
+    };
+    assertEquals(service.entryListPrefixes(["data", "data/x/y"]), ["data"]);
+    assertEquals(
+      service.entryListPrefixes([
+        "data/@t/foo/a/out/1/raw",
+        "data/@t/foo/a/out/latest",
+      ]),
+      ["data/@t/foo/a/out/"],
+    );
   } finally {
     await Deno.remove(cachePath, { recursive: true });
   }

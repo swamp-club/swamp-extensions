@@ -769,6 +769,16 @@ export class S3CacheSyncService implements DatastoreSyncService {
   private readonly pushConcurrency: number;
   private index: DatastoreIndex | null = null;
   private indexIsPartial = false;
+  // CommitSeqs this instance committed with nothing unknown merged in and every
+  // local absence turned into a delete, so the cache holds their whole delta. A
+  // commit between a push's base and its own, when listed here, was not another
+  // writer's (swamp-club#4102). Oldest go first, which only costs a miss.
+  private ownCommits = new Set<number>();
+  // Each shard's ETag as this instance last read or wrote it. A shard still at
+  // that ETag holds nothing this instance has not seen (swamp-club#4102).
+  private shardEtags = new Map<string, string>();
+  // Local index writes after a push run one at a time (swamp-club#4102).
+  private localIndexWrites: Promise<unknown> = Promise.resolve();
   private syncState: DatastoreSyncState | null = null;
   private syncStateLoaded = false;
   // Sidecar writes run one at a time through this chain (swamp-club #3860).
@@ -806,6 +816,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
   private freshV2Initialized = false;
   private casUnsupported = false;
   private static readonly SHARD_CAS_ATTEMPTS = 8;
+  private static readonly OWN_COMMITS_CAP = 1024;
   // Generous: meta is tiny, and exhausting it after shards committed
   // leaves a new partition unlisted until the next push.
   private static readonly META_CAS_ATTEMPTS = 20;
@@ -1298,11 +1309,16 @@ export class S3CacheSyncService implements DatastoreSyncService {
   private async readShard(
     partitionKey: string,
     signal?: AbortSignal,
+    // False for a read that keeps only some rows: its ETag must not vouch for
+    // the rest (swamp-club#4102).
+    remember = true,
   ): Promise<Record<string, IndexEntry> | null> {
-    const { entries, invalid } = await this.readShardVersioned(
+    const { entries, invalid, etag } = await this.readShardVersioned(
       partitionKey,
       signal,
     );
+    const seen = normalizeETag(etag ?? undefined);
+    if (remember && seen) this.shardEtags.set(partitionKey, seen);
     if (invalid) {
       throw new Error(
         `[s3-sync] Index shard "${partitionKey}" is present but is not a recognized v1 shard. Repair or remove it, then retry.`,
@@ -1401,8 +1417,15 @@ export class S3CacheSyncService implements DatastoreSyncService {
    *
    * Returns the committed commitSeq and whether the remote index matched
    * what this writer already knew (no entries merged in from other
-   * writers, and no commits since `baseCommitSeq`). Callers must only arm
-   * the sidecar commitSeq fast path when `upToDate` is true.
+   * writers, and no commits since `baseCommitSeq` but this instance's own).
+   * Callers must only arm the sidecar commitSeq fast path when `upToDate` is
+   * true.
+   *
+   * With `ownDelta`, the caller's walk turned every local absence into a
+   * delete, so an up-to-date commit counts as this instance's own for a later
+   * push's `upToDate` (swamp-club#4102). Only with `acceptOwn` do this
+   * instance's own commits since `baseCommitSeq` count as up to date: a push
+   * re-checks them after its local index write, and no other caller does.
    *
    * With `keepExisting`, an upsert does not replace an entry the shard already
    * holds, for a writer whose upload came before a peer's newer commit.
@@ -1413,6 +1436,8 @@ export class S3CacheSyncService implements DatastoreSyncService {
     baseCommitSeq: number,
     signal?: AbortSignal,
     keepExisting = false,
+    ownDelta = false,
+    acceptOwn = false,
   ): Promise<{ commitSeq: number; upToDate: boolean }> {
     const changes = new Map<
       string,
@@ -1478,6 +1503,10 @@ export class S3CacheSyncService implements DatastoreSyncService {
           written.set(partKey, { etag: null, empty });
           return;
         }
+        // An overlapping push may have replaced `known`, so a shard this
+        // instance has seen as it stands needs no comparison with it.
+        const seen = etag !== null &&
+          normalizeETag(etag) === this.shardEtags.get(partKey);
         const body = new TextEncoder().encode(
           JSON.stringify({ version: 1, entries: merged } as PartitionIndex),
         );
@@ -1489,6 +1518,10 @@ export class S3CacheSyncService implements DatastoreSyncService {
         );
         if (result) {
           written.set(partKey, { etag: result.etag, empty });
+          const wroteEtag = normalizeETag(result.etag);
+          if (wroteEtag) this.shardEtags.set(partKey, wroteEtag);
+          else this.shardEtags.delete(partKey);
+          if (seen) return;
           for (const [rel, entry] of Object.entries(merged)) {
             const mine = change.upserts[rel] ?? known[rel];
             if (
@@ -1571,7 +1604,10 @@ export class S3CacheSyncService implements DatastoreSyncService {
         signal,
       );
       if (result) {
-        if (readSeq !== baseCommitSeq) upToDate = false;
+        const covered = acceptOwn
+          ? this.ownCommitsCover(baseCommitSeq, readSeq)
+          : readSeq === baseCommitSeq;
+        if (!covered) upToDate = false;
         trace.getActiveSpan()?.setAttribute(
           Attr.DATASTORE_CAS_RETRIES,
           retries,
@@ -1579,6 +1615,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
         // Shards that did commit are now listed; surface the one that
         // didn't so the push stays dirty and gets retried.
         if (shardFailure !== undefined) throw shardFailure;
+        if (ownDelta && upToDate) this.recordOwnCommit(newMeta.commitSeq);
         return { commitSeq: newMeta.commitSeq, upToDate };
       }
       if (attempt >= S3CacheSyncService.META_CAS_ATTEMPTS) {
@@ -1926,6 +1963,63 @@ export class S3CacheSyncService implements DatastoreSyncService {
   }
 
   /**
+   * The partitions that can hold files under a path in `paths`: each path's
+   * own key, its listed ancestors and everything listed under it. Not every
+   * key returned need be listed.
+   */
+  private static partitionsForPaths(
+    partitions: readonly string[],
+    paths: Iterable<string>,
+    namespace: string | undefined,
+  ): Set<string> {
+    const neededKeys = new Set<string>();
+    // "--"-joined leading segments of each dirty path. A partition equal
+    // to one of these is an ancestor of the dirty path.
+    const ancestorKeys = new Set<string>();
+    // "--"-joined segments of each whole dirty path. A partition that
+    // extends one of these at a "--" boundary lies under the dirty path.
+    const dirtyKeys = new Set<string>();
+    const nsPrefix = namespace ? `${namespace}/` : "";
+    for (const p of paths) {
+      // Strip the namespace prefix — partitionKeyFromPath expects bare
+      // cache-relative paths (e.g. "data/type/model/file"), not
+      // namespace-prefixed ones ("ns/data/type/model/file").
+      const bare = nsPrefix && p.startsWith(nsPrefix)
+        ? p.substring(nsPrefix.length)
+        : p;
+      // Keeps keys that are not a "--" join of path segments (`_root`).
+      const key = S3CacheSyncService.partitionKeyFromPath(bare);
+      if (key) neededKeys.add(key);
+      let joined = "";
+      for (const segment of bare.split("/")) {
+        if (segment === "") continue;
+        joined = joined ? `${joined}--${segment}` : segment;
+        ancestorKeys.add(joined);
+      }
+      if (joined) dirtyKeys.add(joined);
+    }
+
+    // Match on whole segments, so data/a/b never selects data--a--bc.
+    for (const partition of partitions) {
+      if (ancestorKeys.has(partition)) {
+        neededKeys.add(partition);
+        continue;
+      }
+      for (
+        let i = partition.indexOf("--");
+        i !== -1;
+        i = partition.indexOf("--", i + 2)
+      ) {
+        if (dirtyKeys.has(partition.substring(0, i))) {
+          neededKeys.add(partition);
+          break;
+        }
+      }
+    }
+    return neededKeys;
+  }
+
+  /**
    * Like assembleIndexFromShards but only reads the shards that can hold
    * files under a path in `dirtyPaths`. Returns the partial index (only
    * entries from those shards) and the commitSeq.
@@ -1953,50 +2047,11 @@ export class S3CacheSyncService implements DatastoreSyncService {
     if (meta.version !== 2) return null;
 
     const v2Meta = meta as PartitionMetaV2;
-    const neededKeys = new Set<string>();
-    // "--"-joined leading segments of each dirty path. A partition equal
-    // to one of these is an ancestor of the dirty path.
-    const ancestorKeys = new Set<string>();
-    // "--"-joined segments of each whole dirty path. A partition that
-    // extends one of these at a "--" boundary lies under the dirty path.
-    const dirtyKeys = new Set<string>();
-    const nsPrefix = this.namespace ? `${this.namespace}/` : "";
-    for (const p of dirtyPaths) {
-      // Strip the namespace prefix — partitionKeyFromPath expects bare
-      // cache-relative paths (e.g. "data/type/model/file"), not
-      // namespace-prefixed ones ("ns/data/type/model/file").
-      const bare = nsPrefix && p.startsWith(nsPrefix)
-        ? p.substring(nsPrefix.length)
-        : p;
-      // Keeps keys that are not a "--" join of path segments (`_root`).
-      const key = S3CacheSyncService.partitionKeyFromPath(bare);
-      if (key) neededKeys.add(key);
-      let joined = "";
-      for (const segment of bare.split("/")) {
-        if (segment === "") continue;
-        joined = joined ? `${joined}--${segment}` : segment;
-        ancestorKeys.add(joined);
-      }
-      if (joined) dirtyKeys.add(joined);
-    }
-
-    // Match on whole segments, so data/a/b never selects data--a--bc.
-    for (const partition of v2Meta.partitions) {
-      if (ancestorKeys.has(partition)) {
-        neededKeys.add(partition);
-        continue;
-      }
-      for (
-        let i = partition.indexOf("--");
-        i !== -1;
-        i = partition.indexOf("--", i + 2)
-      ) {
-        if (dirtyKeys.has(partition.substring(0, i))) {
-          neededKeys.add(partition);
-          break;
-        }
-      }
-    }
+    const neededKeys = S3CacheSyncService.partitionsForPaths(
+      v2Meta.partitions,
+      dirtyPaths,
+      this.namespace,
+    );
 
     if (neededKeys.size === 0) {
       return { entries: {}, commitSeq: v2Meta.commitSeq, readKeys: new Set() };
@@ -2604,6 +2659,47 @@ export class S3CacheSyncService implements DatastoreSyncService {
     return this.hasDirtyMarks();
   }
 
+  /** Whether every commit after `from`, up to `to`, is this instance's own. */
+  private ownCommitsCover(from: number | undefined, to: number): boolean {
+    if (from === undefined || from > to) return false;
+    for (let seq = from + 1; seq <= to; seq++) {
+      if (!this.ownCommits.has(seq)) return false;
+    }
+    return true;
+  }
+
+  private recordOwnCommit(commitSeq: number): void {
+    this.ownCommits.add(commitSeq);
+    if (this.ownCommits.size > S3CacheSyncService.OWN_COMMITS_CAP) {
+      this.ownCommits.delete(this.ownCommits.values().next().value!);
+    }
+  }
+
+  /**
+   * What to arm at `seq`: not below a newer commit of this instance's that
+   * armed first, as an overlapping push can (swamp-club#4102).
+   */
+  private armedCommitSeq(seq: number, current: number | undefined): number {
+    return current !== undefined && current > seq &&
+        this.ownCommits.has(current)
+      ? current
+      : seq;
+  }
+
+  /** Whether `rel` lies at or under a path with a live per-path dirty mark. */
+  private isMarkedPath(rel: string): boolean {
+    const local = this.localRelPath(rel);
+    if (this.dirtyPaths.has(local)) return true;
+    for (
+      let i = local.indexOf("/");
+      i !== -1;
+      i = local.indexOf("/", i + 1)
+    ) {
+      if (this.dirtyPaths.has(local.slice(0, i))) return true;
+    }
+    return false;
+  }
+
   /**
    * The local index file's mtime in ms, or null with no local index yet
    * (e.g. first push against an empty cache).
@@ -3084,6 +3180,42 @@ export class S3CacheSyncService implements DatastoreSyncService {
   }
 
   /**
+   * The prefixes that list every path in `rels`, each at the root and under
+   * the namespace: per first segment, the deepest directory its paths share.
+   * Taken from the entries a pull walks, because the walk reads an entry the
+   * listing lacks as deleted (swamp-club#4102). A wider prefix only costs a
+   * longer listing, since the result is only probed with these paths.
+   */
+  private entryListPrefixes(rels: Iterable<string>): string[] {
+    const shared = new Map<string, string>();
+    for (const rel of rels) {
+      const first = rel.indexOf("/");
+      const top = first > 0 ? rel.slice(0, first) : rel;
+      const dir = first > 0 ? rel.slice(0, rel.lastIndexOf("/") + 1) : rel;
+      const prior = shared.get(top);
+      if (prior === undefined) {
+        shared.set(top, dir);
+        continue;
+      }
+      let end = 0;
+      for (
+        let i = prior.indexOf("/");
+        i !== -1 && dir.startsWith(prior.slice(0, i + 1));
+        i = prior.indexOf("/", i + 1)
+      ) {
+        end = i + 1;
+      }
+      // A slash-less path and a path under it share no directory; listing the
+      // segment itself still covers both without widening to the bucket.
+      shared.set(top, prior.slice(0, end) || top);
+    }
+    const nsPrefix = this.namespace ? `${this.namespace}/` : "";
+    return [...shared.values()].flatMap((prefix) =>
+      nsPrefix ? [prefix, `${nsPrefix}${prefix}`] : [prefix]
+    );
+  }
+
+  /**
    * Writes `.datastore-index.json` after a push, and reports whether the
    * on-disk index is complete afterwards.
    *
@@ -3099,13 +3231,31 @@ export class S3CacheSyncService implements DatastoreSyncService {
    * Returns false when the index could not be written or merged. That is not
    * fatal — the caller declines to arm the fast path, so the next pull takes
    * the slow path and rebuilds, exactly as before.
+   *
+   * Writes run one at a time, and each merges the entries its push uploaded
+   * rather than reading them back from the shared index: overlapping pushes
+   * would otherwise each write back a file read before the other's merge, and
+   * an own commit lets the fast path arm over that loss (swamp-club#4102).
    */
-  private async writeLocalIndexAfterPush(
-    changed: Iterable<string>,
+  private writeLocalIndexAfterPush(
+    changed: Record<string, IndexEntry>,
+    removed: Iterable<string>,
+  ): Promise<boolean> {
+    const run = this.localIndexWrites.then(() =>
+      this.mergeLocalIndexAfterPush(changed, removed)
+    );
+    this.localIndexWrites = run.catch(() => {});
+    return run;
+  }
+
+  private async mergeLocalIndexAfterPush(
+    changed: Record<string, IndexEntry>,
     removed: Iterable<string>,
   ): Promise<boolean> {
     if (!this.index) return false;
     if (!this.indexIsPartial) {
+      Object.assign(this.index.entries, changed);
+      for (const rel of removed) delete this.index.entries[rel];
       try {
         await this.writeLastSynced(this.index);
         return true;
@@ -3121,10 +3271,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
         await Deno.readTextFile(this.indexPath),
       ) as DatastoreIndex;
       if (!onDisk?.entries) return false;
-      for (const rel of changed) {
-        const entry = this.index.entries[rel];
-        if (entry) onDisk.entries[rel] = entry;
-      }
+      Object.assign(onDisk.entries, changed);
       for (const rel of removed) {
         delete onDisk.entries[rel];
       }
@@ -3284,6 +3431,9 @@ export class S3CacheSyncService implements DatastoreSyncService {
           const indexStart = Date.now();
           const models = options?.context?.models;
           let modelsScopedRead = false;
+          // A models-scoped read's own entries: the rest of the in-memory index
+          // is other models', which this pull has not read (swamp-club#4102).
+          let modelEntries: Record<string, IndexEntry> | null = null;
           let indexETag: string | null = null;
           let v2CommitSeq: number | null = null;
           // What this cache last synced, read before the remote index
@@ -3342,6 +3492,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
               // process may trust the index as complete (swamp-club #3193).
               this.indexIsPartial = true;
               modelsScopedRead = true;
+              modelEntries = partitionEntries;
               indexETag = null;
             } else {
               // A model with no shard: read the whole index the way an
@@ -3400,6 +3551,8 @@ export class S3CacheSyncService implements DatastoreSyncService {
                 `${d}/`,
                 ...(listNsPrefix ? [`${listNsPrefix}${d}/`] : []),
               ])
+              : modelEntries
+              ? this.entryListPrefixes(Object.keys(modelEntries))
               : this.bulkDiffPrefixes();
             // No prefixes means no index entries to diff, so there is
             // nothing to prune. `remoteKeys` stays null rather than
@@ -3442,7 +3595,9 @@ export class S3CacheSyncService implements DatastoreSyncService {
           // whose mtime would hide a same-size local edit.
           const verifiedMtimes = new Map<string, string>();
           for (
-            const [rel, entry] of Object.entries(this.index?.entries ?? {})
+            const [rel, entry] of Object.entries(
+              modelEntries ?? this.index?.entries ?? {},
+            )
           ) {
             // Belt-and-suspenders: `scrubIndex` already removed internal
             // entries in `pullIndex`, but if anything re-adds a zombie
@@ -3477,6 +3632,11 @@ export class S3CacheSyncService implements DatastoreSyncService {
               lazyDirsToCreate.add(dirname(localPath));
               continue;
             }
+            // A poll or config refresh must not undo a write its push has not
+            // sent yet (swamp-club#4102). A model-lock pull still replaces its
+            // own marked files: core relies on that to see which versions
+            // another clone also wrote.
+            if (scoped && this.isMarkedPath(rel)) continue;
             const localPath = assertSafePath(
               this.cachePath,
               this.localRelPath(rel),
@@ -3980,12 +4140,16 @@ export class S3CacheSyncService implements DatastoreSyncService {
             await this.formatGate.ensureWithinOperation(signal);
           }
           const uploaded: string[] = [];
+          // Kept here: an overlapping push can replace the shared index before
+          // this one commits (swamp-club#4102).
+          const uploadedEntries: Record<string, IndexEntry> = {};
           const failures = await this.uploadPushCandidates(
             toPush,
             snap,
             signal,
             (rel, entry) => {
               uploaded.push(rel);
+              uploadedEntries[rel] = entry;
               if (this.index) this.index.entries[rel] = entry;
             },
           );
@@ -4054,24 +4218,6 @@ export class S3CacheSyncService implements DatastoreSyncService {
               // the dirty shards and _meta.json (swamp-club#2245). Skip
               // monolith PUT — shards are the source of truth. Failures
               // propagate so the push stays dirty.
-              const upserts: Record<string, IndexEntry> = {};
-              for (const rel of uploaded) {
-                const entry = this.index.entries[rel];
-                if (entry) upserts[rel] = entry;
-              }
-              const committed = await this.commitShardChanges(
-                upserts,
-                toDelete,
-                v2CommitSeq,
-                signal,
-              );
-
-              const indexComplete = await this.writeLocalIndexAfterPush(
-                uploaded,
-                toDelete,
-              );
-              this.indexMutated = false;
-
               // The merged-index arm below assumes this push is the only
               // delta since the sidecar was armed. That holds only when the
               // walk turned every local absence into a remote delete: a
@@ -4084,6 +4230,21 @@ export class S3CacheSyncService implements DatastoreSyncService {
               // `localHasAllRemoteEntries()` can see it (swamp-club #2242).
               const deletionsReconciled = !this.lazyPullActive &&
                 S3CacheSyncService.snapshotReconcilesDeletions(snap);
+              const committed = await this.commitShardChanges(
+                uploadedEntries,
+                toDelete,
+                v2CommitSeq,
+                signal,
+                false,
+                deletionsReconciled,
+                true,
+              );
+
+              const indexComplete = await this.writeLocalIndexAfterPush(
+                uploadedEntries,
+                toDelete,
+              );
+              this.indexMutated = false;
 
               try {
                 // Clears only the marks this push handled; one made while
@@ -4091,24 +4252,40 @@ export class S3CacheSyncService implements DatastoreSyncService {
                 // Two windows have to be clean for the merged-index arm.
                 // `committed.upToDate` is the compare-and-swap's verdict that
                 // nothing landed between the base commitSeq and this commit
-                // (swamp-club #2245); `priorCommitSeq === v2CommitSeq` says
-                // nothing landed before this push read that base, so the
-                // on-disk index it merged into is not itself stale
-                // (swamp-club #2242). A full index still arms the old way,
+                // (swamp-club #2245); `ownCommitsCover` says nothing but this
+                // instance's own commits landed before this push read that
+                // base, so the on-disk index it merged into is not itself
+                // stale (swamp-club #2242, #4102). A full index still arms the old way,
                 // via the stat walk, but `indexComplete` gates both arms: a
                 // failed index write leaves disk missing this push's entries,
                 // and an armed commitSeq would stop the next pull from ever
                 // rebuilding it.
+                // Re-checked here, after the earlier pushes' index writes: an
+                // own commit `upToDate` counted is dropped if its write failed.
                 const armCommitSeq = committed.upToDate && indexComplete &&
+                  this.ownCommitsCover(v2CommitSeq, committed.commitSeq - 1) &&
                   ((deletionsReconciled &&
-                    priorCommitSeq === v2CommitSeq) ||
+                    this.ownCommitsCover(priorCommitSeq, v2CommitSeq)) ||
                     (!this.indexIsPartial &&
                       await this.localHasAllRemoteEntries()));
                 // Cleared after the await above, next to the write, so the
                 // marks it clears are exactly the ones it persists.
                 const localDirty = this.clearHandledMarks(snap);
                 const sidecar = this.buildV2State({ localDirty });
-                if (armCommitSeq) sidecar.commitSeq = committed.commitSeq;
+                if (armCommitSeq) {
+                  sidecar.commitSeq = this.armedCommitSeq(
+                    committed.commitSeq,
+                    sidecar.commitSeq,
+                  );
+                }
+                if (!indexComplete) {
+                  // Disk lacks this commit's entries, so nothing may arm past
+                  // them, and an overlapping push must not have.
+                  this.ownCommits.delete(committed.commitSeq);
+                  if ((sidecar.commitSeq ?? 0) > committed.commitSeq) {
+                    sidecar.commitSeq = undefined;
+                  }
+                }
                 sidecar.remoteIndexETag = "";
                 await this.writeSyncState(sidecar);
               } catch {
@@ -4156,7 +4333,12 @@ export class S3CacheSyncService implements DatastoreSyncService {
               // marks it clears are exactly the ones it persists.
               const localDirty = this.clearHandledMarks(snap);
               const sidecar = this.buildV2State({ localDirty });
-              if (armCommitSeq) sidecar.commitSeq = v2CommitSeq;
+              if (armCommitSeq) {
+                sidecar.commitSeq = this.armedCommitSeq(
+                  v2CommitSeq,
+                  sidecar.commitSeq,
+                );
+              }
               sidecar.remoteIndexETag = "";
               await this.writeSyncState(sidecar);
             } catch {
@@ -4473,7 +4655,10 @@ export class S3CacheSyncService implements DatastoreSyncService {
                 const localDirty = this.clearHandledMarks(snap);
                 const sidecar = this.buildV2State({ localDirty });
                 if (armCommitSeq) {
-                  sidecar.commitSeq = (noopMeta as PartitionMetaV2).commitSeq;
+                  sidecar.commitSeq = this.armedCommitSeq(
+                    (noopMeta as PartitionMetaV2).commitSeq,
+                    sidecar.commitSeq,
+                  );
                 }
                 sidecar.remoteIndexETag = "";
                 await this.writeSyncState(sidecar);
@@ -4572,6 +4757,9 @@ export class S3CacheSyncService implements DatastoreSyncService {
       data.deletedKeys,
       v2Meta.commitSeq,
       signal,
+      false,
+      deletionsReconciled,
+      true,
     );
     tracePhase(
       "commitPush.shards",
@@ -4600,7 +4788,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
     }
     this.index.lastPulled = new Date().toISOString();
     const indexComplete = await this.writeLocalIndexAfterPush(
-      Object.keys(data.newEntries),
+      data.newEntries,
       data.deletedKeys,
     );
     this.indexMutated = false;
@@ -4623,16 +4811,32 @@ export class S3CacheSyncService implements DatastoreSyncService {
       // entries, and an armed commitSeq would stop the next pull from ever
       // rebuilding it. Cheap checks first — the other arm is an O(index)
       // stat walk.
+      // Re-checked here, after the earlier pushes' index writes: an own commit
+      // `upToDate` counted is dropped if its write failed.
       const armCommitSeq = committed.upToDate && indexComplete &&
+        this.ownCommitsCover(v2Meta.commitSeq, committed.commitSeq - 1) &&
         ((deletionsReconciled &&
-          priorCommitSeq === v2Meta.commitSeq) ||
+          this.ownCommitsCover(priorCommitSeq, v2Meta.commitSeq)) ||
           (!this.indexIsPartial &&
             await this.localHasAllRemoteEntries()));
       // Cleared after the await above, next to the write, so the
       // marks it clears are exactly the ones it persists.
       const localDirty = this.clearHandledMarks(snap);
       const sidecar = this.buildV2State({ localDirty });
-      if (armCommitSeq) sidecar.commitSeq = committed.commitSeq;
+      if (armCommitSeq) {
+        sidecar.commitSeq = this.armedCommitSeq(
+          committed.commitSeq,
+          sidecar.commitSeq,
+        );
+      }
+      if (!indexComplete) {
+        // Disk lacks this commit's entries, so nothing may arm past them, and
+        // an overlapping push must not have.
+        this.ownCommits.delete(committed.commitSeq);
+        if ((sidecar.commitSeq ?? 0) > committed.commitSeq) {
+          sidecar.commitSeq = undefined;
+        }
+      }
       sidecar.remoteIndexETag = "";
       await this.writeSyncState(sidecar);
     } catch {
@@ -5686,6 +5890,36 @@ export class S3CacheSyncService implements DatastoreSyncService {
         if (entries) {
           for (const [rel, entry] of Object.entries(entries)) {
             merged[rel] = entry;
+          }
+        }
+      }
+    }
+
+    // A model's latest markers can live outside its own shard: the marker of
+    // a two-segment type is in the type's shard, with every other model's
+    // (swamp-club#4102). Only this model's rows are kept, and a shard that is
+    // listed but absent is no reason to read the whole index.
+    const meta = await this.readPartitionMeta(signal);
+    if (meta?.version === 2) {
+      const listed = new Set(meta.partitions);
+      for (const model of models) {
+        const own = new Set(
+          S3CacheSyncService.partitionKeysFromModel(
+            model.modelType,
+            model.modelId,
+          ),
+        );
+        const dir = `data/${model.modelType}/${model.modelId}`;
+        const keys = S3CacheSyncService.partitionsForPaths(
+          meta.partitions,
+          [dir],
+          undefined,
+        );
+        for (const key of keys) {
+          if (own.has(key) || !listed.has(key)) continue;
+          const entries = await this.readShard(key, signal, false);
+          for (const [rel, entry] of Object.entries(entries ?? {})) {
+            if (rel.startsWith(`${dir}/`)) merged[rel] = entry;
           }
         }
       }
