@@ -3,8 +3,8 @@ import type { AwsEnrichment } from "../types.ts";
 export const enrichment: AwsEnrichment = {
   cfTypeName: "AWS::IAM::User",
   npmImports: {
-    "@aws-sdk/client-iam": "npm:@aws-sdk/client-iam@3.1156.0",
-    "@aws-sdk/client-sts": "npm:@aws-sdk/client-sts@3.1156.0",
+    "@aws-sdk/client-iam": "npm:@aws-sdk/client-iam@3.1161.0",
+    "@aws-sdk/client-sts": "npm:@aws-sdk/client-sts@3.1161.0",
     "@smithy/node-http-handler": "npm:@smithy/node-http-handler@4.9.7",
   },
   customMethods: {

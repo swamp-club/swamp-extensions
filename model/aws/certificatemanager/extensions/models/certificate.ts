@@ -40,7 +40,7 @@ import type { AwsCredentials } from "./_lib/aws.ts";
 import {
   ACMClient,
   DescribeCertificateCommand,
-} from "npm:@aws-sdk/client-acm@3.1156.0";
+} from "npm:@aws-sdk/client-acm@3.1161.0";
 
 const DomainValidationOptionSchema = z.object({
   DomainName: z.string().optional(),
@@ -275,7 +275,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CertificateManager Certificate. Registered at `@swamp/aws/certificatemanager/certificate`. */
 export const model = {
   type: "@swamp/aws/certificatemanager/certificate",
-  version: "2026.10.24.2",
+  version: "2026.11.02.1",
   upgrades: [
     {
       toVersion: "2026.08.14.1",
@@ -309,6 +309,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.24.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -52,11 +52,11 @@ import {
   type Tag,
   TagUserCommand,
   UntagUserCommand,
-} from "npm:@aws-sdk/client-iam@3.1156.0";
+} from "npm:@aws-sdk/client-iam@3.1161.0";
 import {
   GetCallerIdentityCommand,
   STSClient,
-} from "npm:@aws-sdk/client-sts@3.1156.0";
+} from "npm:@aws-sdk/client-sts@3.1161.0";
 import { NodeHttpHandler } from "npm:@smithy/node-http-handler@4.9.7";
 
 const PolicySchema = z.object({
@@ -989,7 +989,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IAM User. Registered at `@swamp/aws/iam/user`. */
 export const model = {
   type: "@swamp/aws/iam/user",
-  version: "2026.10.28.1",
+  version: "2026.11.02.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1058,6 +1058,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.02.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

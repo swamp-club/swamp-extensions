@@ -5,7 +5,7 @@ import {
   AmplifyClient,
   GetDomainAssociationCommand,
   type GetDomainAssociationCommandOutput,
-} from "npm:@aws-sdk/client-amplify@3.1156.0";
+} from "npm:@aws-sdk/client-amplify@3.1161.0";
 import { NodeHttpHandler } from "npm:@smithy/node-http-handler@4.9.7";
 import type { AwsCredentials } from "../../../../model/aws/amplify/extensions/models/_lib/aws.ts";
 

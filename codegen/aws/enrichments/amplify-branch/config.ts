@@ -3,7 +3,7 @@ import type { AwsEnrichment } from "../types.ts";
 export const enrichment: AwsEnrichment = {
   cfTypeName: "AWS::Amplify::Branch",
   npmImports: {
-    "@aws-sdk/client-amplify": "npm:@aws-sdk/client-amplify@3.1156.0",
+    "@aws-sdk/client-amplify": "npm:@aws-sdk/client-amplify@3.1161.0",
     "@smithy/node-http-handler": "npm:@smithy/node-http-handler@4.9.7",
   },
   customMethods: {

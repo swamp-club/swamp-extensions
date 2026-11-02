@@ -16,11 +16,11 @@ import {
   type Tag,
   TagUserCommand,
   UntagUserCommand,
-} from "npm:@aws-sdk/client-iam@3.1156.0";
+} from "npm:@aws-sdk/client-iam@3.1161.0";
 import {
   GetCallerIdentityCommand,
   STSClient,
-} from "npm:@aws-sdk/client-sts@3.1156.0";
+} from "npm:@aws-sdk/client-sts@3.1161.0";
 import { NodeHttpHandler } from "npm:@smithy/node-http-handler@4.9.7";
 import type { AwsCredentials } from "../../../../model/aws/iam/extensions/models/_lib/aws.ts";
 
