@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/agent-sessions"
-version: "2026.11.02.1"
+version: "2026.11.02.2"
 license: "AGPL-3.0-or-later"
 visibility: private
 description: |

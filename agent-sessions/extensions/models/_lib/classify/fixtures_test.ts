@@ -17,6 +17,7 @@ import {
   importSessions,
 } from "../importer.ts";
 import { CANARY, GIT_AVAILABLE, gitInit } from "../testdata/fixtures.ts";
+import { installExtensions } from "../testdata/lockfile.ts";
 import { HOME, ROOT } from "../testdata/sessions/trim.ts";
 
 const SESSIONS = join(
@@ -39,13 +40,7 @@ async function importCase(c: Case): Promise<AgentSessionRecord[]> {
     const home = join(tmp, "home");
     const root = join(home, "src", c.name);
     await gitInit(root, { remote: `git@example.com:demo/${c.name}.git` });
-    if (c.extensions.length > 0) {
-      await Deno.mkdir(join(root, ".swamp"));
-      await Deno.writeTextFile(
-        join(root, ".swamp", "upstream_extensions.json"),
-        JSON.stringify({ extensions: c.extensions.map((name) => ({ name })) }),
-      );
-    }
+    if (c.extensions.length > 0) await installExtensions(root, c.extensions);
     const place = (text: string) =>
       text.replaceAll(ROOT, root).replaceAll(HOME, home);
     const projectsDir = join(home, ".claude", "projects");

@@ -74,11 +74,13 @@ subcommand words, never a path, a flag's value or an assignment:
 | Skills, searches, web, MCP, subagents and other tools | neutral | the tool |
 
 **Coverage** comes from the extensions installed in the session's repo, read
-from its `.swamp/upstream_extensions.json` (a worktree, whose `.swamp` is
-not checked in, reads its main checkout's). No manifest says which program
-an extension wraps, so the extension's name stands in: its name after the
-scope, without a `-runner` or `-cli` suffix. `@swamp/git` covers `git`,
-`@swamp/deno-runner` covers `deno`.
+from the lockfile swamp writes when it pulls one: `upstream_extensions.json`
+in the repo's models directory, `extensions/models` unless `.swamp.yaml`
+sets `modelsDir`. A worktree with no lockfile of its own reads its main
+checkout's, since the lockfile is not committed by default. No manifest
+says which program an extension wraps, so the extension's name stands in:
+its name after the scope, without a `-runner` or `-cli` suffix.
+`@swamp/git` covers `git`, `@swamp/deno-runner` covers `deno`.
 
 ## Findings
 

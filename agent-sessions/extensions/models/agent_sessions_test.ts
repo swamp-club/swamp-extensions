@@ -38,6 +38,7 @@ import {
   writeFixture,
   writeSession,
 } from "./_lib/testdata/fixtures.ts";
+import { installExtensions } from "./_lib/testdata/lockfile.ts";
 import { join } from "jsr:@std/path@1.1.4";
 
 /** A Claude Code session's key in the import index. */
@@ -308,11 +309,7 @@ gitTest(
         }
       }
       const first = h.writes.length;
-      await Deno.mkdir(join(f.repoDir, ".swamp"));
-      await Deno.writeTextFile(
-        join(f.repoDir, ".swamp", "upstream_extensions.json"),
-        JSON.stringify({ extensions: [{ name: "@swamp/git" }] }),
-      );
+      await installExtensions(f.repoDir, ["@swamp/git"]);
       const pulled = await importSessions(h.ctx, settings(f));
       // Every session here is the demo repo's, its worktree's included.
       assertEquals(pulled.summary.imported, 4);
