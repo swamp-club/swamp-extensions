@@ -43,21 +43,40 @@ this was written (2026-10-23), so this extension checks versions itself.
 
 Distributions backport the fix without changing the upstream version, so a
 distro build below these versions may still be fixed. The extension knows
-the builds a security tracker listed as of **2026-10-24 18:00 UTC**:
+the builds a security tracker listed as of **2026-11-02 02:50 UTC**:
 
 | Distro | Package | Status | Reference |
 | --- | --- | --- | --- |
 | Debian 12 (bookworm) | libbrotli1, python3-brotli | fixed in 1.0.9-2+deb12u1 | Debian security tracker |
 | Debian 13 (trixie) | libbrotli1, python3-brotli | fixed in 1.1.0-2+deb13u1 | Debian security tracker |
-| Debian forky / sid | libbrotli1, python3-brotli | 1.2.0-4 and older affected, no fix yet | Debian security tracker |
-| Amazon Linux 2023 | libbrotli, brotli | affected, fix pending | Amazon Linux security center |
+| Debian forky / sid | libbrotli1, python3-brotli | fixed in 1.2.0-4.1 (in sid; forky still has 1.2.0-4) | Debian security tracker |
+| Amazon Linux 2023 | libbrotli, brotli | fixed in 1.1.0-1.amzn2023.0.2 | ALAS2023-2026-3334 |
 | Amazon Linux 2023 | nodejs22 | not affected | Amazon Linux security center |
-| Amazon Linux 2023 | nodejs24 | affected, fix pending | Amazon Linux security center |
+| Amazon Linux 2023 | nodejs24 | fixed in 24.22.1 | ALAS2023-2026-3330 |
 | Amazon Linux 2023 | nodejs, nodejs20 | no fix planned | Amazon Linux security center |
+| Ubuntu 26.10 (stonking) | libbrotli1, python3-brotli | fixed in 1.2.0-4ubuntu0.1 | USN-8956-1 |
+| Ubuntu 26.04 (resolute) | libbrotli1, python3-brotli | fixed in 1.2.0-3ubuntu0.1 | USN-8956-1 |
+| Ubuntu 24.04 (noble) | libbrotli1, python3-brotli | fixed in 1.1.0-2ubuntu0.1 | USN-8956-1 |
+| Ubuntu 22.04 (jammy) | libbrotli1, python3-brotli | fixed in 1.0.9-2ubuntu0.1 | USN-8956-1 |
+| Ubuntu 20.04 (focal) | libbrotli1, python3-brotli | fixed in 1.0.7-6ubuntu0.1+esm1, needs Ubuntu Pro | USN-8956-2 |
+| Ubuntu 18.04 (bionic) | libbrotli1, python3-brotli | fixed in 1.0.3-1ubuntu1.3+esm1, needs Ubuntu Pro | USN-8956-2 |
+| Ubuntu 16.04 (xenial) | libbrotli1, python3-brotli | fixed in 1.0.3-1ubuntu1~16.04.2+esm1, needs Ubuntu Pro | USN-8956-2 |
+| Ubuntu 22.04 and later | nodejs | uses the system library, so it takes that library's verdict | Ubuntu CVE tracker |
+| Ubuntu 20.04 (focal) | nodejs | affected (bundled Brotli), no fix yet | Ubuntu CVE tracker |
+| Ubuntu 18.04 and older | nodejs | not affected, no Brotli code | Ubuntu CVE tracker |
+| Ubuntu 22.04 (jammy), 24.04 (noble) | dotnet-runtime-8.0 | fixed in 8.0.33-0ubuntu1~<release>.1 | USN-8958-1 |
+| Ubuntu 24.04 (noble), 26.04 (resolute), 26.10 (stonking) | dotnet-runtime-10.0 | fixed in 10.0.14-0ubuntu1~<release>.1 | USN-8958-1 |
+| Ubuntu 26.10 (stonking) | dotnet-runtime-11.0 | fixed in 11.0.0~rc3-0ubuntu1~26.10.1 | USN-8958-1 |
+
+The Ubuntu `nodejs` and .NET rows apply only to Ubuntu's own builds. A package
+of the same name from elsewhere, such as NodeSource or Microsoft, is judged like
+any other build. `mitigate` does not upgrade distro .NET packages: an Ubuntu
+build below its fix is `vulnerable` with a stopgap, and the result names the
+build to install.
 
 A build at or below a "no fix yet" entry is `vulnerable`; a newer build that
 the snapshot does not know is `check-vendor`. Any other distro build below the
-upstream fix (Ubuntu, RHEL, Fedora, Alpine, SUSE when this was written) is
+upstream fix (RHEL, Fedora, Alpine, SUSE when this was written) is
 `check-vendor`, never guessed either way.
 
 Not affected, and listed in every result so their absence is not mistaken for
@@ -89,7 +108,7 @@ swamp extension pull @swamp/cve/http2shell
 | Exposure | Listening sockets (`ss`, `netstat`, or `lsof` on macOS) owned by node, bun, envoy, Python and similar servers on a non-loopback address |
 
 A component that links the system library takes that library's verdict:
-Debian's and Homebrew's `node`, distro `curl` and distro `.NET` are fixed by
+Debian's, Ubuntu's (22.04 and later) and Homebrew's `node`, distro `curl` and distro `.NET` are fixed by
 upgrading the library, not by their own version. Upstream Node.js builds and
 Microsoft's .NET bundle their own copy.
 

@@ -791,3 +791,24 @@ Deno.test("an escaped star in a sudoers rule matches only a literal star", () =>
   assert(runsWithoutPassword(["/usr/bin/systemctl", "restart", "a\\x"], wild));
   assert(!runsWithoutPassword(["/usr/bin/systemctl", "restart", "ax"], wild));
 });
+
+Deno.test("mitigate does not upgrade an Ubuntu .NET package it rates vulnerable", () => {
+  const p = plan([
+    "HOSTNAME|host1",
+    "UID|0",
+    "KERNEL|Linux",
+    "OS|ID=ubuntu",
+    "OS|VERSION_ID=24.04",
+    "OS|VERSION_CODENAME=noble",
+    "TOOL|apt-get|/usr/bin/apt-get",
+    "PKG|dpkg|libbrotli1|1.1.0-2build2",
+    "PKG|dpkg|dotnet-runtime-8.0|8.0.32-0ubuntu1~24.04.1",
+    "DOTNET|/usr/lib/dotnet/shared/Microsoft.NETCore.App/8.0.32|8.0.32|dotnet-runtime-8.0|",
+    "END|1",
+  ].join("\n"));
+  const install = p.steps.find((s) => s.argv.includes("--only-upgrade"));
+  assert(install, "the library is still upgraded");
+  assert(install.argv.includes("libbrotli1"));
+  assert(!install.argv.some((a) => a.startsWith("dotnet")));
+  assert(p.notes.some((n) => n.includes("8.0.33-0ubuntu1~24.04.1")));
+});

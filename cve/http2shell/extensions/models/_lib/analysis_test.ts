@@ -120,23 +120,23 @@ Deno.test("Debian 12 before the fix: vulnerable, update-available when apt has i
   assertEquals(only(u, "libbrotli").verdict, "update-available");
 });
 
-Deno.test("Debian sid at the pending build is vulnerable; a newer unknown build is check-vendor", () => {
+Deno.test("Debian forky and sid share an entry: sid reports the forky codename", () => {
   const sid = [
     "OS|ID=debian",
-    "OS|VERSION_CODENAME=sid",
+    "OS|VERSION_CODENAME=forky",
     "TOOL|apt-get|/usr/bin/apt-get",
   ];
   const s = scan(probe(...sid, "PKG|dpkg|libbrotli1|1.2.0-4"));
   assertEquals(only(s, "libbrotli").verdict, "vulnerable");
-  assertEquals(only(s, "libbrotli").action, "stopgap");
-  const newer = scan(probe(...sid, "PKG|dpkg|libbrotli1|1.2.0-5"));
-  assertEquals(only(newer, "libbrotli").verdict, "check-vendor");
+  assertEquals(only(s, "libbrotli").fixedVersion, "1.2.0-4.1");
+  const newer = scan(probe(...sid, "PKG|dpkg|libbrotli1|1.2.0-4.1"));
+  assertEquals(only(newer, "libbrotli").verdict, "patched");
   // Upstream 1.2.1 is fixed whatever the tracker says.
   const fixed = scan(probe(...sid, "PKG|dpkg|libbrotli1|1.2.1-1"));
   assertEquals(only(fixed, "libbrotli").verdict, "patched");
 });
 
-Deno.test("Amazon Linux 2023: pending brotli, tracked node packages", () => {
+Deno.test("Amazon Linux 2023: tracked brotli and node packages", () => {
   const s = scan(probe(
     "OS|ID=amzn",
     "OS|VERSION_ID=2023",
@@ -156,6 +156,165 @@ Deno.test("Amazon Linux 2023: pending brotli, tracked node packages", () => {
     nodes.find((n) => n.packageName === "nodejs20")?.verdict,
     "unsupported",
   );
+  const fixed = scan(probe(
+    "OS|ID=amzn",
+    "OS|VERSION_ID=2023",
+    "PKG|rpm|libbrotli|1.1.0-1.amzn2023.0.2",
+    "PKG|rpm|nodejs24|24.22.1-1.amzn2023.0.1",
+    "NODE|/usr/bin/node-24|nodejs24|v24.22.1 1.1.0|",
+  ));
+  assertEquals(only(fixed, "libbrotli").verdict, "patched");
+  assertEquals(only(fixed, "node").verdict, "patched");
+  assertEquals(fixed.riskLevel, "none");
+  const oldNode = scan(probe(
+    "OS|ID=amzn",
+    "OS|VERSION_ID=2023",
+    "PKG|rpm|nodejs24|24.22.0-1.amzn2023.0.1",
+    "NODE|/usr/bin/node-24|nodejs24|v24.22.0 1.1.0|",
+  ));
+  assertEquals(only(oldNode, "node").verdict, "vulnerable");
+});
+
+function ubuntu(versionId: string, codename: string): string[] {
+  return [
+    "OS|ID=ubuntu",
+    `OS|VERSION_ID=${versionId}`,
+    `OS|VERSION_CODENAME=${codename}`,
+    "TOOL|apt-get|/usr/bin/apt-get",
+  ];
+}
+
+const UBUNTU_BROTLI: [string, string, string, string][] = [
+  ["16.04", "xenial", "1.0.3-1ubuntu1~16.04.1", "1.0.3-1ubuntu1~16.04.2+esm1"],
+  ["18.04", "bionic", "1.0.3-1ubuntu1.3", "1.0.3-1ubuntu1.3+esm1"],
+  ["20.04", "focal", "1.0.7-6ubuntu0.1", "1.0.7-6ubuntu0.1+esm1"],
+  ["22.04", "jammy", "1.0.9-2build6", "1.0.9-2ubuntu0.1"],
+  ["24.04", "noble", "1.1.0-2build2", "1.1.0-2ubuntu0.1"],
+  ["26.04", "resolute", "1.2.0-3", "1.2.0-3ubuntu0.1"],
+  ["26.10", "stonking", "1.2.0-4", "1.2.0-4ubuntu0.1"],
+];
+
+Deno.test("Ubuntu 26.04 with the fixed libbrotli1 has no finding (swamp-club #4259)", () => {
+  const s = scan(probe(
+    ...ubuntu("26.04", "resolute"),
+    "PKG|dpkg|libbrotli1|1.2.0-3ubuntu0.1",
+  ));
+  assertEquals(only(s, "libbrotli").verdict, "patched");
+  assertEquals(s.riskLevel, "none");
+  assertEquals(s.vulnerable, false);
+});
+
+Deno.test("Ubuntu: every release rates its stock and fixed brotli builds", () => {
+  for (const [id, name, stock, fixed] of UBUNTU_BROTLI) {
+    const os = ubuntu(id, name);
+    const old = scan(probe(...os, `PKG|dpkg|libbrotli1|${stock}`));
+    assertEquals(only(old, "libbrotli").verdict, "vulnerable", name);
+    assertEquals(only(old, "libbrotli").fixedVersion, fixed, name);
+    const ok = scan(probe(...os, `PKG|dpkg|libbrotli1|${fixed}`));
+    assertEquals(only(ok, "libbrotli").verdict, "patched", name);
+    const binding = scan(probe(...os, `PKG|dpkg|python3-brotli|${fixed}`));
+    assertEquals(only(binding, "python").verdict, "patched", name);
+    // ESM builds are out of reach without a subscription, and the note says so.
+    if (fixed.includes("+esm")) {
+      assertStringIncludes(only(old, "libbrotli").note, "Ubuntu Pro");
+    }
+  }
+});
+
+Deno.test("Ubuntu nodejs takes the library's rating, whatever its linkage shows", () => {
+  const os = ubuntu("26.04", "resolute");
+  const pkg = "PKG|dpkg|nodejs|22.22.1+dfsg+~cs22.19.15-1ubuntu1";
+  const fixedLib = "PKG|dpkg|libbrotli1|1.2.0-3ubuntu0.1";
+  const oldLib = "PKG|dpkg|libbrotli1|1.2.0-3";
+  for (const links of ["/lib/aarch64-linux-gnu/libbrotlidec.so.1", "", "?"]) {
+    const node = `NODE|/usr/bin/node|nodejs|v22.22.1 1.2.0|${links}`;
+    const ok = scan(probe(...os, pkg, fixedLib, node));
+    assertEquals(only(ok, "node").verdict, "patched", links);
+    assertEquals(ok.riskLevel, "none", links);
+    // Never "not-affected" beside a vulnerable library.
+    const bad = scan(probe(...os, pkg, oldLib, node));
+    assertEquals(only(bad, "node").verdict, "vulnerable", links);
+  }
+  const noLib = scan(
+    probe(...os, pkg, "NODE|/usr/bin/node|nodejs|v22.22.1 1.2.0|"),
+  );
+  assertEquals(only(noLib, "node").verdict, "check-vendor");
+});
+
+Deno.test("Ubuntu nodejs: focal bundles an unfixed copy; bionic has no Brotli code", () => {
+  const node = "NODE|/usr/bin/node|nodejs|v10.19.0 1.0.7|";
+  const focal = scan(probe(
+    ...ubuntu("20.04", "focal"),
+    "PKG|dpkg|nodejs|10.19.0~dfsg-3ubuntu1.6",
+    node,
+  ));
+  assertEquals(only(focal, "node").verdict, "vulnerable");
+  const bionic = scan(probe(
+    ...ubuntu("18.04", "bionic"),
+    "PKG|dpkg|nodejs|8.10.0~dfsg-2ubuntu0.4",
+    node,
+  ));
+  assertEquals(only(bionic, "node").verdict, "not-affected");
+});
+
+Deno.test("A NodeSource package named nodejs on Ubuntu is not judged by Ubuntu's status", () => {
+  const fixedLib = "PKG|dpkg|libbrotli1|1.2.0-3ubuntu0.1";
+  const old = scan(probe(
+    ...ubuntu("26.04", "resolute"),
+    fixedLib,
+    "PKG|dpkg|nodejs|24.22.0-1nodesource1",
+    "NODE|/usr/bin/node|nodejs|v24.22.0 1.1.0|",
+  ));
+  // Below the 24.22.1 fix: never patched because the library is.
+  assertEquals(only(old, "node").verdict, "check-vendor");
+  const fixed = scan(probe(
+    ...ubuntu("26.04", "resolute"),
+    fixedLib,
+    "PKG|dpkg|nodejs|24.22.1-1nodesource1",
+    "NODE|/usr/bin/node|nodejs|v24.22.1 1.2.1|",
+  ));
+  assertEquals(only(fixed, "node").verdict, "patched");
+  // focal's pending and bionic's not-affected do not apply to it either.
+  const bionic = scan(probe(
+    ...ubuntu("18.04", "bionic"),
+    "PKG|dpkg|nodejs|24.22.0-1nodesource1",
+    "NODE|/usr/bin/node|nodejs|v24.22.0 1.1.0|",
+  ));
+  assertEquals(only(bionic, "node").verdict, "check-vendor");
+});
+
+Deno.test("Ubuntu .NET packages that bundle Brotli are rated from USN-8958-1", () => {
+  const os = ubuntu("24.04", "noble");
+  const dotnet =
+    "DOTNET|/usr/lib/dotnet/shared/Microsoft.NETCore.App/8.0.33|8.0.33|dotnet-runtime-8.0|";
+  const ok = scan(probe(
+    ...os,
+    "PKG|dpkg|dotnet-runtime-8.0|8.0.33-0ubuntu1~24.04.1",
+    dotnet,
+  ));
+  assertEquals(only(ok, "dotnet").verdict, "patched");
+  assertEquals(ok.riskLevel, "none");
+  const old = scan(probe(
+    ...os,
+    "PKG|dpkg|dotnet-runtime-8.0|8.0.32-0ubuntu1~24.04.1",
+    dotnet,
+  ));
+  assertEquals(only(old, "dotnet").verdict, "vulnerable");
+  assertEquals(only(old, "dotnet").action, "stopgap");
+  // A release USN-8958-1 does not list for this runtime stays check-vendor.
+  const unlisted = scan(probe(
+    ...ubuntu("26.04", "resolute"),
+    "PKG|dpkg|dotnet-runtime-8.0|8.0.33-0ubuntu1~26.04.1",
+    dotnet,
+  ));
+  assertEquals(only(unlisted, "dotnet").verdict, "check-vendor");
+  // Microsoft's package has the same name, and USN-8958-1 says nothing about it.
+  const microsoft = scan(probe(
+    ...os,
+    "PKG|dpkg|dotnet-runtime-8.0|8.0.40-1",
+    dotnet,
+  ));
+  assertEquals(only(microsoft, "dotnet").verdict, "check-vendor");
 });
 
 Deno.test("Alpine with no tracker entry is check-vendor below the upstream fix", () => {

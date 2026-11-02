@@ -427,6 +427,16 @@ export function planMitigation(
       "No fixed .NET runtime has been released; apply the proxy stopgaps until one ships.",
     );
   }
+  for (
+    const f of pending.filter((f) =>
+      f.kind === "dotnet" && f.source === "distro" &&
+      f.verdict === "vulnerable" && !f.linksSystemBrotli && f.fixedVersion
+    )
+  ) {
+    notes.push(
+      `${f.packageName}: upgrade to ${f.fixedVersion} with the package manager, then restart its services; mitigate does not change .NET packages.`,
+    );
+  }
 
   // Restart the units that run the old library: those already stale, and,
   // after an upgrade, those that have it loaded now: every one after a

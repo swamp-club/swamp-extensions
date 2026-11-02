@@ -101,7 +101,7 @@ export const INBOUND_MIDDLEWARE: Record<string, string> = {
 };
 
 /** When the tracker entries below were read. */
-export const TRACKER_SNAPSHOT = "2026-10-24T18:00Z";
+export const TRACKER_SNAPSHOT = "2026-11-02T02:50Z";
 
 /** When the advisory went out; package lists refreshed earlier cannot know the fix. */
 export const ADVISORY_PUBLISHED_AT = "2026-10-21T00:00:00Z";
@@ -116,7 +116,30 @@ export type TrackerEntry = {
   status: "fixed" | "pending";
   version: string | null;
   reference: string;
+  /** Only an installed version matching this is the vendor's own build. */
+  build?: RegExp;
 };
+
+/** NodeSource's and Microsoft's packages share these names but not this mark. */
+const UBUNTU_BUILD = /ubuntu/;
+
+const UBUNTU_USN = "Ubuntu USN-8956-1";
+const UBUNTU_ESM = "Ubuntu USN-8956-2, which needs Ubuntu Pro (ESM)";
+
+function ubuntuBrotli(
+  release: string,
+  version: string,
+  reference: string,
+): TrackerEntry {
+  return {
+    distro: "ubuntu",
+    release,
+    packages: /^(libbrotli1|python3-brotli)$/,
+    status: "fixed",
+    version,
+    reference,
+  };
+}
 
 /**
  * Distro brotli library builds from the security trackers. A build the
@@ -142,29 +165,49 @@ export const LIBBROTLI_TRACKER: TrackerEntry[] = [
   },
   {
     distro: "debian",
-    // Testing and unstable have no VERSION_ID, only a codename.
+    // Neither has a VERSION_ID, and sid reports the testing codename, so the
+    // two cannot be told apart. The fix is in sid and has yet to reach forky.
     release: "14|forky|sid",
     packages: /^(libbrotli1|python3-brotli)$/,
-    status: "pending",
-    version: "1.2.0-4",
-    reference: "Debian security tracker (forky, sid)",
+    status: "fixed",
+    version: "1.2.0-4.1",
+    reference: "Debian security tracker, sid",
   },
   {
     distro: "amzn",
     release: "2023",
     packages: /^(libbrotli|brotli)$/,
-    status: "pending",
-    version: null,
-    reference: "Amazon Linux security center: pending fix",
+    status: "fixed",
+    version: "1.1.0-1.amzn2023.0.2",
+    reference: "Amazon Linux security center, ALAS2023-2026-3334",
   },
+  ubuntuBrotli("16.04|xenial", "1.0.3-1ubuntu1~16.04.2+esm1", UBUNTU_ESM),
+  ubuntuBrotli("18.04|bionic", "1.0.3-1ubuntu1.3+esm1", UBUNTU_ESM),
+  ubuntuBrotli("20.04|focal", "1.0.7-6ubuntu0.1+esm1", UBUNTU_ESM),
+  ubuntuBrotli("22.04|jammy", "1.0.9-2ubuntu0.1", UBUNTU_USN),
+  ubuntuBrotli("24.04|noble", "1.1.0-2ubuntu0.1", UBUNTU_USN),
+  ubuntuBrotli("26.04|resolute", "1.2.0-3ubuntu0.1", UBUNTU_USN),
+  ubuntuBrotli("26.10|stonking", "1.2.0-4ubuntu0.1", UBUNTU_USN),
 ];
 
 export type NodeTrackerEntry = {
   distro: string;
   release: string;
   packages: RegExp;
-  status: "not-affected" | "pending" | "no-fix-planned";
+  /**
+   * uses-system-library: the package has no copy of its own, so it takes the
+   * brotli library's rating. fixed-upstream: the vendor shipped the upstream
+   * fixed release, so the Node.js version decides.
+   */
+  status:
+    | "not-affected"
+    | "pending"
+    | "no-fix-planned"
+    | "uses-system-library"
+    | "fixed-upstream";
   reference: string;
+  /** Only an installed version matching this is the vendor's own build. */
+  build?: RegExp;
 };
 
 /** Distro Node.js packages whose status the vendor published. */
@@ -180,8 +223,8 @@ export const NODE_TRACKER: NodeTrackerEntry[] = [
     distro: "amzn",
     release: "2023",
     packages: /^nodejs24$/,
-    status: "pending",
-    reference: "Amazon Linux security center",
+    status: "fixed-upstream",
+    reference: "Amazon Linux security center, ALAS2023-2026-3330",
   },
   {
     distro: "amzn",
@@ -190,6 +233,60 @@ export const NODE_TRACKER: NodeTrackerEntry[] = [
     status: "no-fix-planned",
     reference: "Amazon Linux security center",
   },
+  {
+    distro: "ubuntu",
+    release: "22.04|24.04|26.04|26.10|jammy|noble|resolute|stonking",
+    packages: /^nodejs$/,
+    build: UBUNTU_BUILD,
+    status: "uses-system-library",
+    reference: "Ubuntu CVE tracker",
+  },
+  {
+    distro: "ubuntu",
+    // Node.js on focal vendors its own Brotli.
+    release: "20.04|focal",
+    packages: /^nodejs$/,
+    build: UBUNTU_BUILD,
+    status: "pending",
+    reference: "Ubuntu CVE tracker",
+  },
+  {
+    distro: "ubuntu",
+    // Node.js on these releases has no Brotli code at all.
+    release: "14.04|16.04|18.04|trusty|xenial|bionic",
+    packages: /^nodejs$/,
+    build: UBUNTU_BUILD,
+    status: "not-affected",
+    reference: "Ubuntu CVE tracker",
+  },
+];
+
+const UBUNTU_DOTNET = "Ubuntu USN-8958-1";
+
+function ubuntuDotnet(
+  release: string,
+  runtime: "8.0" | "10.0" | "11.0",
+  version: string,
+): TrackerEntry {
+  return {
+    distro: "ubuntu",
+    release,
+    packages: new RegExp(`^dotnet-runtime-${runtime.replace(".", "\\.")}$`),
+    status: "fixed",
+    version,
+    reference: UBUNTU_DOTNET,
+    build: UBUNTU_BUILD,
+  };
+}
+
+/** Distro .NET runtime packages that bundle Brotli: builds at or above version are fixed. */
+export const DOTNET_TRACKER: TrackerEntry[] = [
+  ubuntuDotnet("22.04|jammy", "8.0", "8.0.33-0ubuntu1~22.04.1"),
+  ubuntuDotnet("24.04|noble", "8.0", "8.0.33-0ubuntu1~24.04.1"),
+  ubuntuDotnet("24.04|noble", "10.0", "10.0.14-0ubuntu1~24.04.1"),
+  ubuntuDotnet("26.04|resolute", "10.0", "10.0.14-0ubuntu1~26.04.1"),
+  ubuntuDotnet("26.10|stonking", "10.0", "10.0.14-0ubuntu1~26.10.1"),
+  ubuntuDotnet("26.10|stonking", "11.0", "11.0.0~rc3-0ubuntu1~26.10.1"),
 ];
 
 /** Decoders that cannot reach the bug, reported so their absence is not mistaken for a gap. */

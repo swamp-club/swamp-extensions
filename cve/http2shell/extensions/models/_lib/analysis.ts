@@ -25,6 +25,7 @@ import {
   BROTLI_FIRST_AFFECTED,
   BROTLI_FIXED,
   BUN_FIXED,
+  DOTNET_TRACKER,
   ENVOY_FIRST_SUPPORTED,
   ENVOY_FIXED,
   INBOUND_MIDDLEWARE,
@@ -860,11 +861,30 @@ function nodeFinding(
   const tracked = source === "distro"
     ? NODE_TRACKER.find((e) =>
       e.distro === facts.os.id && releaseMatches(e.release, facts.os) &&
-      e.packages.test(pkgName ?? "")
+      e.packages.test(pkgName ?? "") &&
+      (!e.build || e.build.test(pkg?.version ?? ""))
     )
     : undefined;
   if (tracked) {
-    r = tracked.status === "not-affected"
+    if (tracked.status === "uses-system-library") {
+      // The vendor says so, whatever ldd could or could not show.
+      f.linksSystemBrotli = true;
+    }
+    r = tracked.status === "uses-system-library"
+      ? followLibrary(
+        libs,
+        n.links === "?" ? "" : n.links,
+        "This node",
+      ) ?? {
+        verdict: "check-vendor",
+        action: "check-vendor",
+        fixedVersion: null,
+        note:
+          `${pkgName} uses the system Brotli library per ${tracked.reference}, and this scan did not find a package for that library.`,
+      }
+      : tracked.status === "fixed-upstream"
+      ? judgeNode(n.version)
+      : tracked.status === "not-affected"
       ? {
         verdict: "not-affected",
         action: "none",
@@ -920,6 +940,42 @@ function nodeFinding(
     };
   }
   return { ...f, ...(r ?? {}) };
+}
+
+/** A distro .NET package with its own Brotli: the tracker decides, or check-vendor. */
+function judgeDistroDotnet(owner: string, facts: ProbeFacts): Rating {
+  const entry = DOTNET_TRACKER.find((e) =>
+    e.distro === facts.os.id && releaseMatches(e.release, facts.os) &&
+    e.packages.test(owner)
+  );
+  const pkg = facts.packages.find((p) => p.name === owner);
+  if (
+    !entry?.version || !pkg || (entry.build && !entry.build.test(pkg.version))
+  ) {
+    return {
+      verdict: "check-vendor",
+      action: "check-vendor",
+      fixedVersion: null,
+      note:
+        `${owner} is a distro build that bundles Brotli; check the vendor advisory.`,
+    };
+  }
+  if (comparePackageVersions(pkg.manager, pkg.version, entry.version) >= 0) {
+    return {
+      verdict: "patched",
+      action: "none",
+      fixedVersion: entry.version,
+      note: `Fixed per ${entry.reference}.`,
+    };
+  }
+  // mitigate does not upgrade .NET packages, so this is not an upgrade it does.
+  return {
+    verdict: "vulnerable",
+    action: "stopgap",
+    fixedVersion: entry.version,
+    note:
+      `${owner} ${pkg.version} is affected; ${entry.version} is fixed (${entry.reference}). Upgrade it with the package manager: mitigate does not change .NET packages.`,
+  };
 }
 
 function pythonFindings(facts: ProbeFacts): Finding[] {
@@ -1173,13 +1229,7 @@ export function buildFindings(
         }),
       });
     } else {
-      findings.push({
-        ...f,
-        verdict: "check-vendor",
-        action: "check-vendor",
-        note:
-          `${d.owner} is a distro build that bundles Brotli; check the vendor advisory.`,
-      });
+      findings.push({ ...f, ...judgeDistroDotnet(d.owner, facts) });
     }
   }
   for (const e of facts.envoys) {
