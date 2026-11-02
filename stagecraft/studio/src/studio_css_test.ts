@@ -78,3 +78,56 @@ Deno.test("studio.css: the work-item page's key, title, ticket refs and relation
   assertHas(".stats dd", SHRINKS);
   assertHas(".relations li", { "overflow-wrap": "anywhere" });
 });
+
+/** The declarations of `selector` inside the `@media (<query>)` block. */
+function inMedia(query: string, selector: string): Map<string, string> {
+  const css = CSS.replace(/\/\*[\s\S]*?\*\//g, "");
+  const at = css.indexOf(`@media (${query})`);
+  assert(at >= 0, `studio.css has no @media (${query})`);
+  // The block runs to the brace that closes it.
+  let depth = 0, end = css.indexOf("{", at);
+  for (let i = end; i < css.length; i++) {
+    if (css[i] === "{") depth++;
+    if (css[i] === "}" && --depth === 0) {
+      end = i;
+      break;
+    }
+  }
+  const body = css.slice(css.indexOf("{", at) + 1, end);
+  for (const [, sel, decls] of body.matchAll(/([^{}]+)\{([^{}]*)\}/g)) {
+    if (sel.trim().replace(/\s+/g, " ") !== selector) continue;
+    return new Map(
+      decls.split(";").map((d) => d.split(":").map((s) => s.trim()))
+        .filter((d) => d.length === 2 && d[0] !== "")
+        .map(([k, v]) => [k, v]),
+    );
+  }
+  throw new Error(`@media (${query}) has no rule for ${selector}`);
+}
+
+Deno.test("studio.css: below 1600px Board columns narrow and text keeps its size (swamp-club #3380)", () => {
+  const q = "max-width: 1600px";
+  assert(inMedia(q, ".col").get("flex-basis") === "208px");
+  assert(inMedia(q, ".col.terminal").get("flex-basis") === "168px");
+  // Denser, not smaller: the compact rules set no font size.
+  for (const sel of [".col", ".col.terminal", ".col-cards", ".card"]) {
+    const d = inMedia(q, sel);
+    assert(!d.has("font") && !d.has("font-size"), `${sel} keeps its font`);
+  }
+});
+
+Deno.test("studio.css: a column showing no cards is a narrow rail with its name down it", () => {
+  assertHas(".col.rail, .col.rail.terminal", { "flex": "0 0 36px" });
+  assertHas(".rail-name", { "writing-mode": "vertical-rl" });
+  // The Board's cues sit in the line above the columns, never over a head.
+  assertHas(".board-head .edge-cue", { "position": "static" });
+  assertHas(".board-head .cue-after", { "margin-left": "auto" });
+  assertHas(".edge-cue", { "position": "absolute" });
+});
+
+Deno.test("studio.css: the page is one column bounded by the window, so a wide Board scrolls (swamp-club #3380)", () => {
+  assertHas(".app", {
+    "grid-template-columns": "minmax(0, 1fr)",
+    "grid-template-rows": "auto minmax(0, 1fr)",
+  });
+});

@@ -29,10 +29,15 @@ const KEYS = [
   "Escape",
 ];
 
-for (const name of EXAMPLES) {
-  Deno.test(`nav ${name}: every stage, exit and gate is reachable by keyboard`, async () => {
+for (
+  const [name, o] of EXAMPLES.flatMap((n) =>
+    (["across", "down"] as const).map((o) => [n, o] as const)
+  )
+) {
+  const label = o === "across" ? name : `${name} (down)`;
+  Deno.test(`nav ${label}: every stage, exit and gate is reachable by keyboard`, async () => {
     const { definition, view } = await loadOk(name);
-    const model = navModel(definition, layout(definition, view));
+    const model = navModel(definition, layout(definition, view, o));
     const start = navigate(model, null, "ArrowDown");
     assert(start !== null);
     const seen = new Map<string, Target>([[targetKey(start), start]]);
@@ -71,4 +76,41 @@ Deno.test("nav: into an exit and its gates, back out, and along the exit", async
   assertEquals(navigate(model, gate, "Enter"), next);
   assertEquals(navigate(model, plan, "Escape"), null);
   assertEquals(navigate(model, plan, "c"), null);
+});
+
+Deno.test("nav (down): Down moves along a lane, Right to the next lane", async () => {
+  const { definition, view } = await loadOk("ten-stage");
+  const across = navModel(definition, layout(definition, view));
+  const down = navModel(definition, layout(definition, view, "down"));
+  const stage = (s: string): Target => ({ kind: "stage", stage: s });
+  // Across: classify → triage along the open lane; down to triaged's row.
+  assertEquals(
+    navigate(across, stage("classify"), "ArrowRight"),
+    stage("triage"),
+  );
+  assertEquals(
+    navigate(across, stage("classify"), "ArrowDown"),
+    stage("codebase-context"),
+  );
+  // Down the same moves turn with the lanes.
+  assertEquals(navigate(down, stage("classify"), "ArrowDown"), stage("triage"));
+  assertEquals(navigate(down, stage("triage"), "ArrowUp"), stage("classify"));
+  assertEquals(
+    navigate(down, stage("classify"), "ArrowRight"),
+    stage("codebase-context"),
+  );
+  assertEquals(navigate(down, stage("classify"), "ArrowLeft"), null);
+  // An exit's own keys do not turn: Up and Down between exits, Right to gates.
+  const exit = navigate(down, stage("triage"), "Enter")!;
+  assertEquals(exit, { kind: "exit", stage: "triage", exit: "accept" });
+  assertEquals(navigate(down, exit, "ArrowDown"), {
+    kind: "exit",
+    stage: "triage",
+    exit: "reclassify",
+  });
+  // Reading order is the same either way: lane by lane.
+  assertEquals(
+    down.tiles.map((t) => t.target),
+    across.tiles.map((t) => t.target),
+  );
 });

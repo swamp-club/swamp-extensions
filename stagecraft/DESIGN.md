@@ -135,15 +135,17 @@ integration/              the real-engine suite, through the swamp CLI
 studio/                   the studio page's source
   src/                    the page (Preact): index.html, studio.css, app.tsx,
                           its views (graph, inspector, findings, source,
-                          simulate_view, board_view, work_item_view), and
-                          the pure parts
+                          simulate_view, board_view, work_item_view), the
+                          edge cues they share (cues.tsx), and the pure parts
                           they use, with their tests: model.ts (the engine on
                           the model file's text), simulate.ts (scenarios,
                           walks and Copy as scenario on the engine's runner),
-                          board.ts (the Board's columns and filters),
+                          board.ts (the Board's columns, rails, filters and
+                          what is out of view),
                           work_item.ts (one work item: overlay, waits,
                           timeline, and the run as a scenario),
-                          route.ts (each view's address), layout.ts,
+                          route.ts (each view's address), layout.ts (across
+                          or down, and which reads in a pane),
                           selection.ts, reference.ts, changes.ts, nav.ts
   fonts/                  the bundled fonts, with their licences
   build.ts                bundles the page into the studio_asset modules
@@ -1886,6 +1888,21 @@ example definition, that no two edges overlap, no edge passes through a tile,
 every edge has its own port and entry, and the same definition gives the same
 layout.
 
+**Across or down** (swamp-club #3380). The same lanes, flow and tiles can be
+drawn down: each lane a column, side by side, its stages stacked in flow order,
+the labels at the top. Tiles keep their ports on the right. An edge from the
+same lane, or a lane to the right, enters its target on the right side, so a
+step down a lane runs straight down the channel beside it; one from a lane to
+the left enters on the left; and in each channel the right-side entries take
+the tracks nearest the column, so no two entries at one height run along each
+other. The tests check both orientations against the same rules. Across fits
+the pane both ways; down fits its width and scrolls down. On auto, the default,
+a pane draws down when across would fit below 75% and down fits better, and
+goes back across only at 85%, so a resize near the line does not flip it; the
+zoom is fitted again only when the orientation changes, so a resize keeps a
+person's zoom. A toggle in the graph's tools picks across, down or auto, kept
+per browser. Cues at the pane's edges name the stages scrolled out of view.
+
 **Selection by identity.** A document path is positional, so when the agent
 inserts a stage or an exit, the same path names something else. The page holds
 the selection by what it is (`selection.ts`): a stage by id, an exit by its
@@ -1920,7 +1937,9 @@ labelled stale. Reloads coalesce: one in flight is followed by at most one more.
 
 **Keyboard** (`nav.ts`). The graph is one tab stop (an ARIA tree) whose roving
 focus is the selection. Arrows move between stages (left and right in a row, up
-and down to the nearest stage in the next row); Enter steps into a stage's
+and down to the nearest stage in the next row; drawn down, they turn with the
+lanes, so Down moves along a lane and Right to the next one, and reading order,
+lane by lane, is the same either way); Enter steps into a stage's
 exits; on an exit, Enter follows it to the stage it leads to and → steps into
 its gates; Esc or ← steps back out. `c` copies a reference only while focus is
 in the graph, the findings or the inspector, never page-wide (WCAG 2.2 SC
@@ -3075,6 +3094,29 @@ Scenarios have no includes: variants of one late path each repeat the walk that
 reaches it. An include step would be its own change.
 
 ## Decision log
+
+### 2026-11-02: a factory with many stages on a laptop screen (swamp-club #3380)
+
+**Decision.** At 100% zoom on a 1440px-wide window, a ten-stage factory reads
+without hiding a stage. On the Board, a column that shows no cards is a rail,
+a 36px strip with its name and count that opens on a press; below 1600px,
+columns are 208px (168px terminal) and cards denser, with text the same size;
+and cues at the board's edges name the columns scrolled out of view, a press
+showing the nearest. The page's grid is one column bounded by the window: it
+had been sized to its content, so a wide Board was clipped by the body with no
+way to scroll to its last columns, which is why the reporter had to zoom out.
+The Board's columns follow the flow: by the longest forward path to each stage,
+terminal stages last. They had followed the graph's columns, which are counted
+per lane, so a lane's first stage, often done, sat beside the initial one.
+Design, Simulate and the work-item page draw the graph down when across would
+not read (see "Across or down" under "Design mode").
+
+**Why.** Seth chose rails, compact columns and cues for the Board over wrapping
+columns onto rows, which breaks reading left to right, and a top-to-bottom
+graph over only collapsing the inspector. Down keeps the lanes, the flow and
+the router, and changes only where an edge enters, so the layout's rules and
+tests carry over. Columns are not expanded on hover: the layout would shift
+under the pointer.
 
 ### 2026-10-23: the Board shows tickets no work item has taken (swamp-club #3828)
 

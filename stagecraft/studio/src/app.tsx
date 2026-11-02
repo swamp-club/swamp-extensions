@@ -61,10 +61,13 @@ import {
   loadWorkItem,
   markStagesSeen,
   mode,
+  orientation,
+  orientationSetting,
   type PanelTab,
   panelTab,
   selectFactory,
   selection,
+  setOrientation,
   sourceError,
   stale,
   startRoute,
@@ -190,6 +193,29 @@ function Toolbar({ box }: { box: { current: HTMLElement | null } }) {
         >
           fit
         </button>
+      </div>
+      <span class="sep" />
+      <div class="grp" role="group" aria-label="Draw the flow">
+        {(
+          [
+            ["auto", "auto", "Across or down, whichever reads at this width"],
+            ["across", "→ across", "Left to right"],
+            ["down", "↓ down", "Top to bottom"],
+          ] as const
+        ).map(([value, text, title]) => (
+          <button
+            type="button"
+            class="wide"
+            key={value}
+            title={value === "auto"
+              ? `${title} (now ${orientation.value})`
+              : title}
+            aria-pressed={orientationSetting.value === value}
+            onClick={() => setOrientation(value)}
+          >
+            {text}
+          </button>
+        ))}
       </div>
       {
         // The work item's graph is the definition it pinned, not the file:

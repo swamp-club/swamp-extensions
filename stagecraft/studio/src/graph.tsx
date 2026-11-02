@@ -23,7 +23,15 @@
 import { useEffect, useRef } from "preact/hooks";
 import type { JSX } from "preact";
 import type { GateView } from "../../extensions/models/_lib/engine/design_view.ts";
-import { ANY_ID, EXIT_H, HEADER_H, type Layout, type Tile } from "./layout.ts";
+import { EdgeCue, useAttach, useHidden } from "./cues.tsx";
+import {
+  ANY_ID,
+  EXIT_H,
+  fitOf,
+  HEADER_H,
+  type Layout,
+  type Tile,
+} from "./layout.ts";
 import { allTargets, navigate } from "./nav.ts";
 import { pathSegments } from "./model.ts";
 import { gateIdentity, type Target, targetKey } from "./selection.ts";
@@ -33,8 +41,11 @@ import {
   drawn,
   frameIndex,
   graph,
+  layouts,
   mode,
   nav,
+  orientationSetting,
+  pickOrientation,
   select,
   selection,
   simOverlay,
@@ -141,10 +152,11 @@ function takenCount(
 
 export function fitZoom(box: HTMLElement | null, l: Layout | null) {
   if (box === null || l === null) return;
-  const r = box.getBoundingClientRect();
-  const z = Math.min((r.width - 8) / l.width, (r.height - 8) / l.height);
-  zoom.value = Math.max(0.4, Math.min(1, Math.round(z * 20) / 20));
+  zoom.value = fitOf(l, box.getBoundingClientRect());
 }
+
+/** The graph's pane scrolls both ways; cues name the stages past each edge. */
+const AXES = ["x", "y"] as const;
 
 export function Graph() {
   const l = graph.value;
@@ -159,11 +171,29 @@ export function Graph() {
   const activeId = ids.get(selKey);
   const sim = simOverlay.value;
   const index = frameIndex.value;
+  const hidden = useHidden(box, AXES);
 
-  // Fit a factory's graph to the pane the first time it is drawn.
+  // Auto: pick the orientation for the pane when a definition is drawn or
+  // the setting changes, and whenever the pane is resized.
   useEffect(() => {
-    if (l === null || g === null || fitted.current === g.file) return;
-    fitted.current = g.file;
+    if (box.current) pickOrientation(box.current.getBoundingClientRect());
+  }, [layouts.value, orientationSetting.value]);
+  useAttach(box, (el) => {
+    const ro = new ResizeObserver(() =>
+      pickOrientation(el.getBoundingClientRect())
+    );
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
+
+  // Fit a factory's graph to the pane the first time it is drawn, and when
+  // it turns; never on a resize that keeps its orientation, so a person's
+  // zoom stays.
+  useEffect(() => {
+    if (l === null || g === null) return;
+    const k = `${g.file}:${l.orientation}`;
+    if (fitted.current === k) return;
+    fitted.current = k;
     fitZoom(box.current, l);
   }, [l, g?.file]);
 
@@ -197,6 +227,7 @@ export function Graph() {
   }, [sim, index]);
 
   if (l === null || g === null) return <div class="canvas empty-graph" />;
+  const down = l.orientation === "down";
 
   const findingsBy = new Map<string, { e: number; w: number }>();
   for (const f of g.findings) {
@@ -238,132 +269,169 @@ export function Graph() {
   };
 
   return (
-    <div
-      class={`canvas${stale.value ? " stale" : ""}${
-        mode.value === "work-item" ? " on-item" : ""
-      }`}
-      ref={box}
-      tabIndex={0}
-      role="tree"
-      aria-label="Stages by tracker status, with their exits and gates"
-      aria-activedescendant={activeId}
-      onKeyDown={onKey}
-      onClick={() => select(null)}
-    >
-      <svg
-        class="graph"
-        viewBox={`0 0 ${l.width} ${l.height}`}
-        width={Math.round(l.width * zoom.value)}
-        height={Math.round(l.height * zoom.value)}
-        xmlns="http://www.w3.org/2000/svg"
-        role="presentation"
+    <div class="canvas-box">
+      <div
+        class={`canvas${stale.value ? " stale" : ""}${
+          mode.value === "work-item" ? " on-item" : ""
+        }`}
+        ref={box}
+        tabIndex={0}
+        role="tree"
+        aria-label="Stages by tracker status, with their exits and gates"
+        aria-activedescendant={activeId}
+        onKeyDown={onKey}
+        onClick={() => select(null)}
       >
-        <defs>
-          {["forward", "loop", "global", "hot"].map((k) => (
-            <marker
-              key={k}
-              id={`arrow-${k}`}
-              class={`arrow-${k}`}
-              viewBox="0 0 10 10"
-              refX="9"
-              refY="5"
-              markerWidth="7"
-              markerHeight="7"
-              orient="auto-start-reverse"
-            >
-              <path d="M0,1 L9,5 L0,9 z" />
-            </marker>
-          ))}
-        </defs>
-        <g role="presentation">
-          {l.lanes.map((lane) => (
-            <g class="lane" key={lane.key}>
-              <rect
-                class="lane-band"
-                x="0"
-                y={lane.y}
-                width={l.width}
-                height={lane.h}
-              />
-              <rect
-                class="lane-tick"
-                x="0"
-                y={lane.y}
-                width="3"
-                height={lane.h}
-              />
-            </g>
-          ))}
-        </g>
-        <g role="presentation">
-          {l.edges.map((e) => {
-            const hot = traceEdges.has(`${e.from}>${e.to}`);
-            const name = e.kind === "global"
-              ? g.view.globalTransitions.find((x) => x.path === e.path)?.name
-              : g.view.stages.find((s) => s.id === e.from)?.transitions
-                .find((x) => x.path === e.path)?.name;
-            const key = `${e.from}:${name}`;
-            const taken = sim !== null && name !== undefined &&
-              takenCount(sim, e.from, name, e.kind === "global") > 0;
-            const cls = [
-              "edge",
-              `k-${e.kind}`,
-              e.humanStop ? "human" : "",
-              hot ? "trace" : "",
-              key === selExit ? "sel" : "",
-              taken ? "taken" : "",
-            ].filter(Boolean).join(" ");
-            return (
-              <path
-                key={e.id}
-                class={cls}
-                d={e.d}
-                data-exit={key}
-                marker-end={`url(#arrow-${hot ? "hot" : e.kind})`}
-              />
-            );
-          })}
-        </g>
-        <g role="presentation">
-          {l.lanes.map((lane) => {
-            const key = lane.key ? `status: ${lane.key}` : "no tracker status";
-            const w = lane.label.length * 10.2 + key.length * 6.1 + 34;
-            return (
+        <svg
+          class="graph"
+          viewBox={`0 0 ${l.width} ${l.height}`}
+          width={Math.round(l.width * zoom.value)}
+          height={Math.round(l.height * zoom.value)}
+          xmlns="http://www.w3.org/2000/svg"
+          role="presentation"
+        >
+          <defs>
+            {["forward", "loop", "global", "hot"].map((k) => (
+              <marker
+                key={k}
+                id={`arrow-${k}`}
+                class={`arrow-${k}`}
+                viewBox="0 0 10 10"
+                refX="9"
+                refY="5"
+                markerWidth="7"
+                markerHeight="7"
+                orient="auto-start-reverse"
+              >
+                <path d="M0,1 L9,5 L0,9 z" />
+              </marker>
+            ))}
+          </defs>
+          <g role="presentation">
+            {l.lanes.map((lane) => (
               <g class="lane" key={lane.key}>
                 <rect
-                  class="lane-label-bg"
-                  x="6"
-                  y={lane.y + 6}
-                  width={w}
-                  height="20"
+                  class="lane-band"
+                  x={lane.x}
+                  y={lane.y}
+                  width={lane.w}
+                  height={lane.h}
                 />
-                <text class="lane-label" x="14" y={lane.y + 20}>
-                  {lane.label}
-                  <tspan class="lane-key" dx="12">{key}</tspan>
-                </text>
+                {/* The tick runs down a row's left, along a column's top. */}
+                <rect
+                  class="lane-tick"
+                  x={lane.x}
+                  y={lane.y}
+                  width={down ? lane.w : 3}
+                  height={down ? 3 : lane.h}
+                />
               </g>
-            );
-          })}
-        </g>
-        <g role="group">
-          {[...l.tiles.values()].map((tile) => (
-            <TileView
-              key={tile.id}
-              tile={tile}
-              ids={ids}
-              selKey={selKey}
-              selExit={selExit}
-              findings={findingsBy.get(tile.id)}
-              traced={traced.get(tile.id)}
-              isChanged={mode.value !== "work-item" &&
-                changed.value.has(tile.id)}
-              sim={sim}
-              pick={pick}
-            />
-          ))}
-        </g>
-        <g class="fx" ref={fx} role="presentation" />
-      </svg>
+            ))}
+          </g>
+          <g role="presentation">
+            {l.edges.map((e) => {
+              const hot = traceEdges.has(`${e.from}>${e.to}`);
+              const name = e.kind === "global"
+                ? g.view.globalTransitions.find((x) => x.path === e.path)?.name
+                : g.view.stages.find((s) => s.id === e.from)?.transitions
+                  .find((x) => x.path === e.path)?.name;
+              const key = `${e.from}:${name}`;
+              const taken = sim !== null && name !== undefined &&
+                takenCount(sim, e.from, name, e.kind === "global") > 0;
+              const cls = [
+                "edge",
+                `k-${e.kind}`,
+                e.humanStop ? "human" : "",
+                hot ? "trace" : "",
+                key === selExit ? "sel" : "",
+                taken ? "taken" : "",
+              ].filter(Boolean).join(" ");
+              return (
+                <path
+                  key={e.id}
+                  class={cls}
+                  d={e.d}
+                  data-exit={key}
+                  marker-end={`url(#arrow-${hot ? "hot" : e.kind})`}
+                />
+              );
+            })}
+          </g>
+          <g role="presentation">
+            {l.lanes.map((lane) => {
+              const key = lane.key
+                ? `status: ${lane.key}`
+                : "no tracker status";
+              if (down) {
+                // Down, a lane is a tile wide: its status goes under its name.
+                return (
+                  <g class="lane" key={lane.key}>
+                    <rect
+                      class="lane-label-bg"
+                      x={lane.x + 4}
+                      y={lane.y + 7}
+                      width={lane.w - 8}
+                      height="34"
+                    />
+                    <text class="lane-label" x={lane.x + 12} y={lane.y + 21}>
+                      {lane.label}
+                    </text>
+                    <text class="lane-key" x={lane.x + 12} y={lane.y + 35}>
+                      {key}
+                    </text>
+                  </g>
+                );
+              }
+              const w = lane.label.length * 10.2 + key.length * 6.1 + 34;
+              return (
+                <g class="lane" key={lane.key}>
+                  <rect
+                    class="lane-label-bg"
+                    x="6"
+                    y={lane.y + 6}
+                    width={w}
+                    height="20"
+                  />
+                  <text class="lane-label" x="14" y={lane.y + 20}>
+                    {lane.label}
+                    <tspan class="lane-key" dx="12">{key}</tspan>
+                  </text>
+                </g>
+              );
+            })}
+          </g>
+          <g role="group">
+            {[...l.tiles.values()].map((tile) => (
+              <TileView
+                key={tile.id}
+                tile={tile}
+                ids={ids}
+                selKey={selKey}
+                selExit={selExit}
+                findings={findingsBy.get(tile.id)}
+                traced={traced.get(tile.id)}
+                isChanged={mode.value !== "work-item" &&
+                  changed.value.has(tile.id)}
+                sim={sim}
+                pick={pick}
+              />
+            ))}
+          </g>
+          <g class="fx" ref={fx} role="presentation" />
+        </svg>
+      </div>
+      {(["before", "after"] as const).flatMap((side) =>
+        AXES.map((axis) => (
+          <EdgeCue
+            key={`${axis}-${side}`}
+            box={box}
+            hidden={hidden[axis]}
+            axis={axis}
+            side={side}
+            noun="stage"
+          />
+        ))
+      )}
     </div>
   );
 }
@@ -447,6 +515,7 @@ function TileView(props: {
       class={cls}
       id={ids.get(targetKey(target))}
       data-stage={isAny ? undefined : tile.id}
+      data-cue={isAny ? undefined : tile.id}
       role="treeitem"
       aria-level={1}
       aria-selected={sel}

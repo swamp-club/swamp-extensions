@@ -15,9 +15,14 @@
 
 import { assert, assertEquals } from "@std/assert";
 import {
+  ACROSS_FROM,
   ANY_ID,
+  chooseOrientation,
+  DOWN_BELOW,
   type EdgeGeom,
+  fitOf,
   layout,
+  type Orientation,
   type Point,
   ranks,
   stageLanes,
@@ -61,10 +66,17 @@ function crosses(
 
 const key = (p: Point) => `${Math.round(p.x * 10)},${Math.round(p.y * 10)}`;
 
-for (const name of EXAMPLES) {
-  Deno.test(`layout ${name}: no two edges overlap`, async () => {
+const ORIENTATIONS: Orientation[] = ["across", "down"];
+
+for (
+  const [name, o] of EXAMPLES.flatMap((n) =>
+    ORIENTATIONS.map((o) => [n, o] as const)
+  )
+) {
+  const label = o === "across" ? name : `${name} (down)`;
+  Deno.test(`layout ${label}: no two edges overlap`, async () => {
     const { definition, view } = await loadOk(name);
-    const all = segments(layout(definition, view).edges);
+    const all = segments(layout(definition, view, o).edges);
     for (let i = 0; i < all.length; i++) {
       for (let j = i + 1; j < all.length; j++) {
         if (all[i].edge === all[j].edge) continue;
@@ -78,9 +90,9 @@ for (const name of EXAMPLES) {
     }
   });
 
-  Deno.test(`layout ${name}: no edge passes through a tile`, async () => {
+  Deno.test(`layout ${label}: no edge passes through a tile`, async () => {
     const { definition, view } = await loadOk(name);
-    const l = layout(definition, view);
+    const l = layout(definition, view, o);
     for (const s of segments(l.edges)) {
       for (const t of l.tiles.values()) {
         assert(!crosses(s, t), `${s.edge} passes through ${t.id}`);
@@ -88,9 +100,9 @@ for (const name of EXAMPLES) {
     }
   });
 
-  Deno.test(`layout ${name}: every edge has a port and an entry of its own`, async () => {
+  Deno.test(`layout ${label}: every edge has a port and an entry of its own`, async () => {
     const { definition, view } = await loadOk(name);
-    const l = layout(definition, view);
+    const l = layout(definition, view, o);
     const starts = new Set(l.edges.map((e) => key(e.points[0])));
     const ends = new Set(l.edges.map((e) => key(e.points.at(-1)!)));
     assertEquals(starts.size, l.edges.length);
@@ -98,16 +110,20 @@ for (const name of EXAMPLES) {
     for (const e of l.edges) {
       const to = l.tiles.get(e.to)!;
       const end = e.points.at(-1)!;
-      assertEquals(end.x, to.x, `${e.id} ends on its target's left side`);
+      // Across, every edge enters on the left; down, on either side.
+      assert(
+        end.x === to.x || (o === "down" && end.x === to.x + to.w),
+        `${e.id} ends on its target's side`,
+      );
       assert(end.y > to.y && end.y < to.y + to.h, `${e.id} enters ${e.to}`);
       const from = l.tiles.get(e.from)!;
       assertEquals(e.points[0].x, from.x + from.w);
     }
   });
 
-  Deno.test(`layout ${name}: one edge per transition, one exit per transition`, async () => {
+  Deno.test(`layout ${label}: one edge per transition, one exit per transition`, async () => {
     const { definition, view } = await loadOk(name);
-    const l = layout(definition, view);
+    const l = layout(definition, view, o);
     const transitions = [
       ...view.stages.flatMap((s) =>
         s.transitions.map((t) => `${s.id}:${t.path}`)
@@ -123,11 +139,11 @@ for (const name of EXAMPLES) {
     }
   });
 
-  Deno.test(`layout ${name}: the same definition gives the same layout`, async () => {
+  Deno.test(`layout ${label}: the same definition gives the same layout`, async () => {
     const a = await loadOk(name);
     const b = await loadOk(name);
-    const first = layout(a.definition, a.view);
-    const second = layout(b.definition, b.view);
+    const first = layout(a.definition, a.view, o);
+    const second = layout(b.definition, b.view, o);
     assertEquals(first.edges, second.edges);
     assertEquals(first.lanes, second.lanes);
     assertEquals(
@@ -268,4 +284,101 @@ globalTransitions:
   assertEquals(l.edges.filter((e) => e.kind === "global").map((e) => e.to), [
     "b",
   ]);
+});
+
+Deno.test("layout ten-stage (down): lanes side by side, flow down each lane, same grid as across", async () => {
+  const { definition, view } = await loadOk("ten-stage");
+  const across = layout(definition, view);
+  const down = layout(definition, view, "down");
+  assertEquals(down.orientation, "down");
+  assertEquals(
+    down.lanes.map((l) => l.key),
+    ["open", "in_progress", "shipped"],
+  );
+  // Lanes are columns, left to right, each the graph's full height.
+  for (let i = 1; i < down.lanes.length; i++) {
+    assert(down.lanes[i].x >= down.lanes[i - 1].x + down.lanes[i - 1].w);
+    assertEquals(down.lanes[i].y, down.lanes[0].y);
+    assertEquals(down.lanes[i].h, down.lanes[0].h);
+  }
+  // A lane's stages stack down in flow order, all at one x.
+  for (const t of down.tiles.values()) {
+    const a = across.tiles.get(t.id)!;
+    assertEquals([t.lane, t.col], [a.lane, a.col]);
+    const next = [...down.tiles.values()].find((n) =>
+      n.lane === t.lane && n.col === t.col + 1
+    );
+    if (next === undefined) continue;
+    assertEquals(next.x, t.x);
+    assert(next.y >= t.y + t.h, `${next.id} is below ${t.id}`);
+  }
+  // Narrower than across: three lanes, not seven stages, wide.
+  assert(down.width < across.width, `${down.width} < ${across.width}`);
+});
+
+Deno.test("layout (down): a step to the next stage in the lane runs down the channel beside it", async () => {
+  for (const name of EXAMPLES) {
+    const { definition, view } = await loadOk(name);
+    const l = layout(definition, view, "down");
+    for (const e of l.edges) {
+      const from = l.tiles.get(e.from)!, to = l.tiles.get(e.to)!;
+      if (from.lane !== to.lane || to.col !== from.col + 1) continue;
+      // Out of the port, down the channel, into the right side: no S.
+      assert(e.points.length <= 4, `${name} ${e.id}: ${e.points.length}`);
+      assertEquals(e.points.at(-1)!.x, to.x + to.w, `${name} ${e.id}`);
+      // It never crosses its lane's column.
+      assert(
+        e.points.every((p) => p.x >= from.x + from.w),
+        `${name} ${e.id} crosses its lane`,
+      );
+    }
+  }
+});
+
+Deno.test("layout: down fits by width, across both ways, from 40% to 100%", () => {
+  const pane = { width: 1008, height: 708 };
+  assertEquals(
+    fitOf({ orientation: "across", width: 2000, height: 500 }, pane),
+    0.5,
+  );
+  assertEquals(
+    fitOf({ orientation: "across", width: 500, height: 1400 }, pane),
+    0.5,
+  );
+  assertEquals(
+    fitOf({ orientation: "down", width: 500, height: 4000 }, pane),
+    1,
+  );
+  assertEquals(
+    fitOf({ orientation: "across", width: 9000, height: 500 }, pane),
+    0.4,
+  );
+});
+
+Deno.test("layout: a pane draws down below 75% across and back across only from 85%", () => {
+  const pane = (width: number) => ({ width: width + 8, height: 2000 });
+  const across = { width: 1000, height: 300 };
+  const down = { width: 600, height: 1500 };
+  assertEquals(DOWN_BELOW, 0.75);
+  assertEquals(ACROSS_FROM, 0.85);
+  // Across fits at 80%: it stays across.
+  assertEquals(chooseOrientation(across, down, pane(800), "across"), "across");
+  // At 70% it goes down, where it fits at 100%.
+  assertEquals(chooseOrientation(across, down, pane(700), "across"), "down");
+  // Widened back to 80%, it stays down; at 85% it goes back across.
+  assertEquals(chooseOrientation(across, down, pane(800), "down"), "down");
+  assertEquals(chooseOrientation(across, down, pane(850), "down"), "across");
+  // Down no better than across: it stays across, however narrow.
+  const wide = { width: 1000, height: 1500 };
+  assertEquals(chooseOrientation(across, wide, pane(500), "across"), "across");
+});
+
+Deno.test("layout ten-stage: at 1440px beside the inspector it reads down at 75% or more", async () => {
+  const { definition, view } = await loadOk("ten-stage");
+  const across = layout(definition, view);
+  const down = layout(definition, view, "down");
+  // The canvas beside the 440px inspector on a 1440x900 window.
+  const pane = { width: 1000, height: 700 };
+  assertEquals(chooseOrientation(across, down, pane, "across"), "down");
+  assert(fitOf(down, pane) >= DOWN_BELOW, `fit ${fitOf(down, pane)}`);
 });

@@ -148,9 +148,13 @@ kbd {
   background: transparent;
 }
 
+/* One column, bounded by the window like the rows: without it the column
+   grows to the widest content, a Board of many stages, and the body clips
+   what is past the window, with no way to scroll to it (swamp-club #3380). */
 .app {
   height: 100%;
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
 }
 
@@ -377,6 +381,19 @@ kbd {
 .stale-note {
   color: var(--orange);
   font-weight: 700;
+}
+/* The graph's pane and the edge cues over it. */
+.canvas-box {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+.tools button[aria-pressed="true"] {
+  border-color: var(--green);
+  color: var(--green);
+  background: rgba(57, 255, 20, .08);
 }
 .canvas {
   flex: 1;
@@ -2044,13 +2061,31 @@ button.finding:hover,
 .filter.search input::placeholder {
   color: var(--faint);
 }
+/* The count, with the Board's edge cues either side of it, above the
+   columns: a cue for columns to the left comes first and pushes the count
+   right; one for columns to the right sits at the far end. */
+.board-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 26px;
+  margin: 6px 12px 0;
+}
 .board-count {
-  margin: 8px 12px 0;
+  margin: 0;
   font: 11px var(--mono);
   color: var(--muted);
 }
+.board-head .edge-cue {
+  position: static;
+  box-shadow: none;
+}
+.board-head .cue-after {
+  margin-left: auto;
+}
 .board {
   flex: 1;
+  min-width: 0;
   min-height: 0;
   display: flex;
   gap: 10px;
@@ -2234,6 +2269,118 @@ button.finding:hover,
 .b-claim {
   color: var(--cyan);
   background: rgba(34, 211, 238, .08);
+}
+
+/* A column that shows no cards is a rail (swamp-club #3380): a strip with
+   its count and its name written down it, which opens on a press. */
+.col.rail,
+.col.rail.terminal {
+  flex: 0 0 36px;
+  align-self: stretch;
+  max-height: none;
+}
+.rail-head {
+  margin: 0;
+  flex: 1;
+  display: flex;
+}
+.rail-open {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  font: 700 11px var(--display);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.rail-open:hover {
+  color: var(--cyan);
+}
+.rail-name {
+  writing-mode: vertical-rl;
+  white-space: nowrap;
+}
+.rail-close {
+  flex: none;
+  margin-left: auto;
+  background: transparent;
+  border: 1px solid var(--rule-2);
+  color: var(--muted);
+  min-width: 22px;
+  min-height: 22px;
+  padding: 0;
+  font-size: 11px;
+}
+.rail-close:hover {
+  color: var(--cyan);
+  border-color: var(--cyan);
+}
+
+/* Edge cues: what a pane has scrolled out of view, at that edge. */
+.edge-cue {
+  position: absolute;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  min-height: 26px;
+  background: var(--panel);
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  font: 700 11px var(--mono);
+  white-space: nowrap;
+  box-shadow: 0 0 0 4px var(--canvas);
+}
+.edge-cue:hover {
+  background: rgba(34, 211, 238, .12);
+}
+.cue-x.cue-before {
+  left: 4px;
+  top: 14px;
+}
+.cue-x.cue-after {
+  right: 4px;
+  top: 14px;
+}
+.cue-y.cue-before {
+  top: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+.cue-y.cue-after {
+  bottom: 4px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+/* Narrower screens: narrower columns and denser cards, text the same size,
+   so a ten-stage factory fits a laptop at 100% zoom (swamp-club #3380). */
+@media (max-width: 1600px) {
+  .board {
+    gap: 8px;
+    padding: 8px 10px 10px;
+  }
+  .col {
+    flex-basis: 208px;
+  }
+  .col.terminal {
+    flex-basis: 168px;
+  }
+  .col-cards {
+    padding: 6px;
+    gap: 6px;
+  }
+  .card {
+    padding: 6px 8px;
+    gap: 3px;
+  }
 }
 
 /* The ticket page: the ticket and the command that claims it. */

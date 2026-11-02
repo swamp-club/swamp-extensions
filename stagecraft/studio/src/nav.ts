@@ -40,9 +40,19 @@ interface NavTile {
 }
 
 export interface NavModel {
-  /** In reading order: row by row, left to right. */
+  /** In reading order: lane by lane, in flow order. */
   tiles: NavTile[];
+  /** Drawn down: lanes are columns, so the arrows turn with them. */
+  down: boolean;
 }
+
+/** Down, the arrow that moves along a lane is Down, not Right. */
+const TRANSPOSED: Record<string, string> = {
+  ArrowUp: "ArrowLeft",
+  ArrowDown: "ArrowRight",
+  ArrowLeft: "ArrowUp",
+  ArrowRight: "ArrowDown",
+};
 
 export function navModel(
   definition: FactoryDefinition,
@@ -73,7 +83,7 @@ export function navModel(
     });
   }
   tiles.sort((a, b) => a.lane - b.lane || a.col - b.col);
-  return { tiles };
+  return { tiles, down: layout.orientation === "down" };
 }
 
 /** Every target the keyboard can reach, as the mouse can select them. */
@@ -133,17 +143,20 @@ export function navigate(
   const tile = model.tiles[at.ti];
 
   if (at.ei < 0) {
-    switch (key) {
+    // Moves between stages are in terms of across: Right along a lane, Down
+    // to the next lane. Down they turn, as the lanes do.
+    const move = model.down ? TRANSPOSED[key] ?? key : key;
+    switch (move) {
       case "ArrowLeft":
       case "ArrowRight": {
-        const col = tile.col + (key === "ArrowRight" ? 1 : -1);
+        const col = tile.col + (move === "ArrowRight" ? 1 : -1);
         return model.tiles.find((t) => t.lane === tile.lane && t.col === col)
           ?.target ?? null;
       }
       case "ArrowUp":
       case "ArrowDown": {
         const lanes = [...new Set(model.tiles.map((t) => t.lane))];
-        const i = lanes.indexOf(tile.lane) + (key === "ArrowDown" ? 1 : -1);
+        const i = lanes.indexOf(tile.lane) + (move === "ArrowDown" ? 1 : -1);
         if (i < 0 || i >= lanes.length) return null;
         return nearestIn(model, lanes[i], tile.col)?.target ?? null;
       }

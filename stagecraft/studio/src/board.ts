@@ -14,8 +14,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 // The Board: every work item of a factory, in a column for the stage it is
-// in. Columns follow the factory's flow, the order Design mode draws its
-// stages (by column, then lane). A work item in a stage the current
+// in. Columns follow the factory's flow: the longest forward path to each
+// stage, terminal stages last (swamp-club #3380). A work item in a stage the current
 // definition no longer has gets a column of its own at the end, so nothing
 // vanishes. Terminal stages show a count; their work items show only when
 // asked, since finished work is most of a busy factory.
@@ -65,15 +65,24 @@ export interface BoardColumn {
   cards: BoardCard[];
 }
 
-/** The stages in the order Design mode draws them: by column, then lane. */
+/**
+ * The stages in flow order: by the longest forward path to each, then lane,
+ * then file order, with terminal stages last, so finished work is at the
+ * right. Not the graph's columns: those are per lane, so a lane's first
+ * stage (often done) would sit beside the initial one.
+ */
 export function stageOrder(
   layout: Layout,
   terminal: (id: string) => boolean,
 ): BoardStage[] {
   return [...layout.tiles.values()]
     .filter((t) => t.kind === "stage" && t.id !== ANY_ID)
-    .sort((a, b) => a.col - b.col || a.lane - b.lane || a.index - b.index)
-    .map((t) => ({ id: t.id, terminal: terminal(t.id) }));
+    .map((t) => ({ t, terminal: terminal(t.id) }))
+    .sort((a, b) =>
+      Number(a.terminal) - Number(b.terminal) || a.t.flow - b.t.flow ||
+      a.t.lane - b.t.lane || a.t.index - b.t.index
+    )
+    .map(({ t, terminal }) => ({ id: t.id, terminal }));
 }
 
 /** Pinned to a definition other than the factory's current one. */
@@ -297,4 +306,44 @@ function shellWord(word: string): string {
   return /^[A-Za-z0-9._@%+=:,/-]+$/.test(word)
     ? word
     : `'${word.replaceAll("'", `'"'"'`)}'`;
+}
+
+/**
+ * Whether a column shows as a rail, a narrow strip with its name and count:
+ * when it shows no cards (none match, or a terminal column with finished
+ * work hidden) and the person has not opened it (swamp-club #3380).
+ */
+export function showsAsRail(
+  column: { id: string; cards: readonly unknown[] },
+  opened: ReadonlySet<string>,
+): boolean {
+  return column.cards.length === 0 && !opened.has(column.id);
+}
+
+/** Something laid out along one axis, from `start` to `end`. */
+export interface Span {
+  id: string;
+  start: number;
+  end: number;
+}
+
+/**
+ * The items not wholly inside the visible span from `viewStart` to
+ * `viewEnd`, split by the side they spill over, in their order: an item
+ * cut off by an edge counts on that side, and one wider than the view, cut
+ * off by both, on both. Edge cues name these, so no stage is off screen
+ * without one. A pixel's rounding is not cut off.
+ */
+export function offscreen(
+  items: readonly Span[],
+  viewStart: number,
+  viewEnd: number,
+): { before: string[]; after: string[] } {
+  const before: string[] = [];
+  const after: string[] = [];
+  for (const it of items) {
+    if (it.start < viewStart - 1) before.push(it.id);
+    if (it.end > viewEnd + 1) after.push(it.id);
+  }
+  return { before, after };
 }

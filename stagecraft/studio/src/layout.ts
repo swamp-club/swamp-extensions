@@ -20,6 +20,14 @@
 // between columns and rows, one track per edge, so no two edges overlap.
 // Each edge enters its target at its own point on the tile's left side.
 // Pure and deterministic: the same definition always gives the same layout.
+//
+// Down (swamp-club #3380), for panes too narrow to read the factory across:
+// the same lanes, flow and tiles, transposed. Each lane is a column, side by
+// side, its stages stacked top to bottom in flow order. Tiles are drawn as
+// across, ports on the right. An edge from a stage in the same lane or a
+// lane to its right enters its target on the right side, so a step down a
+// lane runs straight down the channel beside it; one from a lane to the
+// left enters on the left.
 
 import type { FactoryDefinition } from "../../extensions/models/_lib/engine/definition_schema.ts";
 import type {
@@ -41,7 +49,15 @@ const TRACK = 5.5;
 const ROW_TOP = 34;
 const ROW_BOTTOM = 14;
 const TOP = 8;
+/** Down: room above the first row for the lanes' labels. */
+const LANE_HEAD = 46;
+/** Down: room above each row's tiles. */
+const ROW_GAP = 12;
+/** Down: how far a lane's band reaches past its tiles. */
+const BAND_PAD = 8;
 
+/** Which way the flow runs: left to right, or top to bottom. */
+export type Orientation = "across" | "down";
 /** The ANY STAGE tile's id, which no stage can have (ids are names). */
 export const ANY_ID = "*any";
 
@@ -64,6 +80,10 @@ export interface Tile {
   stage?: StageView;
   /** The stage's index in the definition; -1 for ANY STAGE. */
   index: number;
+  /** Where the stage is in the flow: the longest forward path to it from
+   * the initial stage; a stage no forward path reaches follows them all, in
+   * file order. -1 for ANY STAGE. */
+  flow: number;
   lane: number;
   col: number;
   x: number;
@@ -77,7 +97,10 @@ export interface Lane {
   /** The tracker status, or "" for none. */
   key: string;
   label: string;
+  /** The lane's band: a row across, a column down. */
+  x: number;
   y: number;
+  w: number;
   h: number;
 }
 
@@ -99,6 +122,7 @@ export interface EdgeGeom {
 }
 
 export interface Layout {
+  orientation: Orientation;
   tiles: Map<string, Tile>;
   lanes: Lane[];
   edges: EdgeGeom[];
@@ -216,11 +240,14 @@ interface Req {
   tracks: { v1: number; h?: number; v2?: number };
   /** Offset of the entry point below the target's top. */
   entry: number;
+  /** The side of the target the edge enters. */
+  side: "left" | "right";
 }
 
 export function layout(
   definition: FactoryDefinition,
   view: DesignView,
+  orientation: Orientation = "across",
 ): Layout {
   const rank = ranks(view);
   const laneOf = stageLanes(definition, view, rank);
@@ -240,7 +267,7 @@ export function layout(
   const tiles = new Map<string, Tile>();
   const laneTiles: Tile[][] = laneKeys.map(() => []);
   const tile = (
-    fields: Pick<Tile, "id" | "kind" | "stage" | "index" | "lane">,
+    fields: Pick<Tile, "id" | "kind" | "stage" | "index" | "lane" | "flow">,
   ): Tile => ({ ...fields, col: 0, x: 0, y: 0, w: TILE_W, h: 0, exits: [] });
 
   view.stages.forEach((s, i) => {
@@ -249,6 +276,7 @@ export function layout(
       kind: "stage",
       stage: s,
       index: i,
+      flow: orderKey(s, i),
       lane: laneKeys.indexOf(laneOf.get(s.id)!),
     });
     tiles.set(s.id, t);
@@ -265,6 +293,7 @@ export function layout(
       id: ANY_ID,
       kind: "any",
       index: -1,
+      flow: -1,
       lane: target?.lane ?? laneKeys.length - 1,
     });
     tiles.set(ANY_ID, any);
@@ -272,6 +301,14 @@ export function layout(
   }
   laneTiles.forEach((row) => row.forEach((t, c) => (t.col = c)));
   const maxCols = Math.max(1, ...laneTiles.map((r) => r.length));
+
+  // The grid the router works on. Across, a lane is a row and its stages
+  // columns; down, a lane is a column and its stages rows.
+  const down = orientation === "down";
+  const gc = (t: Tile) => down ? t.lane : t.col;
+  const gr = (t: Tile) => down ? t.col : t.lane;
+  const nCols = down ? laneKeys.length : maxCols;
+  const nRows = down ? maxCols : laneKeys.length;
 
   // Route requests, before geometry: which channels each edge uses. Vertical
   // channel c is right of column c (-1 is the left margin); horizontal
@@ -298,13 +335,22 @@ export function layout(
         : t.loop
         ? "loop"
         : "forward";
-      const rs = from.lane, cs = from.col, rt = to.lane, ct = to.col;
+      const rs = gr(from), cs = gc(from), rt = gr(to), ct = gc(to);
       const channels: Req["channels"] = { v1: cs };
-      // Straight across when the target is in the next column; otherwise
-      // along a horizontal channel to the channel left of the target.
-      if (ct !== cs + 1) {
-        if (rt === rs) channels.h = ct > cs ? rs : rs + 1;
-        else channels.h = rt > rs ? rt : rt + 1;
+      // Down, from the same column or one to the right, in on the right.
+      const side = down && ct <= cs ? "right" : "left";
+      const h = rt === rs ? (ct > cs ? rs : rs + 1) : rt > rs ? rt : rt + 1;
+      if (side === "right") {
+        // Straight down or up the channel beside the column when the source
+        // is in it; otherwise along a horizontal channel to that channel.
+        if (ct !== cs) {
+          channels.h = h;
+          channels.v2 = ct;
+        }
+      } else if (ct !== cs + 1) {
+        // Straight across when the target is in the next column; otherwise
+        // along a horizontal channel to the channel left of the target.
+        channels.h = h;
         channels.v2 = ct - 1;
       }
       reqs.push({
@@ -317,14 +363,18 @@ export function layout(
         channels,
         tracks: { v1: 0 },
         entry: 0,
+        side,
       });
     });
   }
 
   // Tracks: forward edges nearest the tiles, loops and escapes outside them.
-  const byKind = [...reqs].sort((a, b) =>
-    (a.kind === "forward" ? 0 : 1) - (b.kind === "forward" ? 0 : 1)
-  );
+  // Down, edges entering a right side come first, so in each channel they
+  // hug the column on its left and their entries never run along an entry
+  // into the column on its right at the same height.
+  const order = (r: Req) =>
+    (r.side === "right" ? 0 : 2) + (r.kind === "forward" ? 0 : 1);
+  const byKind = [...reqs].sort((a, b) => order(a) - order(b));
   for (const r of byKind) {
     r.tracks.v1 = take(vUse, r.channels.v1);
     if (r.channels.h !== undefined) r.tracks.h = take(hUse, r.channels.h);
@@ -335,25 +385,29 @@ export function layout(
     }
   }
 
-  // Entries: each edge its own point on the target's left side, top to
+  // Entries: each edge its own point on its side of the target, top to
   // bottom in the order of their sources. Ports sit halfway down an exit
   // row and entries on the row lines, so an exit leaving one tile never
-  // runs along an entry into the next.
+  // runs along an entry into the next, nor along one into its right side.
   const incoming = new Map<string, Req[]>();
   for (const r of reqs) {
-    incoming.set(r.to.id, [...(incoming.get(r.to.id) ?? []), r]);
+    const k = `${r.side}:${r.to.id}`;
+    incoming.set(k, [...(incoming.get(k) ?? []), r]);
   }
   for (const list of incoming.values()) {
     list.sort((a, b) =>
-      a.from.lane - b.from.lane || a.from.col - b.from.col ||
+      gr(a.from) - gr(b.from) || gc(a.from) - gc(b.from) ||
       a.exitIndex - b.exitIndex
     );
     list.forEach((r, i) => (r.entry = (i + 1) * ENTRY_STEP));
   }
   for (const t of tiles.values()) {
     const exits = HEADER_H + t.exits.length * EXIT_H + TILE_PAD_B;
-    const entries = ((incoming.get(t.id)?.length ?? 0) + 1) * ENTRY_STEP;
-    t.h = Math.max(exits, entries);
+    const most = Math.max(
+      incoming.get(`left:${t.id}`)?.length ?? 0,
+      incoming.get(`right:${t.id}`)?.length ?? 0,
+    );
+    t.h = Math.max(exits, (most + 1) * ENTRY_STEP);
   }
 
   // Geometry.
@@ -364,7 +418,7 @@ export function layout(
   vLeft.set(-1, x);
   x += vW(-1);
   const colX: number[] = [];
-  for (let c = 0; c < maxCols; c++) {
+  for (let c = 0; c < nCols; c++) {
     colX.push(x);
     x += TILE_W;
     vLeft.set(c, x);
@@ -374,24 +428,41 @@ export function layout(
   const trackX = (c: number, i: number) =>
     vLeft.get(c)! + VBASE / 2 + i * TRACK;
 
+  const rowTiles: Tile[][] = Array.from({ length: nRows }, () => []);
+  for (const t of tiles.values()) rowTiles[gr(t)].push(t);
   const lanes: Lane[] = [];
   const hTop = new Map<number, number>();
-  let y = TOP;
-  laneKeys.forEach((key, r) => {
+  const rowTop = down ? ROW_GAP : ROW_TOP;
+  let y = TOP + (down ? LANE_HEAD : 0);
+  rowTiles.forEach((row, r) => {
     hTop.set(r, y);
     y += hH(r);
-    const rowH = Math.max(...laneTiles[r].map((t) => t.h)) + ROW_TOP +
-      ROW_BOTTOM;
-    lanes.push({ key, label: laneLabel(key), y, h: rowH });
-    for (const t of laneTiles[r]) {
-      t.x = colX[t.col];
-      t.y = y + ROW_TOP;
+    const rowH = Math.max(...row.map((t) => t.h)) + rowTop + ROW_BOTTOM;
+    if (!down) {
+      const key = laneKeys[r];
+      lanes.push({ key, label: laneLabel(key), x: 0, y, w: width, h: rowH });
+    }
+    for (const t of row) {
+      t.x = colX[gc(t)];
+      t.y = y + rowTop;
     }
     y += rowH;
   });
-  hTop.set(laneKeys.length, y);
-  y += hH(laneKeys.length);
+  hTop.set(nRows, y);
+  y += hH(nRows);
   const height = y + TOP;
+  if (down) {
+    laneKeys.forEach((key, c) =>
+      lanes.push({
+        key,
+        label: laneLabel(key),
+        x: colX[c] - BAND_PAD,
+        y: TOP,
+        w: TILE_W + 2 * BAND_PAD,
+        h: height - 2 * TOP,
+      })
+    );
+  }
   const trackY = (r: number, i: number) => hTop.get(r)! + HBASE / 2 + i * TRACK;
 
   for (const t of tiles.values()) {
@@ -413,7 +484,10 @@ export function layout(
       const vx2 = trackX(r.channels.v2!, r.tracks.v2!);
       points.push({ x: vx1, y: hy }, { x: vx2, y: hy }, { x: vx2, y: entryY });
     }
-    points.push({ x: r.to.x, y: entryY });
+    points.push({
+      x: r.side === "left" ? r.to.x : r.to.x + r.to.w,
+      y: entryY,
+    });
     const t = r.slot.t;
     const clean = simplify(points);
     return {
@@ -430,7 +504,7 @@ export function layout(
     };
   });
 
-  return { tiles, lanes, edges, width, height };
+  return { orientation, tiles, lanes, edges, width, height };
 }
 
 /** The polyline without zero-length or straight-through points. */
@@ -478,4 +552,42 @@ function rounded(points: Point[], radius: number): string {
   const last = points[points.length - 1];
   d += ` L${num(last.x)},${num(last.y)}`;
   return d;
+}
+
+/** Below this fit across, a pane draws the factory down (swamp-club #3380). */
+export const DOWN_BELOW = 0.75;
+/** Drawn down, it goes back across only once across fits this well, so a
+ * resize near the line does not flip it back and forth. */
+export const ACROSS_FROM = 0.85;
+const MIN_ZOOM = 0.4;
+
+/**
+ * The zoom that fits a layout to a pane, in steps of 5%, from 40% to 100%.
+ * Across fits both ways; down fits the width and scrolls down.
+ */
+export function fitOf(
+  l: { orientation: Orientation; width: number; height: number },
+  pane: { width: number; height: number },
+): number {
+  const w = (pane.width - 8) / l.width;
+  const z = l.orientation === "down"
+    ? w
+    : Math.min(w, (pane.height - 8) / l.height);
+  return Math.max(MIN_ZOOM, Math.min(1, Math.round(z * 20) / 20));
+}
+
+/**
+ * Which way to draw a factory in a pane: across while it fits at 75% or
+ * more, else down when down fits better; back across from 85%.
+ */
+export function chooseOrientation(
+  across: { width: number; height: number },
+  down: { width: number; height: number },
+  pane: { width: number; height: number },
+  current: Orientation,
+): Orientation {
+  const a = fitOf({ ...across, orientation: "across" }, pane);
+  const d = fitOf({ ...down, orientation: "down" }, pane);
+  if (current === "across") return a < DOWN_BELOW && d > a ? "down" : "across";
+  return a >= ACROSS_FROM || d <= a ? "across" : "down";
 }

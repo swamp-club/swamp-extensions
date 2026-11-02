@@ -63,7 +63,9 @@ your agent makes the edits, and you watch them land.
 
 - **Design** displays the factory and runs the same checks as `validate`,
   listing anything it finds. You use **copy reference** on any stage and paste
-  into your agent session to have it help you modify that stage.
+  into your agent session to have it help you modify that stage. A factory too
+  wide to read left to right on your screen is drawn top to bottom; the
+  **across**, **down** and **auto** buttons choose for yourself.
 - **Simulate** plays saved scenarios so you can see how work items flow.
 - **Board** shows every work item in the factory, in a column for the stage
   it is in, and moves the cards as your agent advances them. A card says how
@@ -76,6 +78,9 @@ your agent makes the edits, and you watch them land.
   yet, with their type, how long since they were filed, and what blocks or
   contains them; open one to see the ticket and the `claim` command that starts
   work on it. **Show claimed** adds the tickets claimed but not yet started.
+  A column with nothing to show is a narrow strip with its name and count;
+  press it to open it. When columns are scrolled out of view, a button at
+  that edge names them and scrolls to the nearest.
 - **Work item** (open a Board card, or type a key in the bar) shows one work
   item on its factory's graph: the stages it has been through, how often, the
   path it took, where it is now and what it waits on, in the same words as

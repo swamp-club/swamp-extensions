@@ -1,0 +1,113 @@
+schemaVersion: 3
+description: >-
+  Ten stages, seven of them in progress, the shape of a busy team's factory
+  (swamp-club #3380): the studio's Board and Design view must read it at
+  100% zoom on a 1440px-wide screen.
+stages:
+  - id: classify
+    maxCycles: 3
+    initial: true
+    tracker: { status: open }
+    description: Classify the work item.
+    work:
+      mode: interactive
+    transitions:
+      - name: classified
+        to: triage
+
+  - id: triage
+    tracker: { status: open }
+    description: Decide whether the work goes ahead.
+    work:
+      mode: interactive
+    transitions:
+      - name: accept
+        to: codebase-context
+      - name: reclassify
+        to: classify
+        manual: true
+        description: The work was misclassified, so it is classified again.
+
+  - id: codebase-context
+    tracker: { status: in_progress }
+    description: Gather the code the work touches.
+    work:
+      mode: interactive
+    transitions:
+      - name: gathered
+        to: plan
+
+  - id: plan
+    maxCycles: 3
+    tracker: { status: in_progress }
+    description: Plan the change.
+    work:
+      mode: interactive
+    transitions:
+      - name: submit
+        to: plan-review
+
+  - id: plan-review
+    tracker: { status: in_progress }
+    description: Review the plan.
+    work:
+      mode: interactive
+    transitions:
+      - name: approve
+        to: implement
+        gates:
+          - type: human-approval
+            config: { id: plan-approval }
+      - name: rework
+        to: plan
+        manual: true
+        description: The plan was not approved, so it is planned again.
+
+  - id: implement
+    maxCycles: 3
+    tracker: { status: in_progress }
+    description: Implement the plan.
+    work:
+      mode: interactive
+    transitions:
+      - name: implemented
+        to: review
+
+  - id: review
+    tracker: { status: in_progress }
+    description: Review the change.
+    work:
+      mode: interactive
+    transitions:
+      - name: pass
+        to: validate
+      - name: rework
+        to: implement
+        manual: true
+        description: The review asked for changes, so implement makes them.
+
+  - id: validate
+    tracker: { status: in_progress }
+    description: Run the checks.
+    work:
+      mode: interactive
+    transitions:
+      - name: green
+        to: emit-item-lifetime-span
+      - name: red
+        to: implement
+        manual: true
+        description: A check failed, so implement fixes it.
+
+  - id: emit-item-lifetime-span
+    tracker: { status: in_progress }
+    description: Record how long the work item took.
+    work:
+      mode: interactive
+    transitions:
+      - name: emitted
+        to: done
+
+  - id: done
+    terminal: true
+    tracker: { status: shipped }

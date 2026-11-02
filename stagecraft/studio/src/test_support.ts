@@ -36,6 +36,10 @@ const FILES: Record<string, URL> = {
     "../../testdata/factories/feature-factory.yaml",
     import.meta.url,
   ),
+  "ten-stage": new URL(
+    "../../testdata/factories/ten-stage.yaml",
+    import.meta.url,
+  ),
 };
 
 export const EXAMPLES = Object.keys(FILES);

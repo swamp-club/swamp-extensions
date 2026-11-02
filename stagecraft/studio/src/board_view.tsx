@@ -39,11 +39,13 @@ import {
   isStale,
   keyAsShown,
   relationText,
+  showsAsRail,
   since,
   stageOrder,
   type TicketColumn,
   ticketColumns,
 } from "./board.ts";
+import { EdgeCue, useHidden } from "./cues.tsx";
 import { routeHref } from "./route.ts";
 import {
   board,
@@ -54,6 +56,7 @@ import {
   go,
   good,
   graph,
+  openedCols,
   showClaimed,
   showFinished,
   shown,
@@ -61,6 +64,9 @@ import {
   tickets,
   ticketsError,
 } from "./state.ts";
+
+/** The Board scrolls across only; its columns scroll their own cards. */
+const AXES = ["x"] as const;
 
 /** Which card of each column holds the column's tab stop. */
 const active = new Map<string, number>();
@@ -224,20 +230,111 @@ function TicketCardView(props: {
   );
 }
 
+/**
+ * Open or close a column that shows no cards. The button pressed is
+ * replaced, so focus moves to the one that undoes it: the opened column's
+ * close button, or the rail.
+ */
+function setOpened(id: string, open: boolean) {
+  const next = new Set(openedCols.value);
+  if (open) next.add(id);
+  else next.delete(id);
+  openedCols.value = next;
+  requestAnimationFrame(() =>
+    document.querySelector<HTMLElement>(
+      `[data-cue="${CSS.escape(id)}"] ${open ? ".rail-close" : ".rail-open"}`,
+    )?.focus()
+  );
+}
+
+/**
+ * A column that shows no cards, as a narrow strip: its name, written down
+ * the strip, and its count. Pressing it opens the column (swamp-club #3380).
+ */
+function Rail(props: {
+  id: string;
+  headingId: string;
+  name: string;
+  total: number;
+  /** What the count is: "work item(s)", "ticket(s)". */
+  noun: string;
+  /** Why it shows nothing, when that is not that nothing is there. */
+  note?: string;
+  terminal?: boolean;
+}) {
+  const { id, headingId, name, total, noun, note, terminal } = props;
+  const label = `${name}: ${total} ${noun}${note ? `, ${note}` : ""}. Open`;
+  return (
+    <section
+      class={`col rail${terminal ? " terminal" : ""}`}
+      aria-labelledby={headingId}
+      data-cue={id}
+      data-cue-name={name}
+    >
+      <h2 id={headingId} class="rail-head">
+        <button
+          type="button"
+          class="rail-open"
+          aria-expanded="false"
+          aria-label={label}
+          title={label}
+          onClick={() => setOpened(id, true)}
+        >
+          <span class="col-count">{total}</span>
+          <span class="rail-name">{name}</span>
+        </button>
+      </h2>
+    </section>
+  );
+}
+
+/** In the head of a column opened from its rail: back to the rail. */
+function CloseRail({ id, name }: { id: string; name: string }) {
+  return (
+    <button
+      type="button"
+      class="rail-close"
+      aria-expanded="true"
+      aria-label={`Close ${name} to a strip`}
+      title={`Close ${name} to a strip`}
+      onClick={() => setOpened(id, false)}
+    >
+      ◂
+    </button>
+  );
+}
+
 /** One of the ticket columns before the first stage. */
 function TicketColumnView(
   { col, factory }: { col: TicketColumn; factory: string },
 ) {
   // "tickets-": a stage column's heading is col-<stage>, so never this.
   const id = `tickets-${col.id.slice(1)}`;
+  if (showsAsRail({ id: col.id, cards: col.cards }, openedCols.value)) {
+    return (
+      <Rail
+        id={col.id}
+        headingId={id}
+        name={col.name}
+        total={col.total}
+        noun="ticket(s)"
+      />
+    );
+  }
   return (
-    <section class="col tickets" aria-labelledby={id}>
+    <section
+      class="col tickets"
+      aria-labelledby={id}
+      data-cue={col.id}
+      data-cue-name={col.name}
+    >
       <h2 id={id} class="col-head">
         <span class="col-name">{col.name}</span>
         <span class="col-count">
           {col.total}
           <span class="sr-only">&nbsp;ticket(s)</span>
         </span>
+        {col.cards.length === 0 && <CloseRail id={col.id} name={col.name} />}
       </h2>
       {col.total === 0 && (
         <p class="col-note">
@@ -383,6 +480,7 @@ function Filters() {
 
 export function BoardMode() {
   const box = useRef<HTMLDivElement>(null);
+  const hidden = useHidden(box, AXES);
   const read = board.value;
   const g = good.value;
   const layout = graph.value;
@@ -448,26 +546,69 @@ export function BoardMode() {
           </ul>
         </div>
       )}
-      <p class="board-count" role="status" aria-live="polite">
-        {read === null
-          // A failed read says why above, not that it is still reading.
-          ? factory.value === null || boardError.value !== null
-            ? ""
-            : "Reading work items…"
-          : total === 0
-          ? `No work items in ${read.factory} yet.`
-          : matching === total
-          ? `${total} work item(s)`
-          : `${matching} of ${total} work item(s) match`}
-      </p>
+      {
+        /* The count, with the edge cues either side of it: above the
+          columns, so a cue never covers a column's head (swamp-club #3380). */
+      }
+      <div class="board-head">
+        <EdgeCue
+          box={box}
+          hidden={hidden.x}
+          axis="x"
+          side="before"
+          noun="column"
+        />
+        <p class="board-count" role="status" aria-live="polite">
+          {read === null
+            // A failed read says why above, not that it is still reading.
+            ? factory.value === null || boardError.value !== null
+              ? ""
+              : "Reading work items…"
+            : total === 0
+            ? `No work items in ${read.factory} yet.`
+            : matching === total
+            ? `${total} work item(s)`
+            : `${matching} of ${total} work item(s) match`}
+        </p>
+        <EdgeCue
+          box={box}
+          hidden={hidden.x}
+          axis="x"
+          side="after"
+          noun="column"
+        />
+      </div>
       <div class="board" ref={box} onKeyDown={onBoardKey}>
         {factory.value !== null &&
           ticketCols.map((col) => (
-            <TicketColumnView key={col.id} col={col} factory={factory.value!} />
+            <TicketColumnView
+              key={col.id}
+              col={col}
+              factory={factory.value!}
+            />
           ))}
         {columns.map((col) => {
           const id = `col-${col.stage}`;
           const finished = col.terminal && !showFinished.value;
+          const hiddenNote = finished && col.total > 0
+            ? "finished: Show finished lists them"
+            : undefined;
+          if (
+            showsAsRail({ id: col.stage, cards: col.cards }, openedCols.value)
+          ) {
+            return (
+              <Rail
+                key={col.stage}
+                id={col.stage}
+                headingId={id}
+                name={col.stage}
+                total={col.total}
+                noun="work item(s)"
+                note={hiddenNote}
+                terminal={col.terminal}
+              />
+            );
+          }
           return (
             <section
               class={`col${col.terminal ? " terminal" : ""}${
@@ -475,6 +616,7 @@ export function BoardMode() {
               }`}
               key={col.stage}
               aria-labelledby={id}
+              data-cue={col.stage}
             >
               <h2 id={id} class="col-head">
                 <span class="col-name">{col.stage}</span>
@@ -482,13 +624,16 @@ export function BoardMode() {
                   {col.total}
                   <span class="sr-only">&nbsp;work item(s)</span>
                 </span>
+                {col.cards.length === 0 && (
+                  <CloseRail id={col.stage} name={col.stage} />
+                )}
               </h2>
               {!col.known && (
-                <p class="col-note">not in the factory's current definition</p>
+                <p class="col-note">
+                  not in the factory's current definition
+                </p>
               )}
-              {finished && col.total > 0 && (
-                <p class="col-note">finished: Show finished lists them</p>
-              )}
+              {hiddenNote !== undefined && <p class="col-note">{hiddenNote}</p>}
               <ul class="col-cards">
                 {col.cards.map((card, row, all) => (
                   <Card

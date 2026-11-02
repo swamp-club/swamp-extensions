@@ -24,7 +24,12 @@ import {
   parseSeen,
   type Seen,
 } from "./changes.ts";
-import { ANY_ID, layout } from "./layout.ts";
+import {
+  ANY_ID,
+  chooseOrientation,
+  layout,
+  type Orientation,
+} from "./layout.ts";
 import { loadDefinition, type Loaded, type Located } from "./model.ts";
 import { navModel } from "./nav.ts";
 import {
@@ -178,6 +183,8 @@ export const ticketPage = signal<
 export const ticketPageError = signal<string | null>(null);
 /** How many cards each column shows, where Show more was pressed. */
 export const shown = signal<Record<string, number>>({});
+/** The Board columns showing no cards that a person opened from a rail. */
+export const openedCols = signal<ReadonlySet<string>>(new Set());
 /** The time cards measure against; ticks so durations stay current. */
 export const clock = signal(Date.now());
 export const panelTab = signal<PanelTab>("inspect");
@@ -303,10 +310,66 @@ export const drawn = computed<Drawn | null>(() => {
   };
 });
 
-export const graph = computed(() => {
+/**
+ * Which way the graph is drawn (swamp-club #3380): a person's choice, or
+ * auto, where the graph picks across or down for its pane's width.
+ */
+export type OrientationSetting = "auto" | Orientation;
+const ORIENT_KEY = "stagecraft-studio.orientation";
+function readOrientation(): OrientationSetting {
+  const v = read(ORIENT_KEY);
+  return v === "across" || v === "down" ? v : "auto";
+}
+export const orientationSetting = signal<OrientationSetting>(
+  readOrientation(),
+);
+/** What auto picked, last time the pane was measured. */
+export const autoOrientation = signal<Orientation>("across");
+export const orientation = computed<Orientation>(() =>
+  orientationSetting.value === "auto"
+    ? autoOrientation.value
+    : orientationSetting.value
+);
+export function setOrientation(setting: OrientationSetting) {
+  orientationSetting.value = setting;
+  write(ORIENT_KEY, setting);
+}
+
+/** The drawn definition laid out both ways: auto compares their fits. */
+export const layouts = computed(() => {
   const g = drawn.value;
-  return g === null ? null : layout(g.definition, g.view);
+  return g === null ? null : {
+    across: layout(g.definition, g.view),
+    down: layout(g.definition, g.view, "down"),
+  };
 });
+
+/** The definition autoOrientation was last picked for. */
+let pickedFor: string | null = null;
+
+/**
+ * Auto: pick across or down for the drawn definition in a pane this size.
+ * The choice holds (hysteresis) only while the same definition is drawn:
+ * another one starts from across, as it would on a fresh page, so how a
+ * factory is drawn never depends on the one viewed before it.
+ */
+export function pickOrientation(pane: { width: number; height: number }) {
+  const both = layouts.value;
+  if (both === null || orientationSetting.value !== "auto") return;
+  const file = drawn.value?.file ?? null;
+  const current = pickedFor === file ? autoOrientation.value : "across";
+  pickedFor = file;
+  autoOrientation.value = chooseOrientation(
+    both.across,
+    both.down,
+    pane,
+    current,
+  );
+}
+
+/** The layout the graph draws. Lanes and flow are the same either way, so
+ * the Board's column order and the selection do not depend on it. */
+export const graph = computed(() => layouts.value?.[orientation.value] ?? null);
 
 export const nav = computed(() => {
   const g = drawn.value, l = graph.value;
@@ -777,6 +840,7 @@ export async function selectFactory(
     tickets.value = null;
     ticketsError.value = null;
     shown.value = {};
+    openedCols.value = new Set();
   });
   setPlaying(false);
   write(PICK_KEY, name);

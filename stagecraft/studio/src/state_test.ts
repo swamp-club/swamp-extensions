@@ -72,7 +72,17 @@ import {
   scenarioItem,
 } from "../../extensions/models/_lib/engine/studio_work_items_testing.ts";
 import { testEnv } from "../../extensions/models/_lib/engine/test_support.ts";
-import { exampleText, modelPath, raisePlanLimit } from "./test_support.ts";
+import {
+  exampleText,
+  loadOk,
+  modelPath,
+  raisePlanLimit,
+} from "./test_support.ts";
+import {
+  autoOrientation,
+  orientationSetting,
+  pickOrientation,
+} from "./state.ts";
 import { copyIsCurrent, loadItem } from "./work_item.ts";
 
 const NAME = "build-swamp-extension";
@@ -793,5 +803,30 @@ Deno.test("state: of two scenario copies asked for, a late answer to the earlier
     globalThis.fetch = real;
     workItem.value = null;
     itemCopy.value = null;
+  }
+});
+
+Deno.test("state: auto orientation holds only for the factory it was picked for (swamp-club #3380)", async () => {
+  const [ten, starter] = [await loadOk("ten-stage"), await loadOk("starter")];
+  const setting = orientationSetting.value;
+  try {
+    mode.value = "design";
+    orientationSetting.value = "auto";
+    // ten-stage is 1640px across: at 834px it reads down.
+    good.value = ten;
+    pickOrientation({ width: 834, height: 2000 });
+    assertEquals(autoOrientation.value, "down");
+    // Widened until across would fit at 80%: below 85%, it stays down.
+    pickOrientation({ width: 1320, height: 2000 });
+    assertEquals(autoOrientation.value, "down");
+    // starter fits across at 80% in an 834px pane. Opened fresh it reads
+    // across, and opened after ten-stage it does too: no carry-over.
+    good.value = starter;
+    pickOrientation({ width: 834, height: 2000 });
+    assertEquals(autoOrientation.value, "across");
+  } finally {
+    orientationSetting.value = setting;
+    autoOrientation.value = "across";
+    good.value = null;
   }
 });

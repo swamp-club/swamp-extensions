@@ -119,9 +119,9 @@ function Overview() {
       <h3>Reading the graph</h3>
       <ul class="key">
         <li>
-          <span class="k-lane">OPEN</span>{" "}
-          A row is the tracker status a ticket shows while the work is in that
-          stage.
+          <span class="k-lane">OPEN</span> A{" "}
+          {graph.value?.orientation === "down" ? "column" : "row"}{" "}
+          is the tracker status a ticket shows while the work is in that stage.
         </li>
         <li>
           <span class="k-fwd" aria-hidden="true" /> Forward.{" "}

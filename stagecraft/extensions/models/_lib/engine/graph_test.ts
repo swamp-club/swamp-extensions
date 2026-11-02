@@ -1205,6 +1205,7 @@ Deno.test("graph: every testdata fixture has no errors and only the explained wa
       "default-cycle-bound stages.0 [planning]",
       "default-cycle-bound stages.2 [implementing]",
     ],
+    "factories/ten-stage.yaml": [],
   };
   const seen: string[] = [];
   for (const file of await fixtures("factories/")) {

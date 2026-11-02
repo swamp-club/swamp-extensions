@@ -38,8 +38,10 @@ import {
   keyAsShown,
   NO_FILTER,
   NOT_STARTED,
+  offscreen,
   refOtherThanKey,
   relationText,
+  showsAsRail,
   stageOrder,
   ticketColumns,
 } from "./board.ts";
@@ -79,7 +81,7 @@ const columns = (
     ...options,
   });
 
-Deno.test("board: the columns follow Design mode's order: by column, then lane", async () => {
+Deno.test("board: the columns follow the flow, terminal stages last", async () => {
   const loaded = await loadOk("build-swamp-extension");
   const drawn = layout(loaded.definition, loaded.view);
   const order = stageOrder(
@@ -92,11 +94,28 @@ Deno.test("board: the columns follow Design mode's order: by column, then lane",
     loaded.definition.stages.map((s) => s.id).sort(),
     "every stage, and no ANY STAGE tile",
   );
-  const tiles = order.map((s) => drawn.tiles.get(s.id)!);
-  for (let i = 1; i < tiles.length; i++) {
-    const [a, b] = [tiles[i - 1], tiles[i]];
-    assert(a.col < b.col || (a.col === b.col && a.lane <= b.lane), b.id);
-  }
+  assertEquals(order.map((s) => s.id), [
+    "plan",
+    "plan-review",
+    "implement",
+    "check",
+    "code-review",
+    "release",
+    // Terminal stages last, in flow order too: duplicate is reached from
+    // plan, abandoned only by a global exit.
+    "duplicate",
+    "done",
+    "abandoned",
+  ]);
+  // The same either way the graph is drawn.
+  assertEquals(
+    stageOrder(
+      layout(loaded.definition, loaded.view, "down"),
+      (id) =>
+        loaded.definition.stages.find((s) => s.id === id)?.terminal === true,
+    ),
+    order,
+  );
   const initial = loaded.definition.stages.find((s) => s.initial)!.id;
   assertEquals(order[0].id, initial);
   for (const s of order) {
@@ -405,5 +424,60 @@ Deno.test("board: the claim command names the tracker, the ticket and the factor
     claimCommand("ts", "it's", "a b"),
     "swamp workflow run @swamp/stagecraft/claim --input tracker=ts " +
       `--input issue='it'"'"'s' --input factory='a b'`,
+  );
+});
+
+Deno.test("board: a column showing no cards is a rail until it is opened", () => {
+  const none = new Set<string>();
+  assertEquals(showsAsRail({ id: "plan", cards: [] }, none), true);
+  assertEquals(showsAsRail({ id: "plan", cards: [1] }, none), false);
+  assertEquals(
+    showsAsRail({ id: "plan", cards: [] }, new Set(["plan"])),
+    false,
+  );
+  // A terminal column hides its finished work, so it shows none: a rail.
+  const [, done] = boardColumns(
+    [{ id: "work", terminal: false }, { id: "done", terminal: true }],
+    [card("a-1", "done", { status: "terminal" })],
+    { filter: NO_FILTER, currentDigest: null, showFinished: false },
+  );
+  assertEquals(done.total, 1);
+  assertEquals(showsAsRail({ id: done.stage, cards: done.cards }, none), true);
+});
+
+Deno.test("board: offscreen names what spills over each edge of the view, in order", () => {
+  const items = [
+    { id: "a", start: 0, end: 100 },
+    { id: "b", start: 110, end: 210 },
+    { id: "c", start: 220, end: 320 },
+    { id: "d", start: 330, end: 430 },
+    { id: "e", start: 440, end: 540 },
+  ];
+  assertEquals(offscreen(items, 0, 540), { before: [], after: [] });
+  // Scrolled to 150: a is gone and b is cut off; d is cut off and e gone.
+  assertEquals(offscreen(items, 150, 400), {
+    before: ["a", "b"],
+    after: ["d", "e"],
+  });
+  // Wider than the view and cut off by both edges: named on both sides.
+  assertEquals(offscreen([{ id: "wide", start: -50, end: 700 }], 0, 600), {
+    before: ["wide"],
+    after: ["wide"],
+  });
+  // A pixel of rounding is not cut off.
+  assertEquals(offscreen(items, 1, 539.5), { before: [], after: [] });
+  assertEquals(offscreen([], 0, 10), { before: [], after: [] });
+});
+
+Deno.test("board: a factory with a long lane reads in flow order, done at the right (swamp-club #3380)", async () => {
+  const loaded = await loadOk("ten-stage");
+  const order = stageOrder(
+    layout(loaded.definition, loaded.view),
+    (id) =>
+      loaded.definition.stages.find((s) => s.id === id)?.terminal === true,
+  );
+  assertEquals(
+    order.map((s) => s.id),
+    loaded.definition.stages.map((s) => s.id),
   );
 });
