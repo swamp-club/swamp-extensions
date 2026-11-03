@@ -15173,3 +15173,419 @@ Deno.test("swamp-club#4102: a scoped pull's listing never widens to the whole bu
     await Deno.remove(cachePath, { recursive: true });
   }
 });
+
+// ---------------------------------------------------------------------------
+// swamp-club#2998: a whole-index read downloads only the shards whose ETag
+// moved since this cache last read them. These assert the sync's own
+// request pattern and local cache files directly: no conformance helper in
+// @systeminit/swamp-testing covers sync internals.
+// ---------------------------------------------------------------------------
+
+const enc2998 = (o: unknown) => new TextEncoder().encode(JSON.stringify(o));
+
+/** Seeds `count` one-entry shards (and their data files) and `_meta.json`. */
+function seed2998(
+  mock: ReturnType<typeof createMockS3Client>,
+  count: number,
+  opts: { prefix?: string; commitSeq?: number; withData?: boolean } = {},
+): string[] {
+  const prefix = opts.prefix ?? "";
+  const keys: string[] = [];
+  for (let i = 1; i <= count; i++) {
+    const key = `data--t${i}--m${i}`;
+    keys.push(key);
+    const rel = `data/t${i}/m${i}/d/1/raw`;
+    const entries = opts.withData === false ? {} : {
+      [rel]: { key: rel, size: 4, lastModified: "2026-01-01T00:00:00Z" },
+    };
+    mock.storage.set(
+      `${prefix}_index/${key}.json`,
+      enc2998({ version: 1, entries }),
+    );
+    if (opts.withData !== false) {
+      mock.storage.set(rel, new TextEncoder().encode("abc\n"));
+    }
+  }
+  setMeta2998(mock, keys, opts.commitSeq ?? 5, prefix);
+  return keys;
+}
+
+function setMeta2998(
+  mock: ReturnType<typeof createMockS3Client>,
+  partitions: string[],
+  commitSeq: number,
+  prefix = "",
+): void {
+  mock.storage.set(
+    `${prefix}_index/_meta.json`,
+    enc2998({ version: 2, partitions, commitSeq }),
+  );
+}
+
+/** The shard GETs recorded since `from`, `_meta.json` excluded. */
+function shardGets2998(
+  mock: ReturnType<typeof createMockS3Client>,
+  from = 0,
+  prefix = "",
+): string[] {
+  return mock.gets.slice(from).filter((k) =>
+    k.startsWith(`${prefix}_index/`) && k !== `${prefix}_index/_meta.json`
+  );
+}
+
+function cacheFile2998(cachePath: string, key: string, ns = "default") {
+  return join(cachePath, "_index", "_local", ns, `${key}.json`);
+}
+
+/** Replaces the mock's listing with `fn` applied to the real one. */
+function wrapList2998(
+  mock: ReturnType<typeof createMockS3Client>,
+  fn: (
+    entries: Array<{ key: string; size: number; etag?: string }>,
+  ) => Array<{ key: string; size: number; etag?: string }> | Promise<never>,
+): void {
+  const list = mock.listAllObjects.bind(mock);
+  (mock as { listAllObjects: unknown }).listAllObjects = async (
+    subPrefix?: string,
+  ) => await fn(await list(subPrefix));
+}
+
+Deno.test("swamp-club#2998: a fast-path miss downloads only the shard that changed", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2998-" });
+  try {
+    const mock = createMockS3Client();
+    const keys = seed2998(mock, 3);
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+    assertEquals(shardGets2998(mock).length, 3, "a cold cache reads them all");
+
+    // A peer commits a new version under m2 only.
+    const rel = "data/t2/m2/d/1/raw";
+    const rel2 = "data/t2/m2/d/2/raw";
+    const entry = (k: string) => ({
+      key: k,
+      size: 4,
+      lastModified: "2026-01-01T00:00:00Z",
+    });
+    mock.storage.set(
+      "_index/data--t2--m2.json",
+      enc2998({
+        version: 1,
+        entries: { [rel]: entry(rel), [rel2]: entry(rel2) },
+      }),
+    );
+    mock.storage.set(rel2, new TextEncoder().encode("xyz\n"));
+    setMeta2998(mock, keys, 6);
+
+    const from = mock.gets.length;
+    await svc.pullChanged();
+    assertEquals(shardGets2998(mock, from), ["_index/data--t2--m2.json"]);
+    assertEquals(
+      await Deno.readTextFile(join(cachePath, rel2)),
+      "xyz\n",
+      "the changed shard's new file is pulled",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2998: a new instance on the same cache downloads no unchanged shard", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2998-" });
+  try {
+    const mock = createMockS3Client();
+    const keys = seed2998(mock, 3);
+    await new S3CacheSyncService(mock, cachePath).pullChanged();
+    setMeta2998(mock, keys, 6);
+
+    const from = mock.gets.length;
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+    assertEquals(shardGets2998(mock, from), []);
+
+    // Reuse vouches for the shard exactly as a download does, so a push's
+    // compare-and-swap treats it as seen.
+    const etags = (svc as unknown as { shardEtags: Map<string, string> })
+      .shardEtags;
+    const body = mock.storage.get("_index/data--t1--m1.json")!;
+    assertEquals(etags.get("data--t1--m1"), fakeETag(body).slice(1, -1));
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2998: a corrupt cache file is a miss and is rewritten", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2998-" });
+  try {
+    const mock = createMockS3Client();
+    const keys = seed2998(mock, 3);
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+    await Deno.writeTextFile(cacheFile2998(cachePath, keys[0]), '{"version":1');
+    setMeta2998(mock, keys, 6);
+
+    const from = mock.gets.length;
+    await svc.pullChanged();
+    assertEquals(shardGets2998(mock, from), [`_index/${keys[0]}.json`]);
+    const cached = JSON.parse(
+      await Deno.readTextFile(cacheFile2998(cachePath, keys[0])),
+    );
+    assertEquals(cached.version, 1);
+    assertEquals(Object.keys(cached.entries), ["data/t1/m1/d/1/raw"]);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2998: a shard the listing omits, or lists without an ETag, is downloaded", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2998-" });
+  try {
+    const mock = createMockS3Client();
+    const keys = seed2998(mock, 3);
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+    wrapList2998(mock, (entries) =>
+      entries
+        .filter((e) => e.key !== `_index/${keys[0]}.json`)
+        .map((e) =>
+          e.key === `_index/${keys[1]}.json` ? { ...e, etag: undefined } : e
+        ));
+    setMeta2998(mock, keys, 6);
+
+    const from = mock.gets.length;
+    await svc.pullChanged();
+    assertEquals(shardGets2998(mock, from).sort(), [
+      `_index/${keys[0]}.json`,
+      `_index/${keys[1]}.json`,
+    ]);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2998: a refused listing falls back to downloading every shard", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2998-" });
+  try {
+    const mock = createMockS3Client();
+    const keys = seed2998(mock, 3);
+    let refuse = true;
+    const list = mock.listAllObjects.bind(mock);
+    (mock as { listAllObjects: unknown }).listAllObjects = (
+      subPrefix?: string,
+    ) =>
+      refuse
+        ? Promise.reject(
+          new S3OperationError("Access Denied", {
+            name: "AccessDenied",
+            cause: undefined,
+            httpStatusCode: 403,
+            code: "AccessDenied",
+            requestId: undefined,
+            bodyPreview: "<html>not xml</html>",
+          }),
+        )
+        : list(subPrefix);
+
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+    assertEquals(shardGets2998(mock).length, 3);
+    assertEquals(
+      await Deno.readTextFile(join(cachePath, "data/t3/m3/d/1/raw")),
+      "abc\n",
+    );
+
+    setMeta2998(mock, keys, 6);
+    let from = mock.gets.length;
+    await svc.pullChanged();
+    assertEquals(shardGets2998(mock, from).length, 3, "still refused");
+
+    // The fallback still filled the cache, so once listing works the next
+    // read downloads nothing.
+    refuse = false;
+    setMeta2998(mock, keys, 7);
+    from = mock.gets.length;
+    await svc.pullChanged();
+    assertEquals(shardGets2998(mock, from), []);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2998: the cache keeps the download's ETag, not a stale listed one", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2998-" });
+  try {
+    const mock = createMockS3Client();
+    const keys = seed2998(mock, 2);
+    // The listing lags: it names an ETag older than the object the GET reads.
+    wrapList2998(
+      mock,
+      (entries) =>
+        entries.map((e) =>
+          e.key === `_index/${keys[0]}.json` ? { ...e, etag: '"stale"' } : e
+        ),
+    );
+    await new S3CacheSyncService(mock, cachePath).pullChanged();
+    const body = mock.storage.get(`_index/${keys[0]}.json`)!;
+    const cached = JSON.parse(
+      await Deno.readTextFile(cacheFile2998(cachePath, keys[0])),
+    );
+    assertEquals(cached.etag, fakeETag(body).slice(1, -1));
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2998: a listed ETag in another form degrades to a download", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2998-" });
+  try {
+    const mock = createMockS3Client();
+    const keys = seed2998(mock, 3);
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+    wrapList2998(
+      mock,
+      (entries) =>
+        entries.map((e) => ({ ...e, etag: e.etag ? `W/${e.etag}` : e.etag })),
+    );
+    setMeta2998(mock, keys, 6);
+
+    const from = mock.gets.length;
+    await svc.pullChanged();
+    assertEquals(shardGets2998(mock, from).length, 3);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2998: a pull aborted between batches keeps the shards it downloaded", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2998-" });
+  try {
+    const mock = createMockS3Client();
+    // More than one batch of 10, so the abort lands between batches.
+    const keys = seed2998(mock, 15);
+    const abort = new AbortController();
+    const get = mock.getObject.bind(mock);
+    let shardReads = 0;
+    (mock as { getObject: unknown }).getObject = (key: string) => {
+      if (
+        key.startsWith("_index/") && key !== "_index/_meta.json" &&
+        ++shardReads === 10
+      ) {
+        abort.abort();
+      }
+      return get(key);
+    };
+    await assertRejects(() =>
+      new S3CacheSyncService(mock, cachePath).pullChanged({
+        signal: abort.signal,
+      })
+    );
+    assertEquals(shardReads, 10, "the first batch was read, no more");
+
+    const from = mock.gets.length;
+    await new S3CacheSyncService(mock, cachePath).pullChanged();
+    assertEquals(
+      shardGets2998(mock, from),
+      keys.slice(10).map((k) => `_index/${k}.json`),
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2998: a partition dropped from _meta.json loses its cache file", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2998-" });
+  try {
+    const mock = createMockS3Client();
+    const keys = seed2998(mock, 3);
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+    const dir = join(cachePath, "_index", "_local", "default");
+    // Files prune must leave: not named after any partition key.
+    await Deno.writeTextFile(join(dir, "notes.txt"), "keep");
+    await Deno.writeTextFile(join(dir, "%zz.json"), "keep");
+    // Another namespace's cache sharing this cachePath.
+    await ensureDir(join(cachePath, "_index", "_local", "ns-other"));
+    const foreign = cacheFile2998(cachePath, keys[2], "ns-other");
+    await Deno.writeTextFile(foreign, "keep");
+
+    mock.storage.delete(`_index/${keys[2]}.json`);
+    setMeta2998(mock, keys.slice(0, 2), 6);
+    await svc.pullChanged();
+
+    const names = new Set<string>();
+    for await (const e of Deno.readDir(dir)) names.add(e.name);
+    assertEquals(
+      [...names].sort(),
+      ["%zz.json", `${keys[0]}.json`, `${keys[1]}.json`, "notes.txt"],
+    );
+    assertEquals(await Deno.readTextFile(foreign), "keep");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2998: namespaces keep separate shard caches", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2998-" });
+  try {
+    const mock = createMockS3Client();
+    const keys = seed2998(mock, 2, { prefix: "_root/", withData: false });
+    // Its own commitSeq: the two services share this cachePath's sync-state
+    // sidecar, so equal seqs would let the second pull take the fast path.
+    seed2998(mock, 2, { withData: false, commitSeq: 9 });
+
+    const nsSvc = new S3CacheSyncService(mock, cachePath);
+    await nsSvc.pullChanged({ namespace: "_root" });
+    const plain = new S3CacheSyncService(mock, cachePath);
+    await plain.pullChanged();
+
+    for (const key of keys) {
+      await Deno.stat(cacheFile2998(cachePath, key, "ns-_root"));
+      await Deno.stat(cacheFile2998(cachePath, key, "default"));
+    }
+
+    // Reuse is per namespace: changing the namespace's shard leaves the
+    // unnamespaced cache valid.
+    mock.storage.set(
+      `_root/_index/${keys[0]}.json`,
+      // New bytes, still an empty v1 shard.
+      enc2998({ version: 1, entries: {}, rewritten: true }),
+    );
+    setMeta2998(mock, keys, 6, "_root/");
+    setMeta2998(mock, keys, 10);
+    const from = mock.gets.length;
+    await nsSvc.pullChanged({ namespace: "_root" });
+    await plain.pullChanged();
+    assertEquals(shardGets2998(mock, from, "_root/"), [
+      `_root/_index/${keys[0]}.json`,
+    ]);
+    assertEquals(shardGets2998(mock, from), []);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2998: a push never uploads the local shard cache", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "s3sync-2998-" });
+  try {
+    const mock = createMockS3Client();
+    seed2998(mock, 2);
+    const svc = new S3CacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+    assert(
+      isInternalCacheFile("_index/_local/default/data--t1--m1.json"),
+      "the cache sits on an internal path",
+    );
+
+    await seedFile(cachePath, "data/t9/m9/d/1/raw", "new\n");
+    await svc.markDirty();
+    await svc.pushChanged();
+    assert(
+      mock.puts.some((p) => p.key === "data/t9/m9/d/1/raw"),
+      "the bulk push ran",
+    );
+    assertEquals(mock.puts.filter((p) => p.key.includes("_local")), []);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});

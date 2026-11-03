@@ -171,6 +171,15 @@ export SWAMP_S3_REQUEST_TIMEOUT_MS=120000
   removed. A credential scoped to its namespace cannot confirm a delete or see
   other namespaces' markers at the root, so it drops nothing and leaves out only
   what its own prefix marks.
+  A read of the whole index (a pull that misses the fast path) lists `_index/`
+  once and downloads only the shards whose ETag changed since this cache last
+  read them, so a busy remote costs a pull the shards that changed, not the
+  whole index. Each shard read is kept, with its ETag, under the local
+  `_index/_local/` directory, which is per-machine and never synced. A shard is
+  kept as soon as it is downloaded, so a pull that times out still saves the
+  next one those downloads. If listing fails (a policy without `s3:ListBucket` on
+  `_index/`), every shard is downloaded, as before. Deleting `_index/_local/`
+  only costs one full download.
 - **Scoped sync**: The extension advertises `scopedSync` capability. When the
   framework passes `context.models`, pull and push operate only on the specified
   models. A model-scoped pull that misses the fast path lists and walks only the

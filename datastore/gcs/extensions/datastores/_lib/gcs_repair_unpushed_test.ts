@@ -595,7 +595,11 @@ Deno.test({
       const preview = await a.svc.repairUnpushedFiles({ dryRun: true });
       const seen = w.requests().slice(before);
       assertEquals(preview.unpushed, 5);
-      assertEquals(seen.filter((r) => r.op === "list").length, 1);
+      // One listing of the files. Reading the index adds at most one listing
+      // of the shard prefix, never one per file (swamp-club#2998).
+      const lists = seen.filter((r) => r.op === "list");
+      assertEquals(lists.filter((r) => !r.key.includes("_index/")).length, 1);
+      assert(lists.filter((r) => r.key.includes("_index/")).length <= 1);
       assertEquals(
         seen.filter((r) => r.key.startsWith("data/")).length,
         0,

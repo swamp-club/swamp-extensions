@@ -14366,3 +14366,401 @@ Deno.test("swamp-club#4102: a scoped pull's listing never widens to the whole bu
     await Deno.remove(cachePath, { recursive: true });
   }
 });
+
+// ---------------------------------------------------------------------------
+// swamp-club#2998: a whole-index read downloads only the shards whose
+// generation moved since this cache last read them. These assert the sync's
+// own request pattern and local cache files directly: no conformance helper
+// in @swamp-club/swamp-testing covers sync internals.
+// ---------------------------------------------------------------------------
+
+const enc2998 = (o: unknown) => new TextEncoder().encode(JSON.stringify(o));
+let gen2998 = 1000;
+
+/** Writes an object as GCS would: every write gets a new generation. */
+function put2998(
+  mock: ReturnType<typeof createMockGcsClient>,
+  key: string,
+  body: Uint8Array,
+): void {
+  mock.storage.set(key, body);
+  mock.generationOverrides.set(key, String(++gen2998));
+}
+
+/** Seeds `count` one-entry shards (and their data files) and `_meta.json`. */
+function seed2998(
+  mock: ReturnType<typeof createMockGcsClient>,
+  count: number,
+  opts: { prefix?: string; commitSeq?: number; withData?: boolean } = {},
+): string[] {
+  const prefix = opts.prefix ?? "";
+  const keys: string[] = [];
+  for (let i = 1; i <= count; i++) {
+    const key = `data--t${i}--m${i}`;
+    keys.push(key);
+    const rel = `data/t${i}/m${i}/d/1/raw`;
+    const entries = opts.withData === false ? {} : {
+      [rel]: { key: rel, size: 4, lastModified: "2026-01-01T00:00:00Z" },
+    };
+    put2998(
+      mock,
+      `${prefix}_index/${key}.json`,
+      enc2998({ version: 1, entries }),
+    );
+    if (opts.withData !== false) {
+      put2998(mock, rel, new TextEncoder().encode("abc\n"));
+    }
+  }
+  setMeta2998(mock, keys, opts.commitSeq ?? 5, prefix);
+  return keys;
+}
+
+function setMeta2998(
+  mock: ReturnType<typeof createMockGcsClient>,
+  partitions: string[],
+  commitSeq: number,
+  prefix = "",
+): void {
+  put2998(
+    mock,
+    `${prefix}_index/_meta.json`,
+    enc2998({ version: 2, partitions, commitSeq }),
+  );
+}
+
+/** The shard GETs recorded since `from`, `_meta.json` excluded. */
+function shardGets2998(
+  mock: ReturnType<typeof createMockGcsClient>,
+  from = 0,
+  prefix = "",
+): string[] {
+  return mock.gets.slice(from).filter((k) =>
+    k.startsWith(`${prefix}_index/`) && k !== `${prefix}_index/_meta.json`
+  );
+}
+
+function cacheFile2998(cachePath: string, key: string, ns = "default") {
+  return join(cachePath, "_index", "_local", ns, `${key}.json`);
+}
+
+type ListEntry2998 = { key: string; size: number; generation?: string };
+
+/** Replaces the mock's listing with `fn` applied to the real one. */
+function wrapList2998(
+  mock: ReturnType<typeof createMockGcsClient>,
+  fn: (entries: ListEntry2998[]) => ListEntry2998[],
+): void {
+  const list = mock.listAllObjects.bind(mock);
+  (mock as { listAllObjects: unknown }).listAllObjects = async (
+    subPrefix?: string,
+    signal?: AbortSignal,
+  ) => fn(await list(subPrefix, signal));
+}
+
+Deno.test("swamp-club#2998: GCS fast-path miss downloads only the shard that changed", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-2998-" });
+  try {
+    const mock = createMockGcsClient();
+    const keys = seed2998(mock, 3);
+    const svc = new GcsCacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+    assertEquals(shardGets2998(mock).length, 3, "a cold cache reads them all");
+
+    const rel = "data/t2/m2/d/1/raw";
+    const rel2 = "data/t2/m2/d/2/raw";
+    const entry = (k: string) => ({
+      key: k,
+      size: 4,
+      lastModified: "2026-01-01T00:00:00Z",
+    });
+    put2998(
+      mock,
+      "_index/data--t2--m2.json",
+      enc2998({
+        version: 1,
+        entries: { [rel]: entry(rel), [rel2]: entry(rel2) },
+      }),
+    );
+    put2998(mock, rel2, new TextEncoder().encode("xyz\n"));
+    setMeta2998(mock, keys, 6);
+
+    const from = mock.gets.length;
+    await svc.pullChanged();
+    assertEquals(shardGets2998(mock, from), ["_index/data--t2--m2.json"]);
+    assertEquals(await Deno.readTextFile(join(cachePath, rel2)), "xyz\n");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2998: GCS new instance on the same cache downloads no unchanged shard", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-2998-" });
+  try {
+    const mock = createMockGcsClient();
+    const keys = seed2998(mock, 3);
+    await new GcsCacheSyncService(mock, cachePath).pullChanged();
+    setMeta2998(mock, keys, 6);
+
+    const from = mock.gets.length;
+    const svc = new GcsCacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+    assertEquals(shardGets2998(mock, from), []);
+
+    // Reuse vouches for the shard exactly as a download does.
+    const gens = (svc as unknown as { shardGenerations: Map<string, string> })
+      .shardGenerations;
+    assertEquals(
+      gens.get("data--t1--m1"),
+      mock.generationOverrides.get("_index/data--t1--m1.json"),
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2998: GCS corrupt cache file is a miss and is rewritten", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-2998-" });
+  try {
+    const mock = createMockGcsClient();
+    const keys = seed2998(mock, 3);
+    const svc = new GcsCacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+    await Deno.writeTextFile(cacheFile2998(cachePath, keys[0]), '{"version":1');
+    setMeta2998(mock, keys, 6);
+
+    const from = mock.gets.length;
+    await svc.pullChanged();
+    assertEquals(shardGets2998(mock, from), [`_index/${keys[0]}.json`]);
+    const cached = JSON.parse(
+      await Deno.readTextFile(cacheFile2998(cachePath, keys[0])),
+    );
+    assertEquals(Object.keys(cached.entries), ["data/t1/m1/d/1/raw"]);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2998: GCS shard the listing omits, or lists without a generation, is downloaded", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-2998-" });
+  try {
+    const mock = createMockGcsClient();
+    const keys = seed2998(mock, 3);
+    const svc = new GcsCacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+    wrapList2998(mock, (entries) =>
+      entries
+        .filter((e) => e.key !== `_index/${keys[0]}.json`)
+        .map((e) =>
+          e.key === `_index/${keys[1]}.json`
+            ? { ...e, generation: undefined }
+            : e
+        ));
+    setMeta2998(mock, keys, 6);
+
+    const from = mock.gets.length;
+    await svc.pullChanged();
+    assertEquals(shardGets2998(mock, from).sort(), [
+      `_index/${keys[0]}.json`,
+      `_index/${keys[1]}.json`,
+    ]);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2998: GCS refused listing falls back to downloading every shard", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-2998-" });
+  try {
+    const mock = createMockGcsClient();
+    const keys = seed2998(mock, 3);
+    let refuse = true;
+    const list = mock.listAllObjects.bind(mock);
+    (mock as { listAllObjects: unknown }).listAllObjects = (
+      subPrefix?: string,
+      signal?: AbortSignal,
+    ) =>
+      refuse
+        ? Promise.reject(
+          new GcsOperationError("Forbidden", {
+            name: "GcsOperationError",
+            httpStatusCode: 403,
+            code: "forbidden",
+            bodyPreview: "<html>not json</html>",
+            uploadId: undefined,
+          }),
+        )
+        : list(subPrefix, signal);
+
+    const svc = new GcsCacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+    assertEquals(shardGets2998(mock).length, 3);
+    assertEquals(
+      await Deno.readTextFile(join(cachePath, "data/t3/m3/d/1/raw")),
+      "abc\n",
+    );
+
+    refuse = false;
+    setMeta2998(mock, keys, 6);
+    const from = mock.gets.length;
+    await svc.pullChanged();
+    assertEquals(
+      shardGets2998(mock, from),
+      [],
+      "the fallback filled the cache",
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2998: GCS cache keeps the download's generation, not a stale listed one", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-2998-" });
+  try {
+    const mock = createMockGcsClient();
+    const keys = seed2998(mock, 2);
+    wrapList2998(
+      mock,
+      (entries) =>
+        entries.map((e) =>
+          e.key === `_index/${keys[0]}.json` ? { ...e, generation: "1" } : e
+        ),
+    );
+    await new GcsCacheSyncService(mock, cachePath).pullChanged();
+    const cached = JSON.parse(
+      await Deno.readTextFile(cacheFile2998(cachePath, keys[0])),
+    );
+    assertEquals(
+      cached.generation,
+      mock.generationOverrides.get(`_index/${keys[0]}.json`),
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2998: GCS pull aborted between batches keeps the shards it downloaded", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-2998-" });
+  try {
+    const mock = createMockGcsClient();
+    const keys = seed2998(mock, 15);
+    const abort = new AbortController();
+    const get = mock.getObject.bind(mock);
+    let shardReads = 0;
+    (mock as { getObject: unknown }).getObject = (key: string) => {
+      const result = get(key);
+      if (
+        key.startsWith("_index/") && key !== "_index/_meta.json" &&
+        ++shardReads === 10
+      ) {
+        abort.abort();
+      }
+      return result;
+    };
+    await assertRejects(() =>
+      new GcsCacheSyncService(mock, cachePath).pullChanged({
+        signal: abort.signal,
+      })
+    );
+    assertEquals(shardReads, 10, "the first batch was read, no more");
+
+    const from = mock.gets.length;
+    await new GcsCacheSyncService(mock, cachePath).pullChanged();
+    assertEquals(
+      shardGets2998(mock, from),
+      keys.slice(10).map((k) => `_index/${k}.json`),
+    );
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2998: GCS partition dropped from _meta.json loses its cache file", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-2998-" });
+  try {
+    const mock = createMockGcsClient();
+    const keys = seed2998(mock, 3);
+    const svc = new GcsCacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+    const dir = join(cachePath, "_index", "_local", "default");
+    await Deno.writeTextFile(join(dir, "notes.txt"), "keep");
+    await Deno.writeTextFile(join(dir, "%zz.json"), "keep");
+    await Deno.mkdir(join(cachePath, "_index", "_local", "ns-other"), {
+      recursive: true,
+    });
+    const foreign = cacheFile2998(cachePath, keys[2], "ns-other");
+    await Deno.writeTextFile(foreign, "keep");
+
+    mock.storage.delete(`_index/${keys[2]}.json`);
+    setMeta2998(mock, keys.slice(0, 2), 6);
+    await svc.pullChanged();
+
+    const names: string[] = [];
+    for await (const e of Deno.readDir(dir)) names.push(e.name);
+    assertEquals(
+      names.sort(),
+      ["%zz.json", `${keys[0]}.json`, `${keys[1]}.json`, "notes.txt"],
+    );
+    assertEquals(await Deno.readTextFile(foreign), "keep");
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2998: GCS namespaces keep separate shard caches", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-2998-" });
+  try {
+    const mock = createMockGcsClient();
+    const keys = seed2998(mock, 2, { prefix: "_root/", withData: false });
+    // Its own commitSeq: the two services share this cachePath's sync-state
+    // sidecar, so equal seqs would let the second pull take the fast path.
+    seed2998(mock, 2, { withData: false, commitSeq: 9 });
+
+    const nsSvc = new GcsCacheSyncService(mock, cachePath);
+    await nsSvc.pullChanged({ namespace: "_root" });
+    const plain = new GcsCacheSyncService(mock, cachePath);
+    await plain.pullChanged();
+    for (const key of keys) {
+      await Deno.stat(cacheFile2998(cachePath, key, "ns-_root"));
+      await Deno.stat(cacheFile2998(cachePath, key, "default"));
+    }
+
+    put2998(
+      mock,
+      `_root/_index/${keys[0]}.json`,
+      enc2998({ version: 1, entries: {}, rewritten: true }),
+    );
+    setMeta2998(mock, keys, 6, "_root/");
+    setMeta2998(mock, keys, 10);
+    const from = mock.gets.length;
+    await nsSvc.pullChanged({ namespace: "_root" });
+    await plain.pullChanged();
+    assertEquals(shardGets2998(mock, from, "_root/"), [
+      `_root/_index/${keys[0]}.json`,
+    ]);
+    assertEquals(shardGets2998(mock, from), []);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});
+
+Deno.test("swamp-club#2998: GCS push never uploads the local shard cache", async () => {
+  const cachePath = await Deno.makeTempDir({ prefix: "gcssync-2998-" });
+  try {
+    const mock = createMockGcsClient();
+    seed2998(mock, 2);
+    const svc = new GcsCacheSyncService(mock, cachePath);
+    await svc.pullChanged();
+    assert(isInternalCacheFile("_index/_local/default/data--t1--m1.json"));
+
+    await seedFile(cachePath, "data/t9/m9/d/1/raw", "new\n");
+    await svc.markDirty();
+    await svc.pushChanged();
+    assert(
+      mock.puts.some((p) => p.key === "data/t9/m9/d/1/raw"),
+      "the bulk push ran",
+    );
+    assertEquals(mock.puts.filter((p) => p.key.includes("_local")), []);
+  } finally {
+    await Deno.remove(cachePath, { recursive: true });
+  }
+});

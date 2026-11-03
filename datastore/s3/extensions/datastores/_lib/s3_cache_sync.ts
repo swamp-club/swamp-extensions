@@ -91,6 +91,21 @@ const OWN_MTIMES_FILE = ".datastore-local-mtimes.json";
  */
 const PEER_DELETED_FILE = ".datastore-peer-deleted.json";
 
+/**
+ * Local shard cache: each index shard as this copy last downloaded it, with
+ * the ETag it was read at, so a whole-index read downloads only the shards
+ * whose ETag moved (swamp-club#2998). It sits under `_index/`, which
+ * `isInternalCacheFile` keeps out of push and pull. Local-only.
+ */
+const SHARD_CACHE_DIR = ["_index", "_local"] as const;
+
+/** One file of the local shard cache. */
+interface CachedShard {
+  version: 1;
+  etag: string;
+  entries: Record<string, IndexEntry>;
+}
+
 /** Object metadata key holding the sha256 `repairUnpushedFiles` uploaded. */
 const SHA256_METADATA_KEY = "sha256";
 
@@ -306,6 +321,14 @@ function normalizeETag(etag: string | undefined): string | undefined {
   if (!etag) return undefined;
   const m = etag.match(/^"(.*)"$/);
   return m ? m[1] : etag;
+}
+
+/**
+ * One path segment of the local shard cache, for a partition key or a
+ * namespace. `*` is escaped too, since Windows refuses it in file names.
+ */
+function shardCacheSegment(name: string): string {
+  return encodeURIComponent(name).replaceAll("*", "%2A");
 }
 
 /**
@@ -777,6 +800,8 @@ export class S3CacheSyncService implements DatastoreSyncService {
   // Each shard's ETag as this instance last read or wrote it. A shard still at
   // that ETag holds nothing this instance has not seen (swamp-club#4102).
   private shardEtags = new Map<string, string>();
+  // Set once a failed shard listing has been reported (swamp-club#2998).
+  private shardListWarned = false;
   // Local index writes after a push run one at a time (swamp-club#4102).
   private localIndexWrites: Promise<unknown> = Promise.resolve();
   private syncState: DatastoreSyncState | null = null;
@@ -1369,6 +1394,164 @@ export class S3CacheSyncService implements DatastoreSyncService {
   }
 
   /**
+   * This namespace's directory in the local shard cache. An unset namespace
+   * gets `default`; a set one gets an `ns-` prefix, so the two never meet.
+   */
+  private shardCacheDir(): string {
+    const ns = this.namespace
+      ? `ns-${shardCacheSegment(this.namespace)}`
+      : "default";
+    return join(this.cachePath, ...SHARD_CACHE_DIR, ns);
+  }
+
+  private shardCachePath(partitionKey: string): string {
+    return join(
+      this.shardCacheDir(),
+      `${shardCacheSegment(partitionKey)}.json`,
+    );
+  }
+
+  /** A shard's local cache entry; null when absent or unreadable. */
+  private async readCachedShard(
+    partitionKey: string,
+  ): Promise<CachedShard | null> {
+    try {
+      const parsed = JSON.parse(
+        await Deno.readTextFile(this.shardCachePath(partitionKey)),
+      ) as CachedShard;
+      const valid = parsed?.version === 1 &&
+        typeof parsed.etag === "string" && parsed.etag.length > 0 &&
+        parsed.entries != null && typeof parsed.entries === "object" &&
+        !Array.isArray(parsed.entries);
+      return valid ? parsed : null;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Saves a shard as downloaded, with the ETag of that download. A failed
+   * save only costs a download next time, so it warns and never throws.
+   */
+  private async writeCachedShard(
+    partitionKey: string,
+    etag: string,
+    entries: Record<string, IndexEntry>,
+  ): Promise<void> {
+    try {
+      await ensureDir(this.shardCacheDir());
+      const cached: CachedShard = { version: 1, etag, entries };
+      await atomicWriteTextFile(
+        this.shardCachePath(partitionKey),
+        JSON.stringify(cached),
+      );
+    } catch (err) {
+      console.warn(
+        `[s3-sync] Could not cache index shard "${partitionKey}" locally: ${err}. The next pull downloads it again.`,
+      );
+    }
+  }
+
+  /**
+   * Removes cached shards `_meta.json` no longer lists. Reads only this
+   * namespace's directory and removes only files named after a partition
+   * key, so other namespaces and stray files are left alone.
+   */
+  private async pruneCachedShards(listed: ReadonlySet<string>): Promise<void> {
+    const dir = this.shardCacheDir();
+    try {
+      for await (const entry of Deno.readDir(dir)) {
+        if (!entry.isFile || !entry.name.endsWith(".json")) continue;
+        const encoded = entry.name.slice(0, -".json".length);
+        let key: string;
+        try {
+          key = decodeURIComponent(encoded);
+        } catch {
+          continue;
+        }
+        if (shardCacheSegment(key) !== encoded || listed.has(key)) continue;
+        await Deno.remove(join(dir, entry.name)).catch(() => {});
+      }
+    } catch {
+      // No cache yet, or unreadable: nothing to prune.
+    }
+  }
+
+  /**
+   * Each index shard's current ETag, from one listing of the shard prefix,
+   * keyed by partition. Null when the listing fails: the caller then
+   * downloads every shard, as before swamp-club#2998.
+   */
+  private async listShardETags(
+    signal?: AbortSignal,
+  ): Promise<Map<string, string> | null> {
+    const prefix = this.namespace ? `${this.namespace}/_index/` : "_index/";
+    try {
+      const listed = await retryWithBackoff(
+        () => this.s3.listAllObjects(prefix, signal),
+        { signal },
+      );
+      const etags = new Map<string, string>();
+      for (const obj of listed) {
+        if (!obj.key.startsWith(prefix) || !obj.key.endsWith(".json")) {
+          continue;
+        }
+        const key = obj.key.slice(prefix.length, -".json".length);
+        if (key.includes("/")) continue;
+        const etag = normalizeETag(obj.etag);
+        if (etag) etags.set(key, etag);
+      }
+      return etags;
+    } catch (err) {
+      if (signal?.aborted) throw err;
+      if (!this.shardListWarned) {
+        this.shardListWarned = true;
+        console.warn(
+          `[s3-sync] Could not list index shards (${
+            err instanceof Error ? err.message : String(err)
+          }); every shard is downloaded instead. Allow s3:ListBucket on the _index/ prefix to download only changed shards.`,
+        );
+      }
+      return null;
+    }
+  }
+
+  /**
+   * A shard for a whole-index read: the local cache when its ETag matches
+   * the listed one, else a download, cached at once so an interrupted read
+   * keeps what it fetched. Null when the shard is absent. Either way the
+   * shard's ETag is remembered, as `readShard` does.
+   */
+  private async readShardCached(
+    partitionKey: string,
+    listedETag: string | undefined,
+    signal?: AbortSignal,
+  ): Promise<{ entries: Record<string, IndexEntry> | null; reused: boolean }> {
+    if (listedETag) {
+      const cached = await this.readCachedShard(partitionKey);
+      if (cached && cached.etag === listedETag) {
+        this.shardEtags.set(partitionKey, cached.etag);
+        return { entries: cached.entries, reused: true };
+      }
+    }
+    const { entries, invalid, etag } = await this.readShardVersioned(
+      partitionKey,
+      signal,
+    );
+    const seen = normalizeETag(etag ?? undefined);
+    if (seen) this.shardEtags.set(partitionKey, seen);
+    if (invalid) {
+      throw new Error(
+        `[s3-sync] Index shard "${partitionKey}" is present but is not a recognized v1 shard. Repair or remove it, then retry.`,
+      );
+    }
+    if (entries !== null && seen) {
+      await this.writeCachedShard(partitionKey, seen, entries);
+    }
+    return { entries, reused: false };
+  }
+
+  /**
    * Conditional PUT with a one-way fallback: when the store answers
    * NotImplemented, warn once and use unconditional puts from then on
    * (still merge-on-write, just without the lost-update guard).
@@ -1927,12 +2110,20 @@ export class S3CacheSyncService implements DatastoreSyncService {
     const v2Meta = meta as PartitionMetaV2;
     const entries: Record<string, IndexEntry> = {};
     const batchSize = 10;
+    const assembleStart = Date.now();
+    // Download only shards whose ETag moved since this cache last read them
+    // (swamp-club#2998).
+    const listedETags = await this.listShardETags(signal);
+    let reused = 0;
+    let fetched = 0;
 
     for (let i = 0; i < v2Meta.partitions.length; i += batchSize) {
       throwIfAborted(signal);
       const batch = v2Meta.partitions.slice(i, i + batchSize);
       const results = await Promise.allSettled(
-        batch.map((key) => this.readShard(key, signal)),
+        batch.map((key) =>
+          this.readShardCached(key, listedETags?.get(key), signal)
+        ),
       );
       for (let j = 0; j < results.length; j++) {
         const result = results[j];
@@ -1945,7 +2136,8 @@ export class S3CacheSyncService implements DatastoreSyncService {
             }`,
           );
         }
-        if (result.value === null) {
+        const shard = result.value.entries;
+        if (shard === null) {
           throw new Error(
             `[s3-sync] Shard ${
               batch[j]
@@ -1953,12 +2145,23 @@ export class S3CacheSyncService implements DatastoreSyncService {
               `Run 'swamp datastore migrate-index' to rebuild.`,
           );
         }
-        for (const [rel, entry] of Object.entries(result.value)) {
+        if (result.value.reused) reused++;
+        else fetched++;
+        for (const [rel, entry] of Object.entries(shard)) {
           entries[rel] = entry;
         }
       }
     }
 
+    await this.pruneCachedShards(new Set(v2Meta.partitions));
+    const span = trace.getActiveSpan();
+    span?.setAttribute(Attr.DATASTORE_SHARDS_REUSED, reused);
+    span?.setAttribute(Attr.DATASTORE_SHARDS_FETCHED, fetched);
+    tracePhase(
+      "assembleIndexFromShards",
+      assembleStart,
+      `reused=${reused} fetched=${fetched}`,
+    );
     return { entries, commitSeq: v2Meta.commitSeq, readKeys: null };
   }
 

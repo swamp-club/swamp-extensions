@@ -31,6 +31,8 @@ export const Attr = {
   DATASTORE_ENTRIES: "datastore.entries",
   DATASTORE_SHARDS: "datastore.shards",
   DATASTORE_SHARDS_WRITTEN: "datastore.shards_written",
+  DATASTORE_SHARDS_REUSED: "datastore.shards_reused",
+  DATASTORE_SHARDS_FETCHED: "datastore.shards_fetched",
   DATASTORE_CAS_RETRIES: "datastore.cas_retries",
   DATASTORE_ROWS: "datastore.rows",
   DATASTORE_NAMESPACES: "datastore.namespaces",
