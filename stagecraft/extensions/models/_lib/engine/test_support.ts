@@ -376,3 +376,22 @@ export function handoffParsedDefinition(): FactoryDefinition {
   if (!result.ok) throw new Error(result.errors.join("\n"));
   return result.value;
 }
+
+/**
+ * Run `fn` as a browser page outside a secure context runs: with no
+ * crypto.subtle. Deno defines subtle on Crypto.prototype, so an own property
+ * on globalThis.crypto shadows it, and deleting that property afterwards
+ * brings the real one back (reassigning would leave the shadow in place for
+ * every later test).
+ */
+export async function withoutSubtle<T>(fn: () => Promise<T>): Promise<T> {
+  Object.defineProperty(globalThis.crypto, "subtle", {
+    value: undefined,
+    configurable: true,
+  });
+  try {
+    return await fn();
+  } finally {
+    delete (globalThis.crypto as { subtle?: SubtleCrypto }).subtle;
+  }
+}

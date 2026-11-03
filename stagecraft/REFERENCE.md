@@ -551,6 +551,10 @@ the public origin can read every factory definition and work item, so `serve`
 logs a warning when `publicOrigin` is set. Put access control in the proxy
 (Cloudflare Access, or Traefik basic or forward auth).
 
+An `http://` origin works too, such as a LAN address you open from a phone, but
+everything between the browser and the proxy then travels unencrypted, so put
+https in front of the studio anywhere beyond a network you trust.
+
 ### Serving the studio under a path
 
 By default the studio is served at the root of its host. To publish it under a

@@ -25,6 +25,7 @@ import {
 import { parse as parseYaml } from "@std/yaml";
 import { remoteDefinition } from "../../extensions/models/_lib/engine/studio_remote.ts";
 import { DEFINITION_SCHEMA_VERSION } from "../../extensions/models/_lib/engine/definition_schema.ts";
+import { withoutSubtle } from "../../extensions/models/_lib/engine/test_support.ts";
 
 const TEXT = `schemaVersion: ${DEFINITION_SCHEMA_VERSION}
 stages:
@@ -225,4 +226,19 @@ Deno.test("model: a remote factory's definition, written from swamp model get, l
       name,
     );
   }
+});
+
+// Over plain http from a host other than loopback the page is not a secure
+// context and has no crypto.subtle. It must still check every factory, and
+// reach the digest the engine pins, or every work item reads as drawn on an
+// older definition (swamp-club #4311).
+Deno.test("loadDefinition: checks every example without crypto.subtle, to the same digest", async () => {
+  for (const name of EXAMPLES) {
+    const text = await exampleText(name);
+    const secure = await loadOk(name, text);
+    const insecure = await withoutSubtle(() => loadOk(name, text));
+    assert(secure.ok && insecure.ok);
+    assertEquals(insecure.view.digest, secure.view.digest, name);
+  }
+  assert(globalThis.crypto.subtle !== undefined);
 });

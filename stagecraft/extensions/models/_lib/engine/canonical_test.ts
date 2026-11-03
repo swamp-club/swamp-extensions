@@ -20,6 +20,7 @@ import {
   assertThrows,
 } from "@std/assert";
 import { canonicalJson, digestOf, jsonSafe } from "./canonical.ts";
+import { withoutSubtle } from "./test_support.ts";
 
 Deno.test("jsonSafe: BigInt becomes a number when exact, a string otherwise", () => {
   assertEquals(jsonSafe({ n: 3n, big: 2n ** 64n, list: [1n] }), {
@@ -48,6 +49,30 @@ Deno.test("digestOf: stable across key order, different for different content", 
   assertEquals(one, await digestOf({ steps: [1, 2], summary: "s" }));
   assertNotEquals(one, await digestOf({ summary: "s", steps: [2, 1] }));
   assert(/^sha256:[0-9a-f]{64}$/.test(one));
+});
+
+// A page outside a secure context has no crypto.subtle, and must still get
+// the digests the engine pinned (swamp-club #4311).
+Deno.test("digestOf: without crypto.subtle, the same digests as with it", async () => {
+  const values: unknown[] = [
+    null,
+    "",
+    {},
+    [],
+    { summary: "s", steps: [1, 2] },
+    { title: "日本語 🏭", nested: { b: [true, null, 1.5], a: "e\u0301" } },
+    { big: "x".repeat(100_000) },
+  ];
+  const secure = [];
+  for (const value of values) secure.push(await digestOf(value));
+  const insecure = await withoutSubtle(async () => {
+    assertEquals(globalThis.crypto.subtle, undefined);
+    const out = [];
+    for (const value of values) out.push(await digestOf(value));
+    return out;
+  });
+  assertEquals(insecure, secure);
+  assert(globalThis.crypto.subtle !== undefined);
 });
 
 Deno.test("jsonSafe: CEL timestamps become ISO strings; string-keyed maps become objects", () => {

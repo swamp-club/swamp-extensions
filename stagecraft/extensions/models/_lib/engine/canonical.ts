@@ -24,6 +24,8 @@
 // gate and the graph analysis read a path the same way.
 // ---------------------------------------------------------------------------
 
+import { sha256 } from "./sha256.ts";
+
 /** A value JSON can hold. */
 export type Json =
   | null
@@ -138,10 +140,18 @@ export function canonicalJson(value: unknown): string {
   return JSON.stringify(sort(jsonSafe(value)));
 }
 
-/** SHA-256 of a value's canonical JSON, as `sha256:<hex>`. */
+/**
+ * SHA-256 of a value's canonical JSON, as `sha256:<hex>`. A browser page
+ * outside a secure context (plain http from a host other than loopback) has
+ * no crypto.subtle, so the hash is computed in JavaScript there, to the same
+ * bytes.
+ */
 export async function digestOf(value: unknown): Promise<string> {
   const bytes = new TextEncoder().encode(canonicalJson(value));
-  const hash = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  const subtle = globalThis.crypto?.subtle;
+  const hash = subtle === undefined
+    ? sha256(bytes)
+    : new Uint8Array(await subtle.digest("SHA-256", bytes));
   return `sha256:${
     Array.from(hash, (b) => b.toString(16).padStart(2, "0")).join("")
   }`;

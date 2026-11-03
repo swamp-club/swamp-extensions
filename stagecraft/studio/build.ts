@@ -89,6 +89,7 @@ export const ENGINE_INPUTS = [
   "run_record.ts",
   "run_store.ts",
   "scenario.ts",
+  "sha256.ts",
   "studio_cards.ts",
   "studio_item_types.ts",
   "swamp_names.ts",
