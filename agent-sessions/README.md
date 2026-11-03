@@ -1,10 +1,38 @@
 # @swamp/agent-sessions
 
 Imports what coding agents did in this repo as agent session records: the
-data the dashboard's agent sessions page reads (swamp-club#4155). The record
-is swamp's agent session record, version 2 (swamp-club#4154, #4178).
+data the dashboard's Agent sessions page reads. The record is swamp's agent
+session record, version 2.
 
-**Private while it is a prototype.** The manifest sets `visibility: private`.
+**Preview.** The records and the page are new and may change between
+versions. A new version of this extension re-imports every session, so a
+change reaches records already written.
+
+## Getting started
+
+The extension ships a skill, `agent-sessions`, that walks an agent through
+the first import: it asks whether to import this repo only, a few named
+repos, or every repo on the machine, runs the import and opens the page. Ask
+your agent to "import my agent sessions". By hand:
+
+```bash
+swamp extension pull @swamp/agent-sessions
+swamp behavior create @swamp/agent-sessions sessions
+swamp behavior run sessions import
+swamp dashboard
+```
+
+`swamp dashboard` opens this repo's dashboard in the browser. **Agent
+sessions** appears in its sidebar once the repo has session records you can
+read. The page is marked Preview.
+
+## Who can see the records
+
+Records stay on this machine, in this repo's swamp data, like any other
+behavior's data. The import sends nothing anywhere. If the repo's data is
+shared (a shared datastore, or `swamp serve` with team members), anyone who
+can read this behavior's data can read every session it imported, whoever's
+agent ran it: access is per behavior, not per person.
 
 ## What it imports
 
@@ -117,14 +145,30 @@ The target is redacted before it is written:
 | Secret flags, quoted or not, and flags ending in a secret's name (`--client-secret x`, `--db-password 'x'`) | `--password ‹redacted›` |
 | Headers named for a secret (`X-Api-Key: x`, `PRIVATE-TOKEN: x`, `X-Auth: x`), and cookies (`Cookie: a=1; b=2`, `curl -b x`) | `X-Api-Key: ‹redacted›` |
 | Secret-named fields in a JSON body, plain or with escaped quotes (`{"password":"x"}`) | `{"password":"‹redacted›"}` |
-| `-u user:password`, passwords in URLs, `-p` passwords for mysql, `docker login` and `sshpass`, here-strings (`<<< x`) | `postgres://admin:‹redacted›@host` |
+| `-u` credentials, passwords in URLs, `-p` passwords for mysql, `docker login` and `sshpass`, here-strings (`<<< x`) | `curl -u ‹redacted›` |
 | Positional secrets: `configure set <secret-name> x`, `config set …:_authToken x`, `gh secret set NAME --body x`, every `k=v` of `vault kv put` / `vault write` | `aws configure set aws_secret_access_key ‹redacted›` |
 | Known token shapes (`ghp_`, `github_pat_`, `sk-ant-`, `sk-`, `xox?-`, `AKIA`, `glpat-`) | `‹redacted›` |
-| Emails, and logins at an IP address (`user@10.0.2.2`) | `‹email›` |
+| Emails, and logins at an IP address (`user@` and an IPv4 address) | `‹email›` |
 | Heredoc bodies, empty or left unterminated too | `<<EOF … EOF` |
+| Quoted free text in a shell command: `git commit`/`git tag` `-m` and `--message`; `gh` `--body`, `--title` and `--notes`; `python -c`, `node -e`/`--eval`/`-p`, `deno eval`, `ruby -e`, `perl -e`; every quoted argument of `echo` and `printf`. A quote left open drops the rest of the command. The commands of `sh -c` are kept | `git commit -m ‹text, 27 chars›` |
 
 A versioned specifier such as `zod@4.6.7` or `jsr:@std/path@1.1.4` is not an
 email, and is kept.
+
+### What a call's text can still contain
+
+Redaction masks the shapes above; it does not understand every command. A
+call's text can still hold:
+
+- the rest of a command line: program names, flags, paths outside home,
+  unquoted words, and secrets in a shape the rules above don't know;
+- an MCP tool's name, which names its server (`mcp__acme-db__query`);
+- a fetched URL with its path and any query parameter not named like a
+  secret;
+- for Codex, a subagent's task path (`/root/git/models`), which the model
+  chose and can describe the task.
+
+Read a few records before sharing a repo's data more widely.
 
 Text over 1000 characters is cut and the call is marked `truncated`.
 Redaction reads at most the first 4000 characters of a target (heredocs are
@@ -163,8 +207,9 @@ followed), and Codex's subagents go with the session that spawned them:
    `~`; outside home that is an absolute path.
 2. **The directory is gone** (a removed worktree). It counts when it matches
    one of `worktreeGlobs` for a repo already found and the session ran on one
-   of that repo's branches. The default, `~/.cue/work/*/<repo>`, covers cue's
-   worktrees; `<repo>` is a repo's directory name. Two repos can share a
+   of that repo's branches. `worktreeGlobs` is empty by default: name where
+   your worktrees live, such as `~/worktrees/*/<repo>`, where `<repo>` is a
+   repo's directory name. Two repos can share a
    directory name, so the branch is what tells them apart; `main` and
    `master` prove nothing and never count, and a branch two such repos both
    have leaves the session unplaced (repos the import has seen sessions of
@@ -187,10 +232,11 @@ the swamp repo is its own repo and is not taken.
   leaves out every clone of its remote. Excluding the repo the import runs in
   is an error.
 
-> **`all` is for internal or local testing only.** It puts every project's
-> commands and paths, personal and client repos included, into one repo's
-> data. Use `exclude` for repos that must stay out, and never push that data
-> anywhere shared.
+> **What `all` does.** It puts every project's commands and paths, personal
+> and client repos included, into this one repo's data, where anyone who can
+> read that data can read them. Use `exclude` for repos that must stay out,
+> and think twice before importing with `all` into a repo whose data is
+> shared.
 
 Each record names its repo in `repo` (also in its `summary` tag) and in a
 `repo` tag, so a list can filter by repo. Two swamp repos in different
@@ -236,10 +282,10 @@ copy of every session it imports.
 ## Usage
 
 ```bash
-swamp model create @swamp/agent-sessions sessions
-swamp model method run sessions import
-swamp model method run sessions import --input 'repos:json=["~/src/other"]'
-swamp model method run sessions import --input all=true \
+swamp behavior create @swamp/agent-sessions sessions
+swamp behavior run sessions import
+swamp behavior run sessions import --input 'repos:json=["~/src/other"]'
+swamp behavior run sessions import --input all=true \
   --input 'exclude:json=["~/src/client-repo"]'
 ```
 
@@ -248,9 +294,9 @@ swamp model method run sessions import --input all=true \
 | `since` | none | Only sessions whose transcript, rollout or any subagent's changed on or after this date: `2026-10-01` (local midnight) or an ISO 8601 time. A session started earlier but active since is imported. |
 | `projectsDir` | `CLAUDE_CONFIG_DIR/projects`, else `~/.claude/projects` | Where Claude Code keeps transcripts. |
 | `codexDir` | `CODEX_HOME/sessions`, else `~/.codex/sessions` | Where Codex keeps rollouts. The import needs only one of the two to exist. |
-| `worktreeGlobs` | `["~/.cue/work/*/<repo>"]` | Where removed worktrees were. `<repo>` is a repo's directory name; a match counts only on one of that repo's branches. |
+| `worktreeGlobs` | `[]` | Where your worktrees live, such as `~/worktrees/*/<repo>`, so sessions whose worktree was removed can still be placed. `<repo>` is a repo's directory name; a match counts only on one of that repo's branches. |
 | `repos` | `[]` | Other repos whose sessions to import too, as paths (`~` and paths relative to this repo work). One that is not there or not a git repo is reported and left out. |
-| `all` | `false` | Import every session whose repo can be found. Internal or local testing only (see above). |
+| `all` | `false` | Import every session whose repo can be found, every project's (see above). |
 | `exclude` | `[]` | Repos to leave out, as paths or remote URLs. |
 
 When you are logged in to swamp-club, each record carries your swamp-club
@@ -267,10 +313,24 @@ transcripts are. Under `swamp serve --remote-only` a method runs on a worker,
 which has no transcripts, and the import fails with an error that names the
 host and the paths it looked in.
 
+## Subprocesses
+
+The import runs two programs, each with fixed arguments and no shell:
+
+- `git`, read-only (`--version`, `rev-parse`, `config --get`,
+  `for-each-ref`), once per distinct directory, to find a session's repo,
+  its main checkout, its remote and its branches. It never prompts for
+  credentials, takes no optional locks, and is stopped after 10 seconds.
+- swamp itself, `swamp auth whoami --json --no-telemetry`, once per import,
+  for the identity records carry.
+
 ## The contract copy
 
 `extensions/models/_lib/contract/` holds a copy of swamp's
 `src/domain/agent_sessions/session_record.ts` and its two generated JSON
 Schemas, from swamp commit f40c05e37. Swamp owns the contract. When it
 changes, copy all three again; `session_record_test.ts` fails when the copy
-and the JSON Schemas disagree.
+and the JSON Schemas disagree. The copy differs from swamp's in its zod
+import specifier and one `swamp-quality-ignore credentials-sensitive-field`
+comment above `TokenUsageSchema` (token counts, not secrets); keep both when
+re-copying.

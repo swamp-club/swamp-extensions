@@ -966,7 +966,7 @@
               "start": 2081364,
               "end": 2082174,
               "ok": true,
-              "text": "S=$SCRATCH rm -rf $S/gt && mkdir -p $S/gt && git clone -q ~/sc/demos/track-star $S/gt/repo && cd $S/gt/repo && git remote remove origin && SHA=$(git rev-parse HEAD) && git fetch . $SHA && echo \"fetch . ok\"; git worktree add --detach $S/gt/wt $SHA >/dev/null 2>&1 && echo \"detach ok\"",
+              "text": "S=$SCRATCH rm -rf $S/gt && mkdir -p $S/gt && git clone -q ~/sc/demos/track-star $S/gt/repo && cd $S/gt/repo && git remote remove origin && SHA=$(git rev-parse HEAD) && git fetch . $SHA && echo ‹text, 10 chars›; git worktree add --detach $S/gt/wt $SHA >/dev/null 2>&1 && echo ‹text, 9 chars›",
               "label": "bypass",
               "category": "git — covered by @swamp/git",
               "rule": "program = git; @swamp/git is installed in this repo"
@@ -1050,7 +1050,7 @@
               "start": 2157890,
               "end": 2165172,
               "ok": true,
-              "text": "S=$SCRATCH cd . && deno fmt extensions/behaviors/git_merge.ts >/dev/null 2>&1; swamp behavior type describe @swamp/git --json | jq -c '.methods[] | select(.name==\"merge\") | .name'\nR=$S/gt/repo; git -C $R worktree prune; git -C $R checkout -q -b ts-9 && echo x >> $R/README.md && git -C $R commit -qam \"test change\" && C1=$(git -C $R rev-parse HEAD) && echo y >> $R/README.md && git -C $R commit -qam \"moved\" && git -C $R checkout -q main\nswamp model create @swamp/git scratch-git --global-arg repoPath=$R --json >/dev/null\necho \"--- moved branch:\"; swamp model method run scratch-git merge --input commit=$C1 --input branch=ts-9 2>&1 | grep -i \"error\\|moved\\|succeeded\\|failed\" | head -3\ngit -C $R branch -f ts-9 $C1\necho \"--- clean merge:\"; swamp model method run scratch-git merge --input commit=$C1 --input branch=ts-9 2>&1 | grep -iE \"error|succeeded|failed|mainCommit|branchDeleted\" | head -5\ngit -C $R checkout -q -b ts-10 HEAD~1 && echo z >> $R/README.md && git -C $R commit -qam diverge && C…",
+              "text": "S=$SCRATCH cd . && deno fmt extensions/behaviors/git_merge.ts >/dev/null 2>&1; swamp behavior type describe @swamp/git --json | jq -c '.methods[] | select(.name==\"merge\") | .name'\nR=$S/gt/repo; git -C $R worktree prune; git -C $R checkout -q -b ts-9 && echo x >> $R/README.md && git -C $R commit -qam ‹text, 11 chars› && C1=$(git -C $R rev-parse HEAD) && echo y >> $R/README.md && git -C $R commit -qam ‹text, 5 chars› && git -C $R checkout -q main\nswamp model create @swamp/git scratch-git --global-arg repoPath=$R --json >/dev/null\necho ‹text, 17 chars›; swamp model method run scratch-git merge --input commit=$C1 --input branch=ts-9 2>&1 | grep -i \"error\\|moved\\|succeeded\\|failed\" | head -3\ngit -C $R branch -f ts-9 $C1\necho ‹text, 16 chars›; swamp model method run scratch-git merge --input commit=$C1 --input branch=ts-9 2>&1 | grep -iE \"error|succeeded|failed|mainCommit|branchDeleted\" | head -5\ngit -C $R checkout -q -b ts-10 HEAD~1 && echo z >> $R/README.md && git -C $R commit -qam diverg…",
               "truncated": true,
               "label": "swamp",
               "category": "swamp behavior type",
@@ -2103,7 +2103,7 @@
               "start": 7108431,
               "end": 7111138,
               "ok": true,
-              "text": "swamp workflow run track-star-check --input commit=b43f56cfca --json > $SCRATCH 2>&1; echo \"exit=$?\"; jq -c '{status, runId: .id, jobs: [.jobs[]? | {name, status, steps: [.steps[]? | {name, status}]}]}' $SCRATCH ls ~/sc/demos/track-star-checks; git -C ~/sc/demos/track-star branch",
+              "text": "swamp workflow run track-star-check --input commit=b43f56cfca --json > $SCRATCH 2>&1; echo ‹text, 7 chars›; jq -c '{status, runId: .id, jobs: [.jobs[]? | {name, status, steps: [.steps[]? | {name, status}]}]}' $SCRATCH ls ~/sc/demos/track-star-checks; git -C ~/sc/demos/track-star branch",
               "label": "swamp",
               "category": "swamp workflow run",
               "rule": "program = swamp"
@@ -2200,8 +2200,7 @@
               "start": 7427281,
               "end": 7428957,
               "ok": true,
-              "text": "cd ~/sc/demos/track-star-worktrees/ts-2 && git commit -qam \"Remove the deliberately failing ts-2 test\n\nIt was there to exercise the factory's check stage, which sent the\nchange back to implement as designed.\n\nCo-Authored-By: Claude Opus 5.5 <‹email›>\" && git status --short && git rev-parse HEAD && cd . && swamp model @swamp/stagecraft/work-item method run record_artifact ts-2 --input name=change-summary --input \"payload={\\\"summary\\\":\\\"Star talks into My Schedule: a star on each card saves it to localStorage; a My Schedule (n) toggle shows only starred talks, combined with the track filter. Star logic in public/schedule.js with tests. The deliberately failing test from cycle 1 is removed.\\\",\\\"branch\\\":\\\"ts-2\\\",\\\"commit\\\":\\\"$(git -C ~/sc/demos/track-star-worktrees/ts-2 rev-parse HEAD)\\\",\\\"files\\\":[\\\"public/app.js\\\",\\\"public/index.html\\\",\\\"public/schedule.js\\\",\\\"public/styles.css\\\",\\\"tests/schedule_test.ts\\\"]}\" --input expectedStage=implement --input expectedCycle=2 --input expectedEra=3…",
-              "truncated": true,
+              "text": "cd ~/sc/demos/track-star-worktrees/ts-2 && git commit -qam ‹text, 204 chars› && git status --short && git rev-parse HEAD && cd . && swamp model @swamp/stagecraft/work-item method run record_artifact ts-2 --input name=change-summary --input \"payload={\\\"summary\\\":\\\"Star talks into My Schedule: a star on each card saves it to localStorage; a My Schedule (n) toggle shows only starred talks, combined with the track filter. Star logic in public/schedule.js with tests. The deliberately failing test from cycle 1 is removed.\\\",\\\"branch\\\":\\\"ts-2\\\",\\\"commit\\\":\\\"$(git -C ~/sc/demos/track-star-worktrees/ts-2 rev-parse HEAD)\\\",\\\"files\\\":[\\\"public/app.js\\\",\\\"public/index.html\\\",\\\"public/schedule.js\\\",\\\"public/styles.css\\\",\\\"tests/schedule_test.ts\\\"]}\" --input expectedStage=implement --input expectedCycle=2 --input expectedEra=37df0958-ec43-40e6-b3ef-39bf77338012 2>&1 | sed -n '/Executing/,/Completed/p'",
               "label": "swamp",
               "category": "swamp model method",
               "rule": "program = swamp"
@@ -2845,7 +2844,7 @@
               "start": 9286,
               "end": 9958,
               "ok": true,
-              "text": "cd ~/sc/demos/track-star && git diff main...7eb641bb8e -- public; for f in index.html app.js styles.css; do echo \"=== $f\"; git show 7eb641bb8e:public/$f | cat -n; done",
+              "text": "cd ~/sc/demos/track-star && git diff main...7eb641bb8e -- public; for f in index.html app.js styles.css; do echo ‹text, 6 chars›; git show 7eb641bb8e:public/$f | cat -n; done",
               "label": "neutral",
               "category": "git (read-only)",
               "rule": "git read-only subcommand"
@@ -2857,7 +2856,7 @@
               "start": 42570,
               "end": 43290,
               "ok": true,
-              "text": "python3 -I -c '\ndef L(h):\n  h=h.lstrip(\"#\");c=[int(h[i:i+2],16)/255 for i in (0,2,4)]\n  c=[x/12.92 if x<=0.03928 else ((x+0.055)/1.055)**2.4 for x in c]\n  return 0.2126*c[0]+0.7152*c[1]+0.0722*c[2]\ndef r(a,b):\n  x,y=sorted([L(a),L(b)],reverse=True);return round((x+0.05)/(y+0.05),2)\nfor a,b in [(\"92400e\",\"ffffff\"),(\"92400e\",\"fffbeb\"),(\"1d1b2c\",\"fffbeb\"),(\"b45309\",\"ffffff\"),(\"b45309\",\"f6f5fb\"),(\"b3b0c0\",\"ffffff\"),(\"c9c6d3\",\"ffffff\"),(\"ffb020\",\"ffffff\"),(\"c9c6d3\",\"f6f5fb\"),(\"6b6880\",\"ffffff\"),(\"b3b0c0\",\"f6f5fb\")]: print(a,b,r(a,b))'",
+              "text": "python3 -I -c ‹text, 519 chars›",
               "label": "bypass",
               "category": "other CLI: python3",
               "rule": "program = python3; no installed extension covers it"
@@ -2869,7 +2868,7 @@
               "start": 70275,
               "end": 71148,
               "ok": true,
-              "text": "mkdir -p $SCRATCH && cat > $SCRATCH <<EOF … EOF\npython3 -I -c 'import json,sys;d=json.load(open(sys.argv[1]));print(len(d[\"findings\"]))' $SCRATCH",
+              "text": "mkdir -p $SCRATCH && cat > $SCRATCH <<EOF … EOF\npython3 -I -c ‹text, 72 chars› $SCRATCH",
               "label": "neutral",
               "category": "user code (shell write)",
               "rule": "shell write outside swamp-managed paths"
@@ -3119,7 +3118,7 @@
               "start": 405315,
               "end": 406854,
               "ok": true,
-              "text": "f=models/@swamp/gatorwalk-factory/factory/openapi.yaml && for d in 1 2 3 4; do s=$(printf \"$d%.0s\" {1..40}); sed -i \"s/commit: $s/commit: \\\"$s\\\"/g\" $f; done && python3 - <<EOF … EOF\nswamp model method run openapi validate 2>&1",
+              "text": "f=models/@swamp/gatorwalk-factory/factory/openapi.yaml && for d in 1 2 3 4; do s=$(printf ‹text, 6 chars› {1..40}); sed -i \"s/commit: $s/commit: \\\"$s\\\"/g\" $f; done && python3 - <<EOF … EOF\nswamp model method run openapi validate 2>&1",
               "label": "bypass",
               "category": "hand-edited definition",
               "rule": "shell write to a swamp-managed path then ran swamp"

@@ -1,19 +1,23 @@
 manifestVersion: 1
 name: "@swamp/agent-sessions"
-version: "2026.11.02.2"
+version: "2026.11.03.1"
 license: "AGPL-3.0-or-later"
-visibility: private
 description: |
   Import what coding agents did in this repo as agent session records, the
-  data the dashboard's agent sessions page reads. The `import` method reads
+  data the dashboard's Agent sessions page reads. The `import` method reads
   Claude Code's own transcripts and Codex's rollouts on this machine, so no
   hooks or setup are needed, and writes one record per session and per
-  subagent: its turns, tool calls, times and tokens.
+  subagent: its turns, tool calls, times and tokens. Records stay in this
+  repo's swamp data; nothing is sent anywhere.
 
-  Prompts and replies are never stored. A call keeps only its target (a
-  command line, a path, a skill name or a URL), redacted: paths become
-  relative, home becomes `~`, secrets, bearer tokens and emails are masked,
-  heredoc bodies are dropped, and text is capped at 1000 characters.
+  **Preview:** the records and the page may change between versions.
+
+  Prompts, replies, reasoning, tool output and file contents are never
+  stored. A call keeps only its target (a command line, a path, a skill name
+  or a URL), redacted: paths become relative, home becomes `~`, known secret
+  shapes, bearer tokens and emails are masked, heredoc bodies are dropped,
+  quoted free text (commit messages, PR bodies, inline scripts, what `echo`
+  writes) keeps only its length, and text is capped at 1000 characters.
 
   Every call is labelled swamp, bypass or neutral with a category and the
   rule that decided it, by rules alone. Running a program an installed
@@ -22,20 +26,34 @@ description: |
   failure streaks, covered CLIs run directly, and reads of pulled extension
   source.
 
-  Private while it is a prototype.
+  ## Getting started
+
+  The bundled `agent-sessions` skill walks an agent through the first
+  import: ask it to "import my agent sessions". By hand:
+
+  ```bash
+  swamp extension pull @swamp/agent-sessions
+  swamp behavior create @swamp/agent-sessions sessions
+  swamp behavior run sessions import
+  swamp dashboard
+  ```
+
+  **Agent sessions** appears in the dashboard's sidebar once the repo has
+  session records you can read.
 
   ## Methods
 
   | Method   | What it does |
   | -------- | ------------ |
-  | `import` | Import this repo's Claude Code and Codex sessions, its worktrees' and every subagent's, and other repos' with `repos`, or every repo on the machine with `all` (internal or local testing only). Unchanged transcripts are skipped. Optional `since`, `projectsDir`, `codexDir`, `worktreeGlobs`, `repos`, `all` and `exclude`. |
+  | `import` | Import this repo's Claude Code and Codex sessions, its worktrees' and every subagent's; other repos' too with `repos`, or every repo on the machine with `all`, which puts every project's commands and paths in this repo's data. Unchanged transcripts are skipped. Optional `since`, `projectsDir`, `codexDir`, `worktreeGlobs`, `repos`, `all` and `exclude`. |
 
-  ## Usage
+  ## More imports
 
   ```bash
-  swamp model create @swamp/agent-sessions sessions
-  swamp model method run sessions import
-  swamp model method run sessions import --input since=2026-10-01
+  swamp behavior run sessions import --input since=2026-10-01
+  swamp behavior run sessions import --input 'repos:json=["~/src/api"]'
+  swamp behavior run sessions import --input all=true \
+    --input 'exclude:json=["~/src/client-repo"]'
   ```
 
   Run the import on the machine that holds the transcripts. A serve worker
@@ -43,6 +61,8 @@ description: |
 repository: "https://github.com/swamp-club/swamp-extensions"
 models:
   - agent_sessions.ts
+skills:
+  - agent-sessions
 additionalFiles:
   - LICENSE.txt
   - README.md

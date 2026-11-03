@@ -70,6 +70,7 @@ const GIT_TIMEOUT_MS = 10_000;
  */
 async function git(args: string[]): Promise<string | undefined> {
   try {
+    // swamp-quality-ignore deno-command
     const out = await new Deno.Command("git", {
       args,
       stdin: "null",

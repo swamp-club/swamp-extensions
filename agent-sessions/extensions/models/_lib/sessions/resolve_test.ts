@@ -94,7 +94,7 @@ gitTest(
       const main = join(home, "src", "demo");
       await gitInit(main, { remote: "git@example.com:acme/demo.git" });
       const wt = join(home, "wt", "demo-x");
-      await gitWorktree(main, wt, "cue/1-x");
+      await gitWorktree(main, wt, "feature/1-x");
       await Deno.mkdir(join(wt, "a", "b"), { recursive: true });
       const resolver = new RepoResolver(home, []);
       const r = await resolver.resolveDir(join(wt, "a", "b")) as Resolved;
@@ -115,12 +115,12 @@ gitTest(
   async () => {
     await withTemp(async (home) => {
       const demo = join(home, "src", "demo");
-      await gitInit(demo, { branches: ["cue/1-x", "shared"] });
+      await gitInit(demo, { branches: ["feature/1-x", "shared"] });
       // Another repo with the same directory name, and one branch in common.
       const twin = join(home, "other", "demo");
       await gitInit(twin, {
         remote: "git@example.com:acme/twin.git",
-        branches: ["cue/2-y", "shared"],
+        branches: ["feature/2-y", "shared"],
       });
       const resolver = new RepoResolver(home, [
         join(home, "work", "*", "<repo>"),
@@ -130,20 +130,20 @@ gitTest(
       const gone = (dir: string, branch?: string) =>
         resolver.resolveGone(join(home, ...dir.split("/")), branch);
 
-      const x = await gone("work/1-x/demo/src", "cue/1-x");
+      const x = await gone("work/1-x/demo/src", "feature/1-x");
       assertEquals(x?.repo.identity, "~/src/demo");
       assertEquals(x?.root, join(home, "work", "1-x", "demo"));
       assertEquals(x?.prefix, "src");
       assertFalse(x?.settled);
       assertEquals(
-        (await gone("work/2-y/demo", "cue/2-y"))?.repo.identity,
+        (await gone("work/2-y/demo", "feature/2-y"))?.repo.identity,
         "example.com/acme/twin",
       );
       // Both repos have it: which one is unknown.
       assertEquals(await gone("work/3-z/demo", "shared"), undefined);
       assertEquals(await gone("work/1-x/demo", "main"), undefined);
       assertEquals(await gone("work/1-x/demo"), undefined);
-      assertEquals(await gone("elsewhere/demo", "cue/1-x"), undefined);
+      assertEquals(await gone("elsewhere/demo", "feature/1-x"), undefined);
     });
   },
 );

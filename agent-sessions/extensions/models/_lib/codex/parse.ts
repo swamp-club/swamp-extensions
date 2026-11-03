@@ -168,14 +168,26 @@ export function invocationOf(originator: string | undefined): Invocation {
   return "unknown";
 }
 
-/** A command's argv as the one command line it ran. */
+// An argv word a shell reads unchanged without quotes.
+const PLAIN_WORD = /^[\w@%+=:,./~-]+$/;
+
+/** One argv word as a shell would need it written: quoted when it must be. */
+function shellWord(word: string): string {
+  return PLAIN_WORD.test(word) ? word : `'${word.replaceAll("'", `'\\''`)}'`;
+}
+
+/**
+ * A command's argv as the one command line it ran. A word with spaces or
+ * shell characters is quoted, so `git commit -m <message>` reads as one
+ * quoted message, which the call text then elides like a shell's.
+ */
 export function commandLine(argv: unknown): string {
   if (!Array.isArray(argv) || !argv.every((a) => typeof a === "string")) {
     return typeof argv === "string" ? argv : "";
   }
   const a = argv as string[];
   if (a.length === 3 && SHELL.test(a[0]) && SHELL_FLAGS.has(a[1])) return a[2];
-  return a.join(" ");
+  return a.map(shellWord).join(" ");
 }
 
 /** Parses one rollout file's text. */

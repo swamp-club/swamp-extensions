@@ -22,7 +22,12 @@ import { swampWhoami } from "./_lib/whoami.ts";
  * @module
  */
 
-const VERSION = "2026.11.02.1";
+/**
+ * The importer version records carry; a change re-imports every session.
+ * `model.version` repeats it as a literal so the registry can catalog the
+ * behavior type; a test keeps the two equal.
+ */
+export const VERSION = "2026.11.03.1";
 
 /** Arguments of the import method. */
 export const ImportArgsSchema = z.object({
@@ -35,15 +40,15 @@ export const ImportArgsSchema = z.object({
   codexDir: z.string().min(1).optional().describe(
     "Codex's rollout root. Defaults to CODEX_HOME/sessions, else ~/.codex/sessions.",
   ),
-  worktreeGlobs: z.array(z.string().min(1)).default(["~/.cue/work/*/<repo>"])
+  worktreeGlobs: z.array(z.string().min(1)).default([])
     .describe(
-      "Globs over removed worktrees, whose directories are gone. <repo> is a repo's directory name. A match counts only when the session ran on one of that repo's branches.",
+      "Where your worktrees live, so a session whose worktree was removed can still be placed: globs such as ~/worktrees/*/<repo>, where <repo> is a repo's directory name. A match counts only when the session ran on one of that repo's branches. Empty by default: a removed worktree's sessions are skipped.",
     ),
   repos: z.array(z.string().min(1)).default([]).describe(
     "Other repos whose sessions to import too, as paths (~ and paths relative to this repo work). Their records land in this repo.",
   ),
   all: z.boolean().default(false).describe(
-    "Import every session on this machine whose repo can be found. For internal or local testing only: it puts every project's commands and paths in this repo's data.",
+    "Import every session on this machine whose repo can be found, not just this repo's. Every project's commands and paths, personal and client repos included, land in this repo's data, readable by anyone who can read it. Use exclude for repos that must stay out.",
   ),
   exclude: z.array(z.string().min(1)).default([]).describe(
     "Repos to leave out, as paths or remote URLs. Excluding one clone leaves out every clone of its remote. Excluding this repo is an error.",
@@ -70,7 +75,7 @@ interface MethodContext extends ImportContext {
 /** Agent sessions model: imports coding-agent sessions as repo data. */
 export const model = {
   type: "@swamp/agent-sessions",
-  version: VERSION,
+  version: "2026.11.03.1",
   upgrades: [
     {
       toVersion: "2026.10.31.1",
@@ -88,6 +93,12 @@ export const model = {
       toVersion: "2026.11.02.1",
       description:
         "Import Codex sessions too, with an optional codexDir argument; every session is imported again once (no arguments to change)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.03.1",
+      description:
+        "Quoted free text in a command line (commit messages, PR bodies, inline scripts, echo) keeps only its length; worktreeGlobs defaults to empty; every session is imported again once (no arguments to change)",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

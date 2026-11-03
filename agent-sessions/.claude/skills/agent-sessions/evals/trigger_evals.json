@@ -1,0 +1,10 @@
+[
+  { "query": "import my claude code sessions into swamp", "should_trigger": true },
+  { "query": "set up agent sessions for this repo", "should_trigger": true },
+  { "query": "I want to see what my agents did in this repo", "should_trigger": true },
+  { "query": "import my Codex sessions and show them on the dashboard", "should_trigger": true },
+  { "query": "which of my agent's calls bypassed swamp?", "should_trigger": true },
+  { "query": "create a new aws ec2 behavior", "should_trigger": false },
+  { "query": "run the verify-build workflow", "should_trigger": false },
+  { "query": "store a secret in the vault", "should_trigger": false }
+]

@@ -66,7 +66,7 @@ async function withTree(fn: (t: Tree) => Promise<void>): Promise<void> {
   try {
     const home = join(tmp, "home");
     const root = join(home, "scratch", "codex-fixtures");
-    const worktree = join(home, ".cue", "work", "codex-fx", "codex-fixtures");
+    const worktree = join(home, "worktrees", "codex-fx", "codex-fixtures");
     await gitInit(root, { branches: ["fx-b"] });
     const codexDir = join(home, ".codex", "sessions");
     await Deno.mkdir(join(codexDir, DAY), { recursive: true });
@@ -103,10 +103,17 @@ const calls = (r: { turns: AgentSessionRecord["turns"] }) =>
 
 const gitTest = GIT_AVAILABLE ? Deno.test : Deno.test.ignore;
 
-Deno.test("commandLine: a shell's -lc line is the command; any other argv is joined", () => {
+Deno.test("commandLine: a shell's -lc line is the command; any other argv is joined, quoted", () => {
   assertEquals(commandLine(["/usr/bin/bash", "-lc", "ls -la"]), "ls -la");
   assertEquals(commandLine(["zsh", "-c", "git status"]), "git status");
   assertEquals(commandLine(["git", "status"]), "git status");
+  // A word with spaces or shell characters is quoted, so its text is elided
+  // like a shell's.
+  assertEquals(
+    commandLine(["git", "commit", "-m", "it's for Acme"]),
+    "git commit -m 'it'\\''s for Acme'",
+  );
+  assertEquals(commandLine(["echo", ""]), "echo ''");
   assertEquals(commandLine("ls"), "ls");
   assertEquals(commandLine([1, 2]), "");
 });
@@ -257,7 +264,7 @@ gitTest(
   async () => {
     await withTree(async (t) => {
       const resolver = new RepoResolver(t.home, [
-        join(t.home, ".cue", "work", "*", "<repo>"),
+        join(t.home, "worktrees", "*", "<repo>"),
       ]);
       const found = await discoverCodexSessions({
         sessionsDir: t.codexDir,
@@ -323,7 +330,7 @@ const settings = (t: Tree) => ({
   repos: [],
   all: false,
   exclude: [],
-  worktreeGlobs: [join(t.home, ".cue", "work", "*", "<repo>")],
+  worktreeGlobs: [join(t.home, "worktrees", "*", "<repo>")],
   home: t.home,
   importerVersion: "test",
   whoami: () => Promise.resolve({ kind: "none" as const }),

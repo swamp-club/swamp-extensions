@@ -148,6 +148,7 @@ export const FindingSeveritySchema = z.enum(["high", "medium", "low", "info"]);
  */
 export const InvocationSchema = z.enum(["interactive", "headless", "unknown"]);
 
+// swamp-quality-ignore credentials-sensitive-field
 export const TokenUsageSchema = z.strictObject({
   input: TokenCountSchema,
   output: TokenCountSchema,

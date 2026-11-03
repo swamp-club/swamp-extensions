@@ -269,12 +269,243 @@ function cutAt(text: string, limit: number): string {
     : text;
 }
 
+// Free text a command line carries: a commit message, a PR body, an inline
+// script, what `echo` writes. Per program, the flags whose quoted value is
+// text, not a target; `*` means every quoted argument.
+const TEXT_FLAGS: ReadonlyMap<RegExp, ReadonlySet<string>> = new Map([
+  [/^git$/, new Set(["-m", "--message"])],
+  [/^gh$/, new Set(["--body", "-b", "--title", "-t", "--notes", "-n"])],
+  [/^python(\d+(\.\d+)?)?$/, new Set(["-c"])],
+  [/^node$/, new Set(["-e", "--eval", "-p", "--print"])],
+  [/^deno$/, new Set(["eval"])],
+  [/^ruby$/, new Set(["-e"])],
+  [/^perl$/, new Set(["-e", "-E"])],
+  [/^(echo|printf)$/, new Set(["*"])],
+]);
+// Words that run the next word as the program, and shell keywords that can
+// stand before it (`then echo "x"`, `{ git commit -m 'x'; }`).
+const WRAPPERS = new Set([
+  "sudo",
+  "env",
+  "time",
+  "nohup",
+  "command",
+  "exec",
+  "nice",
+  "timeout",
+]);
+const KEYWORDS = new Set([
+  "if",
+  "then",
+  "else",
+  "elif",
+  "do",
+  "while",
+  "until",
+  "{",
+  "!",
+]);
+// Wrapper options that take the next word as their value (`sudo -u root`).
+const WRAPPER_VALUE_OPTIONS: ReadonlyMap<string, ReadonlySet<string>> = new Map(
+  [
+    [
+      "sudo",
+      new Set(["-u", "-g", "-C", "-D", "-h", "-p", "-r", "-t", "-U", "-T"]),
+    ],
+    ["env", new Set(["-u", "-C", "-S", "--unset", "--chdir"])],
+    ["nice", new Set(["-n"])],
+    ["timeout", new Set(["-s", "-k", "--signal", "--kill-after"])],
+  ],
+);
+const ASSIGNMENT = /^[A-Za-z_][A-Za-z0-9_]*=/;
+const REDIRECT = /^(\d*[<>]{1,2}|&>{1,2})$/;
+const SHORT_CLUSTER = /^-[A-Za-z]+$/;
+
+function textFlagsOf(program: string): ReadonlySet<string> | undefined {
+  const name = program.replace(/^.*[\\/]/, "").replace(/\.exe$/i, "");
+  for (const [re, flags] of TEXT_FLAGS) if (re.test(name)) return flags;
+  return undefined;
+}
+
+/** Whether `flag` (a word, or a word's start glued to a quote) names text. */
+function isTextFlag(flags: ReadonlySet<string>, flag: string): boolean {
+  if (flags.has(flag.replace(/=$/, ""))) return true;
+  // A short-option cluster ending in a text flag: `-am`, `-qam`, `-m'x'`.
+  return SHORT_CLUSTER.test(flag) && flags.has(`-${flag.at(-1)}`);
+}
+
+/** One simple command's scan state; a subshell or `$(…)` has its own. */
+interface CommandState {
+  words: string[];
+  word: string;
+  flags: ReadonlySet<string> | undefined;
+  programSeen: boolean;
+  // The wrapper last read, the words its options still take, and whether
+  // timeout's duration is still to come.
+  wrapper: string;
+  wrapperValues: number;
+  afterTimeout: boolean;
+  // Where the current word's elided text starts in the output, and its length.
+  textStart: number;
+  textLen: number;
+}
+
+function freshCommand(): CommandState {
+  return {
+    words: [],
+    word: "",
+    flags: undefined,
+    programSeen: false,
+    wrapper: "",
+    wrapperValues: 0,
+    afterTimeout: false,
+    textStart: -1,
+    textLen: 0,
+  };
+}
+
+/**
+ * Replaces the quoted free text of a shell command line (see `TEXT_FLAGS`)
+ * with its length, so a record keeps that text was there but not what it
+ * said. Once part of a word is text, the rest of that word is too, so a
+ * message written `'it'\''s'` is dropped whole. Comments are free text as
+ * well. A quoted string may span lines; one left open runs to the end of the
+ * text, so an unbalanced quote is dropped rather than kept. Unquoted words,
+ * redirect targets and the commands of `sh -c` are kept: they are targets.
+ */
+export function elideQuotedText(text: string): string {
+  let out = "";
+  let i = 0;
+  const stack: CommandState[] = [];
+  let st = freshCommand();
+  const placeholder = (n: number) => `‹text, ${n} chars›`;
+  // Adds `n` characters of text to the current word's elided run.
+  const addText = (n: number) => {
+    if (st.textStart < 0) {
+      st.textStart = out.length;
+      st.textLen = n;
+    } else {
+      out = out.slice(0, st.textStart);
+      st.textLen += n;
+    }
+    out += placeholder(st.textLen);
+    st.word += "‹text›";
+  };
+  const endWord = () => {
+    st.textStart = -1;
+    const w = st.word;
+    st.word = "";
+    if (w === "") return;
+    st.words.push(w);
+    if (st.programSeen) return;
+    if (st.wrapperValues > 0) {
+      st.wrapperValues--;
+      return;
+    }
+    if (ASSIGNMENT.test(w) || KEYWORDS.has(w)) return;
+    if (WRAPPERS.has(w)) {
+      st.wrapper = w;
+      st.afterTimeout = w === "timeout";
+      return;
+    }
+    if (w.startsWith("-") && st.wrapper !== "") {
+      if (WRAPPER_VALUE_OPTIONS.get(st.wrapper)?.has(w)) st.wrapperValues = 1;
+      return;
+    }
+    if (st.afterTimeout) {
+      // timeout's duration.
+      st.afterTimeout = false;
+      return;
+    }
+    st.programSeen = true;
+    st.flags = textFlagsOf(w);
+  };
+  const endCommand = () => {
+    endWord();
+    st = freshCommand();
+  };
+  // Whether a quote starting now is free text: an argument of echo, or the
+  // value of a text flag (`-m 'x'`, `--body='x'`, `-m'x'`), never a
+  // redirect's target.
+  const isText = (): boolean => {
+    if (st.textStart >= 0) return true;
+    if (st.flags === undefined || !st.programSeen) return false;
+    if (/[<>]$/.test(st.word)) return false;
+    const prev = st.words.at(-1) ?? "";
+    if (st.word === "" && REDIRECT.test(prev)) return false;
+    if (st.flags.has("*")) return true;
+    return isTextFlag(st.flags, st.word === "" ? prev : st.word);
+  };
+  while (i < text.length) {
+    const c = text[i];
+    const ansi = c === "$" && text[i + 1] === "'";
+    if (c === "'" || c === '"' || ansi) {
+      const quote = ansi ? "'" : c;
+      let j = i + (ansi ? 2 : 1);
+      while (j < text.length && text[j] !== quote) {
+        if (text[j] === "\\" && (quote === '"' || ansi)) j++;
+        j++;
+      }
+      const closed = j < text.length && text[j] === quote;
+      const body = text.slice(i + (ansi ? 2 : 1), Math.min(j, text.length));
+      const end = closed ? j + 1 : text.length;
+      if (isText()) addText(body.length);
+      else {
+        out += text.slice(i, end);
+        st.word += text.slice(i, end);
+      }
+      i = end;
+      continue;
+    }
+    if (c === "\\" && i + 1 < text.length) {
+      if (st.textStart >= 0) addText(1);
+      else {
+        out += text.slice(i, i + 2);
+        st.word += text.slice(i, i + 2);
+      }
+      i += 2;
+      continue;
+    }
+    // A comment is free text to the end of its line.
+    if (c === "#" && st.word === "") {
+      endWord();
+      let j = i + 1;
+      while (j < text.length && text[j] !== "\n") j++;
+      out += j > i + 1 ? `#${placeholder(j - i - 1)}` : "#";
+      i = j;
+      continue;
+    }
+    // `&` in a redirection (`2>&1`, `>&2`, `&>f`) is part of the word.
+    const redirectAmp = c === "&" &&
+      (/[<>]$/.test(st.word) || text[i + 1] === ">");
+    if (c === " " || c === "\t") endWord();
+    else if (c === "(") {
+      endWord();
+      stack.push(st);
+      st = freshCommand();
+    } else if (c === ")") {
+      endWord();
+      st = stack.pop() ?? freshCommand();
+      st.textStart = -1;
+    } else if (";|&\n`".includes(c) && !redirectAmp) endCommand();
+    else if (st.textStart >= 0) {
+      // Unquoted text glued to an elided part of the same word.
+      addText(1);
+      i++;
+      continue;
+    } else st.word += c;
+    out += c;
+    i++;
+  }
+  return out;
+}
+
 /** A call's stored text: its allowed target, redacted and capped. */
 export function callText(action: CallAction, ctx: RedactContext): CallText {
   const target = actionTarget(action);
   let cut = target.length > HEREDOC_INPUT_LIMIT;
   let text = cutAt(target, HEREDOC_INPUT_LIMIT);
-  if (action.kind === "shell") text = stripHeredocs(text);
+  if (action.kind === "shell") text = elideQuotedText(stripHeredocs(text));
   cut ||= text.length > REDACT_INPUT_LIMIT;
   text = cutAt(text, REDACT_INPUT_LIMIT);
   const capped = capText(redact(text, ctx));

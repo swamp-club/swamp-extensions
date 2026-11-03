@@ -59,6 +59,7 @@ export async function swampWhoami(
   timeoutMs = 10_000,
 ): Promise<WhoamiResult> {
   try {
+    // swamp-quality-ignore deno-command
     const out = await new Deno.Command(Deno.execPath(), {
       args: ["auth", "whoami", "--json", "--no-telemetry"],
       stdout: "piped",

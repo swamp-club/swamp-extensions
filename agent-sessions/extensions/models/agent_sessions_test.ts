@@ -5,7 +5,7 @@ import {
   assertRejects,
   assertStringIncludes,
 } from "jsr:@std/assert@1.0.19";
-import { model, sinceDate } from "./agent_sessions.ts";
+import { model, sinceDate, VERSION } from "./agent_sessions.ts";
 import {
   agentSessionChildId,
   agentSessionDataName,
@@ -140,7 +140,7 @@ gitTest(
         assert(records.has(id), `${id} imported`);
       }
       assertFalse(records.has(OTHER_REPO_ID));
-      // Another repo's cue worktree with the same name ran on a branch this
+      // Another repo's worktree with the same name ran on a branch this
       // repo does not have.
       assertFalse(records.has(FOREIGN_ID));
       assertEquals(records.size, 6);
@@ -378,11 +378,13 @@ Deno.test("import: a host without transcripts fails, naming the path and why", a
 Deno.test("model: export shape, resources and import arguments", () => {
   assertEquals(model.type, "@swamp/agent-sessions");
   assertEquals(model.version.split(".").length, 4);
+  // The registry catalogs the literal; records carry VERSION.
+  assertEquals(model.version, VERSION);
   assertEquals(model.resources.session.garbageCollection, 1);
   assertEquals(model.resources.session.lifetime, "infinite");
   assertEquals(model.resources.session.tags, { type: "agent-session" });
   const args = model.methods.import.arguments.parse({});
-  assertEquals(args.worktreeGlobs, ["~/.cue/work/*/<repo>"]);
+  assertEquals(args.worktreeGlobs, []);
   assertEquals(args.repos, []);
   assertEquals(args.all, false);
   assertEquals(args.exclude, []);
@@ -846,14 +848,14 @@ gitTest(
   async () => {
     await withFixture(async (f) => {
       const live = join(f.home, "wt", "demo-live");
-      await gitWorktree(f.repoDir, live, "cue/9-live");
+      await gitWorktree(f.repoDir, live, "feature/9-live");
       await writeSession(f, { cwd: live, id: LIVE_WT_ID });
-      const third = await addThird(f, ["cue/7-x"]);
-      const removed = join(f.home, ".cue", "work", "7-x", "third");
+      const third = await addThird(f, ["feature/7-x"]);
+      const removed = join(f.home, "worktrees", "7-x", "third");
       await writeSession(f, {
         cwd: join(removed, "src"),
         id: THIRD_WT_ID,
-        gitBranch: "cue/7-x",
+        gitBranch: "feature/7-x",
         file: join(removed, "src", "b.ts"),
       });
       const h = harness();
@@ -1100,7 +1102,7 @@ gitTest(
         stderr: "null",
       }).output();
       assert(branched.success);
-      const gone = join(f.home, ".cue", "work", "3-z", "demo");
+      const gone = join(f.home, "worktrees", "3-z", "demo");
       await writeSession(f, {
         cwd: gone,
         id: THIRD_WT_ID,

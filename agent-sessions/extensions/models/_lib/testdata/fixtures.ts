@@ -21,7 +21,7 @@ export const SUBDIR_ID = "55555555-2222-4333-8444-555555555555";
 export const FOREIGN_ID = "66666666-2222-4333-8444-555555555555";
 
 /** The branch the removed worktree ran on; the repo still has it. */
-export const WORKTREE_BRANCH = "cue/123-feature";
+export const WORKTREE_BRANCH = "feature/123-feature";
 
 /** The demo repo's remote, and the identity it normalizes to. */
 export const DEMO_REMOTE = "git@example.com:acme/demo.git";
@@ -91,7 +91,7 @@ export interface Fixture {
   readonly home: string;
   readonly repoDir: string;
   readonly projectsDir: string;
-  /** Where removed cue worktrees were; `<repo>` is a repo's directory name. */
+  /** Where removed worktrees were; `<repo>` is a repo's directory name. */
   readonly worktreeGlob: string;
   /** Another repo, with no remote, whose folder name shares a prefix. */
   readonly otherRepo: string;
@@ -245,7 +245,7 @@ export async function writeFixture(): Promise<Fixture> {
   const root = await Deno.makeTempDir({ prefix: "agent-sessions-" });
   const home = join(root, "home");
   const repoDir = join(home, "src", "demo");
-  const worktree = join(home, ".cue", "work", "123-feature", "demo");
+  const worktree = join(home, "worktrees", "123-feature", "demo");
   const otherRepo = join(home, "src", "other");
   const projectsDir = join(home, ".claude", "projects");
   await gitInit(repoDir, { remote: DEMO_REMOTE, branches: [WORKTREE_BRANCH] });
@@ -438,12 +438,12 @@ export async function writeFixture(): Promise<Fixture> {
     result(wc, 2, "toolu_w1"),
   ]);
 
-  // Another repo's cue worktree with the same directory name: the glob
+  // Another repo's worktree with the same directory name: the glob
   // matches it, but it ran on a branch this repo does not have.
-  const foreign = join(home, ".cue", "work", "999-other", "demo");
+  const foreign = join(home, "worktrees", "999-other", "demo");
   const foreignProject = join(projectsDir, encode(foreign));
   await Deno.mkdir(foreignProject, { recursive: true });
-  const fc = { ...common(foreign, FOREIGN_ID), gitBranch: "cue/999-other" };
+  const fc = { ...common(foreign, FOREIGN_ID), gitBranch: "feature/999-other" };
   await writeJsonl(join(foreignProject, `${FOREIGN_ID}.jsonl`), [
     prompt(fc, 0, "foreign"),
   ]);
@@ -462,7 +462,7 @@ export async function writeFixture(): Promise<Fixture> {
     repoDir,
     projectsDir,
     otherRepo,
-    worktreeGlob: join(home, ".cue", "work", "*", "<repo>"),
+    worktreeGlob: join(home, "worktrees", "*", "<repo>"),
     sessionDir,
     transcript,
   };

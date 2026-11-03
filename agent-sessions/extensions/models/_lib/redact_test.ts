@@ -2,12 +2,14 @@ import { assert, assertEquals, assertFalse } from "jsr:@std/assert@1.0.19";
 import {
   callText,
   capText,
+  elideQuotedText,
   redact,
   type RedactContext,
   stripHeredocs,
 } from "./redact.ts";
 import { actionTarget } from "./classify/action.ts";
 import { claudeAction } from "./claude_code/actions.ts";
+import { commandLine } from "./codex/parse.ts";
 
 /** A Claude Code call's raw target and stored text, as the parser takes them. */
 const callTarget = (tool: string, input: unknown) =>
@@ -429,4 +431,185 @@ Deno.test("redact: URL signatures, hex or base64, are masked", () => {
     "curl 'https://a.blob/x?sv=1&sig=‹redacted›'",
   );
   assertEquals(redact(`echo ${"f".repeat(128)}`, CTX), "echo ‹redacted›");
+});
+
+Deno.test("elideQuotedText: quoted free text keeps only its length", () => {
+  const cases: [string, string][] = [
+    [
+      "git commit -m 'customer Bigbank is leaving'",
+      "git commit -m ‹text, 27 chars›",
+    ],
+    [
+      'git commit --message="Fix outage" && git push',
+      "git commit --message=‹text, 10 chars› && git push",
+    ],
+    ["git commit -m'wip: secret plan'", "git commit -m‹text, 16 chars›"],
+    [
+      "gh pr create --title 'Roadmap' --body \"acquisition of Acme\"",
+      "gh pr create --title ‹text, 7 chars› --body ‹text, 19 chars›",
+    ],
+    [
+      "python3 -c 'import os; print(os.environ)'",
+      "python3 -c ‹text, 28 chars›",
+    ],
+    ["node -e \"const apiKey = 'abc'\"", "node -e ‹text, 20 chars›"],
+    ["deno eval 'console.log(1)'", "deno eval ‹text, 14 chars›"],
+    ["perl -E 'say 1'", "perl -E ‹text, 5 chars›"],
+    [
+      "echo 'The client Acme Corp is getting acquired' > notes.txt",
+      "echo ‹text, 40 chars› > notes.txt",
+    ],
+    ["printf '%s\\n' \"hi there\"", "printf ‹text, 4 chars› ‹text, 8 chars›"],
+    ["sudo FOO=1 echo 'x y'", "sudo FOO=1 echo ‹text, 3 chars›"],
+    ["/usr/bin/python3.12 -c 'x'", "/usr/bin/python3.12 -c ‹text, 1 chars›"],
+    // A quoted string may span lines.
+    ["python -c \"a = 1\nb = 'q'\"\nls", "python -c ‹text, 13 chars›\nls"],
+    // Each command in a pipeline or list has its own program.
+    [
+      "ls 'my dir' | grep x; echo \"done\"",
+      "ls 'my dir' | grep x; echo ‹text, 4 chars›",
+    ],
+    [
+      "(cd /tmp && git commit -m 'x')",
+      "(cd /tmp && git commit -m ‹text, 1 chars›)",
+    ],
+    ["echo $(git commit -m 'y')", "echo $(git commit -m ‹text, 1 chars›)"],
+    // Escapes inside double quotes and $'…' do not end the string.
+    ['git commit -m "say \\"hi\\" now"', "git commit -m ‹text, 14 chars›"],
+    ["echo $'it\\'s'", "echo ‹text, 5 chars›"],
+  ];
+  for (const [input, want] of cases) {
+    assertEquals(elideQuotedText(input), want, input);
+  }
+});
+
+Deno.test("elideQuotedText: an open quote drops the rest of the text", () => {
+  assertEquals(
+    elideQuotedText("git commit -m 'never closed\nmore text"),
+    "git commit -m ‹text, 22 chars›",
+  );
+});
+
+Deno.test("elideQuotedText: commands, targets and unquoted words stay", () => {
+  for (
+    const kept of [
+      "bash -c 'git status && ls'",
+      'sh -c "swamp model get x"',
+      "git commit -m wip",
+      "grep -r 'TODO' src",
+      "cat 'models/my model.yaml'",
+      "curl 'https://example.com/a?b=1'",
+      "FOO='a b' deno test",
+      "git log --format='%H %s'",
+      "echo",
+      "git checkout -b 'feature/x'",
+    ]
+  ) {
+    assertEquals(elideQuotedText(kept), kept, kept);
+  }
+});
+
+Deno.test("callText: a shell call's free text is elided before redaction", () => {
+  assertEquals(
+    claudeText("Bash", {
+      command:
+        "git commit -m 'mail bob@example.com' && cat /home/alice/src/demo/a.ts",
+    }, CTX).text,
+    "git commit -m ‹text, 20 chars› && cat a.ts",
+  );
+  // Only shell calls: a path keeps its quotes' content.
+  assertEquals(
+    claudeText("Read", { file_path: "/home/alice/src/demo/echo 'x'.ts" }, CTX)
+      .text,
+    "echo 'x'.ts",
+  );
+});
+
+Deno.test("elideQuotedText: forms the verify reviews found", () => {
+  const cases: [string, string][] = [
+    // Every part of a text word is text: an apostrophe written '\'' too.
+    ["git commit -m 'it'\\''s for Acme'", "git commit -m ‹text, 13 chars›"],
+    ["git commit -m \"a\"'b c'", "git commit -m ‹text, 4 chars›"],
+    ["git commit -m 'a'b; ls", "git commit -m ‹text, 2 chars›; ls"],
+    // Short-option clusters ending in a text flag.
+    ['git commit -am "msg"', "git commit -am ‹text, 3 chars›"],
+    ["git -C r commit -qam 'moved'", "git -C r commit -qam ‹text, 5 chars›"],
+    // Shell keywords before the program.
+    [
+      'for f in a; do echo "x y"; done',
+      "for f in a; do echo ‹text, 3 chars›; done",
+    ],
+    [
+      "if git commit -m 'x'; then echo 'y'; fi",
+      "if git commit -m ‹text, 1 chars›; then echo ‹text, 1 chars›; fi",
+    ],
+    ["{ git commit -m 'x'; }", "{ git commit -m ‹text, 1 chars›; }"],
+    // Wrapper options, and their values.
+    [
+      "sudo -u root git commit -m 'x'",
+      "sudo -u root git commit -m ‹text, 1 chars›",
+    ],
+    ["sudo -n git commit -m 'x'", "sudo -n git commit -m ‹text, 1 chars›"],
+    ["env -i python3 -c 'x=1'", "env -i python3 -c ‹text, 3 chars›"],
+    ["time -p node -e 'x'", "time -p node -e ‹text, 1 chars›"],
+    [
+      "timeout 30 git commit -m 'x'",
+      "timeout 30 git commit -m ‹text, 1 chars›",
+    ],
+    ["nice -n 5 echo 'x'", "nice -n 5 echo ‹text, 1 chars›"],
+    // Comments are free text; one does not throw off later quotes.
+    [
+      "ls # don't\ngit commit -m 'secret'",
+      "ls #‹text, 6 chars›\ngit commit -m ‹text, 6 chars›",
+    ],
+    ["echo hi # it's\nls 'a b'", "echo hi #‹text, 5 chars›\nls 'a b'"],
+    // The outer command's state survives a $(…) or a subshell.
+    ["echo $(date) 'free text'", "echo $(date) ‹text, 9 chars›"],
+    ["(ls) && echo 'x'", "(ls) && echo ‹text, 1 chars›"],
+    // A redirection's & does not end the command.
+    ["echo 2>&1 'x'", "echo 2>&1 ‹text, 1 chars›"],
+    [
+      "echo 'x' &>/dev/null; echo 'y'",
+      "echo ‹text, 1 chars› &>/dev/null; echo ‹text, 1 chars›",
+    ],
+  ];
+  for (const [input, want] of cases) {
+    assertEquals(elideQuotedText(input), want, input);
+  }
+});
+
+Deno.test("elideQuotedText: redirect targets and other words are kept", () => {
+  for (
+    const kept of [
+      "echo x > 'out file.txt'",
+      'printf x >>"$LOG"',
+      "echo x 2> 'err.log'",
+      "git log --format='%H' # ",
+      "curl 'https://example.com/#frag'",
+      "echo a#b",
+    ]
+  ) {
+    const out = elideQuotedText(kept);
+    for (
+      const target of [
+        "'out file.txt'",
+        '"$LOG"',
+        "'err.log'",
+        "'%H'",
+        "'https://example.com/#frag'",
+        "a#b",
+      ]
+    ) {
+      if (kept.includes(target)) {
+        assert(out.includes(target), `${kept} → ${out}`);
+      }
+    }
+  }
+});
+
+Deno.test("callText: a Codex argv message with an apostrophe is elided whole", () => {
+  const command = commandLine(["git", "commit", "-m", "it's for Acme"]);
+  const stored = callText({ kind: "shell", command }, CTX).text;
+  assertEquals(stored, "git commit -m ‹text, 13 chars›");
+  assertFalse(stored.includes("Acme"));
 });

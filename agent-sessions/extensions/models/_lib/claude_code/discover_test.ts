@@ -25,8 +25,8 @@ Deno.test("defaultProjectsDir: CLAUDE_CONFIG_DIR wins over home", () => {
 
 Deno.test("expandHome: expands a leading ~ only", () => {
   assertEquals(
-    expandHome("~/.cue/work/*/<repo>", "/home/a"),
-    "/home/a/.cue/work/*/<repo>",
+    expandHome("~/worktrees/*/<repo>", "/home/a"),
+    "/home/a/worktrees/*/<repo>",
   );
   assertEquals(expandHome("/abs/~x", "/home/a"), "/abs/~x");
   assertEquals(expandHome("~/x", undefined), "~/x");
