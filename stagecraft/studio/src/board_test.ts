@@ -42,8 +42,11 @@ import {
   refOtherThanKey,
   relationText,
   showsAsRail,
+  stageKey,
   stageOrder,
   ticketColumns,
+  ticketKey,
+  withoutFilled,
 } from "./board.ts";
 import { layout } from "./layout.ts";
 import { exampleText, loadOk } from "./test_support.ts";
@@ -443,6 +446,36 @@ Deno.test("board: a column showing no cards is a rail until it is opened", () =>
   );
   assertEquals(done.total, 1);
   assertEquals(showsAsRail({ id: done.stage, cards: done.cards }, none), true);
+});
+
+Deno.test("board: stage and ticket columns never share a key (swamp-club #4312)", () => {
+  assertEquals(stageKey("plan"), "stage:plan");
+  assertEquals(ticketKey(NOT_STARTED), `ticket:${NOT_STARTED}`);
+  assert(stageKey("claimed") !== ticketKey("claimed"));
+});
+
+Deno.test("board: an opened column that shows cards is a rail again once it shows none (swamp-club #4312)", () => {
+  const opened: ReadonlySet<string> = new Set([
+    stageKey("plan"),
+    stageKey("review"),
+  ]);
+  // Nothing filled: the very same set, so writing it back changes nothing.
+  const empty = [
+    { id: stageKey("plan"), cards: [] },
+    { id: stageKey("review"), cards: [] },
+  ];
+  assert(withoutFilled(opened, empty) === opened);
+  // plan gains a card: dropped. review is still empty: kept open.
+  const next = withoutFilled(opened, [
+    { id: stageKey("plan"), cards: [1] },
+    { id: stageKey("review"), cards: [] },
+  ]);
+  assertEquals([...next], [stageKey("review")]);
+  // A filled column that was never opened is not touched.
+  assert(withoutFilled(next, [{ id: stageKey("work"), cards: [1] }]) === next);
+  // plan loses its card again: it shows as a rail, not an open empty column.
+  assertEquals(showsAsRail({ id: stageKey("plan"), cards: [] }, next), true);
+  assertEquals(showsAsRail({ id: stageKey("review"), cards: [] }, next), false);
 });
 
 Deno.test("board: offscreen names what spills over each edge of the view, in order", () => {

@@ -320,6 +320,33 @@ export function showsAsRail(
   return column.cards.length === 0 && !opened.has(column.id);
 }
 
+/** A stage column's key in the opened set and its `data-cue`. Stage and
+ * ticket columns are kept apart by kind, not by which ids each can take. */
+export function stageKey(stage: string): string {
+  return `stage:${stage}`;
+}
+
+/** A ticket column's key in the opened set and its `data-cue`. */
+export function ticketKey(id: string): string {
+  return `ticket:${id}`;
+}
+
+/**
+ * The opened columns, less any that now show cards: opened from its rail,
+ * a column that gains cards and loses them again is a rail once more. The
+ * same set when none is dropped, so writing it back changes nothing.
+ */
+export function withoutFilled(
+  opened: ReadonlySet<string>,
+  columns: readonly { id: string; cards: readonly unknown[] }[],
+): ReadonlySet<string> {
+  const filled = columns.filter((c) => c.cards.length > 0 && opened.has(c.id));
+  if (filled.length === 0) return opened;
+  const next = new Set(opened);
+  for (const c of filled) next.delete(c.id);
+  return next;
+}
+
 /** Something laid out along one axis, from `start` to `end`. */
 export interface Span {
   id: string;

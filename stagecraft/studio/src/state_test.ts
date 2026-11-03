@@ -19,6 +19,7 @@
 import { assert, assertEquals, assertMatch } from "@std/assert";
 import {
   api,
+  autoOrientation,
   board,
   boardError,
   copyEntry,
@@ -44,12 +45,15 @@ import {
   loadTicket,
   loadWorkItem,
   mode,
+  orientationSetting,
   pickEntry,
+  pickOrientation,
   pickScenario,
   pinnedIsOlder,
   playing,
   prepareItemCopy,
   reloadFactories,
+  resetPickedFor,
   runs,
   scenario,
   selectFactory,
@@ -78,11 +82,6 @@ import {
   modelPath,
   raisePlanLimit,
 } from "./test_support.ts";
-import {
-  autoOrientation,
-  orientationSetting,
-  pickOrientation,
-} from "./state.ts";
 import { copyIsCurrent, loadItem } from "./work_item.ts";
 
 const NAME = "build-swamp-extension";
@@ -808,7 +807,7 @@ Deno.test("state: of two scenario copies asked for, a late answer to the earlier
 
 Deno.test("state: auto orientation holds only for the factory it was picked for (swamp-club #3380)", async () => {
   const [ten, starter] = [await loadOk("ten-stage"), await loadOk("starter")];
-  const setting = orientationSetting.value;
+  const [setting, was] = [orientationSetting.value, mode.value];
   try {
     mode.value = "design";
     orientationSetting.value = "auto";
@@ -826,7 +825,36 @@ Deno.test("state: auto orientation holds only for the factory it was picked for 
     assertEquals(autoOrientation.value, "across");
   } finally {
     orientationSetting.value = setting;
+    mode.value = was;
     autoOrientation.value = "across";
+    resetPickedFor();
+    good.value = null;
+  }
+});
+
+Deno.test("state: a pane that measures nothing keeps the auto orientation (swamp-club #4312)", async () => {
+  const ten = await loadOk("ten-stage");
+  const [setting, was] = [orientationSetting.value, mode.value];
+  try {
+    mode.value = "design";
+    orientationSetting.value = "auto";
+    good.value = ten;
+    pickOrientation({ width: 834, height: 2000 });
+    assertEquals(autoOrientation.value, "down");
+    // Hidden while mounted: every fit would clamp to 40% and read across.
+    pickOrientation({ width: 0, height: 0 });
+    assertEquals(autoOrientation.value, "down");
+    pickOrientation({ width: 834, height: 0 });
+    assertEquals(autoOrientation.value, "down");
+    // Shown again at 1320px, where across fits at 80%: below 85%, the
+    // choice held for this definition keeps it down.
+    pickOrientation({ width: 1320, height: 2000 });
+    assertEquals(autoOrientation.value, "down");
+  } finally {
+    orientationSetting.value = setting;
+    mode.value = was;
+    autoOrientation.value = "across";
+    resetPickedFor();
     good.value = null;
   }
 });

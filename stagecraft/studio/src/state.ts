@@ -347,6 +347,11 @@ export const layouts = computed(() => {
 /** The definition autoOrientation was last picked for. */
 let pickedFor: string | null = null;
 
+/** Forget which definition autoOrientation was picked for. For tests. */
+export function resetPickedFor() {
+  pickedFor = null;
+}
+
 /**
  * Auto: pick across or down for the drawn definition in a pane this size.
  * The choice holds (hysteresis) only while the same definition is drawn:
@@ -356,6 +361,9 @@ let pickedFor: string | null = null;
 export function pickOrientation(pane: { width: number; height: number }) {
   const both = layouts.value;
   if (both === null || orientationSetting.value !== "auto") return;
+  // A pane hidden while mounted measures nothing: every fit would clamp to
+  // the least zoom and read across. Keep the choice until it is shown.
+  if (pane.width <= 0 || pane.height <= 0) return;
   const file = drawn.value?.file ?? null;
   const current = pickedFor === file ? autoOrientation.value : "across";
   pickedFor = file;

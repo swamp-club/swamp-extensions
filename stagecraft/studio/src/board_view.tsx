@@ -22,7 +22,7 @@
 // written as text, never colour alone.
 
 import type { JSX } from "preact";
-import { useRef } from "preact/hooks";
+import { useEffect, useRef } from "preact/hooks";
 import type {
   BoardCard,
   ClaimedCard,
@@ -41,9 +41,12 @@ import {
   relationText,
   showsAsRail,
   since,
+  stageKey,
   stageOrder,
   type TicketColumn,
   ticketColumns,
+  ticketKey,
+  withoutFilled,
 } from "./board.ts";
 import { EdgeCue, useHidden } from "./cues.tsx";
 import { routeHref } from "./route.ts";
@@ -310,10 +313,11 @@ function TicketColumnView(
 ) {
   // "tickets-": a stage column's heading is col-<stage>, so never this.
   const id = `tickets-${col.id.slice(1)}`;
-  if (showsAsRail({ id: col.id, cards: col.cards }, openedCols.value)) {
+  const key = ticketKey(col.id);
+  if (showsAsRail({ id: key, cards: col.cards }, openedCols.value)) {
     return (
       <Rail
-        id={col.id}
+        id={key}
         headingId={id}
         name={col.name}
         total={col.total}
@@ -325,7 +329,7 @@ function TicketColumnView(
     <section
       class="col tickets"
       aria-labelledby={id}
-      data-cue={col.id}
+      data-cue={key}
       data-cue-name={col.name}
     >
       <h2 id={id} class="col-head">
@@ -334,7 +338,7 @@ function TicketColumnView(
           {col.total}
           <span class="sr-only">&nbsp;ticket(s)</span>
         </span>
-        {col.cards.length === 0 && <CloseRail id={col.id} name={col.name} />}
+        {col.cards.length === 0 && <CloseRail id={key} name={col.name} />}
       </h2>
       {col.total === 0 && (
         <p class="col-note">
@@ -505,6 +509,15 @@ export function BoardMode() {
     showClaimed: showClaimed.value,
     shown: shown.value,
   });
+  // An opened column that now shows cards is dropped from the opened set,
+  // so it is a rail again once it shows none (swamp-club #4312).
+  useEffect(() => {
+    const next = withoutFilled(openedCols.value, [
+      ...ticketCols.map((c) => ({ id: ticketKey(c.id), cards: c.cards })),
+      ...columns.map((c) => ({ id: stageKey(c.stage), cards: c.cards })),
+    ]);
+    if (next !== openedCols.value) openedCols.value = next;
+  });
   return (
     <section class="board-mode" id="mode-panel" aria-label="Board">
       <Filters />
@@ -589,17 +602,18 @@ export function BoardMode() {
           ))}
         {columns.map((col) => {
           const id = `col-${col.stage}`;
+          const key = stageKey(col.stage);
           const finished = col.terminal && !showFinished.value;
           const hiddenNote = finished && col.total > 0
             ? "finished: Show finished lists them"
             : undefined;
           if (
-            showsAsRail({ id: col.stage, cards: col.cards }, openedCols.value)
+            showsAsRail({ id: key, cards: col.cards }, openedCols.value)
           ) {
             return (
               <Rail
                 key={col.stage}
-                id={col.stage}
+                id={key}
                 headingId={id}
                 name={col.stage}
                 total={col.total}
@@ -616,7 +630,8 @@ export function BoardMode() {
               }`}
               key={col.stage}
               aria-labelledby={id}
-              data-cue={col.stage}
+              data-cue={key}
+              data-cue-name={col.stage}
             >
               <h2 id={id} class="col-head">
                 <span class="col-name">{col.stage}</span>
@@ -625,7 +640,7 @@ export function BoardMode() {
                   <span class="sr-only">&nbsp;work item(s)</span>
                 </span>
                 {col.cards.length === 0 && (
-                  <CloseRail id={col.stage} name={col.stage} />
+                  <CloseRail id={key} name={col.stage} />
                 )}
               </h2>
               {!col.known && (

@@ -1900,8 +1900,9 @@ the pane both ways; down fits its width and scrolls down. On auto, the default,
 a pane draws down when across would fit below 75% and down fits better, and
 goes back across only at 85%, so a resize near the line does not flip it; the
 zoom is fitted again only when the orientation changes, so a resize keeps a
-person's zoom. A toggle in the graph's tools picks across, down or auto, kept
-per browser. Cues at the pane's edges name the stages scrolled out of view.
+person's zoom. A pane hidden while mounted measures nothing, so it keeps its
+orientation until it is shown (swamp-club #4312). A toggle in the graph's
+tools picks across, down or auto, kept per browser. Cues at the pane's edges name the stages scrolled out of view.
 
 **Selection by identity.** A document path is positional, so when the agent
 inserts a stage or an exit, the same path names something else. The page holds
@@ -3099,7 +3100,9 @@ reaches it. An include step would be its own change.
 
 **Decision.** At 100% zoom on a 1440px-wide window, a ten-stage factory reads
 without hiding a stage. On the Board, a column that shows no cards is a rail,
-a 36px strip with its name and count that opens on a press; below 1600px,
+a 36px strip with its name and count that opens on a press (opened, it
+stays open only while it shows no cards: once it shows some, it is a rail again
+when they go, swamp-club #4312); below 1600px,
 columns are 208px (168px terminal) and cards denser, with text the same size;
 and cues at the board's edges name the columns scrolled out of view, a press
 showing the nearest. The page's grid is one column bounded by the window: it
