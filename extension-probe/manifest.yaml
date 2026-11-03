@@ -1,0 +1,60 @@
+manifestVersion: 1
+name: "@swamp/extension-probe"
+version: "2026.11.03.1"
+license: "AGPL-3.0-or-later"
+description: |
+  Pull a swamp extension into a sandbox, describe its behavior types, and run
+  every method blind, recording what each method did and which methods it
+  could not get to run. This is the runtime half of an extension supply-chain
+  review; static analysis is the other half.
+
+  Each probe builds a throwaway box: a fresh swamp repo, a fake home with
+  planted canary credentials, and a logging stub that every tool-path argument
+  and common command name (`claude`, `curl`, `aws` and more) resolves to.
+  Every step runs under nono on Linux, confined to the box, with all network
+  through nono's proxy so each attempt is recorded with its host. Findings use
+  the `kind: findings` contract, so a reviewer can merge them with their own.
+
+  Behaviors only in v1, from the `@skunk-ape` and `@swamp` collectives.
+
+  ## Methods
+
+  | Method   | What it does |
+  | -------- | ------------ |
+  | `probe`  | Pull `target`, describe its types, and run each method in input rounds (empty, required, all, boundary) until it succeeds. Writes `report-<session>` and `findings-<session>`. |
+  | `start`  | Referee mode: open a session listing each method that never succeeded, with its last error and schema. |
+  | `record` | Referee mode: run one gap method again in a fresh box with your inputs, optionally after other methods (`before`), and count the attempt. |
+
+  ## Usage
+
+  ```bash
+  swamp vault create local_encryption extension-probe-sandbox
+  swamp vault put extension-probe-sandbox SWAMP_API_KEY
+  swamp model create @swamp/extension-probe probe \
+    --global-arg 'sandboxApiKey=${{ vault.get(extension-probe-sandbox, SWAMP_API_KEY) }}'
+  swamp model method run probe probe --input target=@skunk-ape/stef
+  swamp model method run probe start --input session=skunk-ape-stef
+  ```
+
+  The key must belong to a throwaway collective with no other privileges: the
+  extension under test can read it. Never use your own.
+
+  `isolation: external` skips nono for callers who already run the probe inside
+  a sandbox they control; it needs an exact acknowledgement and reports network
+  and sandbox checks as not observed. See the README.
+repository: "https://github.com/swamp-club/swamp-extensions"
+models:
+  - extension_probe.ts
+additionalFiles:
+  - LICENSE.txt
+  - README.md
+platforms:
+  - linux-aarch64
+  - linux-x86_64
+  - darwin-aarch64
+  - darwin-x86_64
+labels:
+  - security
+  - supply-chain
+  - sandbox
+  - extensions

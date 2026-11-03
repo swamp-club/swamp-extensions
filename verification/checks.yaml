@@ -46,6 +46,11 @@ groups:
           check: extensions/models/deno_runner.ts
           paths: extensions/models/
           testFlags: --allow-read --allow-write --allow-env --allow-run --allow-sys --allow-net
+      - dir: extension-probe
+        vars:
+          check: extensions/models/
+          paths: extensions/models/
+          testFlags: --allow-read --allow-write --allow-env --allow-run --allow-sys
       - dir: issue-lifecycle
         vars:
           check: extensions/models/issue_lifecycle.ts
