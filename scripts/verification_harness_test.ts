@@ -266,3 +266,139 @@ Deno.test("harness: CI's integrity audit covers every pinned file", async () => 
     assert(trustRoot.test(file.path), `${file.path} is outside the trust root`);
   }
 });
+
+/** The steps of verify-reviews' review job, each a reviewer and its decide. */
+async function reviewSteps(): Promise<Step[]> {
+  const reviews = await readYaml<Workflow>(
+    "verification/workflow-verify-reviews.yaml",
+  );
+  const job = reviews.jobs.find((j) => j.name === attestation.reviewJob);
+  assert(job, `verify-reviews has no ${attestation.reviewJob} job`);
+  return job.steps;
+}
+
+Deno.test("harness: every reviewer runs on its own pipe", async () => {
+  // claude marks the stdout and stderr it inherits non-blocking, and the flag
+  // stays on the step's pipe after it exits. decide then fails with EAGAIN
+  // when its log outruns the reader, though the review passed
+  // (swamp-club#4354). Piping claude through cat keeps the flag off the
+  // step's pipe.
+  for (const step of await reviewSteps()) {
+    const run = (step.task?.inputs?.run ?? "").replace(/\\\n\s*/g, " ");
+    const claude = run.match(/^\s*claude -p .*$/m)?.[0];
+    assert(claude, `${step.name} runs no claude -p`);
+    assert(
+      claude.trimEnd().endsWith('< "$PROMPT_FILE" 2>&1 | cat'),
+      `${step.name} hands claude the step's own stdout or stderr`,
+    );
+    const decide = run.indexOf("method run decide");
+    assert(
+      decide > run.indexOf(claude),
+      `${step.name} does not decide after claude`,
+    );
+  }
+});
+
+Deno.test("harness: decide gets blocking pipes after the reviewer exits", async () => {
+  // Each review step's own script runs as swamp's command/shell runs it, with
+  // sh -c, against stubs: claude marks every fd it is handed non-blocking, as
+  // the real one does, and decide fails when it inherits such a pipe. Each
+  // stub's exit status is set per case.
+  const tmp = await Deno.makeTempDir();
+  try {
+    const bin = `${tmp}/bin`;
+    const repo = `${tmp}/repo`;
+    await Deno.mkdir(bin);
+    await Deno.mkdir(`${repo}/verification/review-prompts`, {
+      recursive: true,
+    });
+    await Deno.writeTextFile(
+      `${bin}/claude`,
+      [
+        "#!/usr/bin/env python3",
+        "import os, sys",
+        "sys.stdin.read()",
+        "os.set_blocking(1, False)",
+        "os.set_blocking(2, False)",
+        'sys.exit(int(os.environ["STUB_CLAUDE_EXIT"]))',
+        "",
+      ].join("\n"),
+      { mode: 0o755 },
+    );
+    await Deno.writeTextFile(
+      `${bin}/swamp`,
+      [
+        "#!/usr/bin/env python3",
+        "import os, sys",
+        'if "decide" in sys.argv:',
+        "    if not (os.get_blocking(1) and os.get_blocking(2)):",
+        '        sys.exit("decide was handed a non-blocking pipe")',
+        '    sys.exit(int(os.environ["STUB_DECIDE_EXIT"]))',
+        "",
+      ].join("\n"),
+      { mode: 0o755 },
+    );
+    for await (
+      const entry of Deno.readDir(`${root}verification/review-prompts`)
+    ) {
+      await Deno.copyFile(
+        `${root}verification/review-prompts/${entry.name}`,
+        `${repo}/verification/review-prompts/${entry.name}`,
+      );
+    }
+    const env = {
+      GIT_CONFIG_GLOBAL: "/dev/null",
+      GIT_CONFIG_NOSYSTEM: "1",
+      PATH: `${bin}:${Deno.env.get("PATH") ?? ""}`,
+    };
+    for (
+      const args of [
+        ["init", "-q"],
+        ["add", "."],
+        ["-c", "user.name=t", "-c", "user.email=t@t", "commit", "-qm", "base"],
+        ["update-ref", "refs/remotes/origin/main", "HEAD"],
+      ]
+    ) {
+      const { code } = await new Deno.Command("git", { args, cwd: repo, env })
+        .output();
+      assertEquals(code, 0, `git ${args.join(" ")} failed`);
+    }
+    for (const step of await reviewSteps()) {
+      const run = step.task?.inputs?.run ?? "";
+      assert(!run.includes("${{"), `${step.name} needs workflow expressions`);
+      // A passing review passes; a failing review, and a reviewer that
+      // fails, still fail the step through the pipe to cat.
+      const cases = [
+        { claudeExit: "0", decideExit: "0", error: null },
+        { claudeExit: "0", decideExit: "1", error: / did not pass/ },
+        { claudeExit: "3", decideExit: "0", error: / exited with status 3/ },
+      ];
+      for (const { claudeExit, decideExit, error } of cases) {
+        const { code, stdout, stderr } = await new Deno.Command("sh", {
+          args: ["-c", run],
+          cwd: repo,
+          env: {
+            ...env,
+            STUB_CLAUDE_EXIT: claudeExit,
+            STUB_DECIDE_EXIT: decideExit,
+          },
+        }).output();
+        const out = new TextDecoder().decode(stdout) +
+          new TextDecoder().decode(stderr);
+        const label =
+          `${step.name} (claude ${claudeExit}, decide ${decideExit})`;
+        if (!error) {
+          assertEquals(code, 0, `${label} failed a passing review:\n${out}`);
+        } else {
+          assert(code !== 0, `${label} passed`);
+          assert(
+            new RegExp(`::error::.*${error.source}`).test(out),
+            `${label} failed without saying why:\n${out}`,
+          );
+        }
+      }
+    }
+  } finally {
+    await Deno.remove(tmp, { recursive: true });
+  }
+});

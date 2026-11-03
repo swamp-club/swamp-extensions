@@ -287,7 +287,7 @@ groups:
       check: deno check extensions/models/*.ts extensions/models/_lib/*.ts {scripts}
       lint: deno lint extensions/models/ {scripts}
       fmt: deno fmt --check extensions/models/ {scripts}
-      test: deno test --allow-read --allow-write --allow-env --allow-net --allow-sys --allow-run=git extensions/models/ {scripts}
+      test: deno test --allow-read --allow-write --allow-env --allow-net --allow-sys --allow-run=git,sh extensions/models/ {scripts}
       lockfile: deno install --frozen
     targets:
       - dir: .
