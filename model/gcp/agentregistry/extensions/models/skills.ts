@@ -179,7 +179,7 @@ const GlobalArgsSchema = z.object({
     "Optional. Brief summary describing the capabilities of the skill. Maximum length is 2048 characters.",
   ).optional(),
   displayName: z.string().describe(
-    "Required. Human-readable display name of the skill. Maximum length is 128 characters.",
+    "Optional. Human-readable display name of the skill. Maximum length is 128 characters.",
   ).optional(),
   initialRevision: z.object({
     archiveUploadSource: z.object({
@@ -361,7 +361,7 @@ const InputsSchema = z.object({
     "Optional. Brief summary describing the capabilities of the skill. Maximum length is 2048 characters.",
   ).optional(),
   displayName: z.string().describe(
-    "Required. Human-readable display name of the skill. Maximum length is 128 characters.",
+    "Optional. Human-readable display name of the skill. Maximum length is 128 characters.",
   ).optional(),
   initialRevision: z.object({
     archiveUploadSource: z.object({
@@ -500,7 +500,14 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Registry Skills. Registered at `@swamp/gcp/agentregistry/skills`. */
 export const model = {
   type: "@swamp/gcp/agentregistry/skills",
-  version: "2026.10.25.1",
+  version: "2026.11.04.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.04.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

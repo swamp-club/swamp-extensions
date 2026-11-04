@@ -74,6 +74,42 @@ const GlobalArgsSchema = z.object({
   networks: z.array(z.string()).describe(
     "List of networks where Load Balancer or Pool is enabled.",
   ).optional(),
+  pool_sets: z.array(z.object({
+    disabled: z.boolean().optional(),
+    fixed_response: z.object({
+      content_type: z.string().max(32).optional(),
+      location: z.string().max(2048).optional(),
+      message_body: z.string().max(1024).optional(),
+      status_code: z.number().int().optional(),
+    }).optional(),
+    match: z.object({
+      default: z.boolean().optional(),
+      topology: z.object({
+        countries: z.array(z.string()).optional(),
+        pops: z.array(z.string()).optional(),
+        regions: z.array(z.string()).optional(),
+      }).optional(),
+    }).optional(),
+    name: z.string().max(200).optional(),
+    overrides: z.object({
+      fallback_pool: z.string().optional(),
+      pool_default_weight: z.number().min(0).max(1).optional(),
+      pool_weights: z.record(z.string(), z.unknown()).optional(),
+      pools: z.array(z.string()).optional(),
+      steering_policy: z.enum([
+        "off",
+        "geo",
+        "random",
+        "dynamic_latency",
+        "proximity",
+        "least_outstanding_requests",
+        "least_connections",
+        "",
+      ]).optional(),
+    }).optional(),
+  })).describe(
+    "An optional list of pool sets, evaluated in array order with first match wins. Pool sets are independent from the standard steering fields (`region_pools` / `country_pools` / `pop_pools` / `default_pools` / `steering_policy` / `random_steering` / `fallback_pool` / `rules`). On a PATCH, an empty array (`pool_sets: []`) clears all pool sets, while omitting the field leaves existing pool sets unchanged.",
+  ).optional(),
   pop_pools: z.record(z.string(), z.unknown()).describe(
     "Enterprise only: A mapping of Cloudflare PoP identifiers to a list of pool IDs (ordered by their failover priority) for the PoP (datacenter). Any PoPs not explicitly defined will fall back to using the corresponding country_pool, then region_pool mapping if it exists else to default_pools.",
   ).optional(),
@@ -322,6 +358,40 @@ const InputsSchema = z.object({
   }).optional(),
   name: z.string().optional(),
   networks: z.array(z.string()).optional(),
+  pool_sets: z.array(z.object({
+    disabled: z.boolean().optional(),
+    fixed_response: z.object({
+      content_type: z.string().max(32).optional(),
+      location: z.string().max(2048).optional(),
+      message_body: z.string().max(1024).optional(),
+      status_code: z.number().int().optional(),
+    }).optional(),
+    match: z.object({
+      default: z.boolean().optional(),
+      topology: z.object({
+        countries: z.array(z.string()).optional(),
+        pops: z.array(z.string()).optional(),
+        regions: z.array(z.string()).optional(),
+      }).optional(),
+    }).optional(),
+    name: z.string().max(200).optional(),
+    overrides: z.object({
+      fallback_pool: z.string().optional(),
+      pool_default_weight: z.number().min(0).max(1).optional(),
+      pool_weights: z.record(z.string(), z.unknown()).optional(),
+      pools: z.array(z.string()).optional(),
+      steering_policy: z.enum([
+        "off",
+        "geo",
+        "random",
+        "dynamic_latency",
+        "proximity",
+        "least_outstanding_requests",
+        "least_connections",
+        "",
+      ]).optional(),
+    }).optional(),
+  })).optional(),
   pop_pools: z.record(z.string(), z.unknown()).optional(),
   proxied: z.boolean().optional(),
   random_steering: z.object({
@@ -420,7 +490,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Load Balancers. Registered at `@swamp/cloudflare/load-balancing/load-balancers`. */
 export const model = {
   type: "@swamp/cloudflare/load-balancing/load-balancers",
-  version: "2026.10.23.1",
+  version: "2026.11.04.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -482,6 +552,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.04.1",
+      description: "Added: pool_sets",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -540,6 +615,7 @@ export const model = {
         }
         if (g.name !== undefined) body.name = g.name;
         if (g.networks !== undefined) body.networks = g.networks;
+        if (g.pool_sets !== undefined) body.pool_sets = g.pool_sets;
         if (g.pop_pools !== undefined) body.pop_pools = g.pop_pools;
         if (g.proxied !== undefined) body.proxied = g.proxied;
         if (g.random_steering !== undefined) {
@@ -808,6 +884,7 @@ export const model = {
         }
         if (g.name !== undefined) body.name = g.name;
         if (g.networks !== undefined) body.networks = g.networks;
+        if (g.pool_sets !== undefined) body.pool_sets = g.pool_sets;
         if (g.pop_pools !== undefined) body.pop_pools = g.pop_pools;
         if (g.proxied !== undefined) body.proxied = g.proxied;
         if (g.random_steering !== undefined) {

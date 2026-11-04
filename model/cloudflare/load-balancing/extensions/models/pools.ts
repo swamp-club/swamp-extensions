@@ -96,6 +96,9 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "A short name (tag) for the pool. Only alphanumeric characters, hyphens, and underscores are allowed.",
   ).optional(),
+  networks: z.array(z.string()).describe(
+    "List of networks where Load Balancer or Pool is enabled.",
+  ).optional(),
   notification_email: z.string().describe(
     "This field is now deprecated. It has been moved to Cloudflare's Centralized Notification service https://developers.cloudflare.com/fundamentals/notifications/. The email address to send health status notifications to. This can be an individual mailbox or a mailing list. Multiple emails can be supplied as a comma delimited list.",
   ).optional(),
@@ -237,6 +240,7 @@ const InputsSchema = z.object({
   monitor: z.string().optional(),
   monitor_group: z.string().optional(),
   name: z.string().optional(),
+  networks: z.array(z.string()).optional(),
   notification_email: z.string().optional(),
   notification_filter: z.object({
     origin: z.object({
@@ -277,7 +281,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Pools. Registered at `@swamp/cloudflare/load-balancing/pools`. */
 export const model = {
   type: "@swamp/cloudflare/load-balancing/pools",
-  version: "2026.10.23.1",
+  version: "2026.11.04.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -334,6 +338,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.04.1",
+      description: "Added: networks",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -369,8 +378,12 @@ export const model = {
         }
         const endpoint = "/accounts/" + g.account_id + "/load_balancers/pools";
         const body: Record<string, unknown> = {};
+        if (g.check_regions !== undefined) body.check_regions = g.check_regions;
         if (g.description !== undefined) body.description = g.description;
         if (g.enabled !== undefined) body.enabled = g.enabled;
+        if (g.health_sources !== undefined) {
+          body.health_sources = g.health_sources;
+        }
         if (g.latitude !== undefined) body.latitude = g.latitude;
         if (g.load_shedding !== undefined) body.load_shedding = g.load_shedding;
         if (g.longitude !== undefined) body.longitude = g.longitude;
@@ -380,6 +393,7 @@ export const model = {
         if (g.monitor !== undefined) body.monitor = g.monitor;
         if (g.monitor_group !== undefined) body.monitor_group = g.monitor_group;
         if (g.name !== undefined) body.name = g.name;
+        if (g.networks !== undefined) body.networks = g.networks;
         if (g.notification_email !== undefined) {
           body.notification_email = g.notification_email;
         }
@@ -606,6 +620,7 @@ export const model = {
         if (g.monitor !== undefined) body.monitor = g.monitor;
         if (g.monitor_group !== undefined) body.monitor_group = g.monitor_group;
         if (g.name !== undefined) body.name = g.name;
+        if (g.networks !== undefined) body.networks = g.networks;
         if (g.notification_email !== undefined) {
           body.notification_email = g.notification_email;
         }

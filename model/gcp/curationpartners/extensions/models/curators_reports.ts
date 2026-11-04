@@ -381,6 +381,7 @@ const GlobalArgsSchema = z.object({
       "AD_EXCHANGE",
       "UTC",
       "PROVIDED",
+      "CURATOR",
     ]).describe(
       "Optional. Where to get the time zone for this report. Defaults to using the Pacific time zone (PT). If source is PROVIDED, the time_zone field in the report definition must also set a time zone.",
     ).optional(),
@@ -671,6 +672,7 @@ const InputsSchema = z.object({
       "AD_EXCHANGE",
       "UTC",
       "PROVIDED",
+      "CURATOR",
     ]).describe(
       "Optional. Where to get the time zone for this report. Defaults to using the Pacific time zone (PT). If source is PROVIDED, the time_zone field in the report definition must also set a time zone.",
     ).optional(),
@@ -706,7 +708,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Curation Partners Curators.Reports. Registered at `@swamp/gcp/curationpartners/curators-reports`. */
 export const model = {
   type: "@swamp/gcp/curationpartners/curators-reports",
-  version: "2026.10.23.1",
+  version: "2026.11.04.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -715,6 +717,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

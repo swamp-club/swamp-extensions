@@ -127,6 +127,7 @@ const StateSchema = z.object({
   mcpServerId: z.string().optional(),
   name: z.string(),
   tools: z.array(z.object({
+    _meta: z.record(z.string(), z.unknown()),
     annotations: z.object({
       destructiveHint: z.boolean(),
       idempotentHint: z.boolean(),
@@ -181,7 +182,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Registry McpServers. Registered at `@swamp/gcp/agentregistry/mcpservers`. */
 export const model = {
   type: "@swamp/gcp/agentregistry/mcpservers",
-  version: "2026.10.23.1",
+  version: "2026.11.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -345,6 +346,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

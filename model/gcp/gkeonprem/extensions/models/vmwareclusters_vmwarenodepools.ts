@@ -245,6 +245,41 @@ const GlobalArgsSchema = z.object({
   onPremVersion: z.string().describe(
     "Anthos version for the node pool. Defaults to the user cluster version.",
   ).optional(),
+  validationCheck: z.object({
+    option: z.enum([
+      "OPTIONS_UNSPECIFIED",
+      "SKIP_VALIDATION_CHECK_BLOCKING",
+      "SKIP_VALIDATION_ALL",
+    ]).describe("Options used for the validation check").optional(),
+    scenario: z.enum(["SCENARIO_UNSPECIFIED", "CREATE", "UPDATE"]).describe(
+      "Output only. The scenario when the preflight checks were run.",
+    ).optional(),
+    status: z.object({
+      result: z.array(z.object({
+        category: z.string().describe("The category of the validation.")
+          .optional(),
+        description: z.string().describe(
+          "The description of the validation check.",
+        ).optional(),
+        details: z.string().describe(
+          "Detailed failure information, which might be unformatted.",
+        ).optional(),
+        reason: z.string().describe(
+          "A human-readable message of the check failure.",
+        ).optional(),
+        state: z.enum([
+          "STATE_UNKNOWN",
+          "STATE_FAILURE",
+          "STATE_SKIPPED",
+          "STATE_FATAL",
+          "STATE_WARNING",
+        ]).describe("The validation check state.").optional(),
+      })).describe(
+        "Individual checks which failed as part of the Preflight check execution.",
+      ).optional(),
+    }).describe("Output only. The detailed validation check status.")
+      .optional(),
+  }).describe("The validation check for the node pool.").optional(),
   vmwareNodePoolId: z.string().describe(
     "The ID to use for the node pool, which will become the final component of the node pool's resource name. This value must be up to 40 characters and follow RFC-1123 (https://tools.ietf.org/html/rfc1123) format. The value must not be permitted to be a UUID (or UUID-like: anything matching /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i).",
   ).optional(),
@@ -312,6 +347,19 @@ const StateSchema = z.object({
   }).optional(),
   uid: z.string().optional(),
   updateTime: z.string().optional(),
+  validationCheck: z.object({
+    option: z.string(),
+    scenario: z.string(),
+    status: z.object({
+      result: z.array(z.object({
+        category: z.string(),
+        description: z.string(),
+        details: z.string(),
+        reason: z.string(),
+        state: z.string(),
+      })),
+    }),
+  }).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -390,6 +438,41 @@ const InputsSchema = z.object({
   onPremVersion: z.string().describe(
     "Anthos version for the node pool. Defaults to the user cluster version.",
   ).optional(),
+  validationCheck: z.object({
+    option: z.enum([
+      "OPTIONS_UNSPECIFIED",
+      "SKIP_VALIDATION_CHECK_BLOCKING",
+      "SKIP_VALIDATION_ALL",
+    ]).describe("Options used for the validation check").optional(),
+    scenario: z.enum(["SCENARIO_UNSPECIFIED", "CREATE", "UPDATE"]).describe(
+      "Output only. The scenario when the preflight checks were run.",
+    ).optional(),
+    status: z.object({
+      result: z.array(z.object({
+        category: z.string().describe("The category of the validation.")
+          .optional(),
+        description: z.string().describe(
+          "The description of the validation check.",
+        ).optional(),
+        details: z.string().describe(
+          "Detailed failure information, which might be unformatted.",
+        ).optional(),
+        reason: z.string().describe(
+          "A human-readable message of the check failure.",
+        ).optional(),
+        state: z.enum([
+          "STATE_UNKNOWN",
+          "STATE_FAILURE",
+          "STATE_SKIPPED",
+          "STATE_FATAL",
+          "STATE_WARNING",
+        ]).describe("The validation check state.").optional(),
+      })).describe(
+        "Individual checks which failed as part of the Preflight check execution.",
+      ).optional(),
+    }).describe("Output only. The detailed validation check status.")
+      .optional(),
+  }).describe("The validation check for the node pool.").optional(),
   vmwareNodePoolId: z.string().describe(
     "The ID to use for the node pool, which will become the final component of the node pool's resource name. This value must be up to 40 characters and follow RFC-1123 (https://tools.ietf.org/html/rfc1123) format. The value must not be permitted to be a UUID (or UUID-like: anything matching /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i).",
   ).optional(),
@@ -427,7 +510,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud GKE On-Prem VmwareClusters.VmwareNodePools. Registered at `@swamp/gcp/gkeonprem/vmwareclusters-vmwarenodepools`. */
 export const model = {
   type: "@swamp/gcp/gkeonprem/vmwareclusters-vmwarenodepools",
-  version: "2026.10.23.1",
+  version: "2026.11.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -608,6 +691,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.04.1",
+      description: "Added: validationCheck",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -649,6 +737,9 @@ export const model = {
         }
         if (g["onPremVersion"] !== undefined) {
           body["onPremVersion"] = g["onPremVersion"];
+        }
+        if (g["validationCheck"] !== undefined) {
+          body["validationCheck"] = g["validationCheck"];
         }
         if (g["vmwareNodePoolId"] !== undefined) {
           params["vmwareNodePoolId"] = String(g["vmwareNodePoolId"]);
@@ -785,6 +876,9 @@ export const model = {
         }
         if (g["onPremVersion"] !== undefined) {
           body["onPremVersion"] = g["onPremVersion"];
+        }
+        if (g["validationCheck"] !== undefined) {
+          body["validationCheck"] = g["validationCheck"];
         }
         const updateMaskKeys = Object.keys(body);
         if (updateMaskKeys.length > 0) {

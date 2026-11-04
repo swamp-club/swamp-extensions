@@ -161,6 +161,9 @@ const GlobalArgsSchema = z.object({
     "Optional. Disables automatic creation of workflow invocations.",
   ).optional(),
   invocationConfig: z.object({
+    concurrentActionsLimit: z.number().int().describe(
+      "Optional. Maximum number of actions that can be executed concurrently.",
+    ).optional(),
     endUserAuthConfig: z.object({
       oauthConfig: z.object({
         additionalOauthScopes: z.array(z.string()).describe(
@@ -244,6 +247,7 @@ const StateSchema = z.object({
   disabled: z.boolean().optional(),
   internalMetadata: z.string().optional(),
   invocationConfig: z.object({
+    concurrentActionsLimit: z.number(),
     endUserAuthConfig: z.object({
       oauthConfig: z.object({
         additionalOauthScopes: z.array(z.string()),
@@ -294,6 +298,9 @@ const InputsSchema = z.object({
     "Optional. Disables automatic creation of workflow invocations.",
   ).optional(),
   invocationConfig: z.object({
+    concurrentActionsLimit: z.number().int().describe(
+      "Optional. Maximum number of actions that can be executed concurrently.",
+    ).optional(),
     endUserAuthConfig: z.object({
       oauthConfig: z.object({
         additionalOauthScopes: z.array(z.string()).describe(
@@ -397,7 +404,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataform Repositories.WorkflowConfigs. Registered at `@swamp/gcp/dataform/repositories-workflowconfigs`. */
 export const model = {
   type: "@swamp/gcp/dataform/repositories-workflowconfigs",
-  version: "2026.10.23.1",
+  version: "2026.11.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -546,6 +553,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

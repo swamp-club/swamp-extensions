@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/dax"
-version: "2026.11.02.1"
+version: "2026.11.04.1"
 license: "AGPL-3.0-or-later"
 description: "AWS DAX infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -10,7 +10,10 @@ labels:
   - dax
   - cloud
   - infrastructure
+releaseNotes: |
+  - Added: cluster
 models:
+  - cluster.ts
   - parameter_group.ts
   - subnet_group.ts
 additionalFiles:

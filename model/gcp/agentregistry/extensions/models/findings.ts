@@ -115,7 +115,6 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
-  category: z.string().optional(),
   createTime: z.string().optional(),
   detail: z.string().optional(),
   files: z.array(z.object({
@@ -171,7 +170,14 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Registry Findings. Registered at `@swamp/gcp/agentregistry/findings`. */
 export const model = {
   type: "@swamp/gcp/agentregistry/findings",
-  version: "2026.10.25.1",
+  version: "2026.11.04.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.04.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {

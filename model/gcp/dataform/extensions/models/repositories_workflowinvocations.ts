@@ -145,6 +145,9 @@ const GlobalArgsSchema = z.object({
     "Immutable. The name of the compilation result to use for this invocation. Must be in the format `projects/*/locations/*/repositories/*/compilationResults/*`.",
   ).optional(),
   invocationConfig: z.object({
+    concurrentActionsLimit: z.number().int().describe(
+      "Optional. Maximum number of actions that can be executed concurrently.",
+    ).optional(),
     endUserAuthConfig: z.object({
       oauthConfig: z.object({
         additionalOauthScopes: z.array(z.string()).describe(
@@ -221,6 +224,7 @@ const StateSchema = z.object({
   }).optional(),
   internalMetadata: z.string().optional(),
   invocationConfig: z.object({
+    concurrentActionsLimit: z.number(),
     endUserAuthConfig: z.object({
       oauthConfig: z.object({
         additionalOauthScopes: z.array(z.string()),
@@ -271,6 +275,9 @@ const InputsSchema = z.object({
     "Immutable. The name of the compilation result to use for this invocation. Must be in the format `projects/*/locations/*/repositories/*/compilationResults/*`.",
   ).optional(),
   invocationConfig: z.object({
+    concurrentActionsLimit: z.number().int().describe(
+      "Optional. Maximum number of actions that can be executed concurrently.",
+    ).optional(),
     endUserAuthConfig: z.object({
       oauthConfig: z.object({
         additionalOauthScopes: z.array(z.string()).describe(
@@ -366,7 +373,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dataform Repositories.WorkflowInvocations. Registered at `@swamp/gcp/dataform/repositories-workflowinvocations`. */
 export const model = {
   type: "@swamp/gcp/dataform/repositories-workflowinvocations",
-  version: "2026.10.23.1",
+  version: "2026.11.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -524,6 +531,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

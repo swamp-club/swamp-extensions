@@ -284,7 +284,9 @@ const GlobalArgsSchema = z.object({
     updateTime: z.string().describe(
       "Output only. [Output only] Update time stamp.",
     ).optional(),
-  })).describe("Optional. The list of schemas in this service.").optional(),
+  })).describe(
+    "Optional. The list of schemas in this service. Schemas returned in this collection are a summary view. Authoritative lifecycle metadata and entity tags are omitted from embedded representations. Call `GetSchema` to retrieve the complete resource.",
+  ).optional(),
   source: z.object({
     files: z.array(z.object({
       content: z.string().describe("Required. The file's textual content.")
@@ -509,7 +511,9 @@ const InputsSchema = z.object({
     updateTime: z.string().describe(
       "Output only. [Output only] Update time stamp.",
     ).optional(),
-  })).describe("Optional. The list of schemas in this service.").optional(),
+  })).describe(
+    "Optional. The list of schemas in this service. Schemas returned in this collection are a summary view. Authoritative lifecycle metadata and entity tags are omitted from embedded representations. Call `GetSchema` to retrieve the complete resource.",
+  ).optional(),
   source: z.object({
     files: z.array(z.object({
       content: z.string().describe("Required. The file's textual content.")
@@ -574,7 +578,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firebase SQL Connect Services. Registered at `@swamp/gcp/firebasedataconnect/services`. */
 export const model = {
   type: "@swamp/gcp/firebasedataconnect/services",
-  version: "2026.10.23.1",
+  version: "2026.11.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -758,6 +762,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

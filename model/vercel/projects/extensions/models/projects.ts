@@ -428,6 +428,11 @@ const GlobalArgsSchema = z.object({
   })).describe(
     "An array of objects representing a Dismissed Toast in regards to a Project. Objects are either merged with existing toasts (on key match), or added to the `dimissedToasts` array.`",
   ).optional(),
+  expiration: z.object({
+    timeframe: z.enum(["1-hour", "1-day", "1-week", "2-week", "1-month"]),
+  }).describe(
+    "Schedules the project for automatic deletion after the given timeframe.",
+  ).optional(),
   environmentVariables: z.array(z.object({
     key: z.string(),
     target: z.array(z.enum(["production", "preview", "development"])),
@@ -1110,6 +1115,7 @@ const ResourceSchema = z.object({
     previewDeploymentSuffix: z.array(z.string()).optional(),
     privateCloudAccount: z.array(z.string()).optional(),
     privateLinkEndpoint: z.array(z.string()).optional(),
+    privateNpmUsage: z.array(z.string()).optional(),
     productionAliasProtectionBypass: z.array(z.string()).optional(),
     productionShareableLink: z.array(z.string()).optional(),
     project: z.array(z.string()).optional(),
@@ -1747,6 +1753,9 @@ const InputsSchema = z.object({
     action: z.enum(["cancel", "accept", "delete"]),
     value: z.string(),
   })).optional(),
+  expiration: z.object({
+    timeframe: z.enum(["1-hour", "1-day", "1-week", "2-week", "1-month"]),
+  }).optional(),
   environmentVariables: z.array(z.object({
     key: z.string(),
     target: z.array(z.enum(["production", "preview", "development"])),
@@ -1773,7 +1782,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.11.03.1",
+  version: "2026.11.04.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -2045,6 +2054,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.04.1",
+      description: "Added: expiration",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -2086,6 +2100,7 @@ export const model = {
         if (g.enableProductionFeedback !== undefined) {
           body.enableProductionFeedback = g.enableProductionFeedback;
         }
+        if (g.expiration !== undefined) body.expiration = g.expiration;
         if (g.previewDeploymentsDisabled !== undefined) {
           body.previewDeploymentsDisabled = g.previewDeploymentsDisabled;
         }

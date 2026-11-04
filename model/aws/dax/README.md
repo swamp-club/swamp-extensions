@@ -14,8 +14,8 @@ methods:
 - **delete** — remove the resource from AWS
 - **sync** — refresh all resource properties from AWS
 
-Use `swamp model type describe @swamp/aws/dax/parameter_group` to see the full
-list of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/aws/dax/cluster` to see the full list of
+configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -47,17 +47,17 @@ export AWS_SECRET_ACCESS_KEY=wJal...
 ## Usage
 
 ```bash
-# Create a new parameter_group model
-swamp model create @swamp/aws/dax/parameter_group my-parameter_group
+# Create a new cluster model
+swamp model create @swamp/aws/dax/cluster my-cluster
 
 # Edit the model to configure its properties
-swamp model edit my-parameter_group
+swamp model edit my-cluster
 
 # Create the resource in AWS
-swamp model method run my-parameter_group create
+swamp model method run my-cluster create
 
 # Sync current state from AWS
-swamp model method run my-parameter_group sync
+swamp model method run my-cluster sync
 ```
 
 ## License

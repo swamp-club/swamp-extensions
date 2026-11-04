@@ -104,6 +104,11 @@ const GlobalArgsSchema = z.object({
   DbParameterGroupIdentifier: z.string().min(3).max(64).regex(
     new RegExp("^[a-zA-Z0-9]+$"),
   ).describe("The name of an existing InfluxDB parameter group.").optional(),
+  KmsKeyId: z.string().min(1).max(2048).regex(
+    new RegExp("^[a-zA-Z0-9:/_\\-]+$"),
+  ).describe(
+    "The customer managed key used to encrypt data in the InfluxDB instance.",
+  ).optional(),
   AllocatedStorage: z.number().int().min(20).max(16384).describe(
     "The allocated storage for the InfluxDB instance.",
   ).optional(),
@@ -167,6 +172,7 @@ const StateSchema = z.object({
   Password: z.string().optional(),
   DbParameterGroupIdentifier: z.string().optional(),
   Status: z.string().optional(),
+  KmsKeyId: z.string().optional(),
   AvailabilityZone: z.string().optional(),
   AllocatedStorage: z.number().optional(),
   DbStorageType: z.string().optional(),
@@ -178,6 +184,7 @@ const StateSchema = z.object({
   }).optional(),
   Username: z.string().optional(),
   Bucket: z.string().optional(),
+  DbClusterId: z.string().optional(),
   PubliclyAccessible: z.boolean().optional(),
   SecondaryAvailabilityZone: z.string().optional(),
   Id: z.string(),
@@ -237,6 +244,11 @@ const InputsSchema = z.object({
   DbParameterGroupIdentifier: z.string().min(3).max(64).regex(
     new RegExp("^[a-zA-Z0-9]+$"),
   ).describe("The name of an existing InfluxDB parameter group.").optional(),
+  KmsKeyId: z.string().min(1).max(2048).regex(
+    new RegExp("^[a-zA-Z0-9:/_\\-]+$"),
+  ).describe(
+    "The customer managed key used to encrypt data in the InfluxDB instance.",
+  ).optional(),
   AllocatedStorage: z.number().int().min(20).max(16384).describe(
     "The allocated storage for the InfluxDB instance.",
   ).optional(),
@@ -304,7 +316,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Timestream InfluxDBInstance. Registered at `@swamp/aws/timestream/influx-dbinstance`. */
 export const model = {
   type: "@swamp/aws/timestream/influx-dbinstance",
-  version: "2026.10.23.1",
+  version: "2026.11.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -369,6 +381,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.04.1",
+      description: "Added: KmsKeyId",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -488,6 +505,7 @@ export const model = {
             "VpcSecurityGroupIds",
             "PubliclyAccessible",
             "NetworkType",
+            "KmsKeyId",
           ],
           credentials,
         );

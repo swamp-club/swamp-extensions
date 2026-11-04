@@ -180,6 +180,26 @@ const GlobalArgsSchema = z.object({
   timeZone: z.string().describe(
     'The time zone of the calendar. (Formatted as an IANA Time Zone Database name, e.g. "Europe/Zurich".) Optional.',
   ).optional(),
+  workingHours: z.object({
+    availableTimes: z.array(z.object({
+      dayOfWeek: z.string().describe(
+        'Day of the week. Required. Possible values are: - "monday" - "tuesday" - "wednesday" - "thursday" - "friday" - "saturday" - "sunday"',
+      ).optional(),
+      periodEnd: z.number().int().describe(
+        "Period end, in minutes from the start of the day, exclusive. Required.",
+      ).optional(),
+      periodStart: z.number().int().describe(
+        "Period start, in minutes from the start of the day, inclusive. Required.",
+      ).optional(),
+    })).describe(
+      "Working hours. Each availability period represents the user's working hours block during one day.",
+    ).optional(),
+    workingHoursEnabled: z.boolean().describe(
+      "Whether the working hours are enabled for this calendar. Cannot be set to true when availableTimes is empty.",
+    ).optional(),
+  }).describe(
+    "Represents the information about the user's working hours. Only available for primary calendars of Google Workspace users. To update the working hours, the entire working hours object must be passed. If not specified (or passed as null or an empty object), the existing working hours remain unchanged. To disable working hours or clear the schedule, set workingHoursEnabled to false (and omit availableTimes or pass an empty list).",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -202,6 +222,14 @@ const StateSchema = z.object({
   location: z.string().optional(),
   summary: z.string().optional(),
   timeZone: z.string().optional(),
+  workingHours: z.object({
+    availableTimes: z.array(z.object({
+      dayOfWeek: z.string(),
+      periodEnd: z.number(),
+      periodStart: z.number(),
+    })),
+    workingHoursEnabled: z.boolean(),
+  }).optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -256,6 +284,26 @@ const InputsSchema = z.object({
   timeZone: z.string().describe(
     'The time zone of the calendar. (Formatted as an IANA Time Zone Database name, e.g. "Europe/Zurich".) Optional.',
   ).optional(),
+  workingHours: z.object({
+    availableTimes: z.array(z.object({
+      dayOfWeek: z.string().describe(
+        'Day of the week. Required. Possible values are: - "monday" - "tuesday" - "wednesday" - "thursday" - "friday" - "saturday" - "sunday"',
+      ).optional(),
+      periodEnd: z.number().int().describe(
+        "Period end, in minutes from the start of the day, exclusive. Required.",
+      ).optional(),
+      periodStart: z.number().int().describe(
+        "Period start, in minutes from the start of the day, inclusive. Required.",
+      ).optional(),
+    })).describe(
+      "Working hours. Each availability period represents the user's working hours block during one day.",
+    ).optional(),
+    workingHoursEnabled: z.boolean().describe(
+      "Whether the working hours are enabled for this calendar. Cannot be set to true when availableTimes is empty.",
+    ).optional(),
+  }).describe(
+    "Represents the information about the user's working hours. Only available for primary calendars of Google Workspace users. To update the working hours, the entire working hours object must be passed. If not specified (or passed as null or an empty object), the existing working hours remain unchanged. To disable working hours or clear the schedule, set workingHoursEnabled to false (and omit availableTimes or pass an empty list).",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -284,7 +332,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Calendar Calendars. Registered at `@swamp/gcp/calendar/calendars`. */
 export const model = {
   type: "@swamp/gcp/calendar/calendars",
-  version: "2026.10.23.1",
+  version: "2026.11.04.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -441,6 +489,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.04.1",
+      description: "Added: workingHours",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -487,6 +540,9 @@ export const model = {
         if (g["location"] !== undefined) body["location"] = g["location"];
         if (g["summary"] !== undefined) body["summary"] = g["summary"];
         if (g["timeZone"] !== undefined) body["timeZone"] = g["timeZone"];
+        if (g["workingHours"] !== undefined) {
+          body["workingHours"] = g["workingHours"];
+        }
         if (g["name"] !== undefined) params["calendarId"] = String(g["name"]);
         const result = await createResource(
           baseUrl,
@@ -596,6 +652,9 @@ export const model = {
         if (g["location"] !== undefined) body["location"] = g["location"];
         if (g["summary"] !== undefined) body["summary"] = g["summary"];
         if (g["timeZone"] !== undefined) body["timeZone"] = g["timeZone"];
+        if (g["workingHours"] !== undefined) {
+          body["workingHours"] = g["workingHours"];
+        }
         let live: Record<string, unknown> | undefined;
         const unset = [
           "autoAcceptInvitations",
@@ -606,6 +665,7 @@ export const model = {
           "location",
           "summary",
           "timeZone",
+          "workingHours",
         ].filter((k) => body[k] === undefined);
         if (unset.length > 0) {
           live = await readResource(

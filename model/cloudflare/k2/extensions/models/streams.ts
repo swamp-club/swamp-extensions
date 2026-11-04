@@ -53,7 +53,9 @@ const GlobalArgsSchema = z.object({
   retention_seconds: z.number().int().min(3600).max(2592000).describe(
     "Sets the record retention period from 1 hour (3600 seconds) to 30 days (2592000 seconds), inclusive.",
   ).optional(),
-  worker_binding: z.string().optional(),
+  worker_binding: z.object({
+    enabled: z.boolean(),
+  }).optional(),
   name: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9_]+$"))
     .describe("Specifies the name of the K2 stream.").optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
@@ -100,7 +102,9 @@ const InputsSchema = z.object({
     enabled: z.boolean(),
   }).optional(),
   retention_seconds: z.number().int().min(3600).max(2592000).optional(),
-  worker_binding: z.string().optional(),
+  worker_binding: z.object({
+    enabled: z.boolean(),
+  }).optional(),
   name: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9_]+$"))
     .optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
@@ -111,7 +115,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Streams. Registered at `@swamp/cloudflare/k2/streams`. */
 export const model = {
   type: "@swamp/cloudflare/k2/streams",
-  version: "2026.10.23.1",
+  version: "2026.11.04.1",
   upgrades: [
     {
       toVersion: "2026.10.07.1",
@@ -130,6 +134,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.04.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -230,9 +239,6 @@ export const model = {
         const filters: [string, string][] = [];
         if (g.retention_seconds !== undefined) {
           filters.push(["retention_seconds", String(g.retention_seconds)]);
-        }
-        if (g.worker_binding !== undefined) {
-          filters.push(["worker_binding", String(g.worker_binding)]);
         }
         if (g.name !== undefined) filters.push(["name", String(g.name)]);
         if (filters.length === 0) {
