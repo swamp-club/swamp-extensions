@@ -24,7 +24,7 @@ import type { AgentRunnerContext } from "./_lib/types.ts";
 /** Agent runner model — providers, review profiles, and execution methods. */
 export const model = {
   type: "@swamp/agent-runner",
-  version: "2026.10.29.1",
+  version: "2026.11.04.1",
 
   globalArguments: GlobalArgsSchema,
 
@@ -57,6 +57,12 @@ export const model = {
       toVersion: "2026.10.29.1",
       description:
         "Record token usage, cost and the CLI session id (optional usage and sessionId) on runResult and reviewResult. Runs now pass claude --output-format json and codex exec --json, which need Claude Code 1.0.37+ and Codex 0.122.0+",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.04.1",
+      description:
+        "Add optional workingDir and additionalDirs to run and review (the CLI cache stays in the swamp repo), optional resumeSessionId to run (claude --resume), and record workingDir and a capacityStop flag and tag for usage-limit, rate-limit and overload stops",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -123,15 +129,18 @@ export const model = {
             }
             const outputPath = outputDir ? `${outputDir}/output.txt` : "";
 
+            const repoDir = Deno.cwd();
             const output = await runAgent({
               globalArgs,
               prompt: args.prompt,
               model: resolvedModel,
               effort: args.effort,
-              workingDir: Deno.cwd(),
-              additionalDirs: [],
+              repoDir,
+              workingDir: args.workingDir ?? repoDir,
+              additionalDirs: args.additionalDirs ?? [],
               outputPath,
               readOnly: args.readOnly,
+              resumeSessionId: args.resumeSessionId,
               providerConfig,
               logger: ctx.logger,
               signal: ctx.signal,
@@ -152,6 +161,8 @@ export const model = {
                 ...(args.effort ? { effort: args.effort } : {}),
                 ...(output.sessionId ? { sessionId: output.sessionId } : {}),
                 ...(output.usage ? { usage: output.usage } : {}),
+                workingDir: output.workingDir,
+                ...(output.capacityStop ? { capacityStop: true } : {}),
               },
               {
                 tags: {
@@ -159,6 +170,7 @@ export const model = {
                   exitCode: String(output.exitCode),
                   ...(resolvedModel ? { model: resolvedModel } : {}),
                   ...(args.effort ? { effort: args.effort } : {}),
+                  ...(output.capacityStop ? { capacityStop: "true" } : {}),
                 },
               },
             );

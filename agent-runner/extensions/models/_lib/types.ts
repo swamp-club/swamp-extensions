@@ -13,6 +13,8 @@ export interface AgentProvider {
   readonly name: string;
   readonly defaultApiKeyEnvVar: string;
   readonly supportsCliAuth: boolean;
+  /** Can continue an earlier session (claude --resume). */
+  readonly supportsResume: boolean;
   /** Writes its final reply to the request's outputPath (codex -o). */
   readonly writesFinalMessage: boolean;
   readonly configSchema: z.ZodType;
@@ -45,6 +47,8 @@ export interface ParsedAgentOutput {
   /** The CLI's session id, when it reported one. */
   readonly sessionId?: string;
   readonly usage?: AgentUsage;
+  /** The run errored because of a usage limit, rate limit or overload. */
+  readonly capacityStop?: boolean;
 }
 
 export interface AgentRunRequest {
@@ -57,6 +61,8 @@ export interface AgentRunRequest {
   readonly additionalDirs: string[];
   readonly outputPath: string;
   readonly readOnly: boolean;
+  /** Session to continue; only for providers with supportsResume. */
+  readonly resumeSessionId?: string;
 }
 
 export interface ReviewResult {
@@ -67,6 +73,7 @@ export interface ReviewResult {
   readonly effort?: Effort;
   readonly sessionId?: string;
   readonly usage?: AgentUsage;
+  readonly capacityStop?: boolean;
 }
 
 export interface Finding {

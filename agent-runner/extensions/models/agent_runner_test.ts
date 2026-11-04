@@ -1,4 +1,8 @@
-import { assertEquals, assertThrows } from "jsr:@std/assert@1.0.19";
+import {
+  assertEquals,
+  assertRejects,
+  assertThrows,
+} from "jsr:@std/assert@1.0.19";
 import { model } from "./agent_runner.ts";
 import { ClaudeConfigSchema } from "./_lib/providers/claude.ts";
 import { CodexConfigSchema } from "./_lib/providers/codex.ts";
@@ -1166,3 +1170,190 @@ stubTest(
     );
   },
 );
+
+// ---------------------------------------------------------------------------
+// Working directory, resume and capacity stops
+// ---------------------------------------------------------------------------
+
+Deno.test("run args accept workingDir, additionalDirs and resumeSessionId", () => {
+  const result = model.methods.run.arguments.parse({
+    prompt: "hello",
+    workingDir: "worktrees/item-1",
+    additionalDirs: ["/shared"],
+    resumeSessionId: "ddd38c40-9c35-4615-9e54-ed2616359d50",
+  });
+  assertEquals(result.workingDir, "worktrees/item-1");
+  assertEquals(result.additionalDirs, ["/shared"]);
+  assertEquals(result.resumeSessionId, "ddd38c40-9c35-4615-9e54-ed2616359d50");
+});
+
+Deno.test("run args reject a session id that isn't an id", () => {
+  for (const resumeSessionId of ["", "--model", "abc def", "../x"]) {
+    const result = model.methods.run.arguments.safeParse({
+      prompt: "hello",
+      resumeSessionId,
+    });
+    assertEquals(result.success, false, resumeSessionId);
+  }
+});
+
+Deno.test("run args reject an empty workingDir", () => {
+  const result = model.methods.run.arguments.safeParse({
+    prompt: "hello",
+    workingDir: "",
+  });
+  assertEquals(result.success, false);
+});
+
+Deno.test("review args accept workingDir and additionalDirs", () => {
+  const result = model.methods.review.arguments.parse({
+    promptFile: "review.md",
+    files: ["a.ts"],
+    workingDir: "/worktree",
+    additionalDirs: ["/shared"],
+  });
+  assertEquals(result.workingDir, "/worktree");
+  assertEquals(result.additionalDirs, ["/shared"]);
+});
+
+// Like withFakeClaude, but the binary prints only a result envelope, so the
+// claude provider parses it as the CLI's JSON output.
+async function plantFakeClaude(
+  repoDir: string,
+  envelope: Record<string, unknown>,
+  exitCode: number,
+): Promise<void> {
+  const dir =
+    `${repoDir}/.swamp/agent-runner/bin/claude/${FAKE_CLAUDE_VERSION}`;
+  await Deno.mkdir(dir, { recursive: true });
+  const binary = `${dir}/${binaryFileName("claude", detectPlatform())}`;
+  await Deno.writeTextFile(
+    binary,
+    `#!/bin/sh\ncat <<'ENVELOPE_EOF'\n${
+      JSON.stringify(envelope)
+    }\nENVELOPE_EOF\nexit ${exitCode}\n`,
+  );
+  await Deno.chmod(binary, 0o755);
+}
+
+// The methods cache the CLI under Deno.cwd() (the swamp repo), so these run
+// with the cwd moved to a temp repo and restored in finally. The fake binary
+// is a POSIX shell script, so they are ignored on Windows.
+async function inTempRepo(fn: (repoDir: string) => Promise<void>) {
+  const original = Deno.cwd();
+  const repoDir = await Deno.realPath(
+    await Deno.makeTempDir({ prefix: "agent-runner-repo-" }),
+  );
+  try {
+    Deno.chdir(repoDir);
+    await fn(repoDir);
+  } finally {
+    Deno.chdir(original);
+    await Deno.remove(repoDir, { recursive: true });
+  }
+}
+
+const USAGE_LIMIT_ENVELOPE = {
+  type: "result",
+  subtype: "success",
+  is_error: true,
+  result: "Claude AI usage limit reached|1762300800",
+  session_id: "ddd38c40-9c35-4615-9e54-ed2616359d50",
+};
+
+Deno.test({
+  name: "run records workingDir, and a capacity stop as a field and tag",
+  ignore: Deno.build.os === "windows",
+  fn: () =>
+    inTempRepo(async (repoDir) => {
+      await Deno.mkdir(`${repoDir}/worktree`);
+      await plantFakeClaude(repoDir, USAGE_LIMIT_ENVELOPE, 1);
+      const { ctx, writes } = makeHarness({
+        provider: "claude",
+        version: FAKE_CLAUDE_VERSION,
+        auth: "cli",
+      });
+
+      await model.methods.run.execute(
+        model.methods.run.arguments.parse({
+          prompt: "hello",
+          workingDir: "worktree",
+        }),
+        ctx,
+      );
+
+      assertEquals(writes.length, 1);
+      assertEquals(writes[0].specName, "runResult");
+      assertEquals(writes[0].data.workingDir, `${repoDir}/worktree`);
+      assertEquals(writes[0].data.capacityStop, true);
+      assertEquals(
+        writes[0].data.sessionId,
+        "ddd38c40-9c35-4615-9e54-ed2616359d50",
+      );
+      assertEquals(writes[0].tags?.capacityStop, "true");
+      // The worktree was not used as the CLI cache.
+      await assertRejects(() => Deno.stat(`${repoDir}/worktree/.swamp`));
+    }),
+});
+
+Deno.test({
+  name: "run without a capacity stop records no capacityStop field or tag",
+  ignore: Deno.build.os === "windows",
+  fn: () =>
+    inTempRepo(async (repoDir) => {
+      await plantFakeClaude(repoDir, {
+        type: "result",
+        subtype: "success",
+        is_error: false,
+        result: "done",
+      }, 0);
+      const { ctx, writes } = makeHarness({
+        provider: "claude",
+        version: FAKE_CLAUDE_VERSION,
+        auth: "cli",
+      });
+
+      await model.methods.run.execute(
+        model.methods.run.arguments.parse({ prompt: "hello" }),
+        ctx,
+      );
+
+      assertEquals(writes[0].data.output, "done");
+      assertEquals(writes[0].data.workingDir, repoDir);
+      assertEquals("capacityStop" in writes[0].data, false);
+      assertEquals(writes[0].tags?.capacityStop, undefined);
+    }),
+});
+
+Deno.test({
+  name:
+    "review stopped by a usage limit records a capacity stop, not a critical finding",
+  ignore: Deno.build.os === "windows",
+  fn: () =>
+    inTempRepo(async (repoDir) => {
+      await Deno.writeTextFile(`${repoDir}/review.md`, "Review the changes.");
+      await plantFakeClaude(repoDir, USAGE_LIMIT_ENVELOPE, 1);
+      const { ctx, writes } = makeHarness({
+        provider: "claude",
+        version: FAKE_CLAUDE_VERSION,
+        auth: "cli",
+      });
+
+      await model.methods.review.execute(
+        model.methods.review.arguments.parse({
+          promptFile: "review.md",
+          files: ["a.ts"],
+        }),
+        ctx,
+      );
+
+      assertEquals(writes.length, 1);
+      const result = ReviewResultSchema.parse(writes[0].data);
+      assertEquals(result.capacityStop, true);
+      assertEquals(result.verdict, "fail");
+      assertEquals(result.highestSeverity, "none");
+      assertEquals(result.findings, []);
+      assertEquals(writes[0].tags?.capacityStop, "true");
+      assertEquals(writes[0].tags?.highestSeverity, "none");
+    }),
+});

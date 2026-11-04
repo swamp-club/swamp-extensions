@@ -2,6 +2,10 @@ import { assertEquals, assertRejects } from "jsr:@std/assert@1.0.19";
 import { ReviewResultSchema } from "./schemas.ts";
 import { buildReviewPrompt, extractJsonResult } from "./review.ts";
 import { buildSubprocessEnv, runAgent } from "./runner.ts";
+import type { RunAgentOptions } from "./runner.ts";
+import { resolveDir, resolveDirs } from "./dirs.ts";
+import { isCapacityMessage } from "./capacity.ts";
+import { binaryFileName, detectPlatform } from "./platform.ts";
 
 // ---------------------------------------------------------------------------
 // Mock agent binary execution
@@ -329,6 +333,7 @@ Deno.test("runner: a bad provider config fails before the key lookup and downloa
           globalArgs: { provider: "codex", version: "0.163.0", auth: "apiKey" },
           prompt: "test",
           model: undefined,
+          repoDir: tmpDir,
           workingDir: tmpDir,
           additionalDirs: [],
           outputPath: `${tmpDir}/result.json`,
@@ -360,5 +365,331 @@ Deno.test("runner: a bad provider config fails before the key lookup and downloa
       Deno.env.set("CODEX_API_KEY", original);
     }
     await Deno.remove(tmpDir, { recursive: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Working directory, extra directories and resume
+// ---------------------------------------------------------------------------
+
+const CLAUDE_TEST_VERSION = "9.9.9";
+const quietLogger = {
+  debug: () => {},
+  info: () => {},
+  warn: () => {},
+  error: () => {},
+};
+
+/**
+ * Plants a fake claude binary where ensureBinary looks for a cached one, so
+ * nothing is downloaded. It records its working directory and arguments, one
+ * per line, in invocationFile, and prints the given result envelope.
+ */
+async function plantFakeClaude(
+  repoDir: string,
+  invocationFile: string,
+  envelope: Record<string, unknown>,
+  exitCode = 0,
+): Promise<void> {
+  const dir =
+    `${repoDir}/.swamp/agent-runner/bin/claude/${CLAUDE_TEST_VERSION}`;
+  await Deno.mkdir(dir, { recursive: true });
+  const binary = `${dir}/${binaryFileName("claude", detectPlatform())}`;
+  await Deno.writeTextFile(
+    binary,
+    `#!/bin/sh
+pwd > '${invocationFile}'
+for arg in "$@"; do printf '%s\\n' "$arg" >> '${invocationFile}'; done
+cat <<'ENVELOPE_EOF'
+${JSON.stringify(envelope)}
+ENVELOPE_EOF
+exit ${exitCode}
+`,
+  );
+  await Deno.chmod(binary, 0o755);
+}
+
+function claudeRunOptions(
+  overrides: Partial<RunAgentOptions> & { repoDir: string },
+): RunAgentOptions {
+  return {
+    globalArgs: {
+      provider: "claude",
+      version: CLAUDE_TEST_VERSION,
+      auth: "cli",
+    },
+    prompt: "test prompt",
+    model: undefined,
+    workingDir: overrides.repoDir,
+    additionalDirs: [],
+    outputPath: "",
+    readOnly: true,
+    providerConfig: {},
+    logger: quietLogger,
+    signal: new AbortController().signal,
+    ...overrides,
+  };
+}
+
+const OK_ENVELOPE = {
+  type: "result",
+  subtype: "success",
+  is_error: false,
+  result: "done",
+  session_id: "ddd38c40-9c35-4615-9e54-ed2616359d50",
+};
+
+// The fake binary is a POSIX shell script, so these run on Linux and macOS
+// only; the path resolution they rely on is covered on every platform by the
+// resolveDir tests below.
+const posixOnly = Deno.build.os === "windows";
+
+Deno.test({
+  name:
+    "runner: the agent runs in workingDir while the CLI stays cached in the repo",
+  ignore: posixOnly,
+  fn: async () => {
+    const repoDir = await Deno.makeTempDir({ prefix: "runner-repo-" });
+    const worktree = await Deno.makeTempDir({ prefix: "runner-worktree-" });
+    const extra = await Deno.makeTempDir({ prefix: "runner-extra-" });
+    const invocation = `${repoDir}/invocation.txt`;
+    try {
+      await plantFakeClaude(repoDir, invocation, OK_ENVELOPE);
+
+      const output = await runAgent(claudeRunOptions({
+        repoDir,
+        workingDir: worktree,
+        additionalDirs: [extra],
+        resumeSessionId: "ddd38c40-9c35-4615-9e54-ed2616359d50",
+      }));
+
+      const lines = (await Deno.readTextFile(invocation)).trimEnd().split(
+        "\n",
+      );
+      assertEquals(lines[0], await Deno.realPath(worktree));
+      const args = lines.slice(1);
+      assertEquals(args[args.indexOf("--add-dir") + 1], extra);
+      assertEquals(
+        args[args.indexOf("--resume") + 1],
+        "ddd38c40-9c35-4615-9e54-ed2616359d50",
+      );
+      assertEquals(output.workingDir, worktree);
+      assertEquals(output.stdout, "done");
+      assertEquals(output.capacityStop, undefined);
+      // Nothing was downloaded into the worktree.
+      await assertRejects(() => Deno.stat(`${worktree}/.swamp`));
+    } finally {
+      await Deno.remove(repoDir, { recursive: true });
+      await Deno.remove(worktree, { recursive: true });
+      await Deno.remove(extra, { recursive: true });
+    }
+  },
+});
+
+Deno.test({
+  name: "runner: a relative workingDir is resolved against the repo",
+  ignore: posixOnly,
+  fn: async () => {
+    const repoDir = await Deno.makeTempDir({ prefix: "runner-repo-" });
+    const invocation = `${repoDir}/invocation.txt`;
+    try {
+      await Deno.mkdir(`${repoDir}/worktrees/item-1`, { recursive: true });
+      await plantFakeClaude(repoDir, invocation, OK_ENVELOPE);
+
+      const output = await runAgent(claudeRunOptions({
+        repoDir,
+        workingDir: "worktrees/item-1",
+      }));
+
+      assertEquals(output.workingDir, `${repoDir}/worktrees/item-1`);
+      const pwd = (await Deno.readTextFile(invocation)).split("\n")[0];
+      assertEquals(pwd, await Deno.realPath(`${repoDir}/worktrees/item-1`));
+    } finally {
+      await Deno.remove(repoDir, { recursive: true });
+    }
+  },
+});
+
+Deno.test({
+  name: "runner: a usage-limit error envelope is a capacity stop",
+  ignore: posixOnly,
+  fn: async () => {
+    const repoDir = await Deno.makeTempDir({ prefix: "runner-repo-" });
+    try {
+      await plantFakeClaude(repoDir, `${repoDir}/invocation.txt`, {
+        type: "result",
+        subtype: "success",
+        is_error: true,
+        result: "Claude AI usage limit reached|1762300800",
+        session_id: "ddd38c40-9c35-4615-9e54-ed2616359d50",
+      }, 1);
+
+      const output = await runAgent(claudeRunOptions({ repoDir }));
+
+      assertEquals(output.exitCode, 1);
+      assertEquals(output.capacityStop, true);
+      assertEquals(output.sessionId, "ddd38c40-9c35-4615-9e54-ed2616359d50");
+    } finally {
+      await Deno.remove(repoDir, { recursive: true });
+    }
+  },
+});
+
+Deno.test({
+  name: "runner: a non-zero exit with rate-limit stderr is a capacity stop",
+  ignore: posixOnly,
+  fn: async () => {
+    const repoDir = await Deno.makeTempDir({ prefix: "runner-repo-" });
+    try {
+      const dir =
+        `${repoDir}/.swamp/agent-runner/bin/claude/${CLAUDE_TEST_VERSION}`;
+      await Deno.mkdir(dir, { recursive: true });
+      const binary = `${dir}/${binaryFileName("claude", detectPlatform())}`;
+      // Not a JSON envelope: an older CLI or a crash that only wrote stderr.
+      await Deno.writeTextFile(
+        binary,
+        "#!/bin/sh\necho 'API Error: 429 rate_limit_error' >&2\nexit 1\n",
+      );
+      await Deno.chmod(binary, 0o755);
+
+      const output = await runAgent(claudeRunOptions({ repoDir }));
+
+      assertEquals(output.capacityStop, true);
+    } finally {
+      await Deno.remove(repoDir, { recursive: true });
+    }
+  },
+});
+
+Deno.test("runner: a missing workingDir fails before the download", async () => {
+  const repoDir = await Deno.makeTempDir({ prefix: "runner-repo-" });
+  try {
+    await assertRejects(
+      () =>
+        runAgent(claudeRunOptions({
+          repoDir,
+          workingDir: `${repoDir}/no-such-dir`,
+        })),
+      Error,
+      "workingDir",
+    );
+    await assertRejects(() => Deno.stat(`${repoDir}/.swamp`));
+  } finally {
+    await Deno.remove(repoDir, { recursive: true });
+  }
+});
+
+Deno.test("runner: a missing additional dir fails before the download", async () => {
+  const repoDir = await Deno.makeTempDir({ prefix: "runner-repo-" });
+  try {
+    await assertRejects(
+      () =>
+        runAgent(claudeRunOptions({
+          repoDir,
+          additionalDirs: ["missing"],
+        })),
+      Error,
+      "additionalDirs entry 'missing' does not exist",
+    );
+    await assertRejects(() => Deno.stat(`${repoDir}/.swamp`));
+  } finally {
+    await Deno.remove(repoDir, { recursive: true });
+  }
+});
+
+Deno.test("runner: resume on codex fails before the key lookup and download", async () => {
+  const repoDir = await Deno.makeTempDir({ prefix: "runner-repo-" });
+  const original = Deno.env.get("CODEX_API_KEY");
+  try {
+    // With no CODEX_API_KEY, a key lookup first would fail with "No API key
+    // found"; the resume error proves the check comes first.
+    Deno.env.delete("CODEX_API_KEY");
+    await assertRejects(
+      () =>
+        runAgent(claudeRunOptions({
+          repoDir,
+          globalArgs: { provider: "codex", version: "0.165.0", auth: "apiKey" },
+          resumeSessionId: "01a187f0-eb7e-77b1-afdd-77db285adbf7",
+        })),
+      Error,
+      "cannot resume a session",
+    );
+    await assertRejects(() => Deno.stat(`${repoDir}/.swamp`));
+  } finally {
+    if (original !== undefined) {
+      Deno.env.set("CODEX_API_KEY", original);
+    }
+    await Deno.remove(repoDir, { recursive: true });
+  }
+});
+
+Deno.test("dirs: resolveDir resolves a relative path against the repo", async () => {
+  const repoDir = await Deno.makeTempDir({ prefix: "dirs-test-" });
+  try {
+    await Deno.mkdir(`${repoDir}/sub`);
+    assertEquals(
+      await resolveDir("sub", repoDir, "workingDir"),
+      `${repoDir}/sub`,
+    );
+    assertEquals(
+      await resolveDir(`${repoDir}/sub`, "/elsewhere", "workingDir"),
+      `${repoDir}/sub`,
+    );
+    assertEquals(
+      await resolveDirs(["sub", "."], repoDir, "dir"),
+      [`${repoDir}/sub`, repoDir],
+    );
+  } finally {
+    await Deno.remove(repoDir, { recursive: true });
+  }
+});
+
+Deno.test("dirs: resolveDir rejects a file", async () => {
+  const repoDir = await Deno.makeTempDir({ prefix: "dirs-test-" });
+  try {
+    await Deno.writeTextFile(`${repoDir}/file.txt`, "x");
+    await assertRejects(
+      () => resolveDir("file.txt", repoDir, "workingDir"),
+      Error,
+      "workingDir 'file.txt' is not a directory",
+    );
+  } finally {
+    await Deno.remove(repoDir, { recursive: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Capacity messages
+// ---------------------------------------------------------------------------
+
+// Representative wording for these stops. A limit can't be triggered on
+// demand, so these were not recorded here; re-check them against real output
+// when a CLI changes how it reports limits.
+Deno.test("capacity: matches usage-limit, rate-limit and overload wording", () => {
+  for (
+    const message of [
+      "Claude AI usage limit reached|1762300800",
+      "5-hour limit reached ∙ resets 3pm",
+      "You've hit your limit · resets 3pm (America/New_York)",
+      'API Error: 429 {"type":"error","error":{"type":"rate_limit_error"}}',
+      "API Error: 529 Overloaded",
+      "exceeded retry limit, last status: 429 Too Many Requests",
+      "You've hit your usage limit. Try again in 2 days.",
+    ]
+  ) {
+    assertEquals(isCapacityMessage(message), true, message);
+  }
+});
+
+Deno.test("capacity: ignores other errors", () => {
+  for (
+    const message of [
+      "There's an issue with the selected model (claude-no-such-model).",
+      "unexpected status 401 Unauthorized: Missing bearer or basic authentication",
+      "Prompt is too long",
+      "error at line 429 of main.ts",
+    ]
+  ) {
+    assertEquals(isCapacityMessage(message), false, message);
   }
 });

@@ -631,3 +631,81 @@ Deno.test("claude: parseOutput skips usage fields of the wrong type", () => {
 
   assertEquals(parsed, { text: "hi", usage: { outputTokens: 7 } });
 });
+
+// ---------------------------------------------------------------------------
+// Resume and capacity stops
+// ---------------------------------------------------------------------------
+
+Deno.test("claude: buildArgs passes --resume with the session id", () => {
+  const args = claudeProvider.buildArgs(
+    {
+      prompt: "continue",
+      model: undefined,
+      workingDir: "/repo",
+      additionalDirs: [],
+      outputPath: "",
+      readOnly: true,
+      resumeSessionId: "ddd38c40-9c35-4615-9e54-ed2616359d50",
+    },
+    {},
+  );
+
+  assertEquals(
+    args[args.indexOf("--resume") + 1],
+    "ddd38c40-9c35-4615-9e54-ed2616359d50",
+  );
+});
+
+Deno.test("claude: buildArgs omits --resume without a session id", () => {
+  const args = claudeProvider.buildArgs(
+    {
+      prompt: "test",
+      model: undefined,
+      workingDir: "/repo",
+      additionalDirs: [],
+      outputPath: "",
+      readOnly: true,
+    },
+    {},
+  );
+
+  assertEquals(args.includes("--resume"), false);
+  assertEquals(claudeProvider.supportsResume, true);
+});
+
+// The error envelope shape above (is_error true, the message in result),
+// carrying an API status as newer CLIs report it in api_error_status.
+Deno.test("claude: an error envelope with API status 429 is a capacity stop", () => {
+  const parsed = parseClaudeOutput(JSON.stringify({
+    ...ERROR_ENVELOPE,
+    api_error_status: 429,
+    result: "API Error: Request rejected",
+  }));
+
+  assertEquals(parsed.capacityStop, true);
+});
+
+Deno.test("claude: an error envelope with usage-limit text is a capacity stop", () => {
+  const parsed = parseClaudeOutput(JSON.stringify({
+    ...ERROR_ENVELOPE,
+    result: "Claude AI usage limit reached|1762300800",
+  }));
+
+  assertEquals(parsed.capacityStop, true);
+});
+
+Deno.test("claude: other error envelopes are not capacity stops", () => {
+  assertEquals(
+    parseClaudeOutput(JSON.stringify(ERROR_ENVELOPE)).capacityStop,
+    undefined,
+  );
+});
+
+Deno.test("claude: a successful reply about rate limits is not a capacity stop", () => {
+  const parsed = parseClaudeOutput(JSON.stringify({
+    ...SUCCESS_ENVELOPE,
+    result: "Added a rate limit: 429 Too Many Requests after 10 calls.",
+  }));
+
+  assertEquals(parsed.capacityStop, undefined);
+});

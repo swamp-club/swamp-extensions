@@ -188,6 +188,50 @@ swamp model method run reviewer run \
   --json
 ```
 
+### Run in Another Directory
+
+`run` and `review` take an optional `workingDir`: the directory the agent runs
+in, such as a per-work-item git worktree. `additionalDirs` gives the agent
+access to more directories (`--add-dir`). A relative path in either is resolved
+against the swamp repo, and each must exist or the method fails before anything
+is downloaded or run.
+
+```bash
+swamp model method run reviewer run \
+  --input prompt="Implement the plan in PLAN.md" \
+  --input workingDir=worktrees/item-42 \
+  --input readOnly=false \
+  --input 'additionalDirs:json=["/shared/specs"]' \
+  --json
+```
+
+The agent CLI is still cached in the swamp repo (see
+[Binary Management](#binary-management)), so the working directory is never left
+with a `.swamp/` directory, and the CLI is downloaded once rather than once per
+worktree. For `review`, `promptFile` is read from the swamp repo, while the
+agent reads the `files` relative to `workingDir`. Without `workingDir`, the
+agent runs in the swamp repo as before.
+
+### Resume a Session
+
+With the claude provider, `run` takes an optional `resumeSessionId` to continue
+an earlier session (`--resume`) instead of starting from a fresh context, for
+example after a run stopped on a usage limit. Pass the `sessionId` from that
+run's `runResult`:
+
+```bash
+swamp model method run reviewer run \
+  --input prompt="Continue where you left off" \
+  --input resumeSessionId=ddd38c40-9c35-4615-9e54-ed2616359d50 \
+  --input workingDir=worktrees/item-42 \
+  --json
+```
+
+claude finds a session by the directory it ran in, so resume with the same
+`workingDir` as the original run; `runResult` records it as `workingDir`. The
+codex provider can't resume (it runs with `--ephemeral` and saves no session),
+so `resumeSessionId` with codex fails before anything runs.
+
 ### Use in CI (Forgejo / GitHub Actions)
 
 Set `ANTHROPIC_API_KEY` (or `CODEX_API_KEY`) as a CI secret. The extension reads
@@ -219,6 +263,12 @@ output:
 
     # Post the review body as a PR comment
     echo "$RESULT" | jq -r '.body' > review-body.md
+
+    # A usage or rate limit stopped the review: retry later
+    if [ "$(echo "$RESULT" | jq -r '.capacityStop // false')" = "true" ]; then
+      echo "::warning::Review stopped on a usage limit"
+      exit 1
+    fi
 
     # Gate the merge on the verdict
     VERDICT=$(echo "$RESULT" | jq -r '.verdict')
@@ -261,6 +311,13 @@ swamp data query reviewer 'tags.verdict == "fail"'
 When the agent CLI reports token usage, the result also carries a `usage`
 object; see [Run Output](#run-output).
 
+A review that stopped on a usage limit, rate limit or overloaded API before it
+finished is recorded with `capacityStop: true` and a `capacityStop` tag, with
+`verdict` `fail`, `highestSeverity` `none` and no findings, rather than as a
+failed review with a critical finding. The verdict stays `fail` so an unfinished
+review never passes a gate. Check `capacityStop` to retry later instead of
+treating the change as broken; see [Capacity Stops](#capacity-stops).
+
 ## Run Output
 
 The `run` method writes a `runResult` resource:
@@ -270,6 +327,7 @@ The `run` method writes a `runResult` resource:
   "output": "The authentication flow starts in src/auth.ts ...",
   "exitCode": 0,
   "sessionId": "ddd38c40-9c35-4615-9e54-ed2616359d50",
+  "workingDir": "/home/me/repo",
   "usage": {
     "model": "claude-sonnet-4-6",
     "inputTokens": 12,
@@ -303,6 +361,9 @@ codex thread id (codex runs with `--ephemeral`, so its session is not saved). It
 is on both `runResult` and `reviewResult`, and absent when the CLI reported
 none.
 
+`workingDir` is the absolute directory the agent ran in (the swamp repo unless
+`workingDir` was passed). Use it to [resume a session](#resume-a-session).
+
 The JSON output needs Claude Code 1.0.37 or later (the oldest release the
 extension can download) and Codex 0.122.0 or later (the oldest that accepts the
 `--ignore-user-config` and `--ignore-rules` flags the extension already passes).
@@ -330,6 +391,25 @@ The `agent.run` tracing span carries the session id as
 `agent_runner.usage.<field>` (`model`, `input_tokens`, `output_tokens`,
 `cache_read_tokens`, `cache_write_tokens`, `reasoning_output_tokens`,
 `cost_usd`, `num_turns`, `duration_ms`, `duration_api_ms`).
+
+### Capacity Stops
+
+When a run stops because the account or the API is out of capacity, rather than
+because the work failed, `runResult` and `reviewResult` carry
+`capacityStop: true` and a `capacityStop` tag. A workflow can select those runs
+and retry them later:
+
+```bash
+swamp data query reviewer 'tags.capacityStop == "true"'
+```
+
+A run counts as a capacity stop when it errored and the CLI reported a
+subscription usage limit, an API rate limit (HTTP 429) or an overloaded API
+(HTTP 529): from claude's error result (`is_error` with `api_error_status` or
+the message), from codex's failed-turn and error events, or from stderr on a
+non-zero exit. A successful run is never flagged, even when its reply mentions
+rate limits. Detection reads the CLI's wording, so a limit worded in a way it
+doesn't recognize is recorded as an ordinary failure, as before.
 
 ## Providers
 
@@ -433,8 +513,9 @@ The `authCommand` and `authArgs` keys need a Codex CLI version that supports
 
 The extension downloads and caches agent CLI binaries automatically. On first
 run, it fetches the binary for the configured `version` and platform and caches
-it under `.swamp/agent-runner/bin/<provider>/<version>/`. Subsequent runs use
-the cache.
+it under `.swamp/agent-runner/bin/<provider>/<version>/` in the swamp repo.
+Subsequent runs use the cache. The cache stays in the swamp repo when
+`workingDir` points the agent at another directory.
 
 - **Claude** downloads the single `claude` binary (`claude.exe` on Windows) and
   verifies it against the SHA-256 checksum in the release's `manifest.json`. If

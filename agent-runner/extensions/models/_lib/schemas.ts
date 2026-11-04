@@ -68,6 +68,27 @@ const SessionIdSchema = z.string().optional()
   );
 export type ModelUsage = z.infer<typeof ModelUsageSchema>;
 
+const WorkingDirSchema = z.string().min(1)
+  .describe(
+    "Directory the agent runs in, such as a git worktree. A relative path " +
+      "is resolved against the swamp repo. The CLI is still cached in the " +
+      "swamp repo, so this directory is left untouched. Defaults to the " +
+      "swamp repo",
+  );
+
+const AdditionalDirsSchema = z.array(z.string().min(1))
+  .describe(
+    "Extra directories the agent may access (--add-dir). Relative paths " +
+      "are resolved against the swamp repo",
+  );
+
+const CapacityStopSchema = z.boolean().optional()
+  .describe(
+    "true when the run stopped on a usage limit, a rate limit (HTTP 429) " +
+      "or an overloaded API (HTTP 529) rather than failing; retry later. " +
+      "Absent otherwise",
+  );
+
 export const FindingSchema = z.object({
   severity: z.enum(["critical", "high", "medium", "low"]),
   file: z.string(),
@@ -91,6 +112,7 @@ export const ReviewResultSchema = AgentReviewOutputSchema.extend({
     .describe("Effort the agent ran with, when one was set"),
   sessionId: SessionIdSchema,
   usage: AgentUsageSchema.optional(),
+  capacityStop: CapacityStopSchema,
 });
 
 export const ReviewProfileSchema = z.object({
@@ -119,7 +141,8 @@ export const ReviewArgsSchema = z.object({
   files: z.array(z.string()).optional()
     .describe(
       "List of files to include in the review. The agent reads each file " +
-        "individually using CLI tools. Required when diff is not provided",
+        "individually using CLI tools, relative to workingDir. Required " +
+        "when diff is not provided",
     ),
   diff: z.string().min(1).optional()
     .describe(
@@ -131,6 +154,8 @@ export const ReviewArgsSchema = z.object({
     .describe("Whether the agent should have read-only access"),
   providerConfig: z.record(z.string(), z.unknown()).optional()
     .describe("Provider-specific config (overrides profile if both given)"),
+  workingDir: WorkingDirSchema.optional(),
+  additionalDirs: AdditionalDirsSchema.optional(),
 });
 
 export type ReviewArgs = z.infer<typeof ReviewArgsSchema>;
@@ -145,6 +170,16 @@ export const RunArgsSchema = z.object({
     .describe("Whether the agent should have read-only access"),
   providerConfig: z.record(z.string(), z.unknown()).optional()
     .describe("Provider-specific configuration"),
+  workingDir: WorkingDirSchema.optional(),
+  additionalDirs: AdditionalDirsSchema.optional(),
+  // Starts with a letter or digit, so the CLI never reads it as a flag.
+  resumeSessionId: z.string().regex(/^[A-Za-z0-9][A-Za-z0-9_-]*$/).optional()
+    .describe(
+      "claude only: continue this session (--resume), such as the " +
+        "sessionId of a run stopped by a usage limit. claude finds a " +
+        "session by the directory it ran in, so use the same workingDir " +
+        "as that run",
+    ),
 });
 
 export type RunArgs = z.infer<typeof RunArgsSchema>;
@@ -156,4 +191,11 @@ export const RunResultSchema = z.object({
     .describe("Effort the agent ran with, when one was set"),
   sessionId: SessionIdSchema,
   usage: AgentUsageSchema.optional(),
+  workingDir: z.string().optional()
+    .describe(
+      "Absolute directory the agent ran in. A resume (resumeSessionId) must " +
+        "run in the same directory, since claude stores sessions per " +
+        "directory",
+    ),
+  capacityStop: CapacityStopSchema,
 });

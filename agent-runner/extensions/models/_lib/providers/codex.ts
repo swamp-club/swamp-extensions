@@ -8,6 +8,7 @@ import type {
 } from "../types.ts";
 import type { ModelUsage } from "../schemas.ts";
 import { binaryFileName, isWindows } from "../platform.ts";
+import { isCapacityMessage } from "../capacity.ts";
 import {
   compact,
   isObject,
@@ -87,6 +88,8 @@ export const codexProvider: AgentProvider = {
   name: "codex",
   defaultApiKeyEnvVar: CODEX_API_KEY_ENV,
   supportsCliAuth: true,
+  // exec runs with --ephemeral, so codex keeps no session to resume.
+  supportsResume: false,
   writesFinalMessage: true,
   configSchema: CodexConfigSchema,
 
@@ -267,6 +270,9 @@ export function parseCodexOutput(
   let sessionId: string | undefined;
   const turns: ModelUsage[] = [];
   let reasoning: number | undefined;
+  let completed = false;
+  let failed = false;
+  const errorMessages: string[] = [];
   for (const event of events) {
     if (
       event.type === "thread.started" && typeof event.thread_id === "string"
@@ -279,22 +285,32 @@ export function parseCodexOutput(
       typeof event.item.text === "string"
     ) {
       text = event.item.text;
-    } else if (event.type === "turn.completed" && isObject(event.usage)) {
-      const input = nonNegative(event.usage.input_tokens);
-      const cached = nonNegative(event.usage.cached_input_tokens);
-      // Codex counts cached input inside input_tokens; inputTokens is the
-      // uncached part, as it is for Claude.
-      turns.push({
-        inputTokens: input === undefined
-          ? undefined
-          : Math.max(0, input - (cached ?? 0)),
-        outputTokens: nonNegative(event.usage.output_tokens),
-        cacheReadTokens: cached,
-        cacheWriteTokens: nonNegative(event.usage.cache_write_input_tokens),
-      });
-      const turnReasoning = nonNegative(event.usage.reasoning_output_tokens);
-      if (turnReasoning !== undefined) {
-        reasoning = (reasoning ?? 0) + turnReasoning;
+    } else if (event.type === "error" && typeof event.message === "string") {
+      errorMessages.push(event.message);
+    } else if (event.type === "turn.failed") {
+      failed = true;
+      if (isObject(event.error) && typeof event.error.message === "string") {
+        errorMessages.push(event.error.message);
+      }
+    } else if (event.type === "turn.completed") {
+      completed = true;
+      if (isObject(event.usage)) {
+        const input = nonNegative(event.usage.input_tokens);
+        const cached = nonNegative(event.usage.cached_input_tokens);
+        // Codex counts cached input inside input_tokens; inputTokens is the
+        // uncached part, as it is for Claude.
+        turns.push({
+          inputTokens: input === undefined
+            ? undefined
+            : Math.max(0, input - (cached ?? 0)),
+          outputTokens: nonNegative(event.usage.output_tokens),
+          cacheReadTokens: cached,
+          cacheWriteTokens: nonNegative(event.usage.cache_write_input_tokens),
+        });
+        const turnReasoning = nonNegative(event.usage.reasoning_output_tokens);
+        if (turnReasoning !== undefined) {
+          reasoning = (reasoning ?? 0) + turnReasoning;
+        }
       }
     }
   }
@@ -308,10 +324,15 @@ export function parseCodexOutput(
     reasoningOutputTokens: reasoning,
     numTurns: turns.length > 0 ? turns.length : undefined,
   });
+  // An error event alone may be a retry that later succeeded; only a run that
+  // failed, or never completed a turn, counts as a capacity stop.
+  const errored = failed || (errorMessages.length > 0 && !completed);
+  const capacityStop = errored && errorMessages.some(isCapacityMessage);
   return {
     text,
     ...(sessionId ? { sessionId } : {}),
     ...(reportsUsage(usage) ? { usage } : {}),
+    ...(capacityStop ? { capacityStop: true } : {}),
   };
 }
 

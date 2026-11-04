@@ -788,3 +788,49 @@ Deno.test("codex: parseOutput returns output with no events as raw text", () => 
     assertEquals(parseCodexOutput(stdout, "gpt-5.5"), { text: stdout });
   }
 });
+
+// ---------------------------------------------------------------------------
+// Resume and capacity stops
+// ---------------------------------------------------------------------------
+
+Deno.test("codex: does not support resume", () => {
+  assertEquals(codexProvider.supportsResume, false);
+});
+
+// FAILED_EVENTS above with the 401 swapped for a rate-limit status.
+const RATE_LIMITED_EVENTS = [
+  '{"type":"thread.started","thread_id":"01a187dd-1074-7fe0-88b1-540ae1b82032"}',
+  '{"type":"turn.started"}',
+  '{"type":"error","message":"Reconnecting... 2/5 (unexpected status 429 Too Many Requests)"}',
+  '{"type":"turn.failed","error":{"message":"exceeded retry limit, last status: 429 Too Many Requests"}}',
+].join("\n") + "\n";
+
+Deno.test("codex: a turn that failed on a rate limit is a capacity stop", () => {
+  const parsed = parseCodexOutput(RATE_LIMITED_EVENTS, "gpt-5.5");
+
+  assertEquals(parsed.capacityStop, true);
+  assertEquals(parsed.sessionId, "01a187dd-1074-7fe0-88b1-540ae1b82032");
+});
+
+Deno.test("codex: a usage-limit error with no completed turn is a capacity stop", () => {
+  const stdout = [
+    '{"type":"thread.started","thread_id":"01a187dd-1074-7fe0-88b1-540ae1b82032"}',
+    '{"type":"error","message":"You\'ve hit your usage limit. Try again in 2 days."}',
+  ].join("\n") + "\n";
+
+  assertEquals(parseCodexOutput(stdout, undefined).capacityStop, true);
+});
+
+Deno.test("codex: a rate-limit retry that later succeeds is not a capacity stop", () => {
+  const lines = SUCCESS_EVENTS.trimEnd().split("\n");
+  const stdout = [
+    lines[0],
+    lines[1],
+    '{"type":"error","message":"Reconnecting... 1/5 (unexpected status 429 Too Many Requests)"}',
+    ...lines.slice(2),
+  ].join("\n") + "\n";
+
+  const parsed = parseCodexOutput(stdout, undefined);
+  assertEquals(parsed.text, "hi");
+  assertEquals(parsed.capacityStop, undefined);
+});

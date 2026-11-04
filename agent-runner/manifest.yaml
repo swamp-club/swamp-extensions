@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/agent-runner"
-version: "2026.10.29.1"
+version: "2026.11.04.1"
 license: "AGPL-3.0-or-later"
 description: |
   Run AI coding agents (Claude, Codex) with structured output for CI
@@ -22,6 +22,13 @@ description: |
   Both methods accept optional `model` and `effort` arguments (`effort` is
   low, medium, high, xhigh or max, passed as claude `--effort` or codex
   `model_reasoning_effort`).
+
+  Both also accept an optional `workingDir` (the directory the agent runs in,
+  such as a git worktree; the CLI stays cached in the swamp repo) and
+  `additionalDirs` (`--add-dir`). With claude, `run` can continue an earlier
+  session with `resumeSessionId` (`--resume`). A run stopped by a usage limit,
+  rate limit or overloaded API is marked with `capacityStop` and a
+  `capacityStop` tag, so a workflow can retry it later.
 
   Both results carry a `usage` object with the token counts (and, for
   claude, the cost in USD) that the agent CLI reported, per model and in

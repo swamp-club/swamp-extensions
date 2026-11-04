@@ -7,6 +7,7 @@ import type {
 } from "../types.ts";
 import type { AgentUsage, ModelUsage } from "../schemas.ts";
 import { binaryFileName, isWindows } from "../platform.ts";
+import { isCapacityMessage } from "../capacity.ts";
 import {
   compact,
   isObject,
@@ -94,6 +95,7 @@ export const claudeProvider: AgentProvider = {
   name: "claude",
   defaultApiKeyEnvVar: "ANTHROPIC_API_KEY",
   supportsCliAuth: true,
+  supportsResume: true,
   writesFinalMessage: false,
   configSchema: ClaudeConfigSchema,
 
@@ -175,6 +177,10 @@ export const claudeProvider: AgentProvider = {
       args.push("--effort", request.effort);
     }
 
+    if (request.resumeSessionId) {
+      args.push("--resume", request.resumeSessionId);
+    }
+
     for (const dir of request.additionalDirs) {
       args.push("--add-dir", dir);
     }
@@ -237,7 +243,16 @@ export function parseClaudeOutput(stdout: string): ParsedAgentOutput {
       ? { sessionId: envelope.session_id }
       : {}),
     ...(usage ? { usage } : {}),
+    ...(isClaudeCapacityStop(envelope, text) ? { capacityStop: true } : {}),
   };
+}
+
+// An error envelope whose API status or message says the run hit a usage
+// limit, a rate limit or an overloaded API.
+function isClaudeCapacityStop(envelope: JsonObject, text: string): boolean {
+  if (envelope.is_error !== true) return false;
+  const status = envelope.api_error_status;
+  return status === 429 || status === 529 || isCapacityMessage(text);
 }
 
 function claudeUsage(envelope: JsonObject): AgentUsage | undefined {

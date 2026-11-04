@@ -5,6 +5,8 @@ import { Attr, getTracer } from "./tracing.ts";
 import { type Span, SpanStatusCode } from "npm:@opentelemetry/api@1.9.0";
 import type { AgentUsage, Effort, GlobalArgs } from "./schemas.ts";
 import { getProvider } from "./providers/registry.ts";
+import { resolveDir, resolveDirs } from "./dirs.ts";
+import { isCapacityMessage } from "./capacity.ts";
 
 const CACHE_DIR_NAME = ".swamp/agent-runner/bin";
 
@@ -13,10 +15,17 @@ export interface RunAgentOptions {
   readonly prompt: string;
   readonly model: string | undefined;
   readonly effort?: Effort;
+  /**
+   * The swamp repo. The CLI is cached under it, whatever workingDir is, and
+   * relative workingDir and additionalDirs are resolved against it.
+   */
+  readonly repoDir: string;
+  /** Directory the agent runs in. */
   readonly workingDir: string;
-  readonly additionalDirs: string[];
+  readonly additionalDirs: readonly string[];
   readonly outputPath: string;
   readonly readOnly: boolean;
+  readonly resumeSessionId?: string;
   readonly providerConfig: Record<string, unknown>;
   readonly logger: AgentRunnerLogger;
   readonly signal: AbortSignal;
@@ -29,12 +38,18 @@ export interface AgentOutput {
   readonly exitCode: number;
   readonly sessionId?: string;
   readonly usage?: AgentUsage;
+  /** The absolute directory the agent ran in. */
+  readonly workingDir: string;
+  /** The run errored because of a usage limit, rate limit or overload. */
+  readonly capacityStop?: boolean;
 }
 
 export async function runAgent(opts: RunAgentOptions): Promise<AgentOutput> {
   const provider = getProvider(opts.globalArgs.provider);
   const platform = detectPlatform();
-  const cacheDir = `${opts.workingDir}/${CACHE_DIR_NAME}`;
+  // Rooted at the swamp repo, not workingDir, so a worktree the agent runs in
+  // is never left with a downloaded CLI in it.
+  const cacheDir = `${opts.repoDir}/${CACHE_DIR_NAME}`;
 
   return await getTracer().startActiveSpan("agent.run", async (span) => {
     span.setAttribute(Attr.PROVIDER, provider.name);
@@ -47,15 +62,36 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentOutput> {
     }
 
     try {
+      // Checked before anything is resolved, built or downloaded.
+      if (opts.resumeSessionId && !provider.supportsResume) {
+        throw new Error(
+          `Provider '${provider.name}' cannot resume a session: codex runs ` +
+            `with --ephemeral and keeps no session. Omit resumeSessionId.`,
+        );
+      }
+      const workingDir = await resolveDir(
+        opts.workingDir,
+        opts.repoDir,
+        "workingDir",
+      );
+      const additionalDirs = await resolveDirs(
+        opts.additionalDirs,
+        opts.repoDir,
+        "additionalDirs entry",
+      );
+
       const request: AgentRunRequest = {
         prompt: opts.prompt,
         model: opts.model,
         effort: opts.effort,
         auth: opts.globalArgs.auth,
-        workingDir: opts.workingDir,
-        additionalDirs: opts.additionalDirs,
+        workingDir,
+        additionalDirs,
         outputPath: opts.outputPath,
         readOnly: opts.readOnly,
+        ...(opts.resumeSessionId
+          ? { resumeSessionId: opts.resumeSessionId }
+          : {}),
       };
 
       // Arguments are built first so a bad provider config fails before the
@@ -87,7 +123,7 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentOutput> {
 
       const command = new Deno.Command(binaryPath, {
         args,
-        cwd: opts.workingDir,
+        cwd: workingDir,
         clearEnv: true,
         env: buildSubprocessEnv(envVarName, apiKey, opts.readOnly),
         stdout: "piped",
@@ -103,6 +139,8 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentOutput> {
       );
       const stderr = new TextDecoder().decode(output.stderr);
       const exitCode = output.code;
+      const capacityStop = parsed.capacityStop === true ||
+        (exitCode !== 0 && isCapacityMessage(stderr));
 
       span.setAttribute(Attr.EXIT_CODE, exitCode);
       if (parsed.sessionId) {
@@ -119,12 +157,20 @@ export async function runAgent(opts: RunAgentOptions): Promise<AgentOutput> {
         }
       }
 
+      if (capacityStop) {
+        opts.logger.warn(
+          "Agent stopped on a usage limit, rate limit or overloaded API",
+        );
+      }
+
       return {
         stdout: parsed.text,
         stderr,
         exitCode,
+        workingDir,
         ...(parsed.sessionId ? { sessionId: parsed.sessionId } : {}),
         ...(parsed.usage ? { usage: parsed.usage } : {}),
+        ...(capacityStop ? { capacityStop: true } : {}),
       };
     } catch (error) {
       span.setStatus({

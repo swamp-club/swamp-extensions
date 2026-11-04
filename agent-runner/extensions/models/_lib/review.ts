@@ -72,13 +72,15 @@ export async function executeReview(
         ? injectDiffModeTools(globalArgs.provider, providerConfig)
         : providerConfig;
 
+      const repoDir = Deno.cwd();
       const output = await runAgent({
         globalArgs,
         prompt,
         model,
         effort: args.effort,
-        workingDir: Deno.cwd(),
-        additionalDirs: [outputDir],
+        repoDir,
+        workingDir: args.workingDir ?? repoDir,
+        additionalDirs: [...(args.additionalDirs ?? []), outputDir],
         outputPath,
         readOnly,
         providerConfig: effectiveProviderConfig,
@@ -86,12 +88,18 @@ export async function executeReview(
         signal: ctx.signal,
       });
 
-      const parsed = await parseResult(outputPath, output.stdout, ctx);
+      // A run stopped by a usage or rate limit never finished the review.
+      // It is recorded as such, not as a failed review with a critical
+      // finding a gate couldn't tell apart from a real one.
+      const parsed = output.capacityStop
+        ? capacityStopResult(output.stdout)
+        : await parseResult(outputPath, output.stdout, ctx);
       const result: ReviewResult = {
         ...parsed,
         ...(args.effort ? { effort: args.effort } : {}),
         ...(output.sessionId ? { sessionId: output.sessionId } : {}),
         ...(output.usage ? { usage: output.usage } : {}),
+        ...(output.capacityStop ? { capacityStop: true } : {}),
       };
 
       span.setAttribute(Attr.VERDICT, result.verdict);
@@ -108,6 +116,7 @@ export async function executeReview(
             provider: provider.name,
             ...(model ? { model } : {}),
             ...(args.effort ? { effort: args.effort } : {}),
+            ...(output.capacityStop ? { capacityStop: "true" } : {}),
           },
         },
       );
@@ -230,6 +239,20 @@ export function injectDiffModeTools(
       ...providerSpecific,
       allowedTools: allowed,
     },
+  };
+}
+
+// verdict stays fail so an unfinished review never passes a gate; capacityStop
+// and highestSeverity none tell a retry-later apart from a real failure.
+function capacityStopResult(agentMessage: string): ReviewResult {
+  const detail = agentMessage.trim();
+  return {
+    verdict: "fail",
+    body: "The agent stopped on a usage limit, rate limit or overloaded API " +
+      "before finishing the review. Retry later." +
+      (detail ? `\n\nAgent message: ${detail}` : ""),
+    findings: [],
+    highestSeverity: "none",
   };
 }
 
