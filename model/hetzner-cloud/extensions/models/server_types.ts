@@ -43,7 +43,6 @@ const ResourceSchema = z.object({
   cores: z.number().optional(),
   memory: z.number().optional(),
   disk: z.number().optional(),
-  deprecated: z.boolean().optional(),
   prices: z.array(z.object({
     location: z.string().optional(),
     price_hourly: z.object({
@@ -83,7 +82,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud server type. Registered at `@swamp/hetzner-cloud/server-types`. */
 export const model = {
   type: "@swamp/hetzner-cloud/server-types",
-  version: "2026.10.23.1",
+  version: "2026.11.03.1",
   upgrades: [
     {
       toVersion: "2026.06.10.2",
@@ -117,6 +116,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

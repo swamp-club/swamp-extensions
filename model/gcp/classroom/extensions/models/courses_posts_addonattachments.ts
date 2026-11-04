@@ -325,6 +325,7 @@ const StateSchema = z.object({
     nanos: z.number(),
     seconds: z.number(),
   }).optional(),
+  gradeSyncEnabled: z.boolean().optional(),
   id: z.string().optional(),
   itemId: z.string().optional(),
   maxPoints: z.number().optional(),
@@ -446,7 +447,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Classroom Courses.Posts.AddOnAttachments. Registered at `@swamp/gcp/classroom/courses-posts-addonattachments`. */
 export const model = {
   type: "@swamp/gcp/classroom/courses-posts-addonattachments",
-  version: "2026.10.23.1",
+  version: "2026.11.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -585,6 +586,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

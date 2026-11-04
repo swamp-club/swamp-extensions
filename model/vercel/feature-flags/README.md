@@ -17,8 +17,8 @@ that reflect the live state in Vercel. Available methods:
 - **delete** — remove the resource from Vercel
 - **sync** — refresh all resource properties from the API
 
-Use `swamp model type describe @swamp/vercel/feature-flags/flags` to see the
-full list of configurable properties and available methods for this model.
+Use `swamp model type describe @swamp/vercel/feature-flags/connections` to see
+the full list of configurable properties and available methods for this model.
 
 ## Authentication
 
@@ -87,16 +87,16 @@ stored copy. Before removing those versions, save each value to a vault with
 swamp extension install @swamp/vercel/feature-flags
 
 # Create a model instance
-swamp model create @swamp/vercel/feature-flags/flags my-flags
+swamp model create @swamp/vercel/feature-flags/connections my-connections
 
 # Configure it
-swamp model edit my-flags
+swamp model edit my-connections
 
 # Create the resource in Vercel
-swamp model method run my-flags create
+swamp model method run my-connections create
 
 # Sync current state from Vercel
-swamp model method run my-flags sync
+swamp model method run my-connections sync
 ```
 
 ## License

@@ -40,15 +40,25 @@ import {
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
   name: z.string().describe("The name of the share.").optional(),
+  tags: z.record(z.string(), z.unknown()).describe(
+    "Tags associated with the share.",
+  ).optional(),
+  excluded_recipients: z.array(z.object({
+    account_id: z.string(),
+  })).describe(
+    "Accounts to exclude from an organization-targeted share. Only allowed when `recipients` contains no account entries. The share owner cannot be excluded. Duplicate entries are ignored.",
+  ).optional(),
   recipients: z.array(z.object({
     account_id: z.string().optional(),
-    organization_id: z.string().max(32).optional(),
+    organization_id: z.string().min(32).max(32).regex(
+      new RegExp("^[0-9a-fA-F]{32}$"),
+    ).optional(),
     recipient_account_id: z.string().optional(),
   })).optional(),
   resources: z.array(z.object({
     meta: z.record(z.string(), z.unknown()),
-    resource_account_id: z.string().max(32),
-    resource_id: z.string().max(32),
+    resource_account_id: z.string(),
+    resource_id: z.string(),
     resource_type: z.enum([
       "custom-ruleset",
       "gateway-policy",
@@ -83,8 +93,19 @@ const ResourceSchema = z.object({
   modified: z.string().optional(),
   name: z.string().optional(),
   organization_id: z.string().optional(),
-  resources: z.array(z.string()).optional(),
+  resources: z.array(z.object({
+    created: z.string().optional(),
+    id: z.string().optional(),
+    meta: z.record(z.string(), z.unknown()).optional(),
+    modified: z.string().optional(),
+    resource_account_id: z.string().optional(),
+    resource_id: z.string().optional(),
+    resource_type: z.string().optional(),
+    resource_version: z.number().optional(),
+    status: z.string().optional(),
+  })).optional(),
   status: z.string().optional(),
+  tags: z.record(z.string(), z.unknown()).optional(),
   target_type: z.string().optional(),
 }).passthrough();
 
@@ -93,15 +114,21 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 const InputsSchema = z.object({
   account_id: z.string().optional(),
   name: z.string().optional(),
+  tags: z.record(z.string(), z.unknown()).optional(),
+  excluded_recipients: z.array(z.object({
+    account_id: z.string(),
+  })).optional(),
   recipients: z.array(z.object({
     account_id: z.string().optional(),
-    organization_id: z.string().max(32).optional(),
+    organization_id: z.string().min(32).max(32).regex(
+      new RegExp("^[0-9a-fA-F]{32}$"),
+    ).optional(),
     recipient_account_id: z.string().optional(),
   })).optional(),
   resources: z.array(z.object({
     meta: z.record(z.string(), z.unknown()),
-    resource_account_id: z.string().max(32),
-    resource_id: z.string().max(32),
+    resource_account_id: z.string(),
+    resource_id: z.string(),
     resource_type: z.enum([
       "custom-ruleset",
       "gateway-policy",
@@ -120,7 +147,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Shares. Registered at `@swamp/cloudflare/shares/shares`. */
 export const model = {
   type: "@swamp/cloudflare/shares/shares",
-  version: "2026.10.23.1",
+  version: "2026.11.03.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -172,6 +199,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.03.1",
+      description: "Added: tags, excluded_recipients",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -199,9 +231,7 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
-        const missing = ["name", "recipients", "resources"].filter((k) =>
-          g[k] === undefined
-        );
+        const missing = ["name"].filter((k) => g[k] === undefined);
         if (missing.length > 0) {
           throw new Error(
             "create requires global arguments: " + missing.join(", "),
@@ -209,9 +239,13 @@ export const model = {
         }
         const endpoint = "/accounts/" + g.account_id + "/shares";
         const body: Record<string, unknown> = {};
+        if (g.excluded_recipients !== undefined) {
+          body.excluded_recipients = g.excluded_recipients;
+        }
         if (g.name !== undefined) body.name = g.name;
         if (g.recipients !== undefined) body.recipients = g.recipients;
         if (g.resources !== undefined) body.resources = g.resources;
+        if (g.tags !== undefined) body.tags = g.tags;
         const result = await create(endpoint, body, {
           apiToken: g.apiToken,
           apiKey: g.apiKey,
@@ -386,7 +420,8 @@ export const model = {
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
-        const unset = ["name"].filter((k) => body[k] === undefined);
+        if (g.tags !== undefined) body.tags = g.tags;
+        const unset = ["name", "tags"].filter((k) => body[k] === undefined);
         if (unset.length > 0) {
           const live = await read(endpoint, existing.id, {
             apiToken: g.apiToken,

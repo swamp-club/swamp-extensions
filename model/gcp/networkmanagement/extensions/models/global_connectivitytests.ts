@@ -197,6 +197,9 @@ const GlobalArgsSchema = z.object({
     cloudSqlInstance: z.string().describe(
       "A [Cloud SQL](https://cloud.google.com/sql) instance URI.",
     ).optional(),
+    datastreamPrivateConnection: z.string().describe(
+      "A [Datastream Private Connection](https://docs.cloud.google.com/datastream/docs/reference/rest/v1/projects.locations.privateConnections) name format: projects/{project}/locations/{location}/privateConnections/{privateConnection}.",
+    ).optional(),
     dmsPrivateConnection: z.string().describe(
       "A [DMS Private Connection](https://docs.cloud.google.com/database-migration/docs/reference/rest/v1/projects.locations.privateConnections) name format: projects/{project}/locations/{location}/privateConnections/{privateConnection}.",
     ).optional(),
@@ -315,6 +318,9 @@ const GlobalArgsSchema = z.object({
     cloudSqlInstance: z.string().describe(
       "A [Cloud SQL](https://cloud.google.com/sql) instance URI.",
     ).optional(),
+    datastreamPrivateConnection: z.string().describe(
+      "A [Datastream Private Connection](https://docs.cloud.google.com/datastream/docs/reference/rest/v1/projects.locations.privateConnections) name format: projects/{project}/locations/{location}/privateConnections/{privateConnection}.",
+    ).optional(),
     dmsPrivateConnection: z.string().describe(
       "A [DMS Private Connection](https://docs.cloud.google.com/database-migration/docs/reference/rest/v1/projects.locations.privateConnections) name format: projects/{project}/locations/{location}/privateConnections/{privateConnection}.",
     ).optional(),
@@ -415,6 +421,7 @@ const StateSchema = z.object({
       uri: z.string(),
     }),
     cloudSqlInstance: z.string(),
+    datastreamPrivateConnection: z.string(),
     dmsPrivateConnection: z.string(),
     forwardingRule: z.string(),
     forwardingRuleTarget: z.string(),
@@ -631,6 +638,7 @@ const StateSchema = z.object({
       uri: z.string(),
     }),
     cloudSqlInstance: z.string(),
+    datastreamPrivateConnection: z.string(),
     dmsPrivateConnection: z.string(),
     forwardingRule: z.string(),
     forwardingRuleTarget: z.string(),
@@ -696,6 +704,9 @@ const InputsSchema = z.object({
     ).optional(),
     cloudSqlInstance: z.string().describe(
       "A [Cloud SQL](https://cloud.google.com/sql) instance URI.",
+    ).optional(),
+    datastreamPrivateConnection: z.string().describe(
+      "A [Datastream Private Connection](https://docs.cloud.google.com/datastream/docs/reference/rest/v1/projects.locations.privateConnections) name format: projects/{project}/locations/{location}/privateConnections/{privateConnection}.",
     ).optional(),
     dmsPrivateConnection: z.string().describe(
       "A [DMS Private Connection](https://docs.cloud.google.com/database-migration/docs/reference/rest/v1/projects.locations.privateConnections) name format: projects/{project}/locations/{location}/privateConnections/{privateConnection}.",
@@ -815,6 +826,9 @@ const InputsSchema = z.object({
     cloudSqlInstance: z.string().describe(
       "A [Cloud SQL](https://cloud.google.com/sql) instance URI.",
     ).optional(),
+    datastreamPrivateConnection: z.string().describe(
+      "A [Datastream Private Connection](https://docs.cloud.google.com/datastream/docs/reference/rest/v1/projects.locations.privateConnections) name format: projects/{project}/locations/{location}/privateConnections/{privateConnection}.",
+    ).optional(),
     dmsPrivateConnection: z.string().describe(
       "A [DMS Private Connection](https://docs.cloud.google.com/database-migration/docs/reference/rest/v1/projects.locations.privateConnections) name format: projects/{project}/locations/{location}/privateConnections/{privateConnection}.",
     ).optional(),
@@ -924,7 +938,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Management Global.ConnectivityTests. Registered at `@swamp/gcp/networkmanagement/global-connectivitytests`. */
 export const model = {
   type: "@swamp/gcp/networkmanagement/global-connectivitytests",
-  version: "2026.10.23.1",
+  version: "2026.11.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1187,6 +1201,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

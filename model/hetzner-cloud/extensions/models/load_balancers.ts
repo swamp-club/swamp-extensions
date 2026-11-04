@@ -146,7 +146,6 @@ const ResourceSchema = z.object({
     max_services: z.number().optional(),
     max_targets: z.number().optional(),
     max_assigned_certificates: z.number().optional(),
-    deprecated: z.unknown().optional(),
     deprecation: z.unknown().optional(),
     prices: z.array(z.object({
       location: z.string().optional(),
@@ -270,7 +269,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Hetzner Cloud load balancer. Registered at `@swamp/hetzner-cloud/load-balancers`. */
 export const model = {
   type: "@swamp/hetzner-cloud/load-balancers",
-  version: "2026.10.23.1",
+  version: "2026.11.03.1",
   upgrades: [
     {
       toVersion: "2026.04.03.1",
@@ -369,6 +368,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

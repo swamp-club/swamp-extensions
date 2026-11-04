@@ -58,7 +58,38 @@ const ResourceSchema = z.object({
   id: z.string(),
   modified_on: z.string().optional(),
   name: z.string().optional(),
-  policies: z.array(z.string()).optional(),
+  policies: z.array(z.object({
+    access: z.string().optional(),
+    id: z.string().optional(),
+    permission_groups: z.array(z.object({
+      id: z.string().optional(),
+      meta: z.object({
+        category: z.string().optional(),
+        deprecated: z.string().optional(),
+        description: z.string().optional(),
+        editable: z.string().optional(),
+        eol_at: z.string().optional(),
+        label: z.string().optional(),
+        scopes: z.string().optional(),
+        visibility: z.string().optional(),
+      }).optional(),
+      name: z.string().optional(),
+    })).optional(),
+    resource_groups: z.array(z.object({
+      id: z.string().optional(),
+      meta: z.object({
+        key: z.string().optional(),
+        value: z.string().optional(),
+      }).optional(),
+      name: z.string().optional(),
+      scope: z.object({
+        key: z.string().optional(),
+        objects: z.array(z.object({
+          key: z.string().optional(),
+        })).optional(),
+      }).optional(),
+    })).optional(),
+  })).optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -75,7 +106,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare User Groups. Registered at `@swamp/cloudflare/iam/user-groups`. */
 export const model = {
   type: "@swamp/cloudflare/iam/user-groups",
-  version: "2026.10.23.1",
+  version: "2026.11.03.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -119,6 +150,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -339,7 +375,7 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (g.name !== undefined) body.name = g.name;
         if (g.policies !== undefined) body.policies = g.policies;
-        const unset = ["name"].filter((k) => body[k] === undefined);
+        const unset = ["name", "policies"].filter((k) => body[k] === undefined);
         if (unset.length > 0) {
           const live = await read(endpoint, existing.id, {
             apiToken: g.apiToken,

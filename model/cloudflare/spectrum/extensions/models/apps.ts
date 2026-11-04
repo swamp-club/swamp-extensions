@@ -74,6 +74,12 @@ const GlobalArgsSchema = z.object({
   origin_worker_id: z.string().regex(new RegExp("^[0-9a-f]{32}$")).describe(
     'Optional Worker script tag (worker ID) to use as the application\'s origin. Only supported for TCP applications with traffic_type "worker"; mutually exclusive with origin_direct, origin_dns, origin_port, proxy_protocol, and argo_smart_routing. tls may only be "off" or "flexible".',
   ).optional(),
+  origin_worker_name: z.string().describe(
+    "Name of the Worker origin. Omitted when the Worker is not found or its name cannot be resolved.",
+  ).optional(),
+  origin_worker_status: z.enum(["available", "not_found", "unknown"]).describe(
+    "Lookup status of the Worker origin. Unknown indicates that its name could not be resolved. Only returned for Worker origins.",
+  ).optional(),
   protocol: z.string().describe(
     'The port configuration at Cloudflare\'s edge. May specify a single port, for example `"tcp/1000"`, or a range of ports, for example `"tcp/1000-2000"`.',
   ).optional(),
@@ -141,6 +147,8 @@ const ResourceSchema = z.object({
     }).optional(),
     origin_port: z.number().optional(),
     origin_worker_id: z.string().optional(),
+    origin_worker_name: z.string().optional(),
+    origin_worker_status: z.string().optional(),
     protocol: z.string().optional(),
     proxy_protocol: z.string().optional(),
     tls: z.string().optional(),
@@ -177,6 +185,9 @@ const InputsSchema = z.object({
   }).optional(),
   origin_port: z.number().int().optional(),
   origin_worker_id: z.string().regex(new RegExp("^[0-9a-f]{32}$")).optional(),
+  origin_worker_name: z.string().optional(),
+  origin_worker_status: z.enum(["available", "not_found", "unknown"])
+    .optional(),
   protocol: z.string().optional(),
   proxy_protocol: z.enum(["off", "v1", "v2", "simple"]).optional(),
   tls: z.enum(["off", "flexible", "full", "strict"]).optional(),
@@ -190,7 +201,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Apps. Registered at `@swamp/cloudflare/spectrum/apps`. */
 export const model = {
   type: "@swamp/cloudflare/spectrum/apps",
-  version: "2026.10.23.1",
+  version: "2026.11.03.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -267,6 +278,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.03.1",
+      description: "Added: origin_worker_name, origin_worker_status",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -317,6 +333,12 @@ export const model = {
         if (g.origin_port !== undefined) body.origin_port = g.origin_port;
         if (g.origin_worker_id !== undefined) {
           body.origin_worker_id = g.origin_worker_id;
+        }
+        if (g.origin_worker_name !== undefined) {
+          body.origin_worker_name = g.origin_worker_name;
+        }
+        if (g.origin_worker_status !== undefined) {
+          body.origin_worker_status = g.origin_worker_status;
         }
         if (g.protocol !== undefined) body.protocol = g.protocol;
         if (g.proxy_protocol !== undefined) {
@@ -397,6 +419,15 @@ export const model = {
         }
         if (g.origin_worker_id !== undefined) {
           filters.push(["origin_worker_id", String(g.origin_worker_id)]);
+        }
+        if (g.origin_worker_name !== undefined) {
+          filters.push(["origin_worker_name", String(g.origin_worker_name)]);
+        }
+        if (g.origin_worker_status !== undefined) {
+          filters.push([
+            "origin_worker_status",
+            String(g.origin_worker_status),
+          ]);
         }
         if (g.protocol !== undefined) {
           filters.push(["protocol", String(g.protocol)]);
@@ -545,6 +576,12 @@ export const model = {
         if (g.origin_port !== undefined) body.origin_port = g.origin_port;
         if (g.origin_worker_id !== undefined) {
           body.origin_worker_id = g.origin_worker_id;
+        }
+        if (g.origin_worker_name !== undefined) {
+          body.origin_worker_name = g.origin_worker_name;
+        }
+        if (g.origin_worker_status !== undefined) {
+          body.origin_worker_status = g.origin_worker_status;
         }
         if (g.protocol !== undefined) body.protocol = g.protocol;
         if (g.proxy_protocol !== undefined) {

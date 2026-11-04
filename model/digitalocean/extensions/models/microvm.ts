@@ -33,6 +33,7 @@ import {
   discover,
   read,
   remove,
+  subResourceUpdate,
   tryFindByField,
   tryRead,
 } from "./_lib/digitalocean.ts";
@@ -189,7 +190,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean microvm. Registered at `@swamp/digitalocean/microvm`. */
 export const model = {
   type: "@swamp/digitalocean/microvm",
-  version: "2026.10.23.1",
+  version: "2026.11.03.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -198,6 +199,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -363,6 +369,37 @@ export const model = {
           status: "not_found",
           syncedAt: new Date().toISOString(),
         });
+        return { dataHandles: [handle] };
+      },
+    },
+    files: {
+      description: "files the microvm",
+      arguments: z.object({
+        id: z.union([z.string(), z.number()]).describe("The ID of the microvm"),
+      }),
+      execute: async (args: { id: string | number }, context: any) => {
+        const body: Record<string, unknown> = {};
+        await subResourceUpdate(
+          "/v2/microvms",
+          args.id,
+          "files",
+          body,
+          "PUT",
+          context.globalArgs.token,
+        );
+        const result = await read(
+          "/v2/microvms",
+          args.id,
+          undefined,
+          context.globalArgs.token,
+        ) as ResourceData;
+        const instanceName = (result.name?.toString() ?? args.id.toString())
+          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
+        const handle = await context.writeResource(
+          "state",
+          instanceName,
+          result,
+        );
         return { dataHandles: [handle] };
       },
     },

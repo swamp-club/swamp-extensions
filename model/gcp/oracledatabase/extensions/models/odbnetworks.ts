@@ -170,7 +170,7 @@ const GlobalArgsSchema = z.object({
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
   gcpOracleZone: z.string().describe(
-    "Optional. The GCP Oracle zone where OdbNetwork is hosted. Example: us-east4-b-r2. If not specified, the system will pick a zone based on availability.",
+    "Optional. Immutable. The GCP Oracle zone where OdbNetwork is hosted. Example: us-east4-b-r2. If not specified, the system will pick a zone based on availability.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. Labels or tags associated with the resource.",
@@ -179,7 +179,7 @@ const GlobalArgsSchema = z.object({
     "Identifier. The name of the OdbNetwork resource in the following format: projects/{project}/locations/{region}/odbNetworks/{odb_network}",
   ).optional(),
   network: z.string().describe(
-    "Required. The name of the VPC network in the following format: projects/{project}/global/networks/{network}",
+    "Required. Immutable. The name of the VPC network in the following format: projects/{project}/global/networks/{network}",
   ).optional(),
   serviceConnectivityConfig: z.object({
     pscInterfaceConfig: z.object({
@@ -229,7 +229,7 @@ const InputsSchema = z.object({
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
   gcpOracleZone: z.string().describe(
-    "Optional. The GCP Oracle zone where OdbNetwork is hosted. Example: us-east4-b-r2. If not specified, the system will pick a zone based on availability.",
+    "Optional. Immutable. The GCP Oracle zone where OdbNetwork is hosted. Example: us-east4-b-r2. If not specified, the system will pick a zone based on availability.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. Labels or tags associated with the resource.",
@@ -238,7 +238,7 @@ const InputsSchema = z.object({
     "Identifier. The name of the OdbNetwork resource in the following format: projects/{project}/locations/{region}/odbNetworks/{odb_network}",
   ).optional(),
   network: z.string().describe(
-    "Required. The name of the VPC network in the following format: projects/{project}/global/networks/{network}",
+    "Required. Immutable. The name of the VPC network in the following format: projects/{project}/global/networks/{network}",
   ).optional(),
   serviceConnectivityConfig: z.object({
     pscInterfaceConfig: z.object({
@@ -288,7 +288,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud OdbNetworks. Registered at `@swamp/gcp/oracledatabase/odbnetworks`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/odbnetworks",
-  version: "2026.10.23.1",
+  version: "2026.11.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -427,6 +427,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -597,11 +602,7 @@ export const model = {
           );
         }
         const body: Record<string, unknown> = {};
-        if (g["gcpOracleZone"] !== undefined) {
-          body["gcpOracleZone"] = g["gcpOracleZone"];
-        }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
-        if (g["network"] !== undefined) body["network"] = g["network"];
         if (g["serviceConnectivityConfig"] !== undefined) {
           body["serviceConnectivityConfig"] = g["serviceConnectivityConfig"];
         }

@@ -21,7 +21,7 @@
 /**
  * Swamp extension model for Google Cloud Firebase App Check Jwks.
  *
- * The currently active set of public keys that can be used to verify App Check tokens. This object is a JWK set as specified by [section 5 of RFC 7517](https://tools.ietf.org/html/rfc7517#section-5). For security, the response **must not** be cached for longer than six hours.
+ * The currently active set of public keys that can be used to verify App Check tokens. This object is a JWK set as specified by [section 5 of RFC 7517](https://www.rfc-editor.org/info/rfc7517#section-5). For security, the response **must not** be cached for longer than six hours.
  *
  * Wraps the GCP resource as a swamp model so create, get, update,
  * delete, and sync can be driven through `swamp model`.
@@ -127,7 +127,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Firebase App Check Jwks. Registered at `@swamp/gcp/firebaseappcheck/jwks`. */
 export const model = {
   type: "@swamp/gcp/firebaseappcheck/jwks",
-  version: "2026.10.23.1",
+  version: "2026.11.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -246,6 +246,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

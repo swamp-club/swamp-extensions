@@ -110,6 +110,18 @@ const StateSchema = z.object({
       documentationUri: z.string(),
       type: z.string(),
     })),
+    riskAssessment: z.object({
+      entries: z.array(z.object({
+        provider: z.string(),
+        riskAssessment: z.object({
+          assessment: z.unknown(),
+          detailsUrl: z.unknown(),
+          version: z.unknown(),
+        }),
+        riskLevel: z.string(),
+      })),
+      overallRiskLevel: z.string(),
+    }),
     siteAccess: z.array(z.object({
       hostMatch: z.string(),
     })),
@@ -176,7 +188,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Chrome Management Customers.Apps.Web. Registered at `@swamp/gcp/chromemanagement/customers-apps-web`. */
 export const model = {
   type: "@swamp/gcp/chromemanagement/customers-apps-web",
-  version: "2026.10.23.1",
+  version: "2026.11.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -320,6 +332,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

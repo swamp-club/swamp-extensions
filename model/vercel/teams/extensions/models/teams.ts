@@ -295,6 +295,9 @@ const ResourceSchema = z.object({
     "flag-definitions-present": z.object({
       targets: z.array(z.string()).optional(),
     }).optional(),
+    "health-check": z.object({
+      targets: z.array(z.string()).optional(),
+    }).optional(),
     lint: z.object({
       targets: z.array(z.string()).optional(),
     }).optional(),
@@ -640,7 +643,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Teams. Registered at `@swamp/vercel/teams/teams`. */
 export const model = {
   type: "@swamp/vercel/teams/teams",
-  version: "2026.10.23.1",
+  version: "2026.11.03.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -769,6 +772,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

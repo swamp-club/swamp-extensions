@@ -161,7 +161,7 @@ const GlobalArgsSchema = z.object({
     "Email for the member. This is required for creating the member.",
   ).optional(),
   name: z.string().describe(
-    "Identifier. Resource name of the member. Format: spaces/{space}/members/{member}",
+    "Identifier. Resource name of the member. Format: `spaces/{space}/members/{member}`",
   ).optional(),
   role: z.enum(["ROLE_UNSPECIFIED", "COHOST"]).describe(
     "The meeting role assigned to the member.",
@@ -190,7 +190,7 @@ const InputsSchema = z.object({
     "Email for the member. This is required for creating the member.",
   ).optional(),
   name: z.string().describe(
-    "Identifier. Resource name of the member. Format: spaces/{space}/members/{member}",
+    "Identifier. Resource name of the member. Format: `spaces/{space}/members/{member}`",
   ).optional(),
   role: z.enum(["ROLE_UNSPECIFIED", "COHOST"]).describe(
     "The meeting role assigned to the member.",
@@ -226,7 +226,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Meet Spaces.Members. Registered at `@swamp/gcp/meet/spaces-members`. */
 export const model = {
   type: "@swamp/gcp/meet/spaces-members",
-  version: "2026.10.23.1",
+  version: "2026.11.03.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -235,6 +235,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

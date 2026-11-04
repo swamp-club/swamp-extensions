@@ -782,6 +782,9 @@ const ResourceSchema = z.object({
     "flag-definitions-present": z.object({
       targets: z.array(z.string()).optional(),
     }).optional(),
+    "health-check": z.object({
+      targets: z.array(z.string()).optional(),
+    }).optional(),
     lint: z.object({
       targets: z.array(z.string()).optional(),
     }).optional(),
@@ -1256,6 +1259,19 @@ const ResourceSchema = z.object({
   rollbackDescription: z.object({
     createdAt: z.number().optional(),
     description: z.string().optional(),
+    principal: z.object({
+      type: z.string().optional(),
+      via: z.object({
+        app: z.object({
+          clientId: z.string().optional(),
+          id: z.string().optional(),
+        }).optional(),
+        type: z.string().optional(),
+      }).optional(),
+      user: z.object({
+        id: z.string().optional(),
+      }).optional(),
+    }).optional(),
     userId: z.string().optional(),
     username: z.string().optional(),
   }).nullable().optional(),
@@ -1757,7 +1773,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.11.02.1",
+  version: "2026.11.03.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -2021,6 +2037,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.02.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

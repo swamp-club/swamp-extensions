@@ -71,9 +71,6 @@ const INSERT_CONFIG = {
     "tasklist",
   ],
   "parameters": {
-    "hidden": {
-      "location": "query",
-    },
     "parent": {
       "location": "query",
     },
@@ -328,7 +325,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Tasks Tasks. Registered at `@swamp/gcp/tasks/tasks`. */
 export const model = {
   type: "@swamp/gcp/tasks/tasks",
-  version: "2026.10.27.1",
+  version: "2026.11.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -478,6 +475,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -507,7 +509,7 @@ export const model = {
         if (g["completed"] !== undefined) body["completed"] = g["completed"];
         if (g["deleted"] !== undefined) body["deleted"] = g["deleted"];
         if (g["due"] !== undefined) body["due"] = g["due"];
-        if (g["hidden"] !== undefined) params["hidden"] = String(g["hidden"]);
+        if (g["hidden"] !== undefined) body["hidden"] = g["hidden"];
         if (g["id"] !== undefined) body["id"] = g["id"];
         if (g["notes"] !== undefined) body["notes"] = g["notes"];
         if (g["status"] !== undefined) body["status"] = g["status"];

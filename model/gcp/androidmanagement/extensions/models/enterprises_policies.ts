@@ -875,6 +875,10 @@ const GlobalArgsSchema = z.object({
     ]).describe(
       "Optional. The minimum required security level of Wi-Fi networks that the device can connect to.",
     ).optional(),
+    nfc: z.enum(["NFC_UNSPECIFIED", "NFC_USER_CHOICE", "NFC_DISABLED"])
+      .describe(
+        "Optional. Controls whether NFC is disabled on the device and if the user can toggle NFC between enabled and disabled. This is for fully managed devices. To control NFC on work profiles on company-owned devices, use deviceWidePolicies.deviceRadioState.nfc instead.",
+      ).optional(),
     ultraWidebandState: z.enum([
       "ULTRA_WIDEBAND_STATE_UNSPECIFIED",
       "ULTRA_WIDEBAND_USER_CHOICE",
@@ -899,6 +903,16 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "Optional. Covers controls for radio state such as Wi-Fi, bluetooth, and more.",
+  ).optional(),
+  deviceWidePolicies: z.object({
+    deviceRadioState: z.object({
+      nfc: z.enum(["NFC_UNSPECIFIED", "NFC_USER_CHOICE", "NFC_DISABLED"])
+        .describe(
+          "Optional. Controls whether NFC is disabled on the device and if the user can toggle NFC between enabled and disabled. This is for work profiles on company-owned devices. To control NFC on fully managed devices, use deviceRadioState.nfc instead.",
+        ).optional(),
+    }).describe("Optional. Covers controls for radio state.").optional(),
+  }).describe(
+    "Optional. Policies controlling the device on company-owned devices.",
   ).optional(),
   displaySettings: z.object({
     screenBrightnessSettings: z.object({
@@ -1874,9 +1888,15 @@ const StateSchema = z.object({
     airplaneModeState: z.string(),
     cellularTwoGState: z.string(),
     minimumWifiSecurityLevel: z.string(),
+    nfc: z.string(),
     ultraWidebandState: z.string(),
     userInitiatedAddEsimSettings: z.string(),
     wifiState: z.string(),
+  }).optional(),
+  deviceWidePolicies: z.object({
+    deviceRadioState: z.object({
+      nfc: z.string(),
+    }),
   }).optional(),
   displaySettings: z.object({
     screenBrightnessSettings: z.object({
@@ -2879,6 +2899,10 @@ const InputsSchema = z.object({
     ]).describe(
       "Optional. The minimum required security level of Wi-Fi networks that the device can connect to.",
     ).optional(),
+    nfc: z.enum(["NFC_UNSPECIFIED", "NFC_USER_CHOICE", "NFC_DISABLED"])
+      .describe(
+        "Optional. Controls whether NFC is disabled on the device and if the user can toggle NFC between enabled and disabled. This is for fully managed devices. To control NFC on work profiles on company-owned devices, use deviceWidePolicies.deviceRadioState.nfc instead.",
+      ).optional(),
     ultraWidebandState: z.enum([
       "ULTRA_WIDEBAND_STATE_UNSPECIFIED",
       "ULTRA_WIDEBAND_USER_CHOICE",
@@ -2903,6 +2927,16 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe(
     "Optional. Covers controls for radio state such as Wi-Fi, bluetooth, and more.",
+  ).optional(),
+  deviceWidePolicies: z.object({
+    deviceRadioState: z.object({
+      nfc: z.enum(["NFC_UNSPECIFIED", "NFC_USER_CHOICE", "NFC_DISABLED"])
+        .describe(
+          "Optional. Controls whether NFC is disabled on the device and if the user can toggle NFC between enabled and disabled. This is for work profiles on company-owned devices. To control NFC on fully managed devices, use deviceRadioState.nfc instead.",
+        ).optional(),
+    }).describe("Optional. Covers controls for radio state.").optional(),
+  }).describe(
+    "Optional. Policies controlling the device on company-owned devices.",
   ).optional(),
   displaySettings: z.object({
     screenBrightnessSettings: z.object({
@@ -3715,7 +3749,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Management Enterprises.Policies. Registered at `@swamp/gcp/androidmanagement/enterprises-policies`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-policies",
-  version: "2026.10.29.1",
+  version: "2026.11.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3942,6 +3976,11 @@ export const model = {
       description: "Added: unifiedUpdatePolicy",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.03.1",
+      description: "Added: deviceWidePolicies",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -4121,6 +4160,9 @@ export const model = {
         }
         if (g["deviceRadioState"] !== undefined) {
           body["deviceRadioState"] = g["deviceRadioState"];
+        }
+        if (g["deviceWidePolicies"] !== undefined) {
+          body["deviceWidePolicies"] = g["deviceWidePolicies"];
         }
         if (g["displaySettings"] !== undefined) {
           body["displaySettings"] = g["displaySettings"];

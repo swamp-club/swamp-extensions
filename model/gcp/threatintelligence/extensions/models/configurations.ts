@@ -152,6 +152,11 @@ const StateSchema = z.object({
       scenarioType: z.string(),
     }),
     customerProfile: z.object({
+      brands: z.array(z.object({
+        brand: z.string(),
+        citationIds: z.array(z.unknown()),
+        id: z.string(),
+      })),
       citations: z.array(z.object({
         citationId: z.string(),
         document: z.string(),
@@ -332,7 +337,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Threat Intelligence Configurations. Registered at `@swamp/gcp/threatintelligence/configurations`. */
 export const model = {
   type: "@swamp/gcp/threatintelligence/configurations",
-  version: "2026.10.23.1",
+  version: "2026.11.03.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -516,6 +521,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.03.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
