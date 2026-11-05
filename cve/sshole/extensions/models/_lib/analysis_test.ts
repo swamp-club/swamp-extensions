@@ -304,17 +304,40 @@ Deno.test("Alpine PAM build installed: a non-PAM probed sshd is not proof", () =
     PAM_PACKAGE: "yes",
     SSHD_LINKS_PAM: "no",
   };
+  // Picked from the fallback paths: which build runs is not known.
   const doubt = grade(
-    { ...pam, SSHD_RUNNING: "unknown" },
+    { ...pam, SSHD_SELECTED_BY: "path" },
     ["deploy|1001|/bin/sh"],
   );
   assertEquals(doubt.verdict, "unknown");
-  // The process list shows the plain sshd running: the probe is right.
-  const plain = grade(
-    { ...pam, SSHD_RUNNING: "plain" },
-    ["deploy|1001|/bin/sh"],
+  // The running listener, or Alpine's OpenRC rule, picked the plain sshd.
+  for (const by of ["running", "openrc"]) {
+    const plain = grade(
+      { ...pam, SSHD_SELECTED_BY: by },
+      ["deploy|1001|/bin/sh"],
+    );
+    assertEquals(plain.verdict, "vulnerable", by);
+  }
+});
+
+Deno.test("a selected sshd.pam: UsePAM yes is safe, UsePAM no is exposed", () => {
+  const pamd = {
+    ...VULN_ALPINE,
+    CONFIG_SOURCE: "sshd-T",
+    PAM_PACKAGE: "yes",
+    SSHD_PATH: "/usr/sbin/sshd.pam",
+    SSHD_SELECTED_BY: "openrc",
+    SSHD_LINKS_PAM: "yes",
+    PKG_VERSION: "openssh-server-pam-9.7_p1-r5",
+  };
+  assertEquals(
+    grade({ ...pamd, USEPAM: "yes" }, ["deploy|1001|/bin/sh"]).verdict,
+    "not-vulnerable",
   );
-  assertEquals(plain.verdict, "vulnerable");
+  assertEquals(
+    grade({ ...pamd, USEPAM: "no" }, ["deploy|1001|/bin/sh"]).verdict,
+    "vulnerable",
+  );
 });
 
 Deno.test("AllowUsers / DenyUsers / AllowGroups make '*' accounts unreachable", () => {
@@ -436,4 +459,108 @@ Deno.test("UsePAM yes from sshd -T with ldd unavailable is not affected", () => 
     ["deploy|1001|/bin/sh"],
   );
   assertEquals(s.verdict, "not-vulnerable");
+});
+
+Deno.test("unevaluated access rules make every '*' account assumed", () => {
+  // Config read from files, with an AllowUsers line somewhere in it.
+  const s = grade(
+    { ...VULN_ALPINE, PERMITROOT: "yes", ACCESS_RULES: "yes" },
+    ["deploy|1001|/bin/sh"],
+  );
+  assertEquals(s.verdict, "unknown");
+  assert(s.starAccounts[0].note.startsWith("counted as reachable"));
+  assert(s.notChecked.some((n) => n.startsWith("AllowUsers/DenyUsers")));
+  // No access rules anywhere: reachability stands.
+  assertEquals(
+    grade(
+      { ...VULN_ALPINE, PERMITROOT: "yes", ACCESS_RULES: "no" },
+      ["deploy|1001|/bin/sh"],
+    ).verdict,
+    "vulnerable",
+  );
+  // Evaluated by sshd -T without Match blocks: the rules decide.
+  assertEquals(
+    grade(
+      { ...SSHD_T, ACCESS_RULES: "yes", ALLOWUSERS: "deploy" },
+      ["deploy|1001|/bin/sh"],
+    ).verdict,
+    "vulnerable",
+  );
+});
+
+const OPENWRT = {
+  ...SSHD_T,
+  OS_ID: "openwrt",
+  OS_VER: "24.10.0",
+  OS_PRETTY: "OpenWrt 24.10.0",
+  SSH_VERSION: "OpenSSH_9.7p1",
+};
+
+Deno.test("non-Alpine musl below 10.6p2: packaged is unknown, source build is vulnerable", () => {
+  const stars = ["deploy|1001|/bin/sh"];
+  const opkg = grade(
+    { ...OPENWRT, PKG_MANAGER: "opkg", PKG_VERSION: "9.7p1-1" },
+    stars,
+  );
+  assertEquals(opkg.versionVulnerable, "unknown");
+  assertEquals(opkg.verdict, "unknown");
+  assert(opkg.summary.includes("backport"));
+  const source = grade(
+    { ...OPENWRT, PKG_MANAGER: "", PKG_VERSION: "" },
+    stars,
+  );
+  assertEquals(source.versionVulnerable, "yes");
+  assertEquals(source.verdict, "vulnerable");
+});
+
+Deno.test("OpenWrt with apk takes the non-Alpine rule, not the Alpine tracker", () => {
+  // 9.7_p1-r6 is Alpine 3.20's fixed release; on OpenWrt it proves nothing.
+  const s = grade(
+    {
+      ...OPENWRT,
+      PKG_MANAGER: "apk",
+      PKG_VERSION: "openssh-server-9.7_p1-r6",
+    },
+    ["deploy|1001|/bin/sh"],
+  );
+  assertEquals(s.versionVulnerable, "unknown");
+  assertEquals(s.verdict, "unknown");
+});
+
+Deno.test("Void (xbps) is a packaged build", () => {
+  const voidl = {
+    ...SSHD_T,
+    OS_ID: "void",
+    OS_VER: "",
+    PKG_MANAGER: "xbps",
+  };
+  const old = grade(
+    { ...voidl, SSH_VERSION: "", PKG_VERSION: "9.7p1" },
+    ["deploy|1001|/bin/sh"],
+  );
+  assertEquals(old.pkgManager, "xbps");
+  assertEquals(old.verdict, "unknown");
+  const fixed = grade(
+    { ...voidl, SSH_VERSION: "OpenSSH_10.6p2", PKG_VERSION: "10.6p2" },
+    ["deploy|1001|/bin/sh"],
+  );
+  assertEquals(fixed.verdict, "not-vulnerable");
+});
+
+Deno.test("a patched sshd on disk with the old daemon still running is unknown", () => {
+  const patched = {
+    ...SSHD_T,
+    PKG_VERSION: "openssh-server-9.7_p1-r6",
+    SSHD_SELECTED_BY: "running",
+  };
+  assertEquals(
+    grade(patched, ["deploy|1001|/bin/sh"]).verdict,
+    "not-vulnerable",
+  );
+  const stale = grade(
+    { ...patched, SSHD_REPLACED: "yes" },
+    ["deploy|1001|/bin/sh"],
+  );
+  assertEquals(stale.verdict, "unknown");
+  assert(stale.summary.includes("restart sshd"));
 });

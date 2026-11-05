@@ -137,21 +137,54 @@ export function makeRunner(t: Transport, logger: Logger): Runner {
   };
 }
 
+/** How startDockerImage and stopContainer run docker; tests stub it. */
+export type DockerOptions = {
+  /** The argv prefix that runs docker (default `["docker"]`). */
+  docker?: string[];
+  /** Limit for `docker pull` when the image is not present yet. */
+  pullTimeoutMs?: number;
+  /** Limit for `docker run` itself, which is quick once the image is local. */
+  runTimeoutMs?: number;
+  /** Pause before removing a failed container a second time. */
+  retryDelayMs?: number;
+};
+
+export const PULL_TIMEOUT_MS = 600_000;
+export const RETRY_DELAY_MS = 3_000;
+
 /**
  * Starts a container from an image so its sshd can be probed, and returns its
- * name. The name is chosen up front, so the container can always be removed,
- * whatever `docker run` prints (pull progress, warnings).
+ * name. The image is pulled first, under its own limit, so `docker run` does
+ * not time out on a slow pull. The name is chosen up front, so a run that
+ * fails or times out can still be removed; after a timeout the removal is
+ * repeated after a pause in case the daemon finished creating it late.
  */
 export async function startDockerImage(
   image: string,
   logger: Logger,
+  opts: DockerOptions = {},
 ): Promise<string> {
   assertSafeDockerRef("dockerImage", image);
+  const docker = opts.docker ?? ["docker"];
+  const present = await runArgv(
+    [...docker, "image", "inspect", image],
+    DEFAULT_TIMEOUT_MS,
+  );
+  if (present.exitCode !== 0) {
+    logger.info(`Pulling image ${image}`);
+    const pull = await runArgv(
+      [...docker, "pull", image],
+      opts.pullTimeoutMs ?? PULL_TIMEOUT_MS,
+    );
+    if (pull.exitCode !== 0) {
+      throw new Error(`docker pull failed: ${pull.stderr || pull.stdout}`);
+    }
+  }
   const name = `sshole-scan-${crypto.randomUUID().slice(0, 12)}`;
   logger.info(`Starting container ${name} from image ${image}`);
   const res = await runArgv(
     [
-      "docker",
+      ...docker,
       "run",
       "-d",
       "--rm",
@@ -162,10 +195,17 @@ export async function startDockerImage(
       image,
       "3600",
     ],
-    DEFAULT_TIMEOUT_MS,
+    opts.runTimeoutMs ?? DEFAULT_TIMEOUT_MS,
   );
   if (res.exitCode !== 0) {
-    await stopContainer(name, logger);
+    await stopContainer(name, logger, opts);
+    // A timed-out run may still be finishing in the daemon: remove it again.
+    if (res.exitCode === TIMEOUT_EXIT) {
+      await new Promise((r) =>
+        setTimeout(r, opts.retryDelayMs ?? RETRY_DELAY_MS)
+      );
+      await stopContainer(name, logger, opts);
+    }
     throw new Error(`docker run failed: ${res.stderr || res.stdout}`);
   }
   return name;
@@ -174,9 +214,11 @@ export async function startDockerImage(
 export async function stopContainer(
   container: string,
   logger: Logger,
+  opts: DockerOptions = {},
 ): Promise<void> {
-  logger.info(`Stopping container ${container.slice(0, 12)}`);
-  await runArgv(["docker", "rm", "-f", container], DEFAULT_TIMEOUT_MS)
+  const docker = opts.docker ?? ["docker"];
+  logger.info(`Stopping container ${container}`);
+  await runArgv([...docker, "rm", "-f", container], DEFAULT_TIMEOUT_MS)
     .catch(() => {});
 }
 

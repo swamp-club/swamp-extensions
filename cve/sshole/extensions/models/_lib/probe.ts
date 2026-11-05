@@ -21,7 +21,15 @@
  * changes the host and reads `/etc/shadow` only when it can.
  *
  * The script is intentionally BusyBox/ash-safe (no bashisms): Alpine, OpenWrt
- * and buildroot are the primary targets.
+ * and buildroot are the primary targets. It is a JavaScript template, so it
+ * never uses shell parameter expansion with braces (that would interpolate);
+ * awk, sed and tr do that work instead.
+ *
+ * It is built from two parts so the config-reading functions can be tested
+ * against fixture trees: {@link PROBE_FUNCTIONS} reads every path under
+ * `SSHOLE_ROOT`, and {@link PROBE_MAIN} clears `SSHOLE_ROOT` on its first line,
+ * so a variable inherited from the target's environment can never move the
+ * paths. {@link PROBE_SCRIPT} is exactly the two joined.
  *
  * @module
  */
@@ -29,9 +37,123 @@
 /** The marker the analyser keys every probe line on. */
 export const PROBE_PREFIX = "SSHOLE";
 
-export const PROBE_SCRIPT = String.raw`
+/** Shell functions only; every config path is read under SSHOLE_ROOT. */
+export const PROBE_FUNCTIONS = String.raw`
 P=SSHOLE
 emit() { printf '%s_%s=%s\n' "$P" "$1" "$2"; }
+
+# Prints an sshd config file with every Include spliced in where it appears,
+# as sshd reads it: paths without a leading / are under /etc/ssh, globs are
+# expanded in sorted order, nesting is followed up to depth 8. $1 is the full
+# path (already under SSHOLE_ROOT), $2 the depth.
+sshole_flatten() {
+  local line args pat f
+  [ "$2" -gt 8 ] && return 0
+  [ -r "$1" ] || return 0
+  while IFS= read -r line || [ -n "$line" ]; do
+    args=""
+    case "$line" in
+      *[Ii][Nn][Cc][Ll][Uu][Dd][Ee]*)
+        args=$(printf '%s\n' "$line" | awk '{ l=$0; sub(/^[ \t]+/, "", l); n=split(l, a, /[ \t]*=[ \t]*|[ \t]+/); if (tolower(a[1]) != "include") exit; for (i = 2; i <= n; i++) { gsub(/"/, "", a[i]); if (a[i] != "") print a[i] } }')
+        ;;
+    esac
+    if [ -z "$args" ]; then
+      printf '%s\n' "$line"
+      continue
+    fi
+    # One pattern per line, read without word splitting, so a pattern is
+    # globbed only once SSHOLE_ROOT is in front of it.
+    printf '%s\n' "$args" | while IFS= read -r pat; do
+      case "$pat" in
+        /*) ;;
+        *) pat="/etc/ssh/$pat" ;;
+      esac
+      for f in "$SSHOLE_ROOT"$pat; do
+        sshole_flatten "$f" $(($2 + 1))
+      done
+    done
+  done < "$1"
+}
+
+# The effective sshd_config text, Includes spliced in.
+sshole_config() {
+  sshole_flatten "$SSHOLE_ROOT/etc/ssh/sshd_config" 0
+}
+
+# First value of keyword $1 (lowercase) before the first Match line, as sshd
+# keeps the first value it reads and Match blocks are conditional.
+# "Keyword value", "Keyword=value" and "Keyword = value" are all valid.
+sshole_first_value() {
+  sshole_config | awk -v k="$1" '{ l=$0; sub(/^[ \t]+/, "", l); n=split(l, a, /[ \t]*=[ \t]*|[ \t]+/); if (n < 1) next; w=tolower(a[1]); if (w=="match") exit; if (w==k) { print tolower(a[2]); exit } }'
+}
+
+# yes when the config (Includes spliced in) has a Match block.
+sshole_has_match() {
+  if sshole_config | grep -qiE '^[[:space:]]*Match([[:space:]]|=)'; then echo yes; else echo no; fi
+}
+
+# yes when the config has any AllowUsers/DenyUsers/AllowGroups/DenyGroups line.
+sshole_has_access_rules() {
+  if sshole_config | grep -qiE '^[[:space:]]*(AllowUsers|DenyUsers|AllowGroups|DenyGroups)([[:space:]]|=)'; then echo yes; else echo no; fi
+}
+
+# The exe of a running sshd listener, as readlink prints it (an in-place
+# upgrade leaves a " (deleted)" suffix). Only the system sshd binaries count:
+# a root scan runs the binary it picks (-V, -T, ldd), so a process a user
+# started from their own "sshd" must never be chosen. Only processes in the
+# probe's own mount namespace count, since a container's path names a
+# different file here. sshd-session processes are skipped.
+sshole_running_sshd() {
+  local p exe self ns
+  self=$(readlink "$SSHOLE_ROOT/proc/self/ns/mnt" 2>/dev/null)
+  for p in "$SSHOLE_ROOT"/proc/[0-9]*; do
+    exe=$(readlink "$p/exe" 2>/dev/null) || continue
+    ns=$(readlink "$p/ns/mnt" 2>/dev/null)
+    [ "$ns" = "$self" ] || continue
+    case "$exe" in
+      /usr/sbin/sshd|/usr/sbin/sshd.pam|/usr/sbin/sshd.krb5|/usr/bin/sshd|/sbin/sshd|\
+      "/usr/sbin/sshd (deleted)"|"/usr/sbin/sshd.pam (deleted)"|"/usr/sbin/sshd.krb5 (deleted)"|"/usr/bin/sshd (deleted)"|"/sbin/sshd (deleted)")
+        printf '%s' "$exe"
+        return 0
+        ;;
+    esac
+  done
+}
+
+# Alpine's get_conf from /etc/init.d/sshd: the first line that starts with
+# the keyword (exact case) followed by whitespace, in sshd_config then the
+# drop-ins, prints its second field.
+sshole_alpine_conf() {
+  awk -v k="$1" 'index($0, k) == 1 && substr($0, length(k) + 1, 1) ~ /[ \t]/ { print $2; exit }' "$SSHOLE_ROOT/etc/ssh/sshd_config" "$SSHOLE_ROOT"/etc/ssh/sshd_config.d/*.conf 2>/dev/null
+}
+
+# The binary Alpine's OpenRC script would start, replicating its
+# update_command: SSHD_BINARY from /etc/conf.d/sshd, else sshd.krb5 when
+# Kerberos or GSSAPI auth is on, else sshd.pam when UsePAM is yes, else sshd.
+# Prints nothing unless /etc/init.d/sshd carries that selection.
+# SSHD_BINARY is trusted as given: only root can write /etc/conf.d/sshd, and
+# OpenRC already starts that binary as root.
+sshole_openrc_sshd() {
+  local init bin
+  init="$SSHOLE_ROOT/etc/init.d/sshd"
+  [ -r "$init" ] || return 0
+  grep -q 'update_command' "$init" 2>/dev/null || return 0
+  grep -q '/usr/sbin/sshd\.pam' "$init" 2>/dev/null || return 0
+  bin=$(awk -F= '/^[ \t]*SSHD_BINARY=/ { v=$2; sub(/#.*/, "", v); print v }' "$SSHOLE_ROOT/etc/conf.d/sshd" 2>/dev/null | tail -n1 | tr -d "\"' \t")
+  if [ -n "$bin" ]; then
+    printf '%s' "$bin"
+  elif { [ "$(sshole_alpine_conf KerberosAuthentication)" = yes ] || [ "$(sshole_alpine_conf GSSAPIAuthentication)" = yes ]; } && [ -r "$SSHOLE_ROOT/usr/sbin/sshd.krb5" ]; then
+    printf '%s' /usr/sbin/sshd.krb5
+  elif [ "$(sshole_alpine_conf UsePAM)" = yes ] && [ -r "$SSHOLE_ROOT/usr/sbin/sshd.pam" ]; then
+    printf '%s' /usr/sbin/sshd.pam
+  else
+    printf '%s' /usr/sbin/sshd
+  fi
+}
+`;
+
+/** The probe itself; its first line clears SSHOLE_ROOT. */
+export const PROBE_MAIN = String.raw`SSHOLE_ROOT=
 
 # --- identity ---
 emit HOSTNAME "$(hostname 2>/dev/null || cat /proc/sys/kernel/hostname 2>/dev/null)"
@@ -58,24 +180,34 @@ else
   emit CONTAINER no
 fi
 
-# --- locate sshd ---
+# --- which sshd binary runs ---
+# The running listener decides; else the binary Alpine's OpenRC script would
+# start (it runs sshd.pam when UsePAM is yes); else the fixed system paths,
+# before PATH, since on a root scan a PATH entry could be writable. A
+# PAM-only Alpine install has sshd.pam and no plain sshd.
 SSHD=""
-# Fixed system paths first: on a root scan, a PATH entry could be writable.
-for c in /usr/sbin/sshd /usr/bin/sshd /sbin/sshd "$(command -v sshd 2>/dev/null)"; do
-  if [ -n "$c" ] && [ -x "$c" ]; then SSHD="$c"; break; fi
-done
+SELECTED=path
+REPLACED=no
+RUN=$(sshole_running_sshd)
+if [ -n "$RUN" ]; then
+  case "$RUN" in *" (deleted)") REPLACED=yes ;; esac
+  RUN=$(printf '%s' "$RUN" | sed 's/ (deleted)$//')
+  if [ -x "$RUN" ]; then SSHD="$RUN"; SELECTED=running; fi
+fi
+if [ -z "$SSHD" ]; then
+  OR=$(sshole_openrc_sshd)
+  if [ -n "$OR" ] && [ -x "$OR" ]; then SSHD="$OR"; SELECTED=openrc; fi
+fi
+if [ -z "$SSHD" ]; then
+  for c in /usr/sbin/sshd /usr/bin/sshd /sbin/sshd /usr/sbin/sshd.pam /usr/sbin/sshd.krb5 "$(command -v sshd 2>/dev/null)"; do
+    if [ -n "$c" ] && [ -x "$c" ]; then SSHD="$c"; break; fi
+  done
+fi
 emit SSHD_PATH "$SSHD"
-
-# --- which sshd build is running (Alpine ships a separate sshd.pam) ---
-RUNNING=unknown
-for p in /proc/[0-9]*; do
-  EXE=$(readlink "$p/exe" 2>/dev/null) || continue
-  case "$EXE" in
-    */sshd.pam) RUNNING=pam; break ;;
-    */sshd) RUNNING=plain ;;
-  esac
-done
-emit SSHD_RUNNING "$RUNNING"
+emit SSHD_SELECTED_BY "$SELECTED"
+# The running sshd was replaced on disk (an upgrade without a restart): the
+# version read below is the new binary's, not the running daemon's.
+emit SSHD_REPLACED "$REPLACED"
 
 # --- OpenSSH server version ---
 # Read from sshd itself, not the ssh client, which can be a different build.
@@ -91,9 +223,14 @@ emit SSH_VERSION "$SSH_V"
 # into the package release without bumping the upstream version string)
 if command -v apk >/dev/null 2>&1; then
   emit PKG_MANAGER apk
-  # "openssh-server-9.7_p1-r6"; -e limits to the installed package
-  emit PKG_VERSION "$(apk info -e -v openssh-server 2>/dev/null | head -n1)"
-  # the PAM build is a separate package on Alpine; its presence matters
+  # "openssh-server-9.7_p1-r6"; -e limits to the installed package. The PAM
+  # and Kerberos builds are separate packages and can be installed alone.
+  PV=""
+  for pkg in openssh-server openssh-server-pam openssh-server-krb5; do
+    PV=$(apk info -e -v "$pkg" 2>/dev/null | head -n1)
+    [ -n "$PV" ] && break
+  done
+  emit PKG_VERSION "$PV"
   if apk info -e openssh-server-pam >/dev/null 2>&1; then
     emit PAM_PACKAGE yes
   else
@@ -108,6 +245,10 @@ elif command -v rpm >/dev/null 2>&1; then
 elif command -v opkg >/dev/null 2>&1; then
   emit PKG_MANAGER opkg
   emit PKG_VERSION "$(opkg status openssh-server 2>/dev/null | awk '/^Version:/{print $2}')"
+elif command -v xbps-query >/dev/null 2>&1; then
+  # Void Linux: "openssh-9.7p1_1" -> "9.7p1" (the _N revision is dropped).
+  emit PKG_MANAGER xbps
+  emit PKG_VERSION "$(xbps-query -p pkgver openssh 2>/dev/null | sed 's/^openssh-//; s/_[0-9]*$//')"
 fi
 
 # --- libc detection ---
@@ -163,39 +304,23 @@ if [ -n "$TCONF" ]; then
     emit "$K" "$V"
   done
 else
+  # Best effort without sshd -T: the config as sshd reads it (Includes spliced
+  # in where they appear), first value wins, nothing after the first Match.
+  # Analysis treats file-read values that would rule the host out as
+  # unconfirmed.
   emit CONFIG_SOURCE files
-  # Best effort without root: sshd keeps the FIRST value it reads for each
-  # keyword, and anything after a Match line is conditional, so each file is
-  # read up to its first Match and the first value wins. Drop-ins come first
-  # when sshd_config includes them (the usual top-of-file Include). Include
-  # placement is not modelled exactly; analysis treats file-sourced values
-  # that would rule the host out as unverified.
-  FILES=""
-  if grep -qiE '^[[:space:]]*Include[[:space:]]+/etc/ssh/sshd_config\.d/' /etc/ssh/sshd_config 2>/dev/null; then
-    for f in /etc/ssh/sshd_config.d/*.conf; do [ -r "$f" ] && FILES="$FILES $f"; done
-  fi
-  FILES="$FILES /etc/ssh/sshd_config"
-  first_value() {
-    for f in $FILES; do
-      [ -r "$f" ] || continue
-      # "Keyword value", "Keyword=value" and "Keyword = value" are all valid.
-      V=$(awk -v k="$1" '{ l=$0; sub(/^[ \t]+/, "", l); n=split(l, a, /[ \t]*=[ \t]*|[ \t]+/); if (n < 1) next; w=tolower(a[1]); if (w=="match") exit; if (w==k) { print tolower(a[2]); exit } }' "$f" 2>/dev/null)
-      if [ -n "$V" ]; then printf '%s' "$V"; return; fi
-    done
-  }
-  case "$(first_value usepam)" in yes) USEPAM=yes ;; no) USEPAM=no ;; esac
-  case "$(first_value passwordauthentication)" in yes) PWAUTH=yes ;; no) PWAUTH=no ;; esac
-  V=$(first_value permitrootlogin)
+  case "$(sshole_first_value usepam)" in yes) USEPAM=yes ;; no) USEPAM=no ;; esac
+  case "$(sshole_first_value passwordauthentication)" in yes) PWAUTH=yes ;; no) PWAUTH=no ;; esac
+  V=$(sshole_first_value permitrootlogin)
   [ -n "$V" ] && PERMITROOT="$V"
 fi
-# sshd -T prints the global settings only; a Match block can turn password
-# auth back on (or loosen root and user restrictions) for some clients.
-MATCH=no
-for f in /etc/ssh/sshd_config /etc/ssh/sshd_config.d/*.conf; do
-  [ -r "$f" ] || continue
-  if grep -qiE '^[[:space:]]*Match[[:space:]]' "$f" 2>/dev/null; then MATCH=yes; break; fi
-done
-emit MATCH_BLOCKS "$MATCH"
+# sshd -T prints the global settings only; a Match block (in any included
+# file) can turn password auth back on, or loosen root and user rules, for
+# some clients.
+emit MATCH_BLOCKS "$(sshole_has_match)"
+# Whether any AllowUsers-style rule exists; from the files they are not
+# evaluated, so analysis then treats '*' accounts as reachable by assumption.
+emit ACCESS_RULES "$(sshole_has_access_rules)"
 emit USEPAM "$USEPAM"
 emit PWAUTH "$PWAUTH"
 emit PERMITROOT "$PERMITROOT"
@@ -224,3 +349,6 @@ fi
 
 emit DONE 1
 `;
+
+/** The script sent to a target: the functions, then the probe. */
+export const PROBE_SCRIPT = PROBE_FUNCTIONS + PROBE_MAIN;

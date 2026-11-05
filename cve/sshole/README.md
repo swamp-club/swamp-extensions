@@ -77,10 +77,19 @@ covers edge (whose `VERSION_ID` looks like `3.23_alpha…`), packages pulled fro
 a newer branch, and branches older than 3.16. A release that cannot be read is
 `unknown`, never `patched`.
 
-For non-Alpine musl builds (OpenWrt, buildroot, source builds) the version
-reported by `sshd` itself is used, not the `ssh` client's. A vendor backport
-that leaves the version string unchanged cannot be detected, so such a build
-below 10.6p2 is reported as vulnerable with that caveat noted.
+For non-Alpine musl builds (OpenWrt, Void, buildroot, source builds) the version
+reported by `sshd` itself is used, not the `ssh` client's. At or past 10.6p2 is
+patched. Below it:
+
+- with no package manager at all (a source build, most buildroot and yocto
+  images) no vendor fix can apply, so the build is `vulnerable`;
+- with a package manager (opkg, apk on OpenWrt, xbps on Void, ...) a vendor
+  backport that keeps the upstream version cannot be ruled out, and there is no
+  tracker for it, so the verdict is `unknown` ("likely exposed").
+
+If the running sshd was replaced on disk by an upgrade and not restarted, a
+patched binary on disk does not count: the verdict is `unknown` until sshd is
+restarted.
 
 ## Method
 
@@ -132,16 +141,38 @@ password. Each target also gets a risk level (`critical`, `high`, `medium`,
 `low`, `none`, `unknown`), the reasons behind it, what was not checked, and the
 recommended fix and stopgaps. The report leads with the verdict per target.
 
+## Which sshd is checked
+
+The version, PAM linkage and `sshd -T` all come from the sshd binary that runs,
+chosen in this order:
+
+1. the running sshd listener, from `/proc` (root sees every process);
+2. on Alpine, the binary its OpenRC script would start: `SSHD_BINARY` from
+   `/etc/conf.d/sshd`, else `sshd.krb5` when Kerberos or GSSAPI auth is on, else
+   `sshd.pam` when `UsePAM yes`, else `sshd` (the script's own rule);
+3. the first of `/usr/sbin/sshd`, `/usr/bin/sshd`, `/sbin/sshd`,
+   `/usr/sbin/sshd.pam`, `/usr/sbin/sshd.krb5`, then `PATH`.
+
+So an Alpine host running the `openssh-server-pam` build is judged by
+`sshd.pam`, and a PAM-only install (no plain `sshd`) is found. Only when the PAM
+build is installed and the binary was picked from the fallback list is the build
+left in doubt (`unknown`).
+
 ## Privileges
 
 `scan` needs no root, but `/etc/shadow` is only readable as root; a non-root
 scan cannot enumerate `*` accounts or the salt seed and reports `unknown`.
 
 The effective sshd settings come from `sshd -T`, which also needs root. Without
-it the probe reads the config files (up to the first `Match` block, first value
-wins). Those files cannot be read exactly as sshd would, so a file-read
-`PasswordAuthentication no` or `UsePAM yes` is never enough to call a target
-`not-vulnerable`: it is listed under "not checked" and the verdict is `unknown`.
+it the probe reads the config as sshd would: `sshd_config` with every `Include`
+spliced in where it appears (relative paths are under `/etc/ssh`, globs and
+nesting are followed), first value wins, nothing after the first `Match`. Even
+so, a file-read `PasswordAuthentication no` or `UsePAM yes` is never enough to
+call a target `not-vulnerable`: it is listed under "not checked" and the verdict
+is `unknown`. `AllowUsers`, `DenyUsers`, `AllowGroups` and `DenyGroups` are only
+evaluated from `sshd -T` with no `Match` blocks; when the config has them
+otherwise, every `*` account counts as reachable by assumption and the verdict
+is `unknown`.
 
 ## Credits
 

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/cve/sshole"
-version: "2026.11.05.1"
+version: "2026.11.05.2"
 license: "AGPL-3.0-or-later"
 description: |
   Reports whether a machine, container or image is vulnerable to

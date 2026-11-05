@@ -67,10 +67,13 @@ export type ProbeFacts = {
   os: { id: string; versionId: string; prettyName: string };
   inContainer: boolean;
   sshdPath: string;
-  /** Which sshd build is running: Alpine's PAM build is a separate binary. */
-  sshdRunning: "pam" | "plain" | "unknown";
+  /** How the probed sshd was chosen: the running listener, the binary
+   * Alpine's OpenRC script would start, or the first fixed path found. */
+  sshdSelectedBy: "running" | "openrc" | "path";
+  /** The running sshd was replaced on disk and not restarted. */
+  sshdReplaced: boolean;
   sshVersionBanner: string;
-  pkgManager: "apk" | "apt" | "rpm" | "opkg" | "none";
+  pkgManager: "apk" | "apt" | "rpm" | "opkg" | "xbps" | "none";
   pkgRelease: string;
   libc: "musl" | "glibc" | "other" | "unknown";
   sshdLinksPam: SignalT;
@@ -81,6 +84,9 @@ export type ProbeFacts = {
   permitRootLogin: string;
   /** The config has Match blocks, so global values may not apply to all. */
   matchBlocks: boolean;
+  /** AllowUsers-style rules exist but were not evaluated (no sshd -T, or
+   * Match blocks), so '*' accounts are reachable only by assumption. */
+  accessRulesUnevaluated: boolean;
   shadowReadable: boolean;
   seedHashCount: number | null;
   starAccounts: StarAccount[];
@@ -120,7 +126,10 @@ export function parseProbe(stdout: string): ProbeFacts {
   const uid = uidStr && /^\d+$/.test(uidStr) ? Number(uidStr) : null;
   const pm = single.get("PKG_MANAGER");
   const pkgManager =
-    pm === "apk" || pm === "apt" || pm === "rpm" || pm === "opkg" ? pm : "none";
+    pm === "apk" || pm === "apt" || pm === "rpm" || pm === "opkg" ||
+      pm === "xbps"
+      ? pm
+      : "none";
   const pkgVersionRaw = single.get("PKG_VERSION") ?? "";
   const pkgRelease = pkgManager === "apk"
     ? (extractApkRelease(pkgVersionRaw) ?? "")
@@ -137,6 +146,8 @@ export function parseProbe(stdout: string): ProbeFacts {
   const fromSshdT = single.get("CONFIG_SOURCE") === "sshd-T";
   const matchBlocks = single.get("MATCH_BLOCKS") === "yes";
   const rulesTrusted = fromSshdT && !matchBlocks;
+  const accessRulesUnevaluated = single.get("ACCESS_RULES") === "yes" &&
+    !rulesTrusted;
   const access: AccessRules = {
     allowUsers: fromSshdT ? words(single.get("ALLOWUSERS")) : [],
     denyUsers: fromSshdT ? words(single.get("DENYUSERS")) : [],
@@ -152,6 +163,7 @@ export function parseProbe(stdout: string): ProbeFacts {
       s.groups,
       access,
       rulesTrusted,
+      accessRulesUnevaluated,
     )
   );
 
@@ -166,11 +178,12 @@ export function parseProbe(stdout: string): ProbeFacts {
     },
     inContainer: single.get("CONTAINER") === "yes",
     sshdPath: single.get("SSHD_PATH") ?? "",
-    sshdRunning: single.get("SSHD_RUNNING") === "pam"
-      ? "pam"
-      : single.get("SSHD_RUNNING") === "plain"
-      ? "plain"
-      : "unknown",
+    sshdSelectedBy: single.get("SSHD_SELECTED_BY") === "running"
+      ? "running"
+      : single.get("SSHD_SELECTED_BY") === "openrc"
+      ? "openrc"
+      : "path",
+    sshdReplaced: single.get("SSHD_REPLACED") === "yes",
     // Only a real "OpenSSH_" token counts; anything else is an error message.
     sshVersionBanner: /OpenSSH_/.test(single.get("SSH_VERSION") ?? "")
       ? single.get("SSH_VERSION")!
@@ -189,6 +202,7 @@ export function parseProbe(stdout: string): ProbeFacts {
     passwordAuth: asSignal(single.get("PWAUTH")),
     permitRootLogin,
     matchBlocks,
+    accessRulesUnevaluated,
     shadowReadable: single.get("SHADOW_READABLE") === "yes",
     seedHashCount,
     starAccounts,
@@ -282,6 +296,7 @@ function makeStarAccount(
   groups: string[] = [],
   access: AccessRules = NO_RULES,
   rulesTrusted = true,
+  accessRulesUnevaluated = false,
 ): StarAccount {
   const uid = /^\d+$/.test(uidStr) ? Number(uidStr) : null;
   const loginCapable = !NOLOGIN_SHELLS.has(shell.trim());
@@ -309,6 +324,10 @@ function makeStarAccount(
   const reachable = refusal === null || !rulesTrusted;
   if (isRoot) note = `root (uid 0); ${note}`;
   if (refusal && rulesTrusted) note = `refused by sshd: ${refusal}; ${note}`;
+  if (!refusal && accessRulesUnevaluated) {
+    note =
+      `${ASSUMED_REACHABLE}: the config has AllowUsers/DenyUsers/AllowGroups/DenyGroups rules that were not evaluated (needs sshd -T and no Match blocks); ${note}`;
+  }
   if (refusal && !rulesTrusted) {
     note =
       `${ASSUMED_REACHABLE}: ${refusal} would refuse it, but that is not confirmed (config files, or Match blocks that can override it); ${note}`;
@@ -325,12 +344,13 @@ function makeStarAccount(
 
 /**
  * Alpine's openssh-server-pam installs a separate sshd.pam. When it is
- * installed, the probed non-PAM sshd may not be the running daemon, unless
- * the process list shows the plain sshd running.
+ * installed and the probed sshd lacks PAM, that sshd is only known to be the
+ * one that runs if it was chosen as the running listener or by Alpine's
+ * OpenRC rule; a fallback path pick leaves the build in doubt.
  */
 function pamBuildInDoubt(f: ProbeFacts): boolean {
   return f.pamPackage === "yes" && f.sshdLinksPam === "no" &&
-    f.sshdRunning !== "plain";
+    f.sshdSelectedBy === "path";
 }
 
 /** The runtime password path ignores PAM: UsePAM off, or sshd has no PAM. */
@@ -361,6 +381,20 @@ type PatchState = {
 
 /** Decides patched vs vulnerable, distro backports first. */
 export function patchState(f: ProbeFacts): PatchState {
+  const ps = patchStateOnDisk(f);
+  // A patched binary on disk does not help while the old daemon still runs.
+  if (ps.state === "no" && f.sshdReplaced) {
+    return {
+      ...ps,
+      state: "unknown",
+      detail:
+        `${ps.detail} But the running sshd was replaced on disk and not restarted, so the daemon may still be the old build; restart sshd.`,
+    };
+  }
+  return ps;
+}
+
+function patchStateOnDisk(f: ProbeFacts): PatchState {
   if (f.os.id === "alpine") {
     const av = alpineVerdict(
       f.os.versionId,
@@ -393,11 +427,22 @@ export function patchState(f: ProbeFacts): PatchState {
       detail: `OpenSSH ${version.raw} is at or past ${FIXED_VERSION_STR}.`,
     };
   }
+  // Below the upstream fix. A source build (no package manager at all, as on
+  // most buildroot/yocto images) cannot carry a backport; a packaged build
+  // can, and there is no tracker for it, so its status is not known.
+  if (f.pkgManager === "none") {
+    return {
+      state: "yes",
+      fixedRelease: FIXED_VERSION_STR,
+      detail:
+        `OpenSSH ${version.raw} is below ${FIXED_VERSION_STR} and no package manager is present, so no vendor fix applies.`,
+    };
+  }
   return {
-    state: "yes",
+    state: "unknown",
     fixedRelease: FIXED_VERSION_STR,
     detail:
-      `OpenSSH ${version.raw} is below ${FIXED_VERSION_STR}; a vendor backport (if any) cannot be detected from the version string.`,
+      `OpenSSH ${version.raw} is below ${FIXED_VERSION_STR}; a ${f.pkgManager} vendor backport cannot be ruled out from the version.`,
   };
 }
 
@@ -441,6 +486,11 @@ export function analyze(
 
   const reasons: string[] = [];
   const notChecked: string[] = [...untrusted];
+  if (f.accessRulesUnevaluated) {
+    notChecked.push(
+      "AllowUsers/DenyUsers/AllowGroups/DenyGroups (present in the config but not evaluated: needs sshd -T and no Match blocks)",
+    );
+  }
   const recommendations: string[] = [];
   const stopgaps: string[] = [];
   const actions = new Set<HostActionT>();

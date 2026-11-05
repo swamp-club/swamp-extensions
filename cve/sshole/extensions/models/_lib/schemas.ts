@@ -73,7 +73,7 @@ export const StatusSchema = z.object({
   // The preconditions for the bypass.
   libc: z.enum(["musl", "glibc", "other", "unknown"]),
   openSshVersion: z.string().nullable(),
-  pkgManager: z.enum(["apk", "apt", "rpm", "opkg", "none"]),
+  pkgManager: z.enum(["apk", "apt", "rpm", "opkg", "xbps", "none"]),
   pkgRelease: z.string().nullable(),
   distroFixedRelease: z.string().nullable().describe(
     "First package release that carries the fix for this distro branch, when known",

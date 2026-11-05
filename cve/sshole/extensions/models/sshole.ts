@@ -152,8 +152,16 @@ export async function writeScanLog(
 /** The @swamp/cve/sshole model. */
 export const model = {
   type: "@swamp/cve/sshole",
-  version: "2026.11.05.1",
+  version: "2026.11.05.2",
   globalArguments: GlobalArgsSchema,
+  upgrades: [
+    {
+      toVersion: "2026.11.05.2",
+      description:
+        "Follows Include, picks the sshd build that runs (sshd.pam on Alpine), treats unevaluated AllowUsers-style rules and packaged non-Alpine builds below 10.6p2 as unknown, and records xbps. Existing arguments are unchanged.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   inputsSchema: InputsSchema,
   reports: ["@swamp/cve/sshole-report"],
   resources: {
