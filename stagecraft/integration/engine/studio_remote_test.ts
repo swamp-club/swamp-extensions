@@ -150,10 +150,15 @@ Deno.test("studio: with server set, serve shows a remote serve's factory and boa
     const remote = await swampServe(served);
     try {
       await withRepo(async (local) => {
-        await local.swamp(["model", "create", STUDIO_TYPE, "studio", "--json"]);
+        await local.swamp([
+          "behavior",
+          "create",
+          STUDIO_TYPE,
+          "studio",
+          "--json",
+        ]);
         const child = local.spawn([
-          "model",
-          "method",
+          "behavior",
           "run",
           "studio",
           "serve",

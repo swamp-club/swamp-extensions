@@ -259,8 +259,8 @@ Deno.test("work item page: Copy reference names the work item, where it is and h
   assertEquals(
     itemReferenceLine(facts),
     "work item team-item-abcd ('Add list') of factory team, at stage " +
-      "plan-review cycle 2: swamp model @swamp/stagecraft/work-item method " +
-      "run status team-item-abcd",
+      "plan-review cycle 2: swamp behavior run @swamp/stagecraft/work-item " +
+      "status team-item-abcd",
   );
   assertEquals(
     itemReferenceLine(
@@ -269,7 +269,7 @@ Deno.test("work item page: Copy reference names the work item, where it is and h
       { kind: "stage", stage: "plan" },
     ),
     "work item team-item-abcd of factory team, at stage plan-review cycle " +
-      "2: swamp model @swamp/stagecraft/work-item method run status " +
+      "2: swamp behavior run @swamp/stagecraft/work-item status " +
       "team-item-abcd · on its pinned definition: stage plan",
   );
 });

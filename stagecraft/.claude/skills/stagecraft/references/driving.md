@@ -43,7 +43,7 @@ Placeholders are in angle brackets: `<key>`, `<factory>`, `<stage>`, `<cycle>`,
 Work-item methods are run by type, with the key as the instance name:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run status <key>
+swamp behavior run @swamp/stagecraft/work-item status <key>
 ```
 
 Run methods without `--log`: swamp prints a method's output without it, and
@@ -68,9 +68,9 @@ the built-in tracker's `prefix`, `statuses` and `types`. With no external
 tracker, create the built-in one once per project:
 
 ```sh
-swamp model create @swamp/stagecraft/tracker board \
+swamp behavior create @swamp/stagecraft/tracker board \
   --global-arg prefix=<prefix> --json
-swamp model create @swamp/stagecraft/factory <factory> \
+swamp behavior create @swamp/stagecraft/factory <factory> \
   --global-arg tracker=board --json
 # agent: write starter into <factory>
 ```
@@ -83,12 +83,12 @@ replace a definition that is already there. Then edit it: change what its
 description's "Change first" paragraph names, and rewrite the description for
 your process. swamp does not check the file when it is saved: it checks the
 definition's schema before each factory method runs, and
-`swamp model validate <factory>` runs that check alone. `validate` checks the
+`swamp behavior validate <factory>` runs that check alone. `validate` checks the
 rest too, and refuses a factory whose tracker instance is missing or of another
 kind than the definition's:
 
 ```sh
-swamp model method run <factory> validate
+swamp behavior run <factory> validate
 ```
 
 `validate` reports every problem with its path. Fix them all before starting
@@ -104,8 +104,8 @@ and shows every work item of the factory by stage (Board), moving the cards as
 you drive them, with the ones waiting on a person highlighted. Each view has its
 own address, such as `/f/<factory>/board` after the logged URL. They start it
 themselves, since it runs until Ctrl-C:
-`swamp model create @swamp/stagecraft/studio studio` once, then
-`swamp model method run studio serve`, which logs the URL.
+`swamp behavior create @swamp/stagecraft/studio studio` once, then
+`swamp behavior run studio serve`, which logs the URL.
 
 A work item's page in the studio has a Ticket tab: the ticket's description,
 comments and relations as the tracker last recorded them. The studio never calls
@@ -140,7 +140,7 @@ takes the serve's URL as `server`:
 
 ```sh
 # background: runs until Ctrl-C, and logs its URL
-swamp model method run studio serve --input server=wss://swamp.example.com
+swamp behavior run studio serve --input server=wss://swamp.example.com
 ```
 
 `server` is a ws, wss, http or https URL with no credentials in it. The studio
@@ -169,7 +169,7 @@ what the work is, `start` takes the work's `title`: the run record keeps it, and
 work with no ticket:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run start <key> \
+swamp behavior run @swamp/stagecraft/work-item start <key> \
   --input factory=<factory> --input 'title=<title>'
 ```
 
@@ -195,9 +195,9 @@ swamp workflow run @swamp/stagecraft/claim --input tracker=<tracker> \
 `claim` answers in the workflow's output, on a line from one of its rounds
 (`round-2 │ ...`), in one of these ways:
 
-- **`is claimed as '<key>'. Start it: swamp model ...`**: the ticket had no work
-  item, so `claim` reserved a key and recorded it in the adapter's ticket index.
-  The key is the ticket's id, lowercased: `abc-12` for Linear's `ABC-12`,
+- **`is claimed as '<key>'. Start it: swamp behavior ...`**: the ticket had no
+  work item, so `claim` reserved a key and recorded it in the adapter's ticket
+  index. The key is the ticket's id, lowercased: `abc-12` for Linear's `ABC-12`,
   `docs-12` for a built-in ticket, and the tracker's prefix before a number-only
   id. A later work item on the same ticket adds a number: `abc-12-2`. If another
   work item already has the name (two trackers with one prefix), the tracker
@@ -237,12 +237,11 @@ The type must be one the tracker has (the built-in tracker: its `types`; Linear:
 a type its `types` argument maps to a label). When the person wants the ticket
 to carry an id from a system with no stagecraft tracker (a Jira ticket such as
 `SREMON-2131`), the built-in tracker's own `create` method takes
-`--input id=<id>`
-(`swamp model method run <tracker> create --input id=<id> ...`, with the same
-title, body and type): the ticket shows it as written and its work item's key is
-it lowercased. It is a label only; say that nothing syncs with the other system.
-Never re-run a `create` that may have gone through: check the tracker first,
-since a retry files a second ticket.
+`--input id=<id>` (`swamp behavior run <tracker> create --input id=<id> ...`,
+with the same title, body and type): the ticket shows it as written and its work
+item's key is it lowercased. It is a label only; say that nothing syncs with the
+other system. Never re-run a `create` that may have gone through: check the
+tracker first, since a retry files a second ticket.
 
 ## Read status
 
@@ -253,7 +252,7 @@ output with this same block, as it stands after the write, and that counts as
 reading status. A refused write prints only its error: read `status` again.
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run status <key>
+swamp behavior run @swamp/stagecraft/work-item status <key>
 ```
 
 ```text
@@ -315,7 +314,7 @@ swamp data query 'modelName == "<key>" && name == "artifact-<name>" && version =
 Start every stage's work, whatever its mode, with `dispatch`:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run dispatch <key> \
+swamp behavior run @swamp/stagecraft/work-item dispatch <key> \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```
 
@@ -324,18 +323,18 @@ stage's dispatch cap (one refused past it parks the work item for a person; see
 "When something fails"), and prints the dispatch id and the packet: the rendered
 prompt, then the rest as JSON (`mode`, `subagents`, `values`, `inject`,
 `notRecorded` when an optional inject has no record, `products`, and for
-workflow and method stages `inputs` with the `workflow` or `method` to call).
-`products` lists every artifact and evidence the stage's work records, each with
-the `schema` its payload must meet: record each one. Evidence a person records
-(`recordedBy: person`, which `status` lists under `a person records:`) is not in
-it; see [Evidence a person records](#evidence-a-person-records). Dispatch once
-per attempt at the work, not once per tool call.
+workflow and behavior stages `inputs` with the `workflow` or `behavior` to
+call). `products` lists every artifact and evidence the stage's work records,
+each with the `schema` its payload must meet: record each one. Evidence a person
+records (`recordedBy: person`, which `status` lists under `a person records:`)
+is not in it; see [Evidence a person records](#evidence-a-person-records).
+Dispatch once per attempt at the work, not once per tool call.
 
 For a dispatch stage, pass your scratch directory as `resultDir`. Leave it out
 and the engine makes a new temporary directory:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run dispatch <key> \
+swamp behavior run @swamp/stagecraft/work-item dispatch <key> \
   --input resultDir=<scratch-dir> \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```
@@ -367,13 +366,14 @@ Then, by `mode`:
   an approval note, never in a prompt. Each subagent writes its result to the
   files its prompt names. Record those files as they are (see
   [Record products](#record-products)).
-- **workflow** or **method**: run the workflow or model method the packet names
-  (its `workflow`, or its `method`'s `modelIdOrName` and `methodName`), with the
-  packet's `inputs`. Call exactly that name: the engine filled any placeholders
-  in it, so never call the definition's template or build the name yourself.
-  Then record the stage's result evidence with the real run id and outcome:
-  `{"status":"succeeded","runId":"<run id>"}`, or `failed`. Never record a run
-  you did not see finish. (The bundled factory definition has no such stage.)
+- **workflow** or **behavior**: run the workflow or behavior method the packet
+  names (its `workflow`, or its `behavior`'s `behaviorIdOrName` and
+  `methodName`), with the packet's `inputs`. Call exactly that name: the engine
+  filled any placeholders in it, so never call the definition's template or
+  build the name yourself. Then record the stage's result evidence with the real
+  run id and outcome: `{"status":"succeeded","runId":"<run id>"}`, or `failed`.
+  Never record a run you did not see finish. (The bundled factory definition has
+  no such stage.)
 
 A factory definition is in one stage at a time, so work that runs in parallel
 does so inside one stage. Such a stage names a wrapper workflow whose jobs run
@@ -405,7 +405,7 @@ Several subagents on one dispatch each report their own count: record their sum.
 moved on, and each dispatch takes usage once:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run record_usage <key> \
+swamp behavior run @swamp/stagecraft/work-item record_usage <key> \
   --input dispatchId=<dispatch-id> --input totalTokens=<tokens> \
   --input toolUses=<tool-uses> --input durationMs=<duration-ms> \
   --input model=<model>
@@ -422,7 +422,7 @@ record it, once: `succeeded`, `failed` or `interrupted`. Like usage, it takes no
 expectation:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run record_outcome <key> \
+swamp behavior run @swamp/stagecraft/work-item record_outcome <key> \
   --input dispatchId=<dispatch-id> --input outcome=succeeded
 ```
 
@@ -431,7 +431,7 @@ on every dispatch with `driverId`, since swamp gives no actor on remote workers.
 At startup and on an interval it runs one scan:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run open_dispatches <key> \
+swamp behavior run @swamp/stagecraft/work-item open_dispatches <key> \
   --input driverId=<your-id>
 ```
 
@@ -440,7 +440,7 @@ killed it. Dispatch again at once, naming its id in `supersedes`, which closes
 it as `interrupted`:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run dispatch <key> \
+swamp behavior run @swamp/stagecraft/work-item dispatch <key> \
   --input driverId=<your-id> --input supersedes=<dispatch-id> \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```
@@ -456,7 +456,7 @@ checkpoint for the open dispatch as often as it is useful; only the latest
 dispatch of the stage and cycle takes one:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run record_checkpoint <key> \
+swamp behavior run @swamp/stagecraft/work-item record_checkpoint <key> \
   --input dispatchId=<dispatch-id> --input payload='{"session":"<id>","step":4}'
 ```
 
@@ -465,7 +465,7 @@ it where it already lives (a branch, a session file) and checkpoint a pointer to
 it. The next dispatch of the same stage and cycle prints the latest checkpoint
 as `resume`, with the command that reads it; a dispatch stage's subagent prompts
 include that read. Resume from it rather than starting over. A workflow or
-method stage gets `workItem`, `dispatchId` and `resume` as its `_stagecraft`
+behavior stage gets `workItem`, `dispatchId` and `resume` as its `_stagecraft`
 input when its `inputsSchema` declares it (see authoring.md); otherwise pass the
 packet's values on yourself.
 
@@ -475,10 +475,10 @@ Record each artifact and each piece of evidence the stage declares (the packet's
 `products`). Give the payload as JSON in single quotes:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run record_artifact <key> \
+swamp behavior run @swamp/stagecraft/work-item record_artifact <key> \
   --input name=<name> --input payload='<json>' \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
-swamp model @swamp/stagecraft/work-item method run record_evidence <key> \
+swamp behavior run @swamp/stagecraft/work-item record_evidence <key> \
   --input name=<name> --input payload='<json>' \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```
@@ -488,7 +488,7 @@ If the payload contains a single quote, put all the inputs in a YAML file (keys
 instead:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run record_artifact <key> \
+swamp behavior run @swamp/stagecraft/work-item record_artifact <key> \
   --input-file <path>
 ```
 
@@ -496,7 +496,7 @@ A subagent's product is never typed out again. Record the result file it wrote,
 with `@` and the path from its prompt, so swamp reads the payload from the file:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run record_artifact <key> \
+swamp behavior run @swamp/stagecraft/work-item record_artifact <key> \
   --input name=<name> --input payload=@<result-path> \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```
@@ -535,7 +535,7 @@ yourself, and never record it because a gate asks for it. Record it only when
 the person gives it, in their words, and on their behalf:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run record_evidence <key> \
+swamp behavior run @swamp/stagecraft/work-item record_evidence <key> \
   --input name=plan-feedback --input payload='{"feedback":"<their words>"}' \
   --input onBehalfOf=<person> \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
@@ -576,7 +576,7 @@ Then:
 Take a manual exit only when the person asks for it.
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run advance <key> \
+swamp behavior run @swamp/stagecraft/work-item advance <key> \
   --input transition=<transition> \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```
@@ -661,11 +661,11 @@ new version and a full new review. So when the person wants the non-blocking
 findings folded in, approving is the way to do it.
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run approve <key> \
+swamp behavior run @swamp/stagecraft/work-item approve <key> \
   --input gateId=<gate-id> --input note="<their words>" \
   --input onBehalfOf=<person> \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
-swamp model @swamp/stagecraft/work-item method run decline <key> \
+swamp behavior run @swamp/stagecraft/work-item decline <key> \
   --input gateId=<gate-id> --input note="<their words>" \
   --input onBehalfOf=<person> \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
@@ -677,7 +677,7 @@ person records (`revise` needs their `plan-feedback`), record their feedback
 first, as in [Evidence a person records](#evidence-a-person-records):
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run advance <key> \
+swamp behavior run @swamp/stagecraft/work-item advance <key> \
   --input transition=<transition> --input confirm=true \
   --input onBehalfOf=<person> \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
@@ -741,7 +741,7 @@ When the work belongs to another ticket (for example the ticket turned out to
 duplicate another), a person may move the work item there, on their word:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run retarget <key> \
+swamp behavior run @swamp/stagecraft/work-item retarget <key> \
   --input 'externalRefs={"builtin":"<id>"}' \
   --input reason="<their words>" --input onBehalfOf=<person> \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
@@ -850,11 +850,11 @@ A failed write exits non-zero with its reason. Nothing is ever half-written.
 Overrides, on the person's word:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run grant_override <key> \
+swamp behavior run @swamp/stagecraft/work-item grant_override <key> \
   --input kind=cycle --input stage=<stage> --input note="<their words>" \
   --input onBehalfOf=<person> \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
-swamp model @swamp/stagecraft/work-item method run grant_override <key> \
+swamp behavior run @swamp/stagecraft/work-item grant_override <key> \
   --input kind=dispatch --input note="<their words>" \
   --input onBehalfOf=<person> \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
@@ -880,7 +880,7 @@ dispatch, and grants add up.
   `repin=true` also adopts the factory's current definition.
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run reset <key> \
+swamp behavior run @swamp/stagecraft/work-item reset <key> \
   --input confirm=reset --input onBehalfOf=<person> \
   --input expectedStage=<stage> --input expectedCycle=<cycle> --input expectedEra=<era>
 ```

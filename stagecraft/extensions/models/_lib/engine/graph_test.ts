@@ -1669,8 +1669,8 @@ stages:
   - id: a
     initial: true
     work:
-      mode: method
-      method: { modelIdOrName: My Legacy Server, methodName: run }
+      mode: behavior
+      behavior: { behaviorIdOrName: My Legacy Server, methodName: run }
     transitions: [{ name: next, to: b }]
   - id: b
     work:
@@ -1680,15 +1680,15 @@ stages:
     transitions: [{ name: next, to: c }]
   - id: c
     work:
-      mode: method
-      method: { modelIdOrName: "@acme/planner", methodName: run }
+      mode: behavior
+      behavior: { behaviorIdOrName: "@acme/planner", methodName: run }
     transitions: [{ name: finish, to: done }]
   - id: done
     terminal: true
 `));
   assertEquals(report.errors, []);
   assertEquals(codes(report.warnings), [
-    "target-name stages.0.work.method.modelIdOrName [a]",
+    "target-name stages.0.work.behavior.behaviorIdOrName [a]",
   ]);
   assert(
     report.warnings[0].message.includes("a name swamp would not create"),

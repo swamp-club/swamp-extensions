@@ -633,7 +633,7 @@ export async function loadFactories(asked: string | null = null) {
     loaded.value = null;
     good.value = null;
     sourceError.value =
-      "No factories in this repo yet. Create one with swamp model create " +
+      "No factories in this repo yet. Create one with swamp behavior create " +
       "@swamp/stagecraft/factory <name> --global-arg " +
       "tracker=<tracker>, then write its definition under " +
       "globalArguments.definition in its model definition file.";

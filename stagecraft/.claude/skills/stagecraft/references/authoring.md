@@ -33,7 +33,7 @@ start → interviewed → drafted → validated → shown → started
 Look for factories and trackers the repo already has:
 
 ```sh
-swamp model search stagecraft --json
+swamp behavior search stagecraft --json
 ```
 
 - No factory of type `@swamp/stagecraft/factory` exists yet: this is the
@@ -111,7 +111,7 @@ factory with its tracker instance (`<tracker>`, set up in step 5) as its only
 argument, then write the example into it:
 
 ```sh
-swamp model create @swamp/stagecraft/factory <factory> \
+swamp behavior create @swamp/stagecraft/factory <factory> \
   --global-arg tracker=<tracker> --json
 # agent: write <starter> into <factory>
 ```
@@ -153,16 +153,16 @@ the factory's `scenarios:` list, format in [scenarios.md](scenarios.md)), then
 check the whole factory:
 
 ```sh
-swamp model method run <factory> validate
+swamp behavior run <factory> validate
 ```
 
 `validate` checks the definition's schema and references, analyses its stage
 graph, and runs its saved scenarios. swamp checks the schema first, before any
 factory method runs: a schema error stops `validate` with
 `Global arguments validation failed: <message> at "definition.<path>"` (or
-`scenarios.<path>`), and `swamp model validate <factory>` shows the same. Read
-every line it prints. For each problem, tell the person what it means in plain
-words (see [Findings in plain words](#findings-in-plain-words)), fix the
+`scenarios.<path>`), and `swamp behavior validate <factory>` shows the same.
+Read every line it prints. For each problem, tell the person what it means in
+plain words (see [Findings in plain words](#findings-in-plain-words)), fix the
 definition, and run `validate` again.
 
 **Verify:** `validate` succeeds, and every warning left is one the person has
@@ -182,9 +182,9 @@ every factory in the repo and redraws it as you save. Create the studio unless
 since `serve` runs until Ctrl-C:
 
 ```sh
-swamp model create @swamp/stagecraft/studio <studio> --json
+swamp behavior create @swamp/stagecraft/studio <studio> --json
 # background: runs until Ctrl-C, and logs its URL
-swamp model method run <studio> serve
+swamp behavior run <studio> serve
 ```
 
 `serve` logs a line such as `studio: http://127.0.0.1:38813/`. Give the person
@@ -236,10 +236,10 @@ swamp workflow run @swamp/stagecraft/create --input tracker=<tracker> \
   --input 'title=<title>' --input 'body=<body>' --input 'type=<type>'
 swamp workflow run @swamp/stagecraft/claim --input tracker=<tracker> \
   --input issue=<ticket> --input factory=<factory>
-swamp model @swamp/stagecraft/work-item method run start <key> \
+swamp behavior run @swamp/stagecraft/work-item start <key> \
   --input factory=<factory> --input 'title=<title>' \
   --input 'externalRefs=<external-refs>'
-swamp model @swamp/stagecraft/work-item method run status <key>
+swamp behavior run @swamp/stagecraft/work-item status <key>
 ```
 
 `create` prints the ticket's id, the prefix and a number (`docs-1`). `claim`
@@ -274,7 +274,7 @@ kept in swamp data, with ids like `docs-12`: the prefix the person chose, then a
 number counted per prefix:
 
 ```sh
-swamp model create @swamp/stagecraft/tracker <tracker> \
+swamp behavior create @swamp/stagecraft/tracker <tracker> \
   --global-arg prefix=<prefix> --json
 ```
 
@@ -297,7 +297,7 @@ id as-is (`ABC-12` gives `abc-12`); `prefix`, the team's short name, does not
 rename it:
 
 ```sh
-swamp model create @swamp/stagecraft/linear <tracker> --json
+swamp behavior create @swamp/stagecraft/linear <tracker> --json
 ```
 
 **Another tracker**: a tracker written as a separate extension (the person's
@@ -306,7 +306,7 @@ publisher. Install the tracker's extension, create its instance and set it up as
 its README says, then have it describe itself once:
 
 ```sh
-swamp model method run <their-tracker> describe
+swamp behavior run <their-tracker> describe
 ```
 
 Create a publisher in front of it, naming the tracker instance, and set its
@@ -314,7 +314,7 @@ Create a publisher in front of it, naming the tracker instance, and set its
 name) in the model file `model create` prints:
 
 ```sh
-swamp model create @swamp/stagecraft/publisher <tracker> \
+swamp behavior create @swamp/stagecraft/publisher <tracker> \
   --global-arg tracker=<their-tracker> --json
 ```
 
@@ -364,7 +364,7 @@ went through five rounds of plan review.
    payload that does not fit is refused and kept as retry feedback. Findings
    products use `kind: findings`, which brings its own schema.
 6. **Let long work resume after a restart.** A stage whose work can be cut short
-   by a restart (a long agent session in a `method` stage on a remote worker)
+   by a restart (a long agent session in a `behavior` stage on a remote worker)
    keeps `maxInterruptionsPerCycle` (default 3) unless there is a reason to
    change it: interrupted dispatches count against it, not against
    `maxDispatchesPerCycle`. For the method to checkpoint and resume, it needs
@@ -375,8 +375,8 @@ went through five rounds of plan review.
 
    ```yaml
    work:
-     mode: method
-     method: { modelIdOrName: agent, methodName: run }
+     mode: behavior
+     behavior: { behaviorIdOrName: agent, methodName: run }
      inputsSchema:
        type: object
        properties:
@@ -393,11 +393,12 @@ went through five rounds of plan review.
    does not declare. REFERENCE.md gives the input's full shape.
 7. **Name run data under `let`, and send only what a call takes.** Each value
    from run data is a bare CEL expression under `work.let`, used in text as
-   `{{name}}`: the prompts, and a workflow or method call's target
-   (`modelIdOrName: "agent-{{workItem}}"`). A call sends only the let values its
-   `passAsInputs` lists, so list exactly the method's or workflow's arguments:
-   swamp refuses an input a method does not declare. A value from run data that
-   fills a target must be a name swamp accepts, or the dispatch is refused.
+   `{{name}}`: the prompts, and a workflow or behavior call's target
+   (`behaviorIdOrName: "agent-{{workItem}}"`). A call sends only the let values
+   its `passAsInputs` lists, so list exactly the method's or workflow's
+   arguments: swamp refuses an input a method does not declare. A value from run
+   data that fills a target must be a name swamp accepts, or the dispatch is
+   refused.
 
 ## Findings in plain words
 

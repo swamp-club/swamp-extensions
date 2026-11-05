@@ -455,7 +455,7 @@ export interface DispatchInput {
   prompt?: string;
   command?: string;
   workflow?: string;
-  method?: { modelIdOrName: string; methodName: string };
+  behavior?: { behaviorIdOrName: string; methodName: string };
   subagentPrompts?: SubagentPrompt[];
   /** Who is doing the work, as the driver names itself. */
   driverId?: string;
@@ -554,7 +554,7 @@ export function recordDispatch(
     ...(input.prompt !== undefined ? { prompt: input.prompt } : {}),
     ...(input.command !== undefined ? { command: input.command } : {}),
     ...(input.workflow !== undefined ? { workflow: input.workflow } : {}),
-    ...(input.method !== undefined ? { method: input.method } : {}),
+    ...(input.behavior !== undefined ? { behavior: input.behavior } : {}),
     ...(input.subagentPrompts !== undefined
       ? { subagentPrompts: input.subagentPrompts }
       : {}),

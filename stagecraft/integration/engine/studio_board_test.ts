@@ -72,10 +72,9 @@ async function within<T>(ms: number, what: string, p: Promise<T>): Promise<T> {
 }
 
 async function serve(repo: SwampRepo) {
-  await repo.swamp(["model", "create", STUDIO_TYPE, "studio", "--json"]);
+  await repo.swamp(["behavior", "create", STUDIO_TYPE, "studio", "--json"]);
   const child = repo.spawn([
-    "model",
-    "method",
+    "behavior",
     "run",
     "studio",
     "serve",

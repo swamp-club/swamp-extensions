@@ -88,13 +88,13 @@ This skill covers **authoring** a factory and **driving** its work items.
 ## The loop
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run status <key>
+swamp behavior run @swamp/stagecraft/work-item status <key>
 ```
 
 1. Read `status`. If the item is terminal, run `summary`, report and stop.
 2. `dispatch`, then do the stage's work as its `mode` says: yourself
    (interactive), by subagents sent the prompts it prints, unchanged (dispatch),
-   or by running the workflow or method the packet names.
+   or by running the workflow or behavior the packet names.
 3. Record each product the packet lists (the stage's work). When a subagent
    hands back, `record_usage` for its dispatch with the token count the harness
    reported for it (see `references/driving.md`).
@@ -114,8 +114,8 @@ said. See [references/driving.md](references/driving.md#human-stops).
 ## Quick reference
 
 Work-item methods run by type, with the key as the instance:
-`swamp model @swamp/stagecraft/work-item method run <method> <key> ...`.
-"expect" means the three `--input expected...=` flags from `status`.
+`swamp behavior run @swamp/stagecraft/work-item <method> <key> ...`. "expect"
+means the three `--input expected...=` flags from `status`.
 
 | Method            | Inputs                                                          | Needs the person |
 | ----------------- | --------------------------------------------------------------- | ---------------- |
@@ -134,9 +134,8 @@ Work-item methods run by type, with the key as the instance:
 | `reset`           | `confirm=reset`, `repin` (optional), expect                     | yes              |
 | `retarget`        | `externalRefs` (a JSON object), `reason`, expect                | yes              |
 
-Factory methods run by instance name:
-`swamp model method run <factory> validate` checks a factory definition in full
-and runs its saved scenarios.
+Factory methods run by instance name: `swamp behavior run <factory> validate`
+checks a factory definition in full and runs its saved scenarios.
 
 Work starts from a tracker ticket, through the shipped tracker workflows, which
 drive every tracker the same way; `<tracker>` is the instance the factory is
@@ -152,7 +151,7 @@ then claim it. `start` also takes any unused name chosen by hand, for work with
 no ticket. See
 [references/driving.md](references/driving.md#start-from-a-ticket). To link two
 tickets (a parent and its child, a blocker) on a tracker stagecraft ships, use
-`swamp model method run <tracker> relate --input issue=<id> --input type=<parent_of|blocked_by|related_to|duplicate_of> --input to=<id>`
+`swamp behavior run <tracker> relate --input issue=<id> --input type=<parent_of|blocked_by|related_to|duplicate_of> --input to=<id>`
 with stable ids; `unrelate` takes the same inputs. Every tracker refuses a
 second parent, a parent cycle and a duplicate chain the same way. On the
 built-in tracker, `to` may be a ticket in another tracker, `<tracker>:<id>`, for

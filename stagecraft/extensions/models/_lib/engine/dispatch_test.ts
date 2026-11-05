@@ -243,8 +243,8 @@ Deno.test("dispatch: no description reaches whoever does the work, in any mode",
     interactive: {},
     dispatch: { skills: ["review"] },
     workflow: { workflow: { name: "@acme/tests", inputs: { suite: "all" } } },
-    method: {
-      method: { modelIdOrName: "m", methodName: "run", inputs: { n: 1 } },
+    behavior: {
+      behavior: { behaviorIdOrName: "m", methodName: "run", inputs: { n: 1 } },
     },
   } as const;
   for (const [mode, call] of Object.entries(calls)) {
@@ -567,18 +567,18 @@ const STAGECRAFT_INPUTS_SCHEMA = {
   },
 };
 
-function methodStage(work: Record<string, unknown> = {}, mode = "method") {
+function behaviorStage(work: Record<string, unknown> = {}, mode = "behavior") {
   const result = parseDefinition({
     schemaVersion: DEFINITION_SCHEMA_VERSION,
     stages: [
       {
         id: "work",
         initial: true,
-        work: mode === "method"
+        work: mode === "behavior"
           ? {
             mode,
-            method: {
-              modelIdOrName: "agent",
+            behavior: {
+              behaviorIdOrName: "agent",
               methodName: "run",
               inputs: { task: "build" },
             },
@@ -595,7 +595,7 @@ function methodStage(work: Record<string, unknown> = {}, mode = "method") {
 }
 
 async function packetFor(
-  definition: ReturnType<typeof methodStage>,
+  definition: ReturnType<typeof behaviorStage>,
   prepare: (run: RunRecord) => RunRecord = (run) => run,
 ) {
   const env = testEnv();
@@ -620,7 +620,7 @@ async function packetFor(
 }
 
 Deno.test("dispatch: the packet names the work item, the next dispatch id and the checkpoint to resume from", async () => {
-  const packet = await packetFor(methodStage());
+  const packet = await packetFor(behaviorStage());
   assertEquals(packet.workItem, "wi-7");
   assertEquals(packet.dispatchId, 1);
   assertEquals(packet.resume, null);
@@ -631,7 +631,7 @@ Deno.test("dispatch: the packet names the work item, the next dispatch id and th
 
 Deno.test("dispatch: a stage whose inputsSchema declares _stagecraft gets it filled", async () => {
   const packet = await packetFor(
-    methodStage({ inputsSchema: STAGECRAFT_INPUTS_SCHEMA }),
+    behaviorStage({ inputsSchema: STAGECRAFT_INPUTS_SCHEMA }),
   );
   assertEquals(packet.inputs, {
     task: "build",
@@ -642,7 +642,7 @@ Deno.test("dispatch: a stage whose inputsSchema declares _stagecraft gets it fil
 });
 
 Deno.test("dispatch: a strict inputsSchema that does not declare _stagecraft is left as it was", async () => {
-  const packet = await packetFor(methodStage({
+  const packet = await packetFor(behaviorStage({
     inputsSchema: {
       type: "object",
       additionalProperties: false,
@@ -654,10 +654,10 @@ Deno.test("dispatch: a strict inputsSchema that does not declare _stagecraft is 
 });
 
 Deno.test("dispatch: a _stagecraft the definition supplies itself is not replaced", async () => {
-  const packet = await packetFor(methodStage({
+  const packet = await packetFor(behaviorStage({
     inputsSchema: STAGECRAFT_INPUTS_SCHEMA,
-    method: {
-      modelIdOrName: "agent",
+    behavior: {
+      behaviorIdOrName: "agent",
       methodName: "run",
       inputs: { _stagecraft: "mine" },
     },
@@ -667,7 +667,7 @@ Deno.test("dispatch: a _stagecraft the definition supplies itself is not replace
 });
 
 Deno.test("dispatch: a declared _stagecraft shape the engine's value does not meet is a packet problem", async () => {
-  const packet = await packetFor(methodStage({
+  const packet = await packetFor(behaviorStage({
     inputsSchema: {
       type: "object",
       properties: { _stagecraft: { type: "string" } },
@@ -681,7 +681,7 @@ Deno.test("dispatch: a declared _stagecraft shape the engine's value does not me
 });
 
 Deno.test("dispatch: the next dispatch resumes from the latest checkpoint, pinned to its version", async () => {
-  const definition = methodStage({ inputsSchema: STAGECRAFT_INPUTS_SCHEMA });
+  const definition = behaviorStage({ inputsSchema: STAGECRAFT_INPUTS_SCHEMA });
   const env = testEnv();
   const packet = await packetFor(definition, (run) => {
     const first = recordDispatch(
@@ -721,7 +721,7 @@ Deno.test("dispatch: the next dispatch resumes from the latest checkpoint, pinne
 });
 
 Deno.test("dispatch: a subagent prompt carries the checkpoint read only when there is one", async () => {
-  const definition = methodStage({}, "dispatch");
+  const definition = behaviorStage({}, "dispatch");
   const env = testEnv();
   const fresh = await packetFor(definition);
   const [plain] = buildSubagentPrompts(definition, fresh, {
@@ -799,15 +799,18 @@ async function packetForWork(work: Record<string, unknown>, key = "wi-7") {
   );
 }
 
-Deno.test("dispatch: a method stage's model is filled from let values", async () => {
+Deno.test("dispatch: a behavior stage's target is filled from let values", async () => {
   const packet = await packetForWork({
-    mode: "method",
-    method: { modelIdOrName: "agent-{{workItem}}", methodName: "generate" },
+    mode: "behavior",
+    behavior: {
+      behaviorIdOrName: "agent-{{workItem}}",
+      methodName: "generate",
+    },
     let: { workItem: "item.key" },
   });
   assertEquals(packet.problems, []);
-  assertEquals(packet.method, {
-    modelIdOrName: "agent-wi-7",
+  assertEquals(packet.behavior, {
+    behaviorIdOrName: "agent-wi-7",
     methodName: "generate",
   });
   // Not passed, so not sent: swamp refuses an input a method does not declare.
@@ -836,16 +839,16 @@ Deno.test("dispatch: a target value that is not a non-empty string fails the dis
     ]
   ) {
     const packet = await packetForWork({
-      mode: "method",
-      method: { modelIdOrName: "agent-{{who}}", methodName: "run" },
+      mode: "behavior",
+      behavior: { behaviorIdOrName: "agent-{{who}}", methodName: "run" },
       let: { who: expr },
     });
     assert(!packet.ready, expr);
-    assertEquals(packet.method, undefined, expr);
+    assertEquals(packet.behavior, undefined, expr);
     assertEquals(
       packet.problems,
       [
-        `method.modelIdOrName placeholder {{who}} needs a non-empty string, not ${words}`,
+        `behavior.behaviorIdOrName placeholder {{who}} needs a non-empty string, not ${words}`,
       ],
       expr,
     );
@@ -854,8 +857,8 @@ Deno.test("dispatch: a target value that is not a non-empty string fails the dis
 
 Deno.test("dispatch: a let value that fails is reported once, not again for the target", async () => {
   const packet = await packetForWork({
-    mode: "method",
-    method: { modelIdOrName: "agent-{{who}}", methodName: "run" },
+    mode: "behavior",
+    behavior: { behaviorIdOrName: "agent-{{who}}", methodName: "run" },
     let: { who: "item.nothing.deeper" },
   });
   assert(!packet.ready);
@@ -873,19 +876,19 @@ Deno.test("dispatch: a filled target must be a name swamp would create", async (
       ["a/b", "path traversal"],
     ]
   ) {
-    const method = await packetForWork({
-      mode: "method",
-      method: { modelIdOrName: "{{who}}", methodName: "run" },
+    const behavior = await packetForWork({
+      mode: "behavior",
+      behavior: { behaviorIdOrName: "{{who}}", methodName: "run" },
       let: { who: JSON.stringify(value) },
     });
-    assert(!method.ready, value);
-    assertEquals(method.method, undefined, value);
-    assertEquals(method.problems.length, 1, value);
+    assert(!behavior.ready, value);
+    assertEquals(behavior.behavior, undefined, value);
+    assertEquals(behavior.problems.length, 1, value);
     assert(
-      method.problems[0].startsWith(
-        `method.modelIdOrName '{{who}}' gave ${JSON.stringify(value)}`,
-      ) && method.problems[0].includes(rule),
-      method.problems[0],
+      behavior.problems[0].startsWith(
+        `behavior.behaviorIdOrName '{{who}}' gave ${JSON.stringify(value)}`,
+      ) && behavior.problems[0].includes(rule),
+      behavior.problems[0],
     );
   }
   // A workflow name may not hold '_', which a model name may.
@@ -900,8 +903,8 @@ Deno.test("dispatch: a filled target must be a name swamp would create", async (
     workflow.problems[0],
   );
   const model = await packetForWork({
-    mode: "method",
-    method: { modelIdOrName: "{{who}}", methodName: "run" },
+    mode: "behavior",
+    behavior: { behaviorIdOrName: "{{who}}", methodName: "run" },
     let: { who: "'snake_case'" },
   });
   assertEquals(model.problems, []);
@@ -910,18 +913,18 @@ Deno.test("dispatch: a filled target must be a name swamp would create", async (
 Deno.test("dispatch: a literal target is left as written", async () => {
   // It may name a model made before swamp's naming rule; validate warns.
   const packet = await packetForWork({
-    mode: "method",
-    method: { modelIdOrName: "My Legacy Server", methodName: "run" },
+    mode: "behavior",
+    behavior: { behaviorIdOrName: "My Legacy Server", methodName: "run" },
   });
   assertEquals(packet.problems, []);
-  assertEquals(packet.method?.modelIdOrName, "My Legacy Server");
+  assertEquals(packet.behavior?.behaviorIdOrName, "My Legacy Server");
 });
 
 Deno.test("dispatch: passAsInputs sends let values with their types kept", async () => {
   const packet = await packetForWork({
-    mode: "method",
-    method: {
-      modelIdOrName: "m",
+    mode: "behavior",
+    behavior: {
+      behaviorIdOrName: "m",
       methodName: "run",
       inputs: { mode: "strict" },
       passAsInputs: ["record", "none", "count"],

@@ -106,7 +106,7 @@ for any scenario you write.
 Run `validate` and fix what it reports:
 
 ```sh
-swamp model method run <factory> validate
+swamp behavior run <factory> validate
 ```
 
 It runs every scenario in the factory's `scenarios:` list and names each step

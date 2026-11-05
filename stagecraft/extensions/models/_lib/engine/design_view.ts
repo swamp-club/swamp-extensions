@@ -62,12 +62,12 @@ export interface WorkView {
   mode: string;
   description?: string;
   skills: string[];
-  /** The workflow, or model.method, a workflow or method stage calls, as
+  /** The workflow, or behavior.method, a workflow or behavior stage calls, as
    * written: placeholders are shown, never filled. */
   call?: string;
   /** The stage's let names. */
   let: string[];
-  /** The let values a workflow or method call sends as inputs. */
+  /** The let values a workflow or behavior call sends as inputs. */
   passAsInputs: string[];
   inject: string[];
   /** The injected products a route to the stage may leave unrecorded. */
@@ -289,13 +289,13 @@ export function designView(
         mode: w.mode,
         skills: w.skills ?? [],
         let: Object.keys(w.let ?? {}),
-        passAsInputs: (w.workflow ?? w.method)?.passAsInputs ?? [],
+        passAsInputs: (w.workflow ?? w.behavior)?.passAsInputs ?? [],
         inject: w.context?.inject ?? [],
         optional: w.context?.optional ?? [],
       };
       if (w.workflow !== undefined) work.call = w.workflow.name;
-      if (w.method !== undefined) {
-        work.call = `${w.method.modelIdOrName}.${w.method.methodName}`;
+      if (w.behavior !== undefined) {
+        work.call = `${w.behavior.behaviorIdOrName}.${w.behavior.methodName}`;
       }
       if (w.resultEvidence !== undefined) {
         work.resultEvidence = w.resultEvidence;

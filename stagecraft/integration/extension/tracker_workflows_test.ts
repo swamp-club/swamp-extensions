@@ -52,7 +52,7 @@ async function workflow(
 
 async function board(repo: SwampRepo): Promise<void> {
   const { stdout } = await repo.swamp([
-    "model",
+    "behavior",
     "create",
     BUILTIN_TYPE,
     "board",
@@ -178,15 +178,15 @@ Deno.test("tracker workflows: the built-in tracker passes the conformance workfl
 async function notes(repo: SwampRepo): Promise<void> {
   await repo.swamp(["extension", "source", "add", NOTES]);
   await repo.swamp([
-    "model",
+    "behavior",
     "create",
     "@acme/notes-tracker",
     "notes",
     "--json",
   ]);
-  await repo.swamp(["model", "method", "run", "notes", "describe"]);
+  await repo.swamp(["behavior", "run", "notes", "describe"]);
   const { stdout } = await repo.swamp([
-    "model",
+    "behavior",
     "create",
     PUBLISHER_TYPE,
     "notes-pub",

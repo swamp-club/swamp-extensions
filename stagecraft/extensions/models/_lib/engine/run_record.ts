@@ -24,6 +24,15 @@ import {
   type ParseResult,
   WORK_MODES,
 } from "./definition_schema.ts";
+import {
+  behaviorNames,
+  checkChain,
+  isObject,
+  oldestVersion,
+  type UpgradeChain,
+  upgradeDefinition,
+  type UpgradeStep,
+} from "./definition_upgrade.ts";
 import { TrackerBindingSchema } from "./tracker_binding.ts";
 
 // ---------------------------------------------------------------------------
@@ -34,10 +43,41 @@ import { TrackerBindingSchema } from "./tracker_binding.ts";
 // does not reference is ignored.
 //
 // swamp never upgrades stored data (only globalArguments), so the record
-// carries its own schemaVersion and parseRun reads every version it knows.
+// carries its own schemaVersion and parseRun reads every version it knows,
+// upgrading an older one in memory. A stored version is never rewritten; the
+// next write commits the current form as a new one.
 // ---------------------------------------------------------------------------
 
-export const RUN_SCHEMA_VERSION = 1;
+export const RUN_SCHEMA_VERSION = 2;
+
+/**
+ * 1 to 2 (#3855): a dispatch of work mode `method` is one of mode `behavior`,
+ * with its call block renamed to match. Anything malformed is left as it is,
+ * for the strict schema to refuse.
+ */
+const BEHAVIOR_DISPATCHES: UpgradeStep = {
+  from: 1,
+  description: "work mode method becomes behavior on each dispatch",
+  upgrade(run) {
+    return {
+      ...run,
+      schemaVersion: 2,
+      ...(Array.isArray(run.dispatches)
+        ? {
+          dispatches: run.dispatches.map((dispatch) =>
+            isObject(dispatch) ? behaviorNames(dispatch) : dispatch
+          ),
+        }
+        : {}),
+    };
+  },
+};
+
+/** The versions a runtime reads a run record at. */
+export const RUN_CHAIN: UpgradeChain = checkChain({
+  current: RUN_SCHEMA_VERSION,
+  steps: [BEHAVIOR_DISPATCHES],
+});
 
 /** A recorded product, as the run record indexes it. */
 export const ProductRefSchema = z.strictObject({
@@ -140,10 +180,10 @@ export const DispatchSchema = z.strictObject({
   /** For a workflow stage: the workflow run, its name rendered. Absent on
    * dispatches recorded before it was kept. */
   workflow: z.string().min(1).optional(),
-  /** For a method stage: the model method called, its model rendered.
+  /** For a behavior stage: the behavior's method called, its name rendered.
    * Absent on dispatches recorded before it was kept. */
-  method: z.strictObject({
-    modelIdOrName: z.string().min(1),
+  behavior: z.strictObject({
+    behaviorIdOrName: z.string().min(1),
     methodName: z.string().min(1),
   }).optional(),
   /** For a dispatch stage: exactly what each subagent was sent, and where
@@ -258,23 +298,29 @@ export const RunRecordSchema = z.strictObject({
 
 export type RunRecord = z.infer<typeof RunRecordSchema>;
 
-/** Read a stored run record, refusing a schema version this code does not
- * know rather than guessing. */
+/** Read a stored run record, in the current form, refusing a schema version
+ * this code does not know rather than guessing. */
 export function parseRun(raw: unknown): ParseResult<RunRecord> {
   const version = raw !== null && typeof raw === "object"
     ? (raw as Record<string, unknown>).schemaVersion
     : undefined;
-  if (version !== RUN_SCHEMA_VERSION) {
+  if (
+    typeof version !== "number" || !Number.isInteger(version) ||
+    version < oldestVersion(RUN_CHAIN) || version > RUN_SCHEMA_VERSION
+  ) {
     return {
       ok: false,
       errors: [
         `run record schemaVersion ${
           JSON.stringify(version)
-        } is not one this runtime reads (${RUN_SCHEMA_VERSION})`,
+        } is not one this runtime reads (${
+          oldestVersion(RUN_CHAIN)
+        } to ${RUN_SCHEMA_VERSION})`,
       ],
     };
   }
-  const result = RunRecordSchema.safeParse(raw);
+  const { definition: current } = upgradeDefinition(raw, RUN_CHAIN);
+  const result = RunRecordSchema.safeParse(current);
   return result.success
     ? { ok: true, value: result.data }
     : { ok: false, errors: formatIssues(result.error) };

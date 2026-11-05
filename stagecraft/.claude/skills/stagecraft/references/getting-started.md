@@ -56,7 +56,7 @@ This holds in every state:
 Look for factories the repo already has:
 
 ```sh
-swamp model search stagecraft --json
+swamp behavior search stagecraft --json
 ```
 
 - A factory of type `@swamp/stagecraft/factory` exists: the person is past
@@ -155,7 +155,7 @@ example's.
 **Action:** do [authoring.md State 3](authoring.md#state-3-validated):
 
 ```sh
-swamp model method run <factory> validate
+swamp behavior run <factory> validate
 ```
 
 Explain each warning in plain words, without factory terms where you can ("work
@@ -193,7 +193,7 @@ scenario in the factory's `scenarios:` list ([scenarios.md](scenarios.md)), with
 `expect` steps that say what must happen, then run:
 
 ```sh
-swamp model method run <factory> validate
+swamp behavior run <factory> validate
 ```
 
 Tell them what the scenario showed, in their words. Then offer **Simulate** in
@@ -222,7 +222,7 @@ where the person decides, and lay that stop out as
 and their choice.
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run status <key>
+swamp behavior run @swamp/stagecraft/work-item status <key>
 ```
 
 **Verify:** `status` shows the work item waiting on the person at a human stop,

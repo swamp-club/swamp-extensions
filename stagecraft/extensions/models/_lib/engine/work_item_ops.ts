@@ -374,7 +374,7 @@ export async function resolveTrackerBinding(
   if (tracker === null || tracker === undefined) {
     throw new Error(
       `factory '${factory}' names tracker '${instance}', but no model is ` +
-        `named '${instance}': create it with swamp model create ${expected} ` +
+        `named '${instance}': create it with swamp behavior create ${expected} ` +
         `${instance}`,
     );
   }
@@ -423,15 +423,15 @@ async function checkDescribed(
   if (record === undefined) {
     throw new Error(
       `factory '${factory}' is bound to publisher '${publisher}', whose ` +
-        `tracker '${target}' has not described itself: run swamp model ` +
-        `method run ${target} describe`,
+        `tracker '${target}' has not described itself: run swamp behavior ` +
+        `run ${target} describe`,
     );
   }
   const parsed = DescriptionHeadSchema.safeParse(recordObject(record));
   if (!parsed.success) {
     throw new Error(
       `tracker '${target}' described itself in a form this stagecraft does ` +
-        `not read: run swamp model method run ${target} describe again`,
+        `not read: run swamp behavior run ${target} describe again`,
     );
   }
   const head = parsed.data;
@@ -1369,7 +1369,9 @@ export async function dispatch(
           ...(packet.workflow !== undefined
             ? { workflow: packet.workflow }
             : {}),
-          ...(packet.method !== undefined ? { method: packet.method } : {}),
+          ...(packet.behavior !== undefined
+            ? { behavior: packet.behavior }
+            : {}),
           ...(subagentPrompts.length > 0 ? { subagentPrompts } : {}),
           ...lifecycle,
         },

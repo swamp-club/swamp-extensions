@@ -90,7 +90,7 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. work_item_test checks it equals WORK_ITEM_TYPE.
   type: "@swamp/stagecraft/work-item",
-  version: "2026.11.05.1",
+  version: "2026.11.05.2",
   // The work item has no globalArguments to upgrade; each entry moves an
   // instance's typeVersion to the version it runs at.
   upgrades: [
@@ -122,6 +122,12 @@ export const model = {
       toVersion: "2026.11.05.1",
       description: "A dispatch names the optional injects not recorded " +
         "(no argument change)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.2",
+      description: "Run record schemaVersion 2: work mode method becomes " +
+        "behavior on each dispatch (no argument change)",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -56,7 +56,7 @@ named `description`, saying what the tracker is:
   when work on it starts. Leave it out to assign no one.
 
 Run it once after creating the instance, and again after changing what it
-reports: `swamp model method run <instance> describe`. A factory bound to your
+reports: `swamp behavior run <instance> describe`. A factory bound to your
 tracker does not validate until it has.
 
 ### `operate`
@@ -182,9 +182,9 @@ the valid ones.
 ## Setting it up
 
 ```sh
-swamp model create @acme/notes-tracker notes --json
-swamp model method run notes describe
-swamp model create @swamp/stagecraft/publisher notes-pub \
+swamp behavior create @acme/notes-tracker notes --json
+swamp behavior run notes describe
+swamp behavior create @swamp/stagecraft/publisher notes-pub \
   --global-arg tracker=notes --json
 ```
 

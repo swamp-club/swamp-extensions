@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "description": "Score a change, or skip the score, then review it.",
   "tracker": {
     "kind": "builtin"

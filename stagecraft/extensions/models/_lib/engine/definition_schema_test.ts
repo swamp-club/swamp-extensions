@@ -225,25 +225,25 @@ Deno.test("cel: a human-approval gate's when is bare, valid CEL", () => {
 Deno.test("cel: ${{ in a literal input is caught, even under a key named let", () => {
   const doc = base();
   set(doc, "stages.0.work", {
-    mode: "method",
-    method: {
-      modelIdOrName: "m",
+    mode: "behavior",
+    behavior: {
+      behaviorIdOrName: "m",
       methodName: "run",
       inputs: { let: { ref: "${{ item.key }}" } },
     },
   });
   assertRejects(
     doc,
-    "stages.0.work.method.inputs.let.ref: contains ${{ }}",
+    "stages.0.work.behavior.inputs.let.ref: contains ${{ }}",
   );
 });
 
 Deno.test("cel: ${{ in user data shaped like a CEL position is caught", () => {
   const doc = base();
   set(doc, "stages.0.work", {
-    mode: "method",
-    method: {
-      modelIdOrName: "m",
+    mode: "behavior",
+    behavior: {
+      behaviorIdOrName: "m",
       methodName: "run",
       inputs: {
         work: { let: { x: "${{ a }}" } },
@@ -261,8 +261,8 @@ Deno.test("cel: ${{ in user data shaped like a CEL position is caught", () => {
   set(doc, "stages.0.evidence", [{ name: "out", schema: { type: "object" } }]);
   assertRejects(
     doc,
-    "stages.0.work.method.inputs.work.let.x: contains ${{ }}",
-    "stages.0.work.method.inputs.config.expr: contains ${{ }}",
+    "stages.0.work.behavior.inputs.work.let.x: contains ${{ }}",
+    "stages.0.work.behavior.inputs.config.expr: contains ${{ }}",
     "stages.0.artifacts.0.schema.default.config.expr: contains ${{ }}",
     "stages.0.transitions.0.gates.0.config.requireField.expr: contains ${{ }}",
   );
@@ -277,9 +277,9 @@ Deno.test("cel: a malformed $ref is reported, not thrown", () => {
 Deno.test("work: a passed let value may not shadow a literal input", () => {
   const doc = base();
   set(doc, "stages.0.work", {
-    mode: "method",
-    method: {
-      modelIdOrName: "m",
+    mode: "behavior",
+    behavior: {
+      behaviorIdOrName: "m",
       methodName: "run",
       inputs: { ref: "main" },
       passAsInputs: ["ref"],
@@ -288,10 +288,10 @@ Deno.test("work: a passed let value may not shadow a literal input", () => {
   });
   assertRejects(
     doc,
-    "stages.0.work.method.passAsInputs.0: 'ref' is both a literal input and passed",
+    "stages.0.work.behavior.passAsInputs.0: 'ref' is both a literal input and passed",
   );
   // Not passed, it is never sent, so it shadows nothing.
-  set(doc, "stages.0.work.method.passAsInputs", []);
+  set(doc, "stages.0.work.behavior.passAsInputs", []);
   assertValid(doc);
 });
 
@@ -494,15 +494,15 @@ Deno.test("templates: placeholders must name declared let values", () => {
 Deno.test("templates: a call's target may use declared let values", () => {
   const doc = base();
   set(doc, "stages.0.work", {
-    mode: "method",
-    method: { modelIdOrName: "agent-{{agnt}}", methodName: "run" },
+    mode: "behavior",
+    behavior: { behaviorIdOrName: "agent-{{agnt}}", methodName: "run" },
     let: { agent: "item.key" },
   });
   assertRejects(
     doc,
-    "stages.0.work.method.modelIdOrName: {{agnt}} is not a declared let value",
+    "stages.0.work.behavior.behaviorIdOrName: {{agnt}} is not a declared let value",
   );
-  set(doc, "stages.0.work.method.modelIdOrName", "agent-{{agent}}");
+  set(doc, "stages.0.work.behavior.behaviorIdOrName", "agent-{{agent}}");
   assertValid(doc);
   set(doc, "stages.0.work", {
     mode: "workflow",
@@ -532,9 +532,27 @@ Deno.test("work: the mode and its call block agree", () => {
   assertRejects(doc, "mode 'workflow' requires a workflow block");
   set(doc, "stages.0.work", {
     mode: "interactive",
-    method: { modelIdOrName: "m", methodName: "run" },
+    behavior: { behaviorIdOrName: "m", methodName: "run" },
   });
-  assertRejects(doc, "a method block needs mode 'method'");
+  assertRejects(doc, "a behavior block needs mode 'behavior'");
+  set(doc, "stages.0.work", {
+    mode: "behavior",
+    method: { behaviorIdOrName: "m", methodName: "run" },
+  });
+  assertRejects(doc, "the method block became behavior in schemaVersion 5");
+  set(doc, "stages.0.work", {
+    mode: "behavior",
+    behavior: { modelIdOrName: "m", methodName: "run" },
+  });
+  assertRejects(
+    doc,
+    "modelIdOrName became behaviorIdOrName in schemaVersion 5",
+  );
+  set(doc, "stages.0.work", {
+    mode: "method",
+    behavior: { behaviorIdOrName: "m", methodName: "run" },
+  });
+  assertRejects(doc, "stages.0.work.mode");
   set(doc, "stages.0.work", {
     mode: "dispatch",
     inputsSchema: { type: "object" },

@@ -106,10 +106,9 @@ async function rawGet(
 }
 
 async function serve(repo: SwampRepo, inputs: string[] = []) {
-  await repo.swamp(["model", "create", STUDIO_TYPE, "studio", "--json"]);
+  await repo.swamp(["behavior", "create", STUDIO_TYPE, "studio", "--json"]);
   const child = repo.spawn([
-    "model",
-    "method",
+    "behavior",
     "run",
     "studio",
     "serve",

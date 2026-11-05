@@ -355,15 +355,17 @@ export async function readDescription(
   if (raw === null) {
     throw new Error(
       `tracker '${instance}' has not described itself: run ` +
-        `swamp model method run ${instance} describe`,
+        `swamp behavior run ${instance} describe`,
     );
   }
   const parsed = TrackerDescriptionSchema.safeParse(raw);
   if (!parsed.success) {
     throw new Error(
       `tracker '${instance}' described itself in a form this stagecraft ` +
-        `does not read (${z.prettifyError(parsed.error)}); run swamp model ` +
-        `method run ${instance} describe again`,
+        `does not read (${
+          z.prettifyError(parsed.error)
+        }); run swamp behavior ` +
+        `run ${instance} describe again`,
     );
   }
   return parsed.data;

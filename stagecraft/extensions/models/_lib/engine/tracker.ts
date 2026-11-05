@@ -26,7 +26,7 @@ export {
   type TrackerEntry,
   triggerKey,
 } from "./definition_schema.ts";
-export { parseRun, type RunRecord, RunRecordSchema } from "./run_record.ts";
+export { parseRun, type RunRecord } from "./run_record.ts";
 export { payloadName, RUN_NAME, RUN_SPEC } from "./run_store.ts";
 export {
   parseSummary,

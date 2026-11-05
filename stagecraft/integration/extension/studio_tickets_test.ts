@@ -56,10 +56,9 @@ async function within<T>(ms: number, what: string, p: Promise<T>): Promise<T> {
 
 /** Serve the studio, and read a factory's Board from it. */
 async function serve(repo: SwampRepo) {
-  await repo.swamp(["model", "create", STUDIO_TYPE, "studio", "--json"]);
+  await repo.swamp(["behavior", "create", STUDIO_TYPE, "studio", "--json"]);
   const child = repo.spawn([
-    "model",
-    "method",
+    "behavior",
     "run",
     "studio",
     "serve",
@@ -141,7 +140,7 @@ async function workflow(
 Deno.test("studio tickets: filed tickets wait under Not started, claimed ones under Claimed, and a started one is on the Board in the initial stage", async () => {
   await withRepo(async (repo) => {
     await repo.swamp([
-      "model",
+      "behavior",
       "create",
       BUILTIN_TYPE,
       "ts",
@@ -183,8 +182,7 @@ Deno.test("studio tickets: filed tickets wait under Not started, claimed ones un
 
       // Moved off the first status by hand, with no work item: not open.
       await repo.swamp([
-        "model",
-        "method",
+        "behavior",
         "run",
         "ts",
         "set_status",

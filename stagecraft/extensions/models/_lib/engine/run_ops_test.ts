@@ -234,20 +234,20 @@ Deno.test("recordDispatch: subagent prompts are stored as sent and survive a rou
 Deno.test("recordDispatch: the call's resolved target is stored and survives a round trip", () => {
   const env = testEnv();
   const run = fresh(env);
-  const method = { modelIdOrName: "agent-wi-7", methodName: "generate" };
+  const behavior = { behaviorIdOrName: "agent-wi-7", methodName: "generate" };
   const called = recordDispatch(
     run,
     DEFINITION,
     expectedOf(run),
-    { inputs: {}, method },
+    { inputs: {}, behavior },
     ALICE,
     env,
   );
   assert(called.ok);
-  assertEquals(called.run.dispatches[0].method, method);
+  assertEquals(called.run.dispatches[0].behavior, behavior);
   const parsed = parseRun(JSON.parse(JSON.stringify(called.run)));
   assert(parsed.ok);
-  assertEquals(parsed.value.dispatches[0].method, method);
+  assertEquals(parsed.value.dispatches[0].behavior, behavior);
   const ran = recordDispatch(
     run,
     DEFINITION,
@@ -268,7 +268,7 @@ Deno.test("recordDispatch: the call's resolved target is stored and survives a r
     env,
   );
   assert(plain.ok);
-  assert(!("method" in plain.run.dispatches[0]));
+  assert(!("behavior" in plain.run.dispatches[0]));
   assert(!("workflow" in plain.run.dispatches[0]));
   assert(parseRun(JSON.parse(JSON.stringify(plain.run))).ok);
 });

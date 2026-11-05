@@ -66,21 +66,21 @@ Deno.test("skill: marked failures, continuations and indented fences are read fr
     "```",
     "```sh",
     "# fails: because",
-    "swamp model method run team validate \\",
+    "swamp behavior run team validate \\",
     "  --input-file f.yaml",
-    "swamp model method run team create",
+    "swamp behavior run team create",
     "```",
     "- a list item:",
     "  ```sh",
     "  ```text",
-    "  swamp model method run team validate",
+    "  swamp behavior run team validate",
     "  ```",
   ].join("\n");
   const found = commandsIn("x.md", md);
   assertEquals(found.map((c) => [c.line, c.words.length, c.fails]), [
-    [6, 8, "because"],
-    [8, 6, undefined],
-    [13, 6, undefined],
+    [6, 7, "because"],
+    [8, 5, undefined],
+    [13, 5, undefined],
   ]);
 });
 
@@ -91,8 +91,8 @@ Deno.test("skill: a background comment marks the next sh command only", () => {
     "```",
     "```sh",
     "# background: runs until Ctrl-C",
-    "swamp model method run <studio> serve",
-    "swamp model method run team validate",
+    "swamp behavior run <studio> serve",
+    "swamp behavior run team validate",
     "```",
   ].join("\n");
   assertEquals(
@@ -215,10 +215,9 @@ Deno.test("skill: a result block is a subagent's file, and a subagent's product 
 Deno.test("skill: the checker refuses an unknown method or input", () => {
   const item = [
     "swamp",
-    "model",
-    "@swamp/stagecraft/work-item",
-    "method",
+    "behavior",
     "run",
+    "@swamp/stagecraft/work-item",
   ];
   assert(
     checkCommand([...item, "approv", "<key>"])?.includes(
@@ -242,8 +241,7 @@ Deno.test("skill: the checker refuses an unknown method or input", () => {
   assert(
     checkCommand([
       "swamp",
-      "model",
-      "method",
+      "behavior",
       "run",
       "<tracker>",
       "thank_author",
@@ -261,14 +259,14 @@ Deno.test("skill: the checker refuses an unknown method or input", () => {
     "--log doubles the output the skill tells the driver to read whole",
   );
   assert(
-    checkCommand(["swamp", "model", "edit", "team"])?.includes(
+    checkCommand(["swamp", "behavior", "edit", "team"])?.includes(
       "not a command form",
     ),
   );
   assert(
     checkCommand([
       "swamp",
-      "model",
+      "behavior",
       "create",
       "@swamp/stagecraft/tracker",
       "board",
@@ -278,19 +276,19 @@ Deno.test("skill: the checker refuses an unknown method or input", () => {
   );
 });
 
-const run = ["swamp", "model", "method", "run"];
+const run = ["swamp", "behavior", "run"];
 
 Deno.test("skill: a studio command is checked against the studio model", () => {
   const create = [
     "swamp",
-    "model",
+    "behavior",
     "create",
     "@swamp/stagecraft/studio",
   ];
   assertEquals(checkCommand([...create, "<studio>", "--json"]), null);
   assert(
     checkCommand([...create, "<studio>", "--global-arg", "x=1", "--json"])
-      ?.includes("model create must be"),
+      ?.includes("behavior create must be"),
     "the studio has no arguments",
   );
   assertEquals(checkCommand([...run, "<studio>", "serve"]), null);
@@ -466,18 +464,14 @@ Deno.test("skill: authoring runs as written, from no factory to a started work i
     if (c.write !== undefined) return "agent write";
     const w = c.words;
     if (w[1] === "workflow") return w[3].split("/").at(-1);
-    return w[2] === "method"
-      ? w[5]
-      : w[3] === "method"
-      ? w[5]
-      : `${w[1]} ${w[2]}`;
+    return w[2] === "run" ? w[4] : `${w[1]} ${w[2]}`;
   };
   assertEquals(commands.map(label), [
-    "model search",
-    "model create",
+    "behavior search",
+    "behavior create",
     "agent write",
     "validate",
-    "model create",
+    "behavior create",
     "serve",
     "create",
     "claim",
@@ -488,7 +482,7 @@ Deno.test("skill: authoring runs as written, from no factory to a started work i
     // State 2's step 5 sets up the tracker from "The tracker", which this walk
     // stops before: the built-in one, created as that section says.
     await repo.swamp([
-      "model",
+      "behavior",
       "create",
       "@swamp/stagecraft/tracker",
       "board",
@@ -591,7 +585,7 @@ Deno.test("skill: the worked example runs as written, from start to done", async
     );
     const last = steps.at(-1)!;
     assert(last.output.includes("terminal at stage 'done'"), last.output);
-    const key = last.ran[5];
+    const key = last.ran[4];
     const run = await repo.run(key);
     assertEquals(run.status, "terminal");
     assertEquals(
@@ -767,9 +761,9 @@ Deno.test("skill: a shipped workflow command names a workflow, its inputs and ev
     ),
     "no shipped workflow '@swamp/stagecraft/nope'",
   );
-  assertEquals(check("swamp model method run <their-tracker> describe"), null);
+  assertEquals(check("swamp behavior run <their-tracker> describe"), null);
   assert(
-    check("swamp model method run <their-tracker> publish") !== null,
+    check("swamp behavior run <their-tracker> publish") !== null,
     "a tracker written as a separate extension has only describe and operate",
   );
 });

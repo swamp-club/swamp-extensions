@@ -13,7 +13,7 @@ stagecraft's role is limited to defining the stages and gates and keeping track
 of each work item's state so that the transitions can be enforced.
 
 A stage's work can be anything: an agent writing a plan, a subagent reviewing
-it, a swamp model method or workflow run, or a person signing off. A factory
+it, a swamp behavior or workflow run, or a person signing off. A factory
 can be for whatever you can describe that way:
 
 - **Writing software:** plan, review the plan, implement, verify, review the
@@ -31,6 +31,9 @@ journal of everything that happened, who decided what, and how long each stage
 took.
 
 ## Getting started
+
+The commands here use `swamp behavior`, so you need a swamp from 2026-10-13 or
+later.
 
 In a directory for your project (skip `swamp init` if it is already a swamp
 repo):
@@ -96,8 +99,8 @@ it or share it with someone on the same machine.
 Your agent starts it for you, or run it yourself:
 
 ```sh
-swamp model create @swamp/stagecraft/studio studio --json
-swamp model method run studio serve
+swamp behavior create @swamp/stagecraft/studio studio --json
+swamp behavior run studio serve
 ```
 
 `serve` logs the page's address, such as `http://127.0.0.1:38813/`, and runs
@@ -146,7 +149,7 @@ characters) starts each ticket's id, and a ticket's work item is named after
 it: `eng-1`, `eng-2`, and so on.
 
 ```sh
-swamp model create @swamp/stagecraft/tracker board \
+swamp behavior create @swamp/stagecraft/tracker board \
   --global-arg prefix=eng --json
 ```
 
@@ -164,7 +167,7 @@ prints:
 swamp vault create local_encryption secrets
 # Prompts for the key, without echoing it.
 swamp vault put secrets linear-token
-swamp model create @swamp/stagecraft/linear linear --json
+swamp behavior create @swamp/stagecraft/linear linear --json
 ```
 
 ```yaml
@@ -183,7 +186,7 @@ A work item is named after its issue: `ABC-12` gives `abc-12`.
 Check the connection by fetching an issue:
 
 ```sh
-swamp model method run linear fetch_issue --input issue=ABC-1
+swamp behavior run linear fetch_issue --input issue=ABC-1
 ```
 
 **Your own tracker**: if your tickets live in a system stagecraft has no

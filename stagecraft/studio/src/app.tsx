@@ -107,7 +107,7 @@ function Bar() {
         <span>
           {live.value
             ? "reloads when a file changes"
-            : "is swamp model method run studio serve still running?"}
+            : "is swamp behavior run studio serve still running?"}
         </span>
       </div>
       <div class="spacer" />
@@ -263,7 +263,7 @@ function Legend() {
         <i class="sw" />⚙ workflow
       </span>
       <span class="m-me">
-        <i class="sw" />ƒ method
+        <i class="sw" />ƒ behavior
       </span>
       <span>
         <i class="ln fwd" />forward

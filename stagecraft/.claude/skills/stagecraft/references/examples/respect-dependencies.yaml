@@ -1,5 +1,5 @@
 definition:
-  schemaVersion: 4
+  schemaVersion: 5
   description: |-
     A factory that respects its ticket's dependencies: work starts only once
     what the ticket is blocked by is finished, or a person says to go on.

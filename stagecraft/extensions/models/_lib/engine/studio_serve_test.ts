@@ -137,10 +137,12 @@ Deno.test("studio serve: a remote serve that cannot be read stops serve before i
       serveStudio(ctx, 0, PAGE, undefined, {
         server: "wss://swamp.example.com",
         run: () =>
-          Promise.reject(new Error("swamp model search failed: not signed in")),
+          Promise.reject(
+            new Error("swamp behavior search failed: not signed in"),
+          ),
       }),
     Error,
-    "cannot read wss://swamp.example.com: swamp model search failed: not signed in",
+    "cannot read wss://swamp.example.com: swamp behavior search failed: not signed in",
   );
   assertEquals(logged, []);
 });
@@ -187,7 +189,7 @@ Deno.test("studio serve: reading a remote serve, the routes answer from swamp's 
     assertEquals((await board.json()).items, []);
     assert(calls.includes("data query"), calls.join(", "));
     // The list was read once, at startup; the page's reads used it.
-    assertEquals(calls.filter((c) => c === "model search").length, 1);
+    assertEquals(calls.filter((c) => c === "behavior search").length, 1);
     assert(logged.some((m) => m.includes("reading wss://swamp.example.com")));
     abort.abort();
     assertEquals(await served, { dataHandles: [] });
@@ -293,7 +295,7 @@ Deno.test("studio serve: a remote studio polls while a page listens and stops wh
     const stream = await fetch(url + "api/events");
     const reader = stream.body!.getReader();
     await until(
-      () => calls.slice(before).includes("model search"),
+      () => calls.slice(before).includes("behavior search"),
       "a poll while the page listens",
     );
     await reader.cancel();
@@ -381,7 +383,8 @@ Deno.test("studio serve: remote polls that find nothing changed send the page no
     })();
     const before = calls.length;
     await until(
-      () => calls.slice(before).filter((c) => c === "model search").length >= 3,
+      () =>
+        calls.slice(before).filter((c) => c === "behavior search").length >= 3,
       "three polls",
     );
     await reader.cancel();
@@ -530,7 +533,8 @@ Deno.test("studio serve: a page read that always fails sends no readable event",
     await board.body?.cancel();
     const before = calls.length;
     await until(
-      () => calls.slice(before).filter((c) => c === "model search").length >= 3,
+      () =>
+        calls.slice(before).filter((c) => c === "behavior search").length >= 3,
       "three polls",
     );
     await reader.cancel();

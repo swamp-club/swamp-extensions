@@ -212,18 +212,18 @@ Chromium over the DevTools protocol at 1280 by 800, after clicking the stage.
 CEL expressions under a stage's `work.let`. Text fields refer to them by name
 with `{{name}}` placeholders, which are filled when the stage is dispatched: the
 prompts (`systemPrompt`, `command`) and a call's target (`workflow.name`,
-`method.modelIdOrName`). A `workflow` or `method` call sends the let values its
+`behavior.behaviorIdOrName`). A `workflow` or `behavior` call sends the let values its
 `passAsInputs` lists as inputs, and no others. Carried out in
 `extensions/models/_lib/engine/template.ts` and `dispatch.ts`, and checked in
 `definition_schema.ts`.
 
 ```yaml
 work:
-  mode: method
+  mode: behavior
   systemPrompt: |
     Plan {{workItem}} against the review at {{changeUrl}}.
-  method:
-    modelIdOrName: "agent-{{agent}}" # each work item has its own agent
+  behavior:
+    behaviorIdOrName: "agent-{{agent}}" # each work item has its own agent
     methodName: generate
     inputs: { depth: 2 } # literal inputs
     passAsInputs: [workItem, feedback] # let values sent, types kept
@@ -282,11 +282,11 @@ prompt.
 
 ### Why a call names what it sends (`passAsInputs`)
 
-swamp refuses a model-method input the method does not declare
+swamp refuses a method input the method does not declare
 (`Unknown method input(s): ...`), for built-in and extension types alike, and a
 workflow with a closed inputs schema refuses one too. When every named value was
 also an input, a value needed only for a target or a prompt could not exist in a
-method stage without breaking the call. So a let value is only a value, and a
+behavior stage without breaking the call. So a let value is only a value, and a
 call lists the ones it sends. Each is sent under its own name with its type kept
 (an object stays an object, a null stays null): no template is involved, so
 there is no rule about when a value keeps its type and no YAML quoting trap.
@@ -324,7 +324,7 @@ broken value produced a prompt that looked fine and was quietly wrong.
 
 ### A call's target
 
-`workflow.name` and `method.modelIdOrName` may hold placeholders, so a
+`workflow.name` and `behavior.behaviorIdOrName` may hold placeholders, so a
 definition can call a model per work item (`agent-{{workItem}}`), which
 software-factory allowed with `${{ }}` and #3141 needed. A target is filled more
 strictly than a prompt, because it chooses what runs:
@@ -333,7 +333,7 @@ strictly than a prompt, because it chooses what runs:
   value, a number, an object or an empty string fails the dispatch, rather than
   calling a target made from a stringified or blank value.
 - The filled target must be a name **swamp would create**: swamp's own rule for
-  a model name (for `modelIdOrName`) or a workflow name (for `workflow.name`),
+  a behavior name (for `behaviorIdOrName`) or a workflow name (for `workflow.name`),
   mirrored in `_lib/engine/swamp_names.ts` because swamp does not export it (see
   that file for the swamp source and commit it copies). So a value from run data
   with a space, a newline, uppercase, a leading `-` or leftover braces never
@@ -345,7 +345,7 @@ strictly than a prompt, because it chooses what runs:
   item in progress. The factory's `validate` warns about one instead
   (`target-name`, `graph.ts`). The rule is about values from run data; a name
   written by hand is the author's.
-- The filled target is in the packet (`workflow`, `method`) and **recorded on
+- The filled target is in the packet (`workflow`, `behavior`) and **recorded on
   the dispatch**, so what was called is in the run record. The studio's design
   view shows the template, never a filled name.
 
@@ -489,7 +489,7 @@ entries go by the definition's own `schemaVersion`, not by swamp's
 `typeVersion`, so they are right whichever version an instance is at and do
 nothing to a current definition. A work item reads the factory's raw model
 definition, which swamp does not upgrade for it, so `loadFactory` upgrades in
-memory too. swamp model validate checks `globalArguments` without running
+memory too. swamp behavior validate checks `globalArguments` without running
 `upgrades` (swamp-club #3196), so `FactoryArgumentsSchema` upgrades the
 definition before its schema check (`upgradeOrPass`); methods never read that
 evaluated form.
@@ -500,9 +500,12 @@ digest of the factory file's definition, upgraded. A v1 pin of a definition that
 only moved to v2 is not stale. The run record keeps the digest of the copy as
 stored, which is what `checkPinned` checks.
 
-**Run records.** `RUN_SCHEMA_VERSION` has no upgrade chain yet. When it first
-changes, `UpgradeChain` and `upgradeDefinition`'s pattern apply to it as they
-are: steps per version, applied on read, stored records never rewritten.
+**Run records** use the same `UpgradeChain` (`RUN_CHAIN` in `run_record.ts`):
+steps per version, applied in memory by `parseRun`, so every reader sees the
+current form. A stored version is never rewritten; the next write commits the
+current form as a new one. A step leaves anything malformed as it is, for the
+strict schema to refuse. Each version has a frozen fixture in
+`testdata/run-records`.
 
 ## The CEL vocabulary
 
@@ -1120,7 +1123,7 @@ there is no step to add. Code: `recordDispatch`, `recordOutcome`,
 in `_lib/engine/run_store.ts`.
 
 - **Why no elapsed-time inference.** A serve restart on k3s killed a long LLM
-  session in a `method` stage on a remote worker. The run record survived; the
+  session in a `behavior` stage on a remote worker. The run record survived; the
   work did not. After a restart the driver wants to dispatch again at once, not
   after a lease lapses, and no timeout tells a long session from a dead one. So
   interruption is always declared: by the driver that retries (`supersedes`), or
@@ -1160,7 +1163,7 @@ in `_lib/engine/run_store.ts`.
   size; large state (an agent session) is better kept elsewhere, with the
   checkpoint holding a pointer to it.
 - **The `_stagecraft` input.** Every packet carries `workItem`, `dispatchId` and
-  `resume`, so any driver can pass them on. A workflow or method stage also gets
+  `resume`, so any driver can pass them on. A workflow or behavior stage also gets
   them as one input, `_stagecraft`, when its `inputsSchema` declares that
   property and no literal input or passed let value already supplies the name.
   It cannot be filled unconditionally: swamp's CLI refuses an input the method
@@ -1319,7 +1322,7 @@ definition file too, and does not hand-edit it: edits come from the agent.
 Editing it never changes a running work item.
 
 **No `init`.** The agent creates the factory with only its tracker
-(`swamp model create ... --global-arg tracker=<instance>`), then writes the
+(`swamp behavior create ... --global-arg tracker=<instance>`), then writes the
 `definition:` and `scenarios:` blocks of one of the skill's examples into the
 file, and never replaces a definition that is there. A method that wrote its own
 model definition would have been new and local-only, and an `init` needed the
@@ -1330,16 +1333,16 @@ its graph and its scenarios.
 
 **What swamp checks, and what validate checks.** swamp checks a factory's
 `globalArguments` against the factory type's schema with `schema.partial()`, in
-`swamp model validate` and before every method runs (on the evaluated
+`swamp behavior validate` and before every method runs (on the evaluated
 arguments). `partial()` only makes the top-level keys optional, so a
 `definition` or `scenarios` that is present is checked in full, refinements
 included; the top level is a plain object with no refinement of its own, since
 swamp falls back to checking key by key when it cannot call `partial()`.
-`definition` is optional because `swamp model create` checks the full schema
+`definition` is optional because `swamp behavior create` checks the full schema
 whenever a `--global-arg` is given, and a factory is created with only its
 tracker. So:
 
-- `swamp model validate <factory>` reports a schema error in the definition or a
+- `swamp behavior validate <factory>` reports a schema error in the definition or a
   scenario, with its path, as
   `<message> at "definition.stages.1.transitions.0.to"`. It does not report a
   missing definition (an optional key), and it skips a key holding a swamp
@@ -1353,13 +1356,13 @@ tracker. So:
   saved scenarios, and reports a missing definition with where to write it.
 
 **`{{name}}` is marked as foreign template text.** swamp scans `globalArguments`
-for `{{...}}` and fails `swamp model validate` on one whose root is a swamp
+for `{{...}}` and fails `swamp behavior validate` on one whose root is a swamp
 namespace (`{{run}}`, `{{steps}}`); others are warnings. stagecraft's
 placeholders are its own, so `definition` and `scenarios` carry
 `.meta({ foreignTemplate: true })`, which silences the scan for the whole
 subtree. Bare CEL in gates and let values has no `${{`, so swamp never touches
 it. `cli_test.ts` checks a definition with CEL gates and a placeholder named
-`run` through `swamp model validate` and a start, and that the pinned copy is
+`run` through `swamp behavior validate` and a start, and that the pinned copy is
 the written one.
 
 **`${{` stays rejected.** swamp evaluates `${{ }}` anywhere in `globalArguments`
@@ -1775,7 +1778,7 @@ swamp resolves the credentials, CA and extra headers itself. The command is the
 swamp binary running the method (`Deno.execPath()`), never a `swamp` found on
 `PATH`.
 
-`model get`, not a method run, gives the definition (Seth, 2026-10-15). On a
+`behavior get`, not a method run, gives the definition (Seth, 2026-10-15). On a
 scratch serve both took about 0.7s, almost all of it starting swamp, but a
 method run on every poll writes output and report data on the serve, takes the
 factory's lock, needs a run grant, and needs a stagecraft new enough to have the
@@ -3175,6 +3178,29 @@ reaches it. An include step would be its own change.
 
 ## Decision log
 
+### 2026-11-05: work mode `method` is `behavior` (swamp-club #3855)
+
+**Decision.** swamp now calls models behaviors, so a stage's `mode: method` with
+`method: { modelIdOrName, methodName }` is `mode: behavior` with
+`behavior: { behaviorIdOrName, methodName }`, in the definition, the dispatch
+packet and the dispatch recorded on the run. Definitions move to schemaVersion 5
+and run records to schemaVersion 2, the first run record format change, both
+upgraded on read. Documented and printed commands, and the remote studio's own
+calls, are spelled `swamp behavior`.
+
+**Choices made with Seth in triage and planning.** `behaviorIdOrName` differs
+from a swamp workflow step, which still spells `model_method` and
+`modelIdOrName` (swamp-club #4440). That is safe because nothing hands this block
+to swamp as a step: a driver reads the packet and runs the command, whose help
+already says `behavior_id_or_name`. The generated tracker workflows are real
+swamp steps, so they keep swamp's spelling. A v5 definition may not use both
+names: parsing applies no transform, so an alias would leave every reader
+handling both, and one definition spelled two ways would digest differently and
+show a stale pin. Older definitions keep working through the chain, and an old
+name in a v5 definition is refused with a message naming the new one. Model
+versions: the factory and the work item are 2026.11.05.2, each with a new
+`upgrades` entry (the work item's a no-op).
+
 ### 2026-11-05: relations to another tracker, and each factory decides (swamp-club #4376)
 
 **Decision.** See "Relations to another tracker". A built-in ticket relates to one in
@@ -3347,7 +3373,7 @@ pin, sending what v1 sent. `work_item_test` asserts the work item's last
 definition is read through `readDefinition`. Pinned copies are checked against
 their digest as stored, then upgraded in memory, never rewritten. The factory
 type declares `upgrades` that run the same steps, and its schema upgrades before
-checking because swamp model validate does not run `upgrades` (swamp-club
+checking because swamp behavior validate does not run `upgrades` (swamp-club
 #3196). The chain is empty: #3190 adds the first step, v1 to v2. Model versions:
 the factory is 2026.10.08.1, with its first `upgrades` entry; the work item is
 2026.10.08.1 with a no-op entry, since it has no `globalArguments` to change and

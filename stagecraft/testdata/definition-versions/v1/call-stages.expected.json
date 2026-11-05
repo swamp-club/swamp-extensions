@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "description": "A model method writes a plan, fed its earlier rejection on a retry; a workflow then tests the plan's ref.",
   "stages": [
     {
@@ -17,18 +17,7 @@
       },
       "description": "A model method writes the plan.",
       "work": {
-        "mode": "method",
-        "method": {
-          "modelIdOrName": "@acme/planner",
-          "methodName": "generate",
-          "inputs": {
-            "depth": 2
-          },
-          "passAsInputs": [
-            "workItem",
-            "feedback"
-          ]
-        },
+        "mode": "behavior",
         "inputsSchema": {
           "type": "object",
           "required": [
@@ -48,6 +37,17 @@
         "let": {
           "workItem": "item.key",
           "feedback": "\"plan\" in validations.artifacts ? validations.artifacts[\"plan\"] : null"
+        },
+        "behavior": {
+          "methodName": "generate",
+          "inputs": {
+            "depth": 2
+          },
+          "passAsInputs": [
+            "workItem",
+            "feedback"
+          ],
+          "behaviorIdOrName": "@acme/planner"
         }
       },
       "artifacts": [

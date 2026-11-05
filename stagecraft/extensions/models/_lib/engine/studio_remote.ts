@@ -30,11 +30,11 @@ import { FACTORY_TYPE } from "./work_item_ops.ts";
 // studio server"). serve runs on the operator's machine and reads through
 // swamp's own read commands with --server, so every read carries the
 // operator's login and grants, and the serve stays the only writer:
-// `model search` lists the factories, `model get` gives each one's model
+// `behavior search` lists the factories, `behavior get` gives each one's model
 // definition, and `data query` reads work items. No method runs on the serve,
 // so nothing is written there and no factory's lock is taken.
 //
-// `model get` gives the definition as data, not the file: the page gets YAML
+// `behavior get` gives the definition as data, not the file: the page gets YAML
 // written from its fields, so the server file's comments and layout are not
 // shown. The factory routes answer from what the last poll read, so a page
 // load starts no swamp call of its own once a factory has been read.
@@ -322,7 +322,10 @@ export function remoteQuery(run: SwampRunner): QueryData {
 export async function remoteFactoryNames(run: SwampRunner): Promise<string[]> {
   const names = new Set<string>();
   for (
-    const found of resultsOf(await run(["model", "search"]), "model search")
+    const found of resultsOf(
+      await run(["behavior", "search"]),
+      "behavior search",
+    )
   ) {
     const { name, type } = (found ?? {}) as { name?: unknown; type?: unknown };
     if (type === FACTORY_TYPE && typeof name === "string" && name !== "") {
@@ -338,7 +341,7 @@ export function remotePath(server: string, name: string): string {
 }
 
 /**
- * A factory's model definition, from `model get` on the serve, written as
+ * A factory's model definition, from `behavior get` on the serve, written as
  * YAML from the fields of a model definition file. The rest of what model
  * get gives (the type's methods and argument schema, its current version and
  * staleness) is not in the file, so it is left out.
@@ -349,9 +352,9 @@ export async function remoteDefinition(
   name: string,
 ): Promise<DefinitionText> {
   if (name.startsWith("-")) throw new Error(dashed(name));
-  const got = await run(["model", "get", name]);
+  const got = await run(["behavior", "get", name]);
   if (got === null || typeof got !== "object") {
-    throw new Error(`swamp model get ${name} gave no model definition`);
+    throw new Error(`swamp behavior get ${name} gave no model definition`);
   }
   const d = got as Record<string, unknown>;
   if (d.type !== FACTORY_TYPE || d.name !== name) {
@@ -381,7 +384,7 @@ export async function remoteDefinition(
 }
 
 /**
- * Any model's type and globalArguments, from `model get` on the serve, or
+ * Any model's type and globalArguments, from `behavior get` on the serve, or
  * null when the serve has no model of that name.
  */
 export async function remoteModel(
@@ -391,10 +394,10 @@ export async function remoteModel(
 ): Promise<ModelArguments | null> {
   if (name.startsWith("-")) throw new Error(dashed(name));
   if (!(names ?? await remoteModelNames(run)).has(name)) return null;
-  const got = await run(["model", "get", name]);
+  const got = await run(["behavior", "get", name]);
   const d = (got ?? {}) as Record<string, unknown>;
   if (typeof d.type !== "string") {
-    throw new Error(`swamp model get ${name} gave no model definition`);
+    throw new Error(`swamp behavior get ${name} gave no model definition`);
   }
   const args = d.globalArguments;
   return {
@@ -410,7 +413,10 @@ export async function remoteModel(
 export async function remoteModelNames(run: SwampRunner): Promise<Set<string>> {
   const names = new Set<string>();
   for (
-    const found of resultsOf(await run(["model", "search"]), "model search")
+    const found of resultsOf(
+      await run(["behavior", "search"]),
+      "behavior search",
+    )
   ) {
     const { name } = (found ?? {}) as { name?: unknown };
     if (typeof name === "string" && name !== "") names.add(name);
@@ -421,7 +427,7 @@ export async function remoteModelNames(run: SwampRunner): Promise<Set<string>> {
 /** Why a factory named with a leading dash is not read. */
 function dashed(name: string): string {
   return `factory '${name}': a name starting with '-' is not passed to ` +
-    `swamp model get, which would read it as an option`;
+    `swamp behavior get, which would read it as an option`;
 }
 
 /** The remote factories, read by the poll, for the factory routes. */
@@ -499,7 +505,7 @@ export function remoteFactories(
       }
       asked.clear();
       if (models.size > 0) {
-        // One search for every name, then a model get for each one held; a
+        // One search for every name, then a behavior get for each one held; a
         // read that fails keeps that model's last copy until the next poll.
         let names: Set<string> | null = null;
         try {

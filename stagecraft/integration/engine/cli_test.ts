@@ -620,7 +620,7 @@ async function pathsUnder(dir: string, rel = ""): Promise<string[]> {
 Deno.test("cli: a factory holds its definition: created with only its tracker, the definition written in, then validate and start read it", async () => {
   await withRepo(async (repo) => {
     await repo.swamp([
-      "model",
+      "behavior",
       "create",
       "@swamp/stagecraft/tracker",
       "board",
@@ -628,10 +628,10 @@ Deno.test("cli: a factory holds its definition: created with only its tracker, t
       "prefix=board",
       "--json",
     ]);
-    // swamp model create checks the full schema when a --global-arg is
+    // swamp behavior create checks the full schema when a --global-arg is
     // given; a factory with only its tracker passes it.
     await repo.swamp([
-      "model",
+      "behavior",
       "create",
       FACTORY_TYPE,
       "team",
@@ -650,7 +650,7 @@ Deno.test("cli: a factory holds its definition: created with only its tracker, t
 
     const { definition, scenarios } = await readExample(BUILD_DEFINITION);
     await repo.editFactory("team", definition, scenarios);
-    const checked = await repo.swamp(["model", "validate", "team"]);
+    const checked = await repo.swamp(["behavior", "validate", "team"]);
     assert(checked.output.includes("Result: PASSED"), checked.output);
     const valid = await repo.factoryMethod("team", "validate");
     assert(
@@ -678,7 +678,7 @@ Deno.test("cli: a factory holds its definition: created with only its tracker, t
   });
 });
 
-Deno.test("cli: swamp model validate reports a schema error in the definition, with its path, and every factory method stops on it", async () => {
+Deno.test("cli: swamp behavior validate reports a schema error in the definition, with its path, and every factory method stops on it", async () => {
   await withRepo(async (repo) => {
     const definition = await buildDefinition();
     (definition.stages as { transitions: unknown[] }[])[1].transitions.push({
@@ -686,7 +686,7 @@ Deno.test("cli: swamp model validate reports a schema error in the definition, w
       to: "missing",
     });
     await repo.factory("team", definition);
-    const checked = await repo.swamp(["model", "validate", "team"], {
+    const checked = await repo.swamp(["behavior", "validate", "team"], {
       allowFailure: true,
     });
     assertNotEquals(checked.code, 0);
@@ -706,10 +706,10 @@ Deno.test("cli: swamp model validate reports a schema error in the definition, w
   });
 });
 
-Deno.test("cli: swamp model validate rejects a definition that names itself: the factory names it", async () => {
+Deno.test("cli: swamp behavior validate rejects a definition that names itself: the factory names it", async () => {
   await withRepo(async (repo) => {
     await repo.factory("team", { ...await buildDefinition(), name: "other" });
-    const checked = await repo.swamp(["model", "validate", "team"], {
+    const checked = await repo.swamp(["behavior", "validate", "team"], {
       allowFailure: true,
     });
     assertNotEquals(checked.code, 0);
@@ -726,7 +726,7 @@ Deno.test("cli: {{name}} placeholders, one named like a swamp namespace, and CEL
     const definition = JSON.parse(text) as Record<string, unknown>;
     assert(text.includes("{{run}}") && text.includes('"type":"cel"'));
     await repo.factory("team", definition);
-    const checked = await repo.swamp(["model", "validate", "team"]);
+    const checked = await repo.swamp(["behavior", "validate", "team"]);
     assert(checked.output.includes("Result: PASSED"), checked.output);
     assert(!checked.output.includes("Expression paths ✗"), checked.output);
     const key = await repo.newKey("team");

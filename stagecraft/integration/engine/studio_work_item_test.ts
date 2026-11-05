@@ -90,10 +90,9 @@ async function within<T>(ms: number, what: string, p: Promise<T>): Promise<T> {
 }
 
 async function serve(repo: SwampRepo) {
-  await repo.swamp(["model", "create", STUDIO_TYPE, "studio", "--json"]);
+  await repo.swamp(["behavior", "create", STUDIO_TYPE, "studio", "--json"]);
   const child = repo.spawn([
-    "model",
-    "method",
+    "behavior",
     "run",
     "studio",
     "serve",
@@ -262,6 +261,93 @@ Deno.test("studio work item: a looped item shows its visits, path, payloads and 
       const page = await fetch(`${studio.base}/w/team-loop`);
       assertEquals(page.status, 200);
       assertMatch(await page.text(), /src="\/assets\/app\.js"/);
+    } finally {
+      await studio.stop();
+    }
+  });
+});
+
+/** The latest stored run record's file, as swamp keeps it. */
+async function latestRunFile(repo: SwampRepo, key: string): Promise<string> {
+  const version = (await repo.versions(key)).run;
+  const root = `${repo.dir}/.swamp/data/@swamp/stagecraft/work-item`;
+  for await (const model of Deno.readDir(root)) {
+    const file = `${root}/${model.name}/run/${version}/raw`;
+    try {
+      const stored = JSON.parse(await Deno.readTextFile(file));
+      if (stored.key === key) return file;
+    } catch (e) {
+      if (!(e instanceof Deno.errors.NotFound)) throw e;
+    }
+  }
+  throw new Error(`no stored run for ${key}`);
+}
+
+Deno.test("run record v1: a work item stored before the rename reads, goes on, and shows in the studio", async () => {
+  await withRepo(async (repo) => {
+    await repo.factory("team", {
+      schemaVersion: DEFINITION_SCHEMA_VERSION,
+      tracker: { kind: "builtin" },
+      stages: [
+        {
+          id: "plan",
+          initial: true,
+          work: {
+            mode: "behavior",
+            behavior: { behaviorIdOrName: "planner", methodName: "generate" },
+          },
+          transitions: [{ name: "done", to: "end" }],
+        },
+        { id: "end", terminal: true },
+      ],
+    });
+    const key = await repo.newKey("team");
+    await repo.workItem(key, "start", { factory: "team" });
+    await repo.workItem(key, "dispatch", await repo.expected(key));
+
+    // As a stagecraft before the rename stored it. Frozen by hand here, since
+    // nothing writes this form any more.
+    const file = await latestRunFile(repo, key);
+    const stored = JSON.parse(await Deno.readTextFile(file));
+    const { behavior, ...dispatch } = stored.dispatches[0];
+    stored.schemaVersion = 1;
+    stored.dispatches[0] = {
+      ...dispatch,
+      mode: "method",
+      method: {
+        modelIdOrName: behavior.behaviorIdOrName,
+        methodName: behavior.methodName,
+      },
+    };
+    await Deno.writeTextFile(file, JSON.stringify(stored));
+    assertEquals((await repo.data(key, "run")).schemaVersion, 1);
+
+    // It reads, in the current form.
+    const read = await repo.run(key);
+    assertEquals(read.dispatches[0].mode, "behavior");
+    assertEquals(read.dispatches[0].behavior, {
+      behaviorIdOrName: "planner",
+      methodName: "generate",
+    });
+    await repo.workItem(key, "status");
+
+    // The next write commits the current form as a new version.
+    await repo.workItem(key, "record_usage", {
+      dispatchId: "1",
+      totalTokens: "10",
+    });
+    const written = await repo.data(key, "run");
+    assertEquals(written.schemaVersion, 2);
+    const [kept] = written.dispatches as Record<string, unknown>[];
+    assertEquals(kept.mode, "behavior");
+    assert(!("method" in kept));
+
+    const studio = await serve(repo);
+    try {
+      const res = await fetch(`${studio.base}/api/work-items/${key}`);
+      assertEquals(res.status, 200);
+      const body = await res.json() as WorkItemResponse;
+      assertEquals(JSON.stringify(body).includes('"method"'), false);
     } finally {
       await studio.stop();
     }

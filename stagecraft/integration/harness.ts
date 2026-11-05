@@ -114,7 +114,7 @@ export interface SwampRepo {
   >;
   /**
    * Create a factory bound to the tracker instance `tracker`, with only its
-   * tracker as swamp model create allows, then write `definition` (YAML text
+   * tracker as swamp behavior create allows, then write `definition` (YAML text
    * is parsed) and any `scenarios` into its model definition file under
    * globalArguments, as the skill does. Without a tracker it is bound to one
    * of the definition's kind that the harness creates once per repo: `board`
@@ -268,7 +268,7 @@ async function openRepo(dir: string): Promise<SwampRepo> {
 
   const factoryFile = (name: string) => `models/${FACTORY_TYPE}/${name}.yaml`;
 
-  // Writes into the file swamp model create wrote, as an agent edits it.
+  // Writes into the file swamp behavior create wrote, as an agent edits it.
   const writeFactory = async (
     name: string,
     definition: unknown,
@@ -300,7 +300,7 @@ async function openRepo(dir: string): Promise<SwampRepo> {
     if (!trackers.has(instance)) {
       const args = kind === "builtin" ? ["--global-arg", "prefix=board"] : [];
       await swamp([
-        "model",
+        "behavior",
         "create",
         TRACKER_TYPES[kind],
         instance,
@@ -319,7 +319,7 @@ async function openRepo(dir: string): Promise<SwampRepo> {
   ) => {
     const tracker = options.tracker ?? await defaultTracker(kindOf(definition));
     await swamp([
-      "model",
+      "behavior",
       "create",
       FACTORY_TYPE,
       name,
@@ -379,8 +379,7 @@ async function openRepo(dir: string): Promise<SwampRepo> {
     factoryMethod: (name, method, options = {}) =>
       swamp(
         [
-          "model",
-          "method",
+          "behavior",
           "run",
           name,
           method,
@@ -391,10 +390,9 @@ async function openRepo(dir: string): Promise<SwampRepo> {
     workItem: (key, method, inputs = {}, options) =>
       swamp(
         [
-          "model",
-          WORK_ITEM_TYPE,
-          "method",
+          "behavior",
           "run",
+          WORK_ITEM_TYPE,
           method,
           key,
           ...inputArgs(inputs),

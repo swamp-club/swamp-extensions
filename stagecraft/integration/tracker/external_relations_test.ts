@@ -43,7 +43,7 @@ async function tracker(
   peers?: unknown,
 ) {
   const { stdout } = await repo.swamp([
-    "model",
+    "behavior",
     "create",
     BUILTIN_TYPE,
     name,
@@ -68,8 +68,7 @@ const run = (
   inputs: Record<string, string>,
 ) =>
   repo.swamp([
-    "model",
-    "method",
+    "behavior",
     "run",
     name,
     method,

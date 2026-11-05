@@ -428,9 +428,8 @@ Deno.test("upgrade 1 to 2: bindings become let, and a call passes every one, in 
   assertEquals(v1, before);
   assertEquals(upgraded.from, 1);
   const stages = (upgraded.definition as JsonObject).stages as JsonObject[];
-  // The whole chain runs: 1 to 2 moves bindings, the later steps only the
-  // version.
-  assertEquals((upgraded.definition as JsonObject).schemaVersion, 4);
+  // The whole chain runs: 1 to 2 moves bindings, and 4 to 5 renames the call.
+  assertEquals((upgraded.definition as JsonObject).schemaVersion, 5);
   assertEquals(stages[0].work, {
     mode: "interactive",
     // Template text is moved, never evaluated.
@@ -438,9 +437,9 @@ Deno.test("upgrade 1 to 2: bindings become let, and a call passes every one, in 
     let: { topic: "item.key" },
   });
   assertEquals(stages[1].work, {
-    mode: "method",
-    method: {
-      modelIdOrName: "@acme/planner",
+    mode: "behavior",
+    behavior: {
+      behaviorIdOrName: "@acme/planner",
       methodName: "generate",
       inputs: { mode: "strict" },
       passAsInputs: ["workItem", "feedback"],
@@ -463,7 +462,7 @@ Deno.test("upgrade 1 to 2: an upgraded call sends exactly the inputs v1 sent", (
   const read = readDefinition(v1Stages());
   assert(read.ok);
   const plan = read.value.stages[1].work;
-  const call = plan?.method;
+  const call = plan?.behavior;
   assertEquals(
     new Set([
       ...Object.keys(call?.inputs ?? {}),
@@ -506,9 +505,94 @@ Deno.test("upgrade 1 to 2: a call's target, plain text in v1, stays plain text",
     { name: "\\{{deploy}}" },
   );
   assertEquals(
-    (stages[1].work as JsonObject).method,
-    { modelIdOrName: "\\\\{{kept}}", methodName: "run" },
+    (stages[1].work as JsonObject).behavior,
+    { behaviorIdOrName: "\\\\{{kept}}", methodName: "run" },
   );
   const read = readDefinition(v1);
   assert(read.ok, read.ok ? "" : read.errors.join("\n"));
+});
+
+/** A v4 definition holding one stage with this work. */
+function v4Work(work: JsonObject): JsonObject {
+  return {
+    schemaVersion: 4,
+    stages: [
+      {
+        id: "plan",
+        initial: true,
+        work,
+        transitions: [{ name: "done", to: "end" }],
+      },
+      { id: "end", terminal: true },
+    ],
+  };
+}
+
+Deno.test("upgrade 4 to 5: method becomes behavior, and template text moves unevaluated", () => {
+  const v4 = v4Work({
+    mode: "method",
+    method: {
+      modelIdOrName: "agent-{{who}}-\\\\{{kept}}",
+      methodName: "run",
+      inputs: { depth: 2 },
+      passAsInputs: ["who"],
+    },
+    let: { who: "item.key" },
+  });
+  const before = structuredClone(v4);
+  const { definition } = upgradeDefinition(v4);
+  assertEquals(v4, before);
+  const upgraded = definition as JsonObject;
+  assertEquals(upgraded.schemaVersion, 5);
+  assertEquals((upgraded.stages as JsonObject[])[0].work, {
+    mode: "behavior",
+    behavior: {
+      behaviorIdOrName: "agent-{{who}}-\\\\{{kept}}",
+      methodName: "run",
+      inputs: { depth: 2 },
+      passAsInputs: ["who"],
+    },
+    let: { who: "item.key" },
+  });
+  assert(readDefinition(v4).ok);
+});
+
+Deno.test("upgrade 4 to 5: other work modes and stages without work are unchanged", () => {
+  const v4 = v4Work({
+    mode: "workflow",
+    workflow: { name: "@acme/tests" },
+  });
+  const upgraded = upgradeDefinition(v4).definition as JsonObject;
+  assertEquals(
+    (upgraded.stages as JsonObject[])[0].work,
+    { mode: "workflow", workflow: { name: "@acme/tests" } },
+  );
+  assertEquals(
+    (upgraded.stages as JsonObject[])[1],
+    { id: "end", terminal: true },
+  );
+});
+
+Deno.test("upgrade 4 to 5: a stray block is still refused, and a second block is never dropped", () => {
+  const stray = readDefinition(v4Work({
+    mode: "interactive",
+    method: { modelIdOrName: "m", methodName: "run" },
+  }));
+  assert(!stray.ok);
+  assert(
+    stray.errors.some((e) =>
+      e.includes("a behavior block needs mode 'behavior'")
+    ),
+    stray.errors.join("\n"),
+  );
+  const both = readDefinition(v4Work({
+    mode: "method",
+    method: { modelIdOrName: "m", methodName: "run" },
+    behavior: { behaviorIdOrName: "n", methodName: "run" },
+  }));
+  assert(!both.ok);
+  assert(
+    both.errors.some((e) => e.includes("the method block became behavior")),
+    both.errors.join("\n"),
+  );
 });

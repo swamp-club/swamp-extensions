@@ -77,7 +77,7 @@ Deno.test("factory: the globalArguments schema survives swamp's .partial() and t
 });
 
 Deno.test("factory: the schema reads every schemaVersion the runtime reads, and refuses a newer one by name", async () => {
-  // swamp model validate checks globalArguments without running upgrades
+  // swamp behavior validate checks globalArguments without running upgrades
   // (swamp-club #3196), so the schema upgrades the definition itself.
   const definition = await buildDefinition();
   assert(
@@ -119,7 +119,7 @@ Deno.test("factory: its upgrades end at its version and leave a current definiti
 
 Deno.test("factory: definition and scenarios are marked as foreign template text", () => {
   // swamp's template scan reads this mark, so {{name}} placeholders neither
-  // warn nor fail swamp model validate (foreign_template_fields.ts in swamp).
+  // warn nor fail swamp behavior validate (foreign_template_fields.ts in swamp).
   const shape = FactoryArgumentsSchema.shape;
   for (const key of ["definition", "scenarios"] as const) {
     const meta = z.globalRegistry.get(shape[key]) as
@@ -165,7 +165,7 @@ Deno.test("factory: validate refuses a tracker no model is named", async () => {
     () => factory.methods.validate.execute({}, swamp.context("team")),
     Error,
     "factory 'team' names tracker 'board', but no model is named 'board': " +
-      "create it with swamp model create @swamp/stagecraft/tracker board",
+      "create it with swamp behavior create @swamp/stagecraft/tracker board",
   );
 });
 

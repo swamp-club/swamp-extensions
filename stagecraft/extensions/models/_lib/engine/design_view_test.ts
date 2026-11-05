@@ -178,9 +178,9 @@ stages:
   - id: plan
     initial: true
     work:
-      mode: method
-      method:
-        modelIdOrName: "agent-{{agent}}"
+      mode: behavior
+      behavior:
+        behaviorIdOrName: "agent-{{agent}}"
         methodName: generate
         passAsInputs: [workItem]
       let: { agent: item.key, workItem: item.key }

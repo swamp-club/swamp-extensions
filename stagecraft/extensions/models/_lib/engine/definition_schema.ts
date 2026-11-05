@@ -51,7 +51,7 @@ import { parseSummary } from "./entry_summary.ts";
 // declaration (#897).
 // ---------------------------------------------------------------------------
 
-export const DEFINITION_SCHEMA_VERSION = 4;
+export const DEFINITION_SCHEMA_VERSION = 5;
 
 /** Names for stages, transitions, artifacts, evidence, gates. Safe as path
  * segments and shell words on every platform (#2290). */
@@ -384,7 +384,7 @@ export type GateSpec = z.infer<typeof GateSchema>;
 
 /**
  * Let values sent as call inputs, under their own names and with their types
- * kept. A let value not listed is never sent: swamp refuses a model-method
+ * kept. A let value not listed is never sent: swamp refuses a method
  * input the method does not declare.
  */
 const PassAsInputsSchema = z.array(z.string().min(1)).refine(
@@ -399,12 +399,19 @@ export const WorkflowCallSchema = z.strictObject({
   passAsInputs: PassAsInputsSchema,
 });
 
-export const MethodCallSchema = z.strictObject({
-  /** The model to call; may use `{{name}}` placeholders. */
-  modelIdOrName: z.string().min(1),
+export const BehaviorCallSchema = z.strictObject({
+  /** The swamp behavior to call; may use `{{name}}` placeholders. */
+  behaviorIdOrName: z.string().min(1),
   methodName: z.string().min(1),
   inputs: z.record(z.string(), z.unknown()).optional(),
   passAsInputs: PassAsInputsSchema,
+}, {
+  // schemaVersion 4's name is upgraded on read (definition_upgrade.ts), so one
+  // here was written at version 5.
+  error: (issue) =>
+    issue.code === "unrecognized_keys" && issue.keys.includes("modelIdOrName")
+      ? "modelIdOrName became behaviorIdOrName in schemaVersion 5"
+      : undefined,
 });
 
 export const WorkContextSchema = z.strictObject({
@@ -419,7 +426,7 @@ export const WORK_MODES = [
   "interactive",
   "dispatch",
   "workflow",
-  "method",
+  "behavior",
 ] as const;
 
 export const WorkSchema = z.strictObject({
@@ -438,29 +445,35 @@ export const WorkSchema = z.strictObject({
   constraints: z.string().optional(),
   context: WorkContextSchema.optional(),
   workflow: WorkflowCallSchema.optional(),
-  method: MethodCallSchema.optional(),
+  behavior: BehaviorCallSchema.optional(),
   /**
    * Named values resolved from run data when the stage is dispatched, each a
    * bare CEL expression. They fill `{{name}}` placeholders in systemPrompt,
-   * command and a call's target (workflow.name, method.modelIdOrName). A
-   * `workflow` or `method` call sends the ones its `passAsInputs` lists, and
+   * command and a call's target (workflow.name, behavior.behaviorIdOrName). A
+   * `workflow` or `behavior` call sends the ones its `passAsInputs` lists, and
    * no others; `interactive` and `dispatch` stages hand them all to the agent
    * as data. The resolved values are recorded on the dispatch.
    */
   let: z.record(z.string(), CelExpressionSchema).optional(),
-  /** Schema the merged inputs of a workflow or method call must satisfy. */
+  /** Schema the merged inputs of a workflow or behavior call must satisfy. */
   inputsSchema: ObjectPayloadSchemaSchema.optional(),
   /** Evidence that records the stage's run outcome. */
   resultEvidence: NameSchema.optional(),
 }, {
   // schemaVersion 1's bindings are upgraded on read (definition_upgrade.ts),
   // so one here was written at version 2.
-  error: (issue) =>
-    issue.code === "unrecognized_keys" && issue.keys.includes("bindings")
-      ? "bindings became let and passAsInputs in schemaVersion 2: name the " +
-        "values under let, and list the ones a workflow or method call sends " +
-        "under its passAsInputs"
-      : undefined,
+  error: (issue) => {
+    if (issue.code !== "unrecognized_keys") return undefined;
+    if (issue.keys.includes("bindings")) {
+      return "bindings became let and passAsInputs in schemaVersion 2: name " +
+        "the values under let, and list the ones a workflow or behavior call " +
+        "sends under its passAsInputs";
+    }
+    return issue.keys.includes("method")
+      ? "the method block became behavior in schemaVersion 5: write mode " +
+        "behavior and a behavior block"
+      : undefined;
+  },
 }).superRefine((work, ctx) => {
   const issue = (path: string | (string | number)[], message: string) =>
     ctx.addIssue({
@@ -468,12 +481,12 @@ export const WorkSchema = z.strictObject({
       path: Array.isArray(path) ? path : [path],
       message,
     });
-  const calls = work.mode === "workflow" || work.mode === "method";
+  const calls = work.mode === "workflow" || work.mode === "behavior";
   if (work.mode === "workflow" && work.workflow === undefined) {
     issue("workflow", "mode 'workflow' requires a workflow block");
   }
-  if (work.mode === "method" && work.method === undefined) {
-    issue("method", "mode 'method' requires a method block");
+  if (work.mode === "behavior" && work.behavior === undefined) {
+    issue("behavior", "mode 'behavior' requires a behavior block");
   }
   if (work.mode !== "workflow" && work.workflow !== undefined) {
     issue(
@@ -481,13 +494,16 @@ export const WorkSchema = z.strictObject({
       `a workflow block needs mode 'workflow' (not '${work.mode}')`,
     );
   }
-  if (work.mode !== "method" && work.method !== undefined) {
-    issue("method", `a method block needs mode 'method' (not '${work.mode}')`);
+  if (work.mode !== "behavior" && work.behavior !== undefined) {
+    issue(
+      "behavior",
+      `a behavior block needs mode 'behavior' (not '${work.mode}')`,
+    );
   }
   if (!calls && work.inputsSchema !== undefined) {
     issue(
       "inputsSchema",
-      "inputsSchema only applies to mode 'workflow' or 'method' (the modes with call inputs)",
+      "inputsSchema only applies to mode 'workflow' or 'behavior' (the modes with call inputs)",
     );
   }
   // Checked here rather than as a record key schema, whose own message zod
@@ -517,8 +533,11 @@ export const WorkSchema = z.strictObject({
   placeholders(["systemPrompt"], work.systemPrompt);
   placeholders(["command"], work.command);
   placeholders(["workflow", "name"], work.workflow?.name);
-  placeholders(["method", "modelIdOrName"], work.method?.modelIdOrName);
-  for (const block of ["workflow", "method"] as const) {
+  placeholders(
+    ["behavior", "behaviorIdOrName"],
+    work.behavior?.behaviorIdOrName,
+  );
+  for (const block of ["workflow", "behavior"] as const) {
     const call = work[block];
     if (call === undefined) continue;
     const literals = call.inputs ?? {};
@@ -1199,7 +1218,7 @@ function checkEntries(
   // What the dispatch records as inputs: a call's literal inputs and the
   // let values it passes, or every let value for the other modes.
   const work = stage.work;
-  const call = work?.workflow ?? work?.method;
+  const call = work?.workflow ?? work?.behavior;
   const inputs = new Set(
     call !== undefined
       ? [...Object.keys(call.inputs ?? {}), ...(call.passAsInputs ?? [])]

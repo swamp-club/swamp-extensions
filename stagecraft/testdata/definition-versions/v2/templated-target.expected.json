@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "description": "Each work item has its own planning agent, named after the item; the tests run under a workflow named for the plan's suite.",
   "stages": [
     {
@@ -17,19 +17,8 @@
       },
       "description": "The work item's own agent writes the plan.",
       "work": {
-        "mode": "method",
+        "mode": "behavior",
         "systemPrompt": "Plan {{workItem}} for the {{agent}} agent.",
-        "method": {
-          "modelIdOrName": "agent-{{agent}}",
-          "methodName": "generate",
-          "inputs": {
-            "depth": 2
-          },
-          "passAsInputs": [
-            "workItem",
-            "feedback"
-          ]
-        },
         "let": {
           "agent": "item.key",
           "workItem": "item.key",
@@ -52,7 +41,18 @@
             "feedback": {}
           }
         },
-        "resultEvidence": "plan-run"
+        "resultEvidence": "plan-run",
+        "behavior": {
+          "methodName": "generate",
+          "inputs": {
+            "depth": 2
+          },
+          "passAsInputs": [
+            "workItem",
+            "feedback"
+          ],
+          "behaviorIdOrName": "agent-{{agent}}"
+        }
       },
       "artifacts": [
         {

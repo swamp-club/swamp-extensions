@@ -1275,11 +1275,11 @@ export function analyzeDefinition(
           violation: workflowNameViolation,
         }]
         : []),
-      ...(work?.method !== undefined
+      ...(work?.behavior !== undefined
         ? [{
-          field: "method",
-          key: "modelIdOrName",
-          name: work.method.modelIdOrName,
+          field: "behavior",
+          key: "behaviorIdOrName",
+          name: work.behavior.behaviorIdOrName,
           violation: modelNameViolation,
         }]
         : []),
@@ -1297,7 +1297,7 @@ export function analyzeDefinition(
         ["stages", index, "work", field, key],
         `stage '${stage.id}' calls '${called}', a name swamp would not create ` +
           `today (${broken}); if it is an older ${
-            field === "workflow" ? "workflow" : "model"
+            field === "workflow" ? "workflow" : "behavior"
           }, ` +
           "it still works, otherwise fix the name",
         { stage: stage.id },

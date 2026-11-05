@@ -42,11 +42,11 @@ export const MODES: Record<
     cls: "m-wf",
     blurb: "a swamp workflow runs; no agent judgement",
   },
-  method: {
-    label: "Method",
+  behavior: {
+    label: "Behavior",
     glyph: "ƒ",
     cls: "m-me",
-    blurb: "a model method runs; no agent judgement",
+    blurb: "a swamp behavior's method runs; no agent judgement",
   },
   none: {
     label: "No work",

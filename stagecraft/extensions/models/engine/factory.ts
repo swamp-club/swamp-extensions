@@ -33,11 +33,11 @@ import {
 // pin a copy, so editing it never changes a running work item.
 //
 // swamp checks the globalArguments against this schema with schema.partial()
-// before every method, and swamp model validate does too. partial() only
+// before every method, and swamp behavior validate does too. partial() only
 // makes the top-level keys optional, so a definition that is present gets the
 // whole definition schema. The top level must stay a plain object with no
 // refinement of its own: swamp falls back to checking key by key when it
-// cannot call partial(). definition is optional because swamp model create
+// cannot call partial(). definition is optional because swamp behavior create
 // checks the full schema whenever a --global-arg is given, and a factory is
 // created with only its tracker before its definition is written in. The
 // tracker's model type must be the one the definition's tracker kind needs;
@@ -57,7 +57,7 @@ import {
 //
 // A definition at an older schemaVersion is upgraded by the same steps
 // everywhere (definition_upgrade.ts). swamp writes the upgrade back to the
-// factory's file through `upgrades` when one of its methods runs. swamp model
+// factory's file through `upgrades` when one of its methods runs. swamp behavior
 // validate checks globalArguments without running `upgrades` (swamp-club
 // #3196), so the schema upgrades a definition before checking it, and accepts
 // every version this runtime reads.
@@ -90,7 +90,7 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. factory_test checks it equals FACTORY_TYPE.
   type: "@swamp/stagecraft/factory",
-  version: "2026.11.05.1",
+  version: "2026.11.05.2",
   globalArguments: FactoryArgumentsSchema,
   // Every entry runs the same function: it goes by the definition's own
   // schemaVersion, so it is right whichever typeVersion an instance is at,
@@ -121,6 +121,13 @@ export const model = {
       toVersion: "2026.11.05.1",
       description: "Definition schemaVersion 4: a stage may mark injected " +
         "products optional (#4163)",
+      upgradeAttributes: (old: Record<string, unknown>) =>
+        upgradeFactoryArguments(old),
+    },
+    {
+      toVersion: "2026.11.05.2",
+      description: "Definition schemaVersion 5: work mode method becomes " +
+        "behavior (#3855)",
       upgradeAttributes: (old: Record<string, unknown>) =>
         upgradeFactoryArguments(old),
     },

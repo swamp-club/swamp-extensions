@@ -1,0 +1,89 @@
+# Frozen at schemaVersion 5 (swamp-club #3855): a behavior stage calling a target
+# chosen from run data, and a workflow stage. Never edit it;
+# definition_versions_test checks it still upgrades to
+# behavior-target.expected.json and its scenarios still pass.
+definition:
+  schemaVersion: 5
+  description: >-
+    Each work item has its own planning agent, named after the item; the tests
+    run under a workflow named for the plan's suite.
+  stages:
+    - id: plan
+      initial: true
+      tracker:
+        entries:
+          - on: dispatch
+            step: planning
+            emoji: "📝"
+            summary: "Planning {{$input.workItem}}"
+      description: The work item's own agent writes the plan.
+      work:
+        mode: behavior
+        systemPrompt: Plan {{workItem}} for the {{agent}} agent.
+        behavior:
+          behaviorIdOrName: "agent-{{agent}}"
+          methodName: generate
+          inputs: { depth: 2 }
+          passAsInputs: [workItem, feedback]
+        let:
+          agent: item.key
+          workItem: item.key
+          feedback: >-
+            "plan" in validations.artifacts ? validations.artifacts["plan"] :
+            null
+        inputsSchema:
+          type: object
+          required: [depth, workItem]
+          additionalProperties: false
+          properties:
+            depth: { type: integer }
+            workItem: { type: string }
+            feedback: {}
+        resultEvidence: plan-run
+      artifacts:
+        - name: plan
+          schema:
+            type: object
+            required: [ref, suite]
+            additionalProperties: false
+            properties:
+              ref: { type: string, minLength: 1 }
+              suite: { type: string, minLength: 1 }
+      transitions:
+        - name: submit
+          to: test
+          gates:
+            - type: artifact-exists
+              config: { artifact: plan }
+    - id: test
+      description: The plan's suite runs against its ref.
+      work:
+        mode: workflow
+        workflow:
+          name: "{{suite}}-tests"
+          passAsInputs: [ref]
+        let:
+          suite: artifacts["plan"].payload.suite
+          ref: artifacts["plan"].payload.ref
+        resultEvidence: test-run
+      transitions:
+        - name: finish
+          to: done
+          gates:
+            - type: evidence-recorded
+              config: { name: test-run }
+    - id: done
+      terminal: true
+scenarios:
+  - scenario: plan-then-test
+    description: >-
+      The plan names its suite; the tests' run finishes the item.
+    steps:
+      - record: { artifact: plan }
+        payload: { ref: main, suite: smoke }
+      - move: submit
+      - expect: { stage: test }
+      - record: { evidence: test-run }
+        payload: { status: succeeded, runId: run-1 }
+      - move: finish
+      - expect: { stage: done }

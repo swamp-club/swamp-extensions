@@ -339,8 +339,8 @@ export function checkCommand(
   const is = (...prefix: string[]) => prefix.every((p, i) => args[i] === p);
 
   // Work-item methods, by direct type execution.
-  if (is("model", WORK_ITEM_TYPE, "method", "run")) {
-    const [name, _key, ...rest] = args.slice(4);
+  if (is("behavior", "run", WORK_ITEM_TYPE)) {
+    const [name, _key, ...rest] = args.slice(3);
     const method = (workItemModel.methods as Record<string, MethodLike>)[name];
     if (method === undefined) return `no work-item method '${name}'`;
     return checkInputs(method, rest);
@@ -349,12 +349,12 @@ export function checkCommand(
   // adapter, so the method must be one every tracker has, with inputs every
   // tracker accepts. An adapter's own placeholder (TRACKER_PLACEHOLDERS)
   // stands for that adapter alone.
-  const placeholder = args[3];
+  const placeholder = args[2];
   const kinds = placeholder === "<tracker>"
     ? TRACKER_KINDS
     : TRACKER_KINDS.filter((k) => TRACKER_PLACEHOLDERS[k] === placeholder);
-  if (is("model", "method", "run") && kinds.length > 0) {
-    const [name, ...rest] = args.slice(4);
+  if (is("behavior", "run") && kinds.length > 0) {
+    const [name, ...rest] = args.slice(3);
     const lacking = kinds.filter((k) => !Object.hasOwn(trackers[k], name));
     if (lacking.length > 0) {
       return placeholder === "<tracker>"
@@ -371,34 +371,34 @@ export function checkCommand(
     return null;
   }
   // A tracker written as a separate extension has two methods of its own.
-  if (is("model", "method", "run", "<their-tracker>")) {
-    const name = args[4];
+  if (is("behavior", "run", "<their-tracker>")) {
+    const name = args[3];
     return name === "describe" || name === "operate"
       ? null
       : `a tracker written as a separate extension has no method '${name}'`;
   }
   // Studio methods, by its placeholder.
-  if (is("model", "method", "run", "<studio>")) {
-    const [name, ...rest] = args.slice(4);
+  if (is("behavior", "run", "<studio>")) {
+    const [name, ...rest] = args.slice(3);
     const method = (studioModel.methods as Record<string, MethodLike>)[name];
     if (method === undefined) return `no studio method '${name}'`;
     return checkInputs(method, rest);
   }
   // Factory methods, by instance name.
-  if (is("model", "method", "run")) {
-    const [_factory, name, ...rest] = args.slice(3);
+  if (is("behavior", "run")) {
+    const [_factory, name, ...rest] = args.slice(2);
     const method = (factoryModel.methods as Record<string, MethodLike>)[name];
     if (method === undefined) return `no factory method '${name}'`;
     return checkInputs(method, rest);
   }
-  if (is("model", "create")) {
+  if (is("behavior", "create")) {
     // A factory is created with only its tracker; the agent writes its
     // definition into the model file afterwards.
     if (args[2] === FACTORY_TYPE) {
       return args.length === 7 && args[4] === "--global-arg" &&
           /^tracker=\S+$/.test(args[5]) && args[6] === "--json"
         ? null
-        : `model create must be: model create ${FACTORY_TYPE} <name> ` +
+        : `behavior create must be: behavior create ${FACTORY_TYPE} <name> ` +
           "--global-arg tracker=<tracker> --json";
     }
     // The built-in tracker needs its prefix; Linear is set up in the model
@@ -407,7 +407,7 @@ export function checkCommand(
       return args.length === 7 && args[4] === "--global-arg" &&
           /^prefix=\S+$/.test(args[5]) && args[6] === "--json"
         ? null
-        : `model create must be: model create ${BUILTIN_TRACKER_TYPE} ` +
+        : `behavior create must be: behavior create ${BUILTIN_TRACKER_TYPE} ` +
           "<name> --global-arg prefix=<prefix> --json";
     }
     // A publisher is created with only the tracker it publishes to; its
@@ -416,14 +416,14 @@ export function checkCommand(
       return args.length === 7 && args[4] === "--global-arg" &&
           /^tracker=\S+$/.test(args[5]) && args[6] === "--json"
         ? null
-        : `model create must be: model create ${PUBLISHER_TYPE} <name> ` +
+        : `behavior create must be: behavior create ${PUBLISHER_TYPE} <name> ` +
           "--global-arg tracker=<their-tracker> --json";
     }
     // The studio has no arguments.
     if (args[2] === linearModel.type || args[2] === studioModel.type) {
       return args.length === 5 && args[4] === "--json"
         ? null
-        : `model create must be: model create ${args[2]} <name> --json`;
+        : `behavior create must be: behavior create ${args[2]} <name> --json`;
     }
     return `no model type the skill creates: ${args[2]}`;
   }
@@ -450,10 +450,10 @@ export function checkCommand(
       ? null
       : `${args[2]} needs ${missing.join(", ")}`;
   }
-  if (is("model", "search")) {
+  if (is("behavior", "search")) {
     return args.length === 4 && args[3] === "--json"
       ? null
-      : "model search takes a query and --json";
+      : "behavior search takes a query and --json";
   }
   // Setting up a repo, as the README shows it. None of these is run by the
   // test, so each must have exactly the shape shown.
@@ -521,7 +521,7 @@ interface RepoLike {
 
 /**
  * A tracker command as run: the instance, the method or shipped workflow's
- * kind (create, claim, ...), and its inputs. Either form: swamp model method
+ * kind (create, claim, ...), and its inputs. Either form: swamp behavior
  * run <tracker> <method> ..., or swamp workflow run @swamp/stagecraft/<kind>
  * --input tracker=<tracker> ...
  */
@@ -536,11 +536,13 @@ function trackerCall(
         words[i - 1] === "--input" ? [w.split(/=(.*)/s).slice(0, 2)] : []
       ),
     ) as Record<string, string>;
-  if (ran[0] === "model" && ran[1] === "method" && ran[2] === "run") {
+  if (
+    ran[0] === "behavior" && ran[1] === "run" && !ran[2]?.startsWith("@")
+  ) {
     return {
-      instance: ran[3],
-      method: ran[4],
-      inputs: inputsFrom(ran.slice(5)),
+      instance: ran[2],
+      method: ran[3],
+      inputs: inputsFrom(ran.slice(4)),
     };
   }
   if (ran[0] === "workflow" && ran[1] === "run") {
@@ -749,7 +751,7 @@ async function runCommands(
     steps.push(step);
     await onStep(step);
 
-    // The ticket a tracker's create filed (`model method run <tracker>
+    // The ticket a tracker's create filed (`behavior run <tracker>
     // create`): the issue record that was not there before, rather than its
     // log line, whose format is swamp's to change.
     if (files && call !== undefined && result.code === 0) {
@@ -785,10 +787,10 @@ async function runCommands(
     // The result file the latest dispatch named for its first subagent's
     // first product, read from the dispatch record rather than the log.
     if (
-      result.code === 0 && ran[0] === "model" && ran[1] === WORK_ITEM_TYPE &&
-      ran[4] === "dispatch"
+      result.code === 0 && ran[0] === "behavior" && ran[1] === "run" &&
+      ran[2] === WORK_ITEM_TYPE && ran[3] === "dispatch"
     ) {
-      const run = await repo.data(ran[5], "run") as {
+      const run = await repo.data(ran[4], "run") as {
         dispatches?: {
           subagentPrompts?: { resultPaths: Record<string, string> }[];
         }[];

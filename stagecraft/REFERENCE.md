@@ -47,7 +47,7 @@ it works this way is in [DESIGN.md](DESIGN.md).
 A factory definition is **checked** by the factory's `validate` method, and
 every problem is reported with its path. The schema check runs again whenever a
 work item starts on it; the graph analysis (below) runs only in `validate`.
-Editing a factory with `swamp model edit` does not check it: swamp only applies
+Editing a factory with `swamp behavior edit` does not check it: swamp only applies
 a lenient version of a model's schema, so the full check is stagecraft's own.
 
 A definition names its format with `schemaVersion`. When a stagecraft release
@@ -57,6 +57,11 @@ upgrade into its file (keeping the file's comments), and work items already
 running keep the copy they pinned and go on. A definition at a newer version
 than the installed stagecraft reads is refused with "needs a newer
 @swamp/stagecraft".
+
+A work item's run record is versioned the same way: an older record reads as
+the current form, and the next write stores it. So an older stagecraft refuses
+definitions and run records a newer one has written. Remote workers, and anyone
+sharing a datastore, upgrade `@swamp/stagecraft` together.
 
 A factory definition is ported from software-factory's definition schema:
 stages, work, artifacts, evidence, transitions and gates. Three things change:
@@ -74,27 +79,33 @@ stages, work, artifacts, evidence, transitions and gates. Three things change:
   contain a literal `${{` (a GitHub Actions snippet, say). See DESIGN.md, "Where
   a factory definition lives".
 - **Text fields refer to let values as `{{name}}`**: `systemPrompt`, `command`,
-  and a call's target (`workflow.name`, `method.modelIdOrName`). A placeholder
+  and a call's target (`workflow.name`, `behavior.behaviorIdOrName`). A placeholder
   holds a let name, never an expression, and an undeclared name is an error when
   the factory definition is checked. `{{` around anything that is not a bare
   name (`{{ .Values.x }}`, `{{#each}}`) is literal text, and `\{{` is a literal
   `{{`. At dispatch, a null or missing value fails the stage rather than
   rendering blank. See [DESIGN.md](DESIGN.md) for why.
-- **A workflow or method call sends what its `passAsInputs` lists**: the named
+- **A workflow or behavior call sends what its `passAsInputs` lists**: the named
   let values, under their own names and with their types kept, beside its
   literal `inputs`. A let value not listed is never sent, since swamp refuses a
-  model-method input the method does not declare. A name may not be both a
+  method input the method does not declare. A name may not be both a
   literal input and passed. Interactive and dispatch stages hand every let value
   to the agent as data. Until schemaVersion 2 these were `work.bindings`, all
   sent; an older definition is upgraded on read to the same inputs, and its call
   target, plain text in v1, is escaped so it is called as written.
+- **A behavior call's target is `behaviorIdOrName`.** A swamp workflow step still
+  spells the same target `modelIdOrName`, under `type: model_method`, so change
+  the key when moving a call between a stage and a workflow step. Until
+  schemaVersion 5 a stage wrote `mode: method` with a
+  `method` block and `modelIdOrName`; an older definition is upgraded on read,
+  and those names in a current definition are refused.
 - **A stage may inject a product some routes leave unrecorded**, by also naming
   it in `work.context.optional`, which only takes names `inject` lists. A
   dispatch reads the optional products that were recorded and names the rest,
   in the packet's `notRecorded` and in each subagent's prompt, so the work goes
   on without them. A required product that is missing still stops a subagent.
 - **A call's target may come from run data**:
-  `modelIdOrName:
+  `behaviorIdOrName:
   "agent-{{workItem}}"`. Each value in it must be a non-empty
   string, and the filled target must be a name swamp would create (its
   model-name or workflow-name rule, mirrored in `_lib/engine/swamp_names.ts`),
@@ -316,30 +327,30 @@ swamp extension pull @swamp/stagecraft
 
 # The tracker work items publish to: the built-in one, with no external
 # tracker (see "Built-in tracker" below).
-swamp model create @swamp/stagecraft/tracker board \
+swamp behavior create @swamp/stagecraft/tracker board \
   --global-arg prefix=team --json
 
 # A factory, bound to its tracker. Then write a definition into it: the
 # definition: and scenarios: blocks of one of the skill's examples, under
 # globalArguments: in models/@swamp/stagecraft/factory/team.yaml.
 # That file is the one copy of the definition; edit it there.
-swamp model create @swamp/stagecraft/factory team \
+swamp behavior create @swamp/stagecraft/factory team \
   --global-arg tracker=board --json
-swamp model validate team                        # swamp's own schema check
-swamp model method run team validate       # that, the graph, scenarios
+swamp behavior validate team                        # swamp's own schema check
+swamp behavior run team validate       # that, the graph, scenarios
 # A ticket for the work, on the factory's tracker; the built-in tracker
 # numbers it with its prefix: team-1.
-swamp model method run board create --input 'title=Add a list method' \
+swamp behavior run board create --input 'title=Add a list method' \
   --input 'body=Add a list method to the extension.' --input type=feature
 # Reserves the key, the ticket's id, and prints the start command to run.
-swamp model method run board claim --input issue=team-1 --input factory=team
+swamp behavior run board claim --input issue=team-1 --input factory=team
 
 # A work item, named by that key. The title is kept in its run record:
 # status, the summary and the studio show it beside the key.
-swamp model @swamp/stagecraft/work-item method run start team-1 \
+swamp behavior run @swamp/stagecraft/work-item start team-1 \
   --input factory=team --input 'title=Add a list method' \
   --input 'externalRefs={"builtin":"team-1","builtin.display":"team-1"}'
-swamp model @swamp/stagecraft/work-item method run status team-1
+swamp behavior run @swamp/stagecraft/work-item status team-1
 ```
 
 `start` also takes any unused name chosen by hand, for work with no ticket.
@@ -386,7 +397,7 @@ cycle wrote, or null. A dispatch recorded between reading the run and
 dispatching makes the packet stale, and `dispatch` refuses it with
 `stale: dispatch N was recorded after this packet was built`.
 
-A workflow or method stage gets those three as one input, `_stagecraft`, when
+A workflow or behavior stage gets those three as one input, `_stagecraft`, when
 its `inputsSchema` declares that property and no literal input or passed let
 value supplies it. Its shape:
 
@@ -514,10 +525,10 @@ the page shows them as the agent saves.
 
 ```bash
 # Once per repo.
-swamp model create @swamp/stagecraft/studio studio --json
+swamp behavior create @swamp/stagecraft/studio studio --json
 # Logs the URL, such as http://127.0.0.1:38813/, and runs until Ctrl-C.
-swamp model method run studio serve
-swamp model method run studio serve --input port=8123   # a fixed port
+swamp behavior run studio serve
+swamp behavior run studio serve --input port=8123   # a fixed port
 ```
 
 The server listens on 127.0.0.1 only, answers only requests addressed to it from
@@ -537,7 +548,7 @@ To open the studio from another machine, put a reverse proxy or tunnel in front
 of it and tell `serve` the origin it is published at:
 
 ```bash
-swamp model method run studio serve --input port=8123 \
+swamp behavior run studio serve --input port=8123 \
   --input publicOrigin=https://studio.example.com
 ```
 
@@ -570,7 +581,7 @@ path on a host that serves other things, such as
 `https://tools.example.com/_stagecraft`, give `serve` that path as `basePath`:
 
 ```bash
-swamp model method run studio serve --input port=8123 \
+swamp behavior run studio serve --input port=8123 \
   --input publicOrigin=https://tools.example.com \
   --input basePath=/_stagecraft
 ```
@@ -600,12 +611,12 @@ To see the factories and work items of a deployed `swamp serve` from your own
 machine, run the studio in any local swamp repo and give it the serve's URL:
 
 ```bash
-swamp model method run studio serve --input server=wss://swamp.example.com
+swamp behavior run studio serve --input server=wss://swamp.example.com
 ```
 
 `server` is a ws, wss, http or https URL with no credentials in it. The studio
 then shows that serve's factories, not this repo's, and reads them with swamp's
-own read commands (`swamp model search`, `swamp model get` and
+own read commands (`swamp behavior search`, `swamp behavior get` and
 `swamp data query`, each with `--server`), so every read carries your login and
 your grants on that serve. swamp finds the credentials as it does for any
 `--server` call: your stored login, `SWAMP_SERVER_TOKEN` or
@@ -625,7 +636,7 @@ minute from one address, shared by everyone behind the same NAT. So the studio
 runs one command at a time and starts at most 20 in any minute; a read over
 that waits. If the serve rate-limits it anyway, the studio starts no command for
 60 seconds, the page shows the last read with a message saying when it reads
-again, and once the serve answers, the page reads what it could not. The definition comes from `swamp model get`
+again, and once the serve answers, the page reads what it could not. The definition comes from `swamp behavior get`
 as data, so the page shows YAML written from it: the server file's comments and
 layout are not shown, and the source is named `<factory> on <server>`.
 
@@ -640,7 +651,7 @@ metrics as markdown. The `@swamp/stagecraft/work-item-summary` report runs after
 it and stores the same markdown, with the metrics and timeline as JSON:
 
 ```bash
-swamp model @swamp/stagecraft/work-item method run summary <key>
+swamp behavior run @swamp/stagecraft/work-item summary <key>
 swamp report get @swamp/stagecraft/work-item-summary --model <key>
 ```
 
@@ -660,7 +671,7 @@ If a metrics write failed, or the work item has not committed since metrics were
 introduced, `rebuild_metrics` rewrites the record from the run:
 
 ```bash
-swamp model @swamp/stagecraft/work-item method run rebuild_metrics <key>
+swamp behavior run @swamp/stagecraft/work-item rebuild_metrics <key>
 ```
 
 See [DESIGN.md](DESIGN.md), "Summary and metrics", for what each metric means.
@@ -673,16 +684,16 @@ is a swamp serve. Keep one instance per project. See [DESIGN.md](DESIGN.md), "Th
 built-in tracker".
 
 ```bash
-swamp model create @swamp/stagecraft/tracker board --json
+swamp behavior create @swamp/stagecraft/tracker board --json
 # In the printed definition file, set globalArguments:
 #   prefix: cue                 # ticket ids are cue-1, cue-2, ...; default: the instance's name, cut to 12
 #   statuses: [open, in_progress, shipped, closed]   # the default
 #   types: [bug, feature, security]                  # the default
-swamp model method run board create --input title="Board shortcuts" \
+swamp behavior run board create --input title="Board shortcuts" \
   --input body="Keys for the board." --input type=feature
-swamp model method run board claim --input issue=cue-1 \
+swamp behavior run board claim --input issue=cue-1 \
   --input factory=team
-swamp model method run board publish --input workItem=<key>
+swamp behavior run board publish --input workItem=<key>
 ```
 
 Ticket ids are `<prefix>-<n>`: `prefix` is lowercase letters, digits and `-`, at
@@ -708,9 +719,9 @@ tracker=board`.
 Every tracker relates tickets the same way, by stable id:
 
 ```bash
-swamp model method run board relate --input issue=<parent> \
+swamp behavior run board relate --input issue=<parent> \
   --input type=parent_of --input to=<child>
-swamp model method run board unrelate --input issue=<parent> \
+swamp behavior run board unrelate --input issue=<parent> \
   --input type=parent_of --input to=<child>
 ```
 
@@ -729,9 +740,9 @@ On the built-in tracker, `to` may name a ticket in another tracker as
 `<tracker>:<id>`, for `blocked_by` and `related_to`:
 
 ```bash
-swamp model method run ops-tracker relate --input issue=ops-18 \
+swamp behavior run ops-tracker relate --input issue=ops-18 \
   --input type=blocked_by --input to=devswamp:devswamp-25
-swamp model method run ops-tracker unrelate --input issue=ops-18 \
+swamp behavior run ops-tracker unrelate --input issue=ops-18 \
   --input type=blocked_by --input to=devswamp:devswamp-25
 ```
 
@@ -820,7 +831,7 @@ factory's to decide, in its stages: see
 To mark a duplicate, which also closes it (Linear closes a duplicate itself):
 
 ```bash
-swamp model method run board mark_duplicate --input issue=<duplicate> \
+swamp behavior run board mark_duplicate --input issue=<duplicate> \
   --input primary=<primary>
 ```
 
@@ -838,9 +849,9 @@ field. See [DESIGN.md](DESIGN.md), "Duplicates".
 such as a Jira ticket:
 
 ```bash
-swamp model method run board create --input id=SREMON-2131 \
+swamp behavior run board create --input id=SREMON-2131 \
   --input title="Alert on queue depth" --input body="..." --input type=feature
-swamp model method run board claim --input issue=SREMON-2131 \
+swamp behavior run board claim --input issue=SREMON-2131 \
   --input factory=team
 ```
 
@@ -869,18 +880,18 @@ workspace; its API key comes from a vault. See [DESIGN.md](DESIGN.md),
 ```bash
 swamp vault create local_encryption secrets
 swamp vault put secrets linear-token          # prompts for the key
-swamp model create @swamp/stagecraft/linear linear --json
+swamp behavior create @swamp/stagecraft/linear linear --json
 # In the printed definition file, set globalArguments:
 #   apiToken: ${{ vault.get(secrets, linear-token) }}
 #   statuses: { open: Todo, in_progress: In Progress, shipped: Done, closed: Canceled }
 #   teamId: <the team create files issues in>
 #   prefix: abc                 # the team's short name; keys are ABC-12 as-is: abc-12
 #   types: { bug: Bug, feature: Feature }
-swamp model method run linear fetch_issue --input issue=ABC-1
-swamp model method run linear create --input title="A new issue" \
+swamp behavior run linear fetch_issue --input issue=ABC-1
+swamp behavior run linear create --input title="A new issue" \
   --input body="What and why." --input type=bug
-swamp model method run linear publish --input workItem=<key>
-swamp model method run linear assign --input issue=<UUID>
+swamp behavior run linear publish --input workItem=<key>
+swamp behavior run linear assign --input issue=<UUID>
 ```
 
 The API key needs write access, and may be limited to the teams the factory
@@ -930,7 +941,7 @@ Every tracker adapter has `claim`, which starts a work item from a ticket and
 makes sure the same ticket never starts two at once:
 
 ```bash
-swamp model method run board claim --input issue=ext-12 \
+swamp behavior run board claim --input issue=ext-12 \
   --input factory=team
 ```
 
@@ -1003,9 +1014,9 @@ stagecraft reaches it through `@swamp/stagecraft/publisher`, which keeps the
 delivery ledger, the publish cursor, the ticket index and ticket snapshots:
 
 ```bash
-swamp model create @acme/notes-tracker notes --json
-swamp model method run notes describe
-swamp model create @swamp/stagecraft/publisher notes-pub \
+swamp behavior create @acme/notes-tracker notes --json
+swamp behavior run notes describe
+swamp behavior create @swamp/stagecraft/publisher notes-pub \
   --global-arg tracker=notes --json
 # In the printed definition file, set globalArguments:
 #   statuses: { in_progress: doing, shipped: done }   # status keys to the tracker's names
@@ -1045,17 +1056,17 @@ Lab adapter".
 
 ```bash
 # swamp-club team only
-swamp model create @swamp/stagecraft/swamp-club lab --json
-swamp model method run lab fetch_issue --input issue=2631
-swamp model method run lab create --input title="A new issue" \
+swamp behavior create @swamp/stagecraft/swamp-club lab --json
+swamp behavior run lab fetch_issue --input issue=2631
+swamp behavior run lab create --input title="A new issue" \
   --input body="What and why." --input type=bug
-swamp model method run lab set_status --input issue=2631 --input status=triaged
-swamp model method run lab assign --input issue=2631
-swamp model method run lab post_attestation \
+swamp behavior run lab set_status --input issue=2631 --input status=triaged
+swamp behavior run lab assign --input issue=2631
+swamp behavior run lab post_attestation \
   --input attestation="$(cat /tmp/attestation-<SHA>.json)"
-swamp model method run lab set_type --input issue=2631 --input type=bug
-swamp model method run lab team_member --input issue=2631
-swamp model method run lab thank_author --input issue=2631
+swamp behavior run lab set_type --input issue=2631 --input type=bug
+swamp behavior run lab team_member --input issue=2631
+swamp behavior run lab thank_author --input issue=2631
 ```
 
 For the swamp-club team: `publish` assigns the issue to your stored login's user

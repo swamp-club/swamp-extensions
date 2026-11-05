@@ -98,8 +98,8 @@ export function referenceLine(
  * pinned. No file path: the pinned copy may not be the file as it is now.
  *
  *   work item team-add-list-x1y2 ('Add list') of factory team, at stage
- *     plan-review cycle 2: swamp model @swamp/stagecraft/work-item method
- *     run status team-add-list-x1y2
+ *     plan-review cycle 2: swamp behavior run @swamp/stagecraft/work-item
+ *     status team-add-list-x1y2
  *   ... · on its pinned definition: exit approve: plan-review → implement
  */
 export function itemReferenceLine(
@@ -115,8 +115,8 @@ export function itemReferenceLine(
 ): string {
   const title = item.title === item.key ? "" : ` ('${item.title}')`;
   const line = `work item ${item.key}${title} of factory ${item.factory}, ` +
-    `at stage ${item.stage} cycle ${item.cycle}: swamp model ` +
-    `@swamp/stagecraft/work-item method run status ${item.key}`;
+    `at stage ${item.stage} cycle ${item.cycle}: swamp behavior run ` +
+    `@swamp/stagecraft/work-item status ${item.key}`;
   return definition === undefined || target === undefined
     ? line
     : `${line} · on its pinned definition: ${readable(definition, target)}`;

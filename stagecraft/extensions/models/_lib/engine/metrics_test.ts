@@ -15,13 +15,14 @@
 
 import { assert, assertEquals, assertRejects } from "@std/assert";
 import { type FakeSwamp, fakeSwamp } from "./fake_swamp.ts";
+import { smallDefinition } from "./test_support.ts";
 import { computeMetrics, type Metrics } from "./metrics.ts";
 import {
   DEFINITION_SCHEMA_VERSION,
   parseDefinition,
 } from "./definition_schema.ts";
 import { expectedOf, recordDispatch, recordOutcome, start } from "./run_ops.ts";
-import type { RunRecord } from "./run_record.ts";
+import { parseRun, type RunRecord } from "./run_record.ts";
 import { contextStore, loadRun } from "./run_store.ts";
 import {
   advanceMethod,
@@ -281,6 +282,20 @@ Deno.test("metrics: a harness total counts as reported; the split only where giv
     },
   });
   assertEquals([u.dispatchesWithUsage, u.dispatchesWithoutUsage], [2, 0]);
+});
+
+Deno.test("metrics: a v1 record's method dispatch counts under behavior", async () => {
+  const parsed = parseRun(JSON.parse(
+    await Deno.readTextFile(
+      new URL(
+        "../../../../testdata/run-records/v1/method-dispatch.json",
+        import.meta.url,
+      ),
+    ),
+  ));
+  assert(parsed.ok);
+  const u = computeMetrics(parsed.value, smallDefinition()).summary.usage;
+  assertEquals(u.withoutUsageByMode, { behavior: 1, workflow: 1 });
 });
 
 Deno.test("metrics: dispatches without usage count by mode, from the pinned definition when not recorded", async () => {

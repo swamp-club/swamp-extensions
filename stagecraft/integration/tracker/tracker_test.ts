@@ -58,7 +58,7 @@ Deno.test("tracker: the Linear adapter takes its token from a vault and delivers
       await repo.swamp(["vault", "put", "secrets", "linear-token", FAKE_TOKEN]);
 
       const { stdout } = await repo.swamp([
-        "model",
+        "behavior",
         "create",
         LINEAR_TYPE,
         "linear",
@@ -78,8 +78,7 @@ Deno.test("tracker: the Linear adapter takes its token from a vault and delivers
 
       const method = (name: string, inputs: Record<string, string>) =>
         repo.swamp([
-          "model",
-          "method",
+          "behavior",
           "run",
           "linear",
           name,
@@ -140,7 +139,7 @@ Deno.test("tracker: the swamp-club adapter takes its key from a vault, ripples o
       await repo.swamp(["vault", "put", "secrets", "lab-key", ADMIN_KEY]);
 
       const { stdout } = await repo.swamp([
-        "model",
+        "behavior",
         "create",
         SWAMP_CLUB_TYPE,
         "lab",
@@ -161,8 +160,7 @@ Deno.test("tracker: the swamp-club adapter takes its key from a vault, ripples o
 
       const method = (name: string, inputs: Record<string, string>) =>
         repo.swamp([
-          "model",
-          "method",
+          "behavior",
           "run",
           "lab",
           name,
@@ -243,7 +241,7 @@ Deno.test("tracker: publish replays a work item's journal to its Linear issue, o
       await repo.swamp(["vault", "create", "local_encryption", "secrets"]);
       await repo.swamp(["vault", "put", "secrets", "linear-token", FAKE_TOKEN]);
       const { stdout } = await repo.swamp([
-        "model",
+        "behavior",
         "create",
         LINEAR_TYPE,
         "linear",
@@ -280,8 +278,7 @@ Deno.test("tracker: publish replays a work item's journal to its Linear issue, o
       });
       const publish = () =>
         repo.swamp([
-          "model",
-          "method",
+          "behavior",
           "run",
           "linear",
           "publish",
@@ -330,7 +327,7 @@ async function labAdapter(repo: SwampRepo, url: string): Promise<void> {
   await repo.swamp(["vault", "create", "local_encryption", "secrets"]);
   await repo.swamp(["vault", "put", "secrets", "lab-key", ADMIN_KEY]);
   const { stdout } = await repo.swamp([
-    "model",
+    "behavior",
     "create",
     SWAMP_CLUB_TYPE,
     "lab",
@@ -361,7 +358,7 @@ const MINIMAL = new URL(
 
 Deno.test("tracker: validate refuses a Lab factory definition bound to a Linear instance", async () => {
   await withRepo(async (repo) => {
-    await repo.swamp(["model", "create", LINEAR_TYPE, "linear", "--json"]);
+    await repo.swamp(["behavior", "create", LINEAR_TYPE, "linear", "--json"]);
     await repo.factory(
       "process",
       { ...trackedDefinition(), tracker: { kind: "swamp-club" } },
@@ -408,8 +405,7 @@ Deno.test("tracker: status shows the Lab issue behind until publish runs, then n
       );
 
       await repo.swamp([
-        "model",
-        "method",
+        "behavior",
         "run",
         "lab",
         "publish",
@@ -441,8 +437,7 @@ Deno.test("tracker: claim starts a work item from a Lab issue once, and hands ba
       );
       const claim = (inputs: Record<string, string>) =>
         repo.swamp([
-          "model",
-          "method",
+          "behavior",
           "run",
           "lab",
           "claim",
@@ -556,18 +551,16 @@ Deno.test("tracker: claim refuses a Lab issue that issue-lifecycle drives in the
         (await readExample(MINIMAL)).definition,
       );
       await repo.swamp([
-        "model",
-        "@swamp/issue-lifecycle",
-        "method",
+        "behavior",
         "run",
+        "@swamp/issue-lifecycle",
         "start",
         `issue-${issue}`,
         "--input",
         `issueNumber=${issue}`,
       ]);
       const refused = await repo.swamp([
-        "model",
-        "method",
+        "behavior",
         "run",
         "lab",
         "claim",
@@ -607,7 +600,7 @@ Deno.test("tracker: claim refuses a Lab issue that issue-lifecycle drives in the
 Deno.test("tracker: the built-in tracker files a ticket, claims it and takes a work item's history, with no network", async () => {
   await withRepo(async (repo) => {
     const { stdout } = await repo.swamp([
-      "model",
+      "behavior",
       "create",
       BUILTIN_TYPE,
       "board",
@@ -628,8 +621,7 @@ Deno.test("tracker: the built-in tracker files a ticket, claims it and takes a w
 
     const board = (method: string, inputs: Record<string, string>) =>
       repo.swamp([
-        "model",
-        "method",
+        "behavior",
         "run",
         "board",
         method,
@@ -711,9 +703,9 @@ Deno.test("tracker: the built-in tracker files a ticket, claims it and takes a w
     });
     assert(second.output.includes("created cue-2"), second.output);
     await repo.workItem("cue-2", "start", { factory: "entries" });
-    await repo.swamp(["model", "delete", "board", "--force"]);
+    await repo.swamp(["behavior", "delete", "board", "--force"]);
     const recreated = await repo.swamp([
-      "model",
+      "behavior",
       "create",
       BUILTIN_TYPE,
       "board",
@@ -734,7 +726,7 @@ Deno.test("tracker: the built-in tracker files a ticket, claims it and takes a w
 Deno.test("tracker: an approved duplicate on the built-in tracker is marked and closed, and its work item moves to the primary with the ticket index", async () => {
   await withRepo(async (repo) => {
     const { stdout } = await repo.swamp([
-      "model",
+      "behavior",
       "create",
       BUILTIN_TYPE,
       "board",
@@ -754,8 +746,7 @@ Deno.test("tracker: an approved duplicate on the built-in tracker is marked and 
     await repo.factory("dups", duplicateDefinition(), { tracker: "board" });
     const board = (method: string, inputs: Record<string, string>) =>
       repo.swamp([
-        "model",
-        "method",
+        "behavior",
         "run",
         "board",
         method,
@@ -833,7 +824,7 @@ Deno.test("tracker: an approved duplicate on the built-in tracker is marked and 
 Deno.test("tracker: claim's printed start command carries a title beginning with @ to the work item", async () => {
   await withRepo(async (repo) => {
     const { stdout } = await repo.swamp([
-      "model",
+      "behavior",
       "create",
       BUILTIN_TYPE,
       "board",
@@ -851,8 +842,7 @@ Deno.test("tracker: claim's printed start command carries a title beginning with
     const title = "@alice cannot log in";
     const board = (method: string, inputs: string[]) =>
       repo.swamp([
-        "model",
-        "method",
+        "behavior",
         "run",
         "board",
         method,

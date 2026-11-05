@@ -341,7 +341,7 @@ Deno.test("claim: a failed snapshot write leaves the claim standing and logs a w
 Deno.test("claim: the printed start command quotes the key", () => {
   assert(
     startCommand("t-1-ticket-abcd", "team", REFS, "A ticket").includes(
-      "method run start 't-1-ticket-abcd' --input",
+      "start 't-1-ticket-abcd' --input",
     ),
   );
 });
@@ -379,6 +379,37 @@ Deno.test("claim: a started work item is reported, not started twice", async () 
     );
   }
   assertEquals(index(swamp).length, 1);
+});
+
+Deno.test("claim: a work item stored at run record v1 is read, with its old dispatch", async () => {
+  const swamp = await withFactories();
+  const { methods } = oneTicket();
+  await claim(swamp, methods, { issue: "T1", factory: "team" });
+  const { key } = index(swamp)[0];
+  await start(swamp, key);
+  // As a stagecraft before schemaVersion 2 stored it. A finished work item is
+  // never written again, so this form stays in the datastore.
+  const versions = swamp.resources.get(key)?.get("run");
+  assert(versions !== undefined);
+  const dispatch = JSON.parse(
+    await Deno.readTextFile(
+      new URL(
+        "../../../testdata/run-records/v1/method-dispatch.json",
+        import.meta.url,
+      ),
+    ),
+  ).dispatches[0];
+  versions[versions.length - 1] = {
+    ...versions[versions.length - 1],
+    schemaVersion: 1,
+    dispatches: [dispatch],
+  };
+  await claim(swamp, methods, { issue: "T1" });
+  assertEquals(
+    lastSummary(swamp),
+    `T-1 (T1) is already started: '${key}' at stage 'work', under ` +
+      `factory 'team'`,
+  );
 });
 
 Deno.test("claim: a started work item claimed with another factory names its own, and the other is not used", async () => {

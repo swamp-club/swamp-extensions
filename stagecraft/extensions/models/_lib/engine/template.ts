@@ -17,7 +17,7 @@ import { jsonSafe } from "./canonical.ts";
 
 // ---------------------------------------------------------------------------
 // Templates: `{{name}}` placeholders in a stage's text fields (systemPrompt,
-// command, and a call's target: workflow.name, method.modelIdOrName), filled
+// command, and a call's target: workflow.name, behavior.behaviorIdOrName), filled
 // from the stage's resolved let values when it is dispatched. A placeholder
 // holds a let name, never an expression: expressions live only in
 // `work.let`, where they are checked when the factory definition is saved

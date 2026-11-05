@@ -197,12 +197,12 @@ Deno.test("model: a definition newer than this stagecraft reads is one problem a
   assertEquals(lineOf(text, problem.range!.line), held("schemaVersion: 99"));
 });
 
-Deno.test("model: a remote factory's definition, written from swamp model get, loads as its file does", async () => {
+Deno.test("model: a remote factory's definition, written from swamp behavior get, loads as its file does", async () => {
   for (const name of EXAMPLES) {
     const fileText = await exampleText(name);
     const fromFile = await loadDefinition(modelPath(name), fileText);
     assert(fromFile.ok, name);
-    // What swamp model get --json gives: the file's fields and more.
+    // What swamp behavior get --json gives: the file's fields and more.
     const got = {
       ...(parseYaml(fileText) as Record<string, unknown>),
       version: 1,

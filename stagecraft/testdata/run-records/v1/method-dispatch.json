@@ -1,0 +1,105 @@
+{
+  "schemaVersion": 1,
+  "key": "wi-1",
+  "externalRefs": {},
+  "tracker": {
+    "instance": "board",
+    "kind": "builtin"
+  },
+  "factory": "team",
+  "definition": {
+    "digest": "sha256:abc"
+  },
+  "era": "era-1",
+  "status": "active",
+  "stage": "write",
+  "entries": {
+    "write": 1
+  },
+  "products": {
+    "artifacts": {},
+    "evidence": {}
+  },
+  "validations": {
+    "artifacts": {},
+    "evidence": {}
+  },
+  "dispatches": [
+    {
+      "id": 1,
+      "era": "era-1",
+      "stage": "write",
+      "cycle": 1,
+      "at": "2026-09-28T12:00:01.000Z",
+      "actor": {
+        "principal": "user:alice",
+        "source": "platform"
+      },
+      "mode": "method",
+      "inputs": {
+        "depth": 2
+      },
+      "method": {
+        "modelIdOrName": "agent-wi-1",
+        "methodName": "generate"
+      }
+    },
+    {
+      "id": 2,
+      "era": "era-1",
+      "stage": "write",
+      "cycle": 1,
+      "at": "2026-09-28T12:00:03.000Z",
+      "actor": {
+        "principal": "user:alice",
+        "source": "platform"
+      },
+      "mode": "workflow",
+      "inputs": {},
+      "workflow": "smoke-tests"
+    }
+  ],
+  "approvals": [],
+  "overrides": [],
+  "journal": [
+    {
+      "type": "started",
+      "factory": "team",
+      "definition": {
+        "digest": "sha256:abc"
+      },
+      "at": "2026-09-28T12:00:00.000Z",
+      "era": "era-1",
+      "stage": "write",
+      "cycle": 1,
+      "actor": {
+        "principal": "user:alice",
+        "source": "platform"
+      }
+    },
+    {
+      "type": "dispatched",
+      "dispatchId": 1,
+      "at": "2026-09-28T12:00:02.000Z",
+      "era": "era-1",
+      "stage": "write",
+      "cycle": 1,
+      "actor": {
+        "principal": "user:alice",
+        "source": "platform"
+      }
+    },
+    {
+      "type": "dispatched",
+      "dispatchId": 2,
+      "at": "2026-09-28T12:00:04.000Z",
+      "era": "era-1",
+      "stage": "write",
+      "cycle": 1,
+      "actor": {
+        "principal": "user:alice",
+        "source": "platform"
+      }
+    }
+  ]
+}

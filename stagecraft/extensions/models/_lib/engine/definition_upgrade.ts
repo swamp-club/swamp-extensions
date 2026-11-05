@@ -153,11 +153,62 @@ const OPTIONAL_INJECTS: UpgradeStep = {
   },
 };
 
+/**
+ * A stage's work, or a run record's dispatch, in schemaVersion 5's names: mode
+ * `method` is `behavior`, and its block and target are renamed with it. A
+ * holder that already has the new key is left for the strict schema to refuse,
+ * rather than one value being dropped.
+ */
+export function behaviorNames(holder: JsonObject): JsonObject {
+  const next: JsonObject = { ...holder };
+  if (next.mode === "method") next.mode = "behavior";
+  if ("method" in next && !("behavior" in next)) {
+    const { method, ...rest } = next;
+    if (isObject(method) && !("behaviorIdOrName" in method)) {
+      const { modelIdOrName, ...call } = method;
+      return {
+        ...rest,
+        behavior: modelIdOrName === undefined
+          ? call
+          : { ...call, behaviorIdOrName: modelIdOrName },
+      };
+    }
+    return { ...rest, behavior: method };
+  }
+  return next;
+}
+
+/**
+ * 4 to 5 (#3855): work mode `method` is `behavior`, as swamp now calls models
+ * behaviors, with its block and `modelIdOrName` renamed to match. Saved
+ * scenarios name no mode, so they are unchanged. The steps above still read
+ * the old names: they run on the older forms.
+ */
+const BEHAVIOR_MODE: UpgradeStep = {
+  from: 4,
+  description: "work mode method becomes behavior",
+  upgrade(definition) {
+    const stages = Array.isArray(definition.stages)
+      ? definition.stages.map((stage) =>
+        isObject(stage) && isObject(stage.work)
+          ? { ...stage, work: behaviorNames(stage.work) }
+          : stage
+      )
+      : definition.stages;
+    return {
+      ...definition,
+      schemaVersion: 5,
+      ...(stages === undefined ? {} : { stages }),
+    };
+  },
+};
+
 /** Every format change since schemaVersion 1, oldest first. */
 export const DEFINITION_UPGRADES: readonly UpgradeStep[] = [
   LET_AND_PASS_AS_INPUTS,
   OPEN_TRACKER_KINDS,
   OPTIONAL_INJECTS,
+  BEHAVIOR_MODE,
 ];
 
 /** The chain this runtime reads factory definitions with. */
@@ -206,7 +257,7 @@ export interface Upgraded {
   applied: readonly UpgradeStep[];
 }
 
-const isObject = (v: unknown): v is JsonObject =>
+export const isObject = (v: unknown): v is JsonObject =>
   v !== null && typeof v === "object" && !Array.isArray(v);
 
 /** The schemaVersion a stored definition names, or null when it names no

@@ -1,4 +1,4 @@
-schemaVersion: 4
+schemaVersion: 5
 description: >-
   An LLM method produces a plan; a rejected payload is fed back on retry.
 stages:
@@ -6,12 +6,12 @@ stages:
     initial: true
     description: An LLM produces a plan; malformed output is fed back on retry.
     work:
-      mode: method
+      mode: behavior
       description: >-
         The feedback let value is the whole validation record, null-safe: null
         on the first attempt, the recorded rejection on a retry.
-      method:
-        modelIdOrName: "@my/planner"
+      behavior:
+        behaviorIdOrName: "@my/planner"
         methodName: generate
         passAsInputs: [workItem, feedback]
       let:

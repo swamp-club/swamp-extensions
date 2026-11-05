@@ -44,7 +44,7 @@ import { FACTORY_TYPE } from "./work_item_ops.ts";
 
 const SERVER = "wss://swamp.example.com";
 
-/** What `swamp model get <name> --json` gives for a factory. */
+/** What `swamp behavior get <name> --json` gives for a factory. */
 function modelGet(name: string, description = "the team's factory") {
   return {
     id: `id-${name}`,
@@ -70,7 +70,10 @@ function fakeSwamp(answers: Record<string, () => unknown>) {
   const calls: string[][] = [];
   const run: SwampRunner = (args) => {
     calls.push(args);
-    const key = args.slice(0, args[0] === "model" && args[1] === "get" ? 3 : 2)
+    const key = args.slice(
+      0,
+      args[0] === "behavior" && args[1] === "get" ? 3 : 2,
+    )
       .join(" ");
     const answer = answers[key];
     if (answer === undefined) {
@@ -105,8 +108,8 @@ Deno.test("remote: a failure names swamp's own error from the envelope after the
     '{\n  "error": "Server reported model_get_failed: Behavior not found: x",\n' +
     '  "code": "model_get_failed"\n}\n';
   assertEquals(
-    failure(["model", "get", "x"], stderr),
-    "swamp model get failed: Server reported model_get_failed: Behavior not found: x",
+    failure(["behavior", "get", "x"], stderr),
+    "swamp behavior get failed: Server reported model_get_failed: Behavior not found: x",
   );
   assertEquals(
     failure(["data", "query"], "Remote x\nconnection refused\n"),
@@ -136,7 +139,7 @@ Deno.test("remote: an answer with no results list is an error, not an empty list
 
 Deno.test("remote: remoteFactoryNames keeps factories only, sorted and once each", async () => {
   const { run } = fakeSwamp({
-    "model search": search(
+    "behavior search": search(
       { name: "team", type: FACTORY_TYPE },
       { name: "issue-1", type: "@swamp/issue-lifecycle" },
       { name: "alpha", type: FACTORY_TYPE },
@@ -148,7 +151,7 @@ Deno.test("remote: remoteFactoryNames keeps factories only, sorted and once each
 });
 
 Deno.test("remote: remoteDefinition writes the model definition file's fields only, as YAML", async () => {
-  const { run } = fakeSwamp({ "model get team": () => modelGet("team") });
+  const { run } = fakeSwamp({ "behavior get team": () => modelGet("team") });
   const got = await remoteDefinition(run, SERVER, "team");
   assertEquals(got.factory, "team");
   assertEquals(got.path, `team on ${SERVER}`);
@@ -168,7 +171,7 @@ Deno.test("remote: remoteDefinition writes the model definition file's fields on
 
 Deno.test("remote: remoteDefinition refuses a dash-leading name before any call, and a model that is not that factory", async () => {
   const { run, calls } = fakeSwamp({
-    "model get team": () => ({ ...modelGet("team"), type: "@other/type" }),
+    "behavior get team": () => ({ ...modelGet("team"), type: "@other/type" }),
   });
   await assertRejects(
     () => remoteDefinition(run, SERVER, "--help"),
@@ -187,9 +190,9 @@ Deno.test("remote: the factory list and definitions come from the poll's last re
   let description = "first";
   let names = [{ name: "team", type: FACTORY_TYPE }];
   const { run, calls } = fakeSwamp({
-    "model search": () => ({ results: names }),
-    "model get team": () => modelGet("team", description),
-    "model get beta": () => modelGet("beta"),
+    "behavior search": () => ({ results: names }),
+    "behavior get team": () => modelGet("team", description),
+    "behavior get beta": () => modelGet("beta"),
   });
   const events: StudioEvent[] = [];
   const remote = remoteFactories(run, SERVER, (e) => events.push(e));
@@ -215,17 +218,19 @@ Deno.test("remote: the factory list and definitions come from the poll's last re
   const second = await remote.definition(listed[0]);
   assert(second.digest !== first.digest);
   // A factory the page never opened is not read by the poll.
-  assertFalse(calls.some((c) => c.join(" ") === "model get beta"));
+  assertFalse(calls.some((c) => c.join(" ") === "behavior get beta"));
 });
 
 Deno.test("remote: a failed poll keeps the last read and reports it; the next good poll goes on", async () => {
   let failing = false;
   const { run } = fakeSwamp({
-    "model search": () => {
-      if (failing) throw new Error("swamp model search failed: expired login");
+    "behavior search": () => {
+      if (failing) {
+        throw new Error("swamp behavior search failed: expired login");
+      }
       return { results: [{ name: "team", type: FACTORY_TYPE }] };
     },
-    "model get team": () => modelGet("team"),
+    "behavior get team": () => modelGet("team"),
   });
   const errors: string[] = [];
   const remote = remoteFactories(run, SERVER, () => {}, (m) => errors.push(m));
@@ -233,7 +238,7 @@ Deno.test("remote: a failed poll keeps the last read and reports it; the next go
   const text = await remote.definition(team);
   failing = true;
   assertEquals(await remote.poll(), false);
-  assertEquals(errors, ["swamp model search failed: expired login"]);
+  assertEquals(errors, ["swamp behavior search failed: expired login"]);
   assertEquals(await remote.list(), [team]);
   assertEquals(await remote.definition(team), text);
   failing = false;
@@ -243,7 +248,7 @@ Deno.test("remote: a failed poll keeps the last read and reports it; the next go
 
 Deno.test("remote: a dash-leading factory is listed with an error, and never read", async () => {
   const { run, calls } = fakeSwamp({
-    "model search": search({ name: "-x", type: FACTORY_TYPE }),
+    "behavior search": search({ name: "-x", type: FACTORY_TYPE }),
   });
   const remote = remoteFactories(run, SERVER, () => {});
   const [entry] = await remote.list();
@@ -256,8 +261,8 @@ Deno.test("remote: a dash-leading factory is listed with an error, and never rea
 Deno.test("remote: a factory gone from the list is forgotten", async () => {
   let names = [{ name: "team", type: FACTORY_TYPE }];
   const { run, calls } = fakeSwamp({
-    "model search": () => ({ results: names }),
-    "model get team": () => modelGet("team"),
+    "behavior search": () => ({ results: names }),
+    "behavior get team": () => modelGet("team"),
   });
   const remote = remoteFactories(run, SERVER, () => {});
   await remote.definition((await remote.list())[0]);
@@ -267,11 +272,14 @@ Deno.test("remote: a factory gone from the list is forgotten", async () => {
   assertEquals(calls.filter((c) => c[1] === "get").length, 1);
 });
 
-Deno.test("remote: a factory's tracker instance is read with model get, null when the serve has no such model, and kept until the next poll", async () => {
+Deno.test("remote: a factory's tracker instance is read with behavior get, null when the serve has no such model, and kept until the next poll", async () => {
   let statuses = ["new"];
   const { run, calls } = fakeSwamp({
-    "model search": search({ name: "ts", type: "@swamp/stagecraft/tracker" }),
-    "model get ts": () => ({
+    "behavior search": search({
+      name: "ts",
+      type: "@swamp/stagecraft/tracker",
+    }),
+    "behavior get ts": () => ({
       type: "@swamp/stagecraft/tracker",
       name: "ts",
       globalArguments: { statuses },
@@ -301,12 +309,12 @@ Deno.test("remote: a poll reads the models asked for with one search, and forget
     globalArguments: {},
   });
   const { run, calls } = fakeSwamp({
-    "model search": search(
+    "behavior search": search(
       { name: "team", type: FACTORY_TYPE },
       { name: "ts", type: "@swamp/stagecraft/tracker" },
     ),
-    "model get team": model("team"),
-    "model get ts": model("ts"),
+    "behavior get team": model("team"),
+    "behavior get ts": model("ts"),
   });
   const remote = remoteFactories(run, SERVER, () => {});
   await remote.model("team");
@@ -323,20 +331,20 @@ Deno.test("remote: a poll reads the models asked for with one search, and forget
   assertEquals([searches(), gets()], [1, 0]);
 });
 
-Deno.test("remote: a model get that fails in a poll keeps that model's copy, and still reads the others", async () => {
+Deno.test("remote: a behavior get that fails in a poll keeps that model's copy, and still reads the others", async () => {
   let failing = false;
   let statuses = ["new"];
   const errors: string[] = [];
   const { run } = fakeSwamp({
-    "model search": search(
+    "behavior search": search(
       { name: "a", type: "@swamp/stagecraft/tracker" },
       { name: "b", type: "@swamp/stagecraft/tracker" },
     ),
-    "model get a": () => {
-      if (failing) throw new Error("swamp model get failed: no grant");
+    "behavior get a": () => {
+      if (failing) throw new Error("swamp behavior get failed: no grant");
       return { type: "@swamp/stagecraft/tracker", globalArguments: {} };
     },
-    "model get b": () => ({
+    "behavior get b": () => ({
       type: "@swamp/stagecraft/tracker",
       globalArguments: { statuses },
     }),
@@ -347,7 +355,7 @@ Deno.test("remote: a model get that fails in a poll keeps that model's copy, and
   failing = true;
   statuses = ["todo"];
   assertEquals(await remote.poll(), false);
-  assertEquals(errors, ["swamp model get failed: no grant"]);
+  assertEquals(errors, ["swamp behavior get failed: no grant"]);
   assertEquals((await remote.model("a"))?.globalArguments, {});
   assertEquals((await remote.model("b"))?.globalArguments, {
     statuses: ["todo"],
@@ -399,21 +407,21 @@ Deno.test("remote: the paced runner runs one swamp command at a time, a page's r
   const swamp = heldSwamp();
   const paced = pacedRunner(swamp.run, SERVER);
   const reads = [
-    paced.poll(["model", "search"]),
-    paced.poll(["model", "get", "team"]),
+    paced.poll(["behavior", "search"]),
+    paced.poll(["behavior", "get", "team"]),
     paced.page(["data", "query", "a"]),
   ];
   await settle();
-  assertEquals(swamp.started, ["model search"]);
+  assertEquals(swamp.started, ["behavior search"]);
   for (let i = 0; i < 3; i++) {
     swamp.pending[i].release();
     await settle();
   }
   await Promise.all(reads);
   assertEquals(swamp.started, [
-    "model search",
+    "behavior search",
     "data query a",
-    "model get team",
+    "behavior get team",
   ]);
   assertEquals(swamp.most(), 1);
 });
@@ -421,25 +429,29 @@ Deno.test("remote: the paced runner runs one swamp command at a time, a page's r
 Deno.test("remote: the same read asked again while it waits or runs is one command, at the page's place", async () => {
   const swamp = heldSwamp();
   const paced = pacedRunner(swamp.run, SERVER);
-  const first = paced.poll(["model", "search"]);
+  const first = paced.poll(["behavior", "search"]);
   const waiting = paced.poll(["data", "query", "a"]);
   const other = paced.page(["data", "query", "b"]);
   // A page joining the poll's waiting read moves it ahead of b.
   const joined = paced.page(["data", "query", "a"]);
-  const again = paced.poll(["model", "search"]);
+  const again = paced.poll(["behavior", "search"]);
   await settle();
   for (let i = 0; i < 3; i++) {
     swamp.pending[i].release({ results: [i] });
     await settle();
   }
-  assertEquals(swamp.started, ["model search", "data query a", "data query b"]);
+  assertEquals(swamp.started, [
+    "behavior search",
+    "data query a",
+    "data query b",
+  ]);
   assertEquals(await first, { results: [0] });
   assertEquals(await again, { results: [0] });
   assertEquals(await waiting, { results: [1] });
   assertEquals(await joined, { results: [1] });
   assertEquals(await other, { results: [2] });
   // Once answered, asking again runs it again.
-  const later = paced.poll(["model", "search"]);
+  const later = paced.poll(["behavior", "search"]);
   await settle();
   swamp.pending[3].release();
   await later;
@@ -477,8 +489,8 @@ Deno.test("remote: once serve rate-limits, no command starts until the wait ends
   };
   const paced = pacedRunner(run, SERVER, { rateLimitWaitMs: 150 });
   const queued = [
-    paced.poll(["model", "search"]),
-    paced.poll(["model", "get", "team"]),
+    paced.poll(["behavior", "search"]),
+    paced.poll(["behavior", "get", "team"]),
   ];
   const first = await assertRejects(() => queued[0], RateLimitedError);
   const second = await assertRejects(() => queued[1], RateLimitedError);
@@ -486,7 +498,7 @@ Deno.test("remote: once serve rate-limits, no command starts until the wait ends
     () => paced.page(["data", "query", "a"]),
     RateLimitedError,
   );
-  assertEquals(calls, ["model search"], "only the read serve refused ran");
+  assertEquals(calls, ["behavior search"], "only the read serve refused ran");
   assertEquals(second.message, first.message);
   assertEquals(third.message, first.message);
   assertMatch(first.message, /^wss:\/\/swamp\.example\.com is rate-limiting/);
@@ -500,7 +512,7 @@ Deno.test("remote: once serve rate-limits, no command starts until the wait ends
 
 Deno.test("remote: isRateLimited knows swamp's 429 message and nothing else", () => {
   assert(isRateLimited(new Error(LIMITED)));
-  assertFalse(isRateLimited(new Error("swamp model get failed: no grant")));
+  assertFalse(isRateLimited(new Error("swamp behavior get failed: no grant")));
   assertFalse(isRateLimited("Rate-limited by server"));
 });
 
@@ -508,7 +520,7 @@ Deno.test("remote: a read waiting when the studio stops is refused, never run", 
   const swamp = heldSwamp();
   const abort = new AbortController();
   const paced = pacedRunner(swamp.run, SERVER, { signal: abort.signal });
-  const running = paced.poll(["model", "search"]);
+  const running = paced.poll(["behavior", "search"]);
   const waiting = paced.poll(["data", "query", "a"]);
   await settle();
   abort.abort();
@@ -516,5 +528,5 @@ Deno.test("remote: a read waiting when the studio stops is refused, never run", 
   await running;
   await assertRejects(() => waiting);
   await assertRejects(() => paced.page(["data", "query", "b"]));
-  assertEquals(swamp.started, ["model search"]);
+  assertEquals(swamp.started, ["behavior search"]);
 });

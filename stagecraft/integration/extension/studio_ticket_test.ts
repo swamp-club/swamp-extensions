@@ -67,10 +67,9 @@ async function within<T>(ms: number, what: string, p: Promise<T>): Promise<T> {
 
 /** Serve the studio, and read work items' tickets from it. */
 async function serve(repo: SwampRepo) {
-  await repo.swamp(["model", "create", STUDIO_TYPE, "studio", "--json"]);
+  await repo.swamp(["behavior", "create", STUDIO_TYPE, "studio", "--json"]);
   const child = repo.spawn([
-    "model",
-    "method",
+    "behavior",
     "run",
     "studio",
     "serve",
@@ -129,8 +128,7 @@ const methodOf = (repo: SwampRepo, instance: string) =>
   inputs: Record<string, string>,
 ) =>
   repo.swamp([
-    "model",
-    "method",
+    "behavior",
     "run",
     instance,
     name,
@@ -145,7 +143,7 @@ async function setArgs(
   globalArguments: Record<string, unknown>,
 ) {
   const { stdout } = await repo.swamp([
-    "model",
+    "behavior",
     "create",
     type,
     instance,

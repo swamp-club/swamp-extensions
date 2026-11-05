@@ -32,9 +32,9 @@ import {
   keyIsFree,
   loadFactoryDefinition,
   nthKey,
+  parseRun,
   RUN_SPEC,
   type RunRecord,
-  RunRecordSchema,
   shellQuote,
   WORK_ITEM_TYPE,
 } from "../../engine/tracker.ts";
@@ -81,7 +81,7 @@ export function startCommand(
   title: string,
 ): string {
   const named = title.trim();
-  return `swamp model ${WORK_ITEM_TYPE} method run start ${shellQuote(key)} ` +
+  return `swamp behavior run ${WORK_ITEM_TYPE} start ${shellQuote(key)} ` +
     `--input ${shellQuote(`factory=${factory}`)} ` +
     (named === ""
       ? ""
@@ -106,13 +106,15 @@ export async function readClaimedRun(
     .filter((r) => r.attributes?.key === key)
     .sort((a, b) => b.version - a.version);
   if (records.length === 0) return null;
-  const parsed = RunRecordSchema.safeParse(records[0].attributes);
-  if (!parsed.success) {
+  const parsed = parseRun(records[0].attributes);
+  if (!parsed.ok) {
     throw new Error(
-      `work item '${key}' has a run record claim cannot read: ${parsed.error.message}`,
+      `work item '${key}' has a run record claim cannot read: ${
+        parsed.errors.join("; ")
+      }`,
     );
   }
-  return parsed.data;
+  return parsed.value;
 }
 
 export interface ClaimRequest {

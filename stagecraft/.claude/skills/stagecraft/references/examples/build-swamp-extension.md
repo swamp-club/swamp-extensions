@@ -37,9 +37,9 @@ tracker, create a factory bound to that tracker, and write this example into it:
 
 ```sh
 swamp extension source add <stagecraft>
-swamp model create @swamp/stagecraft/tracker board \
+swamp behavior create @swamp/stagecraft/tracker board \
   --global-arg prefix=team --json
-swamp model create @swamp/stagecraft/factory team \
+swamp behavior create @swamp/stagecraft/factory team \
   --global-arg tracker=board --json
 # agent: write build-swamp-extension into team
 ```
@@ -52,11 +52,11 @@ definition: edit it there. Then check it, file a ticket for the work on the
 tracker, claim the ticket, and run the `start` command `claim` prints:
 
 ```sh
-swamp model method run team validate
-swamp model method run board create --input 'title=Add a list method' \
+swamp behavior run team validate
+swamp behavior run board create --input 'title=Add a list method' \
   --input 'body=Add a list method to the extension.' --input type=feature
-swamp model method run board claim --input issue=team-1 --input factory=team
-swamp model @swamp/stagecraft/work-item method run start <key> \
+swamp behavior run board claim --input issue=team-1 --input factory=team
+swamp behavior run @swamp/stagecraft/work-item start <key> \
   --input factory=team --input 'title=Add a list method' \
   --input 'externalRefs={"builtin":"team-1","builtin.display":"team-1"}'
 ```
@@ -64,7 +64,7 @@ swamp model @swamp/stagecraft/work-item method run start <key> \
 ```text
 definition 'build-swamp-extension' in factory 'team' is valid: 8 stages (plan, plan-review, implement, check, code-review, release, done, abandoned)
 created team-1 (team-1): Add a list method [open]
-team-1 (team-1) is claimed as 'team-1'. Start it: swamp model @swamp/stagecraft/work-item method run start 'team-1' --input 'factory=team' --input 'title:json="Add a list method"' --input 'externalRefs={"builtin":"team-1","builtin.display":"team-1"}'
+team-1 (team-1) is claimed as 'team-1'. Start it: swamp behavior run @swamp/stagecraft/work-item start 'team-1' --input 'factory=team' --input 'title:json="Add a list method"' --input 'externalRefs={"builtin":"team-1","builtin.display":"team-1"}'
 started 'team-1' at stage 'plan' (definition 'build-swamp-extension' from 'team'; tracker 'board')
 team-1 (Add a list method): active at stage 'plan' cycle 1
   expect: --input expectedStage=plan --input expectedCycle=1 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8
@@ -76,7 +76,7 @@ team-1 (Add a list method): active at stage 'plan' cycle 1
 The loop starts with `status`:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run status <key>
+swamp behavior run @swamp/stagecraft/work-item status <key>
 ```
 
 ```text
@@ -91,7 +91,7 @@ The stage's work is interactive: the driving agent plans. Dispatch first, so the
 resolved inputs and prompt are recorded:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run dispatch <key> \
+swamp behavior run @swamp/stagecraft/work-item dispatch <key> \
   --input expectedStage=plan --input expectedCycle=1 --input expectedEra=<era>
 ```
 
@@ -118,11 +118,11 @@ feedback:
 
 ```sh
 # fails: the plan schema requires testingStrategy and versionBump
-swamp model @swamp/stagecraft/work-item method run record_artifact <key> \
+swamp behavior run @swamp/stagecraft/work-item record_artifact <key> \
   --input name=plan \
   --input payload='{"summary":"Add a list method","steps":[{"description":"Add list to the model","files":["extensions/models/thing.ts"]}]}' \
   --input expectedStage=plan --input expectedCycle=1 --input expectedEra=<era>
-swamp model @swamp/stagecraft/work-item method run status <key>
+swamp behavior run @swamp/stagecraft/work-item status <key>
 ```
 
 ```text
@@ -140,11 +140,11 @@ Fix the payload and record it again. `submit` is then the one ready exit, with
 no human gate and not manual, so advance without asking:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run record_artifact <key> \
+swamp behavior run @swamp/stagecraft/work-item record_artifact <key> \
   --input name=plan \
   --input payload='{"summary":"Add a list method","steps":[{"description":"Add list to the model","files":["extensions/models/thing.ts","extensions/models/thing_test.ts"]}],"testingStrategy":"Unit tests for list against a fake client","versionBump":{"needed":true,"reason":"A new method"}}' \
   --input expectedStage=plan --input expectedCycle=1 --input expectedEra=<era>
-swamp model @swamp/stagecraft/work-item method run advance <key> \
+swamp behavior run @swamp/stagecraft/work-item advance <key> \
   --input transition=submit \
   --input expectedStage=plan --input expectedCycle=1 --input expectedEra=<era>
 ```
@@ -170,7 +170,7 @@ attach the token count the harness reports for it (the task notification's
 `<usage>` block) to the dispatch id.
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run dispatch <key> \
+swamp behavior run @swamp/stagecraft/work-item dispatch <key> \
   --input resultDir=<result-dir> \
   --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era>
 ```
@@ -253,11 +253,11 @@ The reviewer writes its result file:
 Record it from the file, as written:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run record_artifact <key> \
+swamp behavior run @swamp/stagecraft/work-item record_artifact <key> \
   --input name=plan-review \
   --input payload=@<result-path> \
   --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era>
-swamp model @swamp/stagecraft/work-item method run record_usage <key> \
+swamp behavior run @swamp/stagecraft/work-item record_usage <key> \
   --input dispatchId=2 --input totalTokens=65155 --input toolUses=12 --input durationMs=94000 \
   --input model=claude-opus-5-5
 ```
@@ -299,17 +299,17 @@ back." Record the decline with their reason, record their feedback in their
 words, then take the manual exit they asked for, each on their behalf:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run decline <key> \
+swamp behavior run @swamp/stagecraft/work-item decline <key> \
   --input gateId=plan-approval \
   --input note="The README must be in the plan." \
   --input onBehalfOf=sam \
   --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era>
-swamp model @swamp/stagecraft/work-item method run record_evidence <key> \
+swamp behavior run @swamp/stagecraft/work-item record_evidence <key> \
   --input name=plan-feedback \
   --input payload='{"feedback":"The README must be in the plan."}' \
   --input onBehalfOf=sam \
   --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era>
-swamp model @swamp/stagecraft/work-item method run advance <key> \
+swamp behavior run @swamp/stagecraft/work-item advance <key> \
   --input transition=revise --input confirm=true \
   --input onBehalfOf=sam \
   --input expectedStage=plan-review --input expectedCycle=1 --input expectedEra=<era>
@@ -337,16 +337,16 @@ review and the feedback; the new plan answers the feedback and lists it in
 `feedbackIncorporated`.
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run dispatch <key> \
+swamp behavior run @swamp/stagecraft/work-item dispatch <key> \
   --input expectedStage=plan --input expectedCycle=2 --input expectedEra=<era>
-swamp model @swamp/stagecraft/work-item method run record_artifact <key> \
+swamp behavior run @swamp/stagecraft/work-item record_artifact <key> \
   --input name=plan \
   --input payload='{"summary":"Add a list method","steps":[{"description":"Add list to the model","files":["extensions/models/thing.ts","extensions/models/thing_test.ts"]},{"description":"Document list","files":["README.md"]}],"testingStrategy":"Unit tests for list against a fake client","versionBump":{"needed":true,"reason":"A new method"},"feedbackIncorporated":["The README must be in the plan."]}' \
   --input expectedStage=plan --input expectedCycle=2 --input expectedEra=<era>
-swamp model @swamp/stagecraft/work-item method run advance <key> \
+swamp behavior run @swamp/stagecraft/work-item advance <key> \
   --input transition=submit \
   --input expectedStage=plan --input expectedCycle=2 --input expectedEra=<era>
-swamp model @swamp/stagecraft/work-item method run dispatch <key> \
+swamp behavior run @swamp/stagecraft/work-item dispatch <key> \
   --input resultDir=<result-dir> \
   --input expectedStage=plan-review --input expectedCycle=2 --input expectedEra=<era>
 ```
@@ -362,11 +362,11 @@ The reviewer writes its result file:
 Record it from the file, as written:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run record_artifact <key> \
+swamp behavior run @swamp/stagecraft/work-item record_artifact <key> \
   --input name=plan-review \
   --input payload=@<result-path> \
   --input expectedStage=plan-review --input expectedCycle=2 --input expectedEra=<era>
-swamp model @swamp/stagecraft/work-item method run record_usage <key> \
+swamp behavior run @swamp/stagecraft/work-item record_usage <key> \
   --input dispatchId=4 --input totalTokens=49659 --input toolUses=8 --input durationMs=61000 \
   --input model=claude-opus-5-5
 ```
@@ -378,11 +378,11 @@ The person answers: "Approved, go." Their approval carries their go, so approve
 on their behalf, then advance; the advance is yours and names no one:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run approve <key> \
+swamp behavior run @swamp/stagecraft/work-item approve <key> \
   --input gateId=plan-approval --input note="Approved, go." \
   --input onBehalfOf=sam \
   --input expectedStage=plan-review --input expectedCycle=2 --input expectedEra=<era>
-swamp model @swamp/stagecraft/work-item method run advance <key> \
+swamp behavior run @swamp/stagecraft/work-item advance <key> \
   --input transition=approve \
   --input expectedStage=plan-review --input expectedCycle=2 --input expectedEra=<era>
 ```
@@ -401,9 +401,9 @@ team-1 (Add a list method): active at stage 'implement' cycle 1
 Implement and commit, then record `change-summary` with the commit's full SHA.
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run dispatch <key> \
+swamp behavior run @swamp/stagecraft/work-item dispatch <key> \
   --input expectedStage=implement --input expectedCycle=1 --input expectedEra=<era>
-swamp model @swamp/stagecraft/work-item method run record_artifact <key> \
+swamp behavior run @swamp/stagecraft/work-item record_artifact <key> \
   --input name=change-summary \
   --input payload='{"summary":"Add list and document it","commit":"c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd","files":["extensions/models/thing.ts","extensions/models/thing_test.ts","README.md"]}' \
   --input expectedStage=implement --input expectedCycle=1 --input expectedEra=<era>
@@ -424,7 +424,7 @@ does not count. `submit` is the one exit that is yours, so advance without
 asking:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run advance <key> \
+swamp behavior run @swamp/stagecraft/work-item advance <key> \
   --input transition=submit \
   --input expectedStage=implement --input expectedCycle=1 --input expectedEra=<era>
 ```
@@ -435,9 +435,9 @@ Run the checks on the change-summary commit and record them. This extension has
 no manifest yet, so `swamp extension quality` cannot score it:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run dispatch <key> \
+swamp behavior run @swamp/stagecraft/work-item dispatch <key> \
   --input expectedStage=check --input expectedCycle=1 --input expectedEra=<era>
-swamp model @swamp/stagecraft/work-item method run record_evidence <key> \
+swamp behavior run @swamp/stagecraft/work-item record_evidence <key> \
   --input name=checks \
   --input payload='{"commit":"c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd","status":"passed","results":[{"name":"fmt","status":"passed"},{"name":"check","status":"passed"},{"name":"lint","status":"passed"},{"name":"test","status":"passed"}]}' \
   --input expectedStage=check --input expectedCycle=1 --input expectedEra=<era>
@@ -460,16 +460,16 @@ The person answers: "Waive it, go on. No manifest yet." Record their reason as
 `quality-waiver`, then their approval:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run record_evidence <key> \
+swamp behavior run @swamp/stagecraft/work-item record_evidence <key> \
   --input name=quality-waiver \
   --input payload='{"commit":"c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd","reason":"No manifest yet."}' \
   --input onBehalfOf=sam \
   --input expectedStage=check --input expectedCycle=1 --input expectedEra=<era>
-swamp model @swamp/stagecraft/work-item method run approve <key> \
+swamp behavior run @swamp/stagecraft/work-item approve <key> \
   --input gateId=quality-waiver --input note="No manifest yet; waive it, go on." \
   --input onBehalfOf=sam \
   --input expectedStage=check --input expectedCycle=1 --input expectedEra=<era>
-swamp model @swamp/stagecraft/work-item method run advance <key> \
+swamp behavior run @swamp/stagecraft/work-item advance <key> \
   --input transition=passed-with-quality-waiver \
   --input expectedStage=check --input expectedCycle=1 --input expectedEra=<era>
 ```
@@ -477,7 +477,7 @@ swamp model @swamp/stagecraft/work-item method run advance <key> \
 ## code-review: the person approves the release
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run dispatch <key> \
+swamp behavior run @swamp/stagecraft/work-item dispatch <key> \
   --input resultDir=<result-dir> \
   --input expectedStage=code-review --input expectedCycle=1 --input expectedEra=<era>
 ```
@@ -500,11 +500,11 @@ The reviewer writes its result file:
 Record it from the file, as written:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run record_artifact <key> \
+swamp behavior run @swamp/stagecraft/work-item record_artifact <key> \
   --input name=code-review \
   --input payload=@<result-path> \
   --input expectedStage=code-review --input expectedCycle=1 --input expectedEra=<era>
-swamp model @swamp/stagecraft/work-item method run record_usage <key> \
+swamp behavior run @swamp/stagecraft/work-item record_usage <key> \
   --input dispatchId=7 --input totalTokens=80523 --input toolUses=15 --input durationMs=122000 \
   --input model=claude-opus-5-5
 ```
@@ -516,11 +516,11 @@ swamp model @swamp/stagecraft/work-item method run record_usage <key> \
 The person answers: "Approve the release."
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run approve <key> \
+swamp behavior run @swamp/stagecraft/work-item approve <key> \
   --input gateId=release-approval --input note="Approve the release." \
   --input onBehalfOf=sam \
   --input expectedStage=code-review --input expectedCycle=1 --input expectedEra=<era>
-swamp model @swamp/stagecraft/work-item method run advance <key> \
+swamp behavior run @swamp/stagecraft/work-item advance <key> \
   --input transition=accept \
   --input expectedStage=code-review --input expectedCycle=1 --input expectedEra=<era>
 ```
@@ -531,9 +531,9 @@ Open the pull request, post the verification attestation, and once it merges
 record the release with the merge commit:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run dispatch <key> \
+swamp behavior run @swamp/stagecraft/work-item dispatch <key> \
   --input expectedStage=release --input expectedCycle=1 --input expectedEra=<era>
-swamp model @swamp/stagecraft/work-item method run record_evidence <key> \
+swamp behavior run @swamp/stagecraft/work-item record_evidence <key> \
   --input name=release \
   --input payload='{"via":"pull-request","commit":"c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd","mergeCommit":"9e1f0c7b3a5d2e4f6a8b0c1d3e5f7a9b1c3d5e7f","url":"https://git.example.com/me/thing/pulls/400","pullRequest":"https://git.example.com/me/thing/pulls/400","attestationId":"att-0001"}' \
   --input expectedStage=release --input expectedCycle=1 --input expectedEra=<era>
@@ -542,7 +542,7 @@ swamp model @swamp/stagecraft/work-item method run record_evidence <key> \
 `released` is the one exit that is yours (`rework` is manual), so advance:
 
 ```sh
-swamp model @swamp/stagecraft/work-item method run advance <key> \
+swamp behavior run @swamp/stagecraft/work-item advance <key> \
   --input transition=released \
   --input expectedStage=release --input expectedCycle=1 --input expectedEra=<era>
 ```

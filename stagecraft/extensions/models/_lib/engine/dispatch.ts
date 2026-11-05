@@ -69,7 +69,7 @@ export interface ResumeCheckpoint {
   read: string;
 }
 
-/** The reserved input a workflow or method stage gets when its inputsSchema
+/** The reserved input a workflow or behavior stage gets when its inputsSchema
  * declares it. The underscore marks it as the engine's, not the author's. */
 export const STAGECRAFT_INPUT = "_stagecraft";
 
@@ -88,20 +88,20 @@ export interface DispatchPacket {
   dispatchId: number;
   /** The checkpoint to resume from, or null. */
   resume: ResumeCheckpoint | null;
-  mode: "interactive" | "dispatch" | "workflow" | "method";
+  mode: "interactive" | "dispatch" | "workflow" | "behavior";
   skills: string[];
   /** How many subagents a dispatch stage runs: one per skill, or one
    * reviewer when no skills are listed. Zero for other modes. */
   subagents: number;
   /** Resolved let values. */
   values: Record<string, Json>;
-  /** For workflow and method stages: literal inputs plus the let values the
+  /** For workflow and behavior stages: literal inputs plus the let values the
    * call passes. */
   inputs?: Record<string, Json>;
   /** The workflow to run, its name rendered. */
   workflow?: string;
-  /** The model method to call, its model rendered. */
-  method?: { modelIdOrName: string; methodName: string };
+  /** The behavior's method to call, its name rendered. */
+  behavior?: { behaviorIdOrName: string; methodName: string };
   prompt?: string;
   command?: string;
   constraints?: string;
@@ -237,10 +237,10 @@ export function buildDispatch(
   if (command !== undefined) packet.command = command;
   if (work.constraints !== undefined) packet.constraints = work.constraints;
 
-  if (work.mode === "workflow" || work.mode === "method") {
-    const call = work.workflow ?? work.method;
+  if (work.mode === "workflow" || work.mode === "behavior") {
+    const call = work.workflow ?? work.behavior;
     const literal = jsonSafe(call?.inputs ?? {}) as Record<string, Json>;
-    // Only the let values the call passes: swamp refuses a model-method
+    // Only the let values the call passes: swamp refuses a method
     // input the method does not declare. A value that failed to resolve is
     // already a problem.
     const inputs: Record<string, Json> = { ...literal };
@@ -271,16 +271,16 @@ export function buildDispatch(
       );
       if (name !== undefined) packet.workflow = name;
     }
-    if (work.method !== undefined) {
-      const model = target(
-        "method.modelIdOrName",
-        work.method.modelIdOrName,
+    if (work.behavior !== undefined) {
+      const behavior = target(
+        "behavior.behaviorIdOrName",
+        work.behavior.behaviorIdOrName,
         modelNameViolation,
       );
-      if (model !== undefined) {
-        packet.method = {
-          modelIdOrName: model,
-          methodName: work.method.methodName,
+      if (behavior !== undefined) {
+        packet.behavior = {
+          behaviorIdOrName: behavior,
+          methodName: work.behavior.methodName,
         };
       }
     }

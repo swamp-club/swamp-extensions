@@ -1256,7 +1256,7 @@ function remoteSource(): FactorySource & { read: string[] } {
     definition(entry) {
       read.push(entry.name);
       if (entry.name === "broken") {
-        return Promise.reject(new Error("swamp model get failed: no grant"));
+        return Promise.reject(new Error("swamp behavior get failed: no grant"));
       }
       return Promise.resolve({
         factory: entry.name,

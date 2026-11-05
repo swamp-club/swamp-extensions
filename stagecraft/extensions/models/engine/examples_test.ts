@@ -87,7 +87,7 @@ async function exampleFactory(file: string, edit = (text: string) => text) {
 }
 
 Deno.test("examples: each is a factory's globalArguments once a tracker is named, under swamp's full schema", async () => {
-  // swamp model validate and every method check the factory's globalArguments
+  // swamp behavior validate and every method check the factory's globalArguments
   // against this schema, so a pasted example must pass it as it is.
   for (const file of await examples()) {
     const doc = parseYaml(await Deno.readTextFile(new URL(file, EXAMPLES)));

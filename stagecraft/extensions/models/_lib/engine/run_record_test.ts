@@ -15,7 +15,12 @@
 
 import { assert, assertEquals } from "@std/assert";
 import { start } from "./run_ops.ts";
-import { currentCycle, parseRun, UsageSchema } from "./run_record.ts";
+import {
+  currentCycle,
+  parseRun,
+  RUN_SCHEMA_VERSION,
+  UsageSchema,
+} from "./run_record.ts";
 import {
   ALICE,
   smallDefinition,
@@ -65,9 +70,9 @@ Deno.test("parseRun: a title is kept; a record without one still reads; an empty
 });
 
 Deno.test("parseRun: an unknown schemaVersion is refused, not guessed", () => {
-  const parsed = parseRun({ ...started(), schemaVersion: 2 });
+  const parsed = parseRun({ ...started(), schemaVersion: 3 });
   assert(!parsed.ok);
-  assert(parsed.errors[0].includes("schemaVersion 2"), parsed.errors[0]);
+  assert(parsed.errors[0].includes("schemaVersion 3"), parsed.errors[0]);
   assert(!parseRun(null).ok);
 });
 
@@ -98,4 +103,60 @@ Deno.test("currentCycle: the entry count of the current stage", () => {
   const run = started();
   assertEquals(currentCycle(run), 1);
   assertEquals(currentCycle({ ...run, entries: { write: 3 } }), 3);
+});
+
+/** A run record as a version before 2 stored it. Frozen: never edit it. */
+async function v1Record(): Promise<Record<string, unknown>> {
+  return JSON.parse(
+    await Deno.readTextFile(
+      new URL(
+        "../../../../testdata/run-records/v1/method-dispatch.json",
+        import.meta.url,
+      ),
+    ),
+  );
+}
+
+Deno.test("parseRun: a v1 record reads in the current form, and the input is unchanged", async () => {
+  const raw = await v1Record();
+  const before = structuredClone(raw);
+  const parsed = parseRun(raw);
+  assert(parsed.ok, parsed.ok ? "" : parsed.errors.join("\n"));
+  assertEquals(raw, before);
+  assertEquals(parsed.value.schemaVersion, RUN_SCHEMA_VERSION);
+  const [called, ran] = parsed.value.dispatches;
+  assertEquals(called.mode, "behavior");
+  assertEquals(called.behavior, {
+    behaviorIdOrName: "agent-wi-1",
+    methodName: "generate",
+  });
+  assert(!("method" in called));
+  assertEquals(ran.mode, "workflow");
+  assertEquals(ran.workflow, "smoke-tests");
+  // What the next write would store reads back unchanged.
+  const again = parseRun(JSON.parse(JSON.stringify(parsed.value)));
+  assert(again.ok);
+  assertEquals(again.value, parsed.value);
+});
+
+Deno.test("parseRun: a malformed v1 record is refused, not repaired", async () => {
+  const raw = await v1Record();
+  assert(!parseRun({ ...raw, dispatches: "none" }).ok);
+  assert(!parseRun({ ...raw, dispatches: [7] }).ok);
+  assert(!parseRun({ schemaVersion: 1, key: "wi-1" }).ok);
+  const dispatches = raw.dispatches as Record<string, unknown>[];
+  assert(
+    !parseRun({
+      ...raw,
+      dispatches: [{ ...dispatches[0], method: "not a block" }],
+    }).ok,
+  );
+});
+
+Deno.test("parseRun: a version outside the chain is refused", () => {
+  for (const schemaVersion of [0, 1.5, "1"]) {
+    const parsed = parseRun({ ...started(), schemaVersion });
+    assert(!parsed.ok, String(schemaVersion));
+    assert(parsed.errors[0].includes("is not one this runtime reads"));
+  }
 });

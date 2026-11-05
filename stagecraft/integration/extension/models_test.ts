@@ -30,7 +30,7 @@ import { PUBLISHER_TYPE } from "../../extensions/models/_lib/engine/tracker_bind
 Deno.test("cli: every model type registers from the extension source", async () => {
   await withRepo(async (repo) => {
     const { stdout } = await repo.swamp([
-      "model",
+      "behavior",
       "type",
       "search",
       "stagecraft",

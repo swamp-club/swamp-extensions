@@ -190,7 +190,7 @@ Deno.test("publisher: refuses a tracker that has not described itself, naming th
   );
   assert(
     (error as Error).message.includes(
-      `swamp model method run ${EXTERNAL} describe`,
+      `swamp behavior run ${EXTERNAL} describe`,
     ),
   );
 });

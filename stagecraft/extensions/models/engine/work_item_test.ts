@@ -1474,8 +1474,8 @@ Deno.test("dispatch: a work item pinned at schemaVersion 1 dispatches, records a
     workItem: instance,
     feedback: null,
   });
-  assertEquals(run.dispatches[0].method, {
-    modelIdOrName: "@acme/planner",
+  assertEquals(run.dispatches[0].behavior, {
+    behaviorIdOrName: "@acme/planner",
     methodName: "generate",
   });
   // It records and advances on the upgraded copy, and the workflow stage

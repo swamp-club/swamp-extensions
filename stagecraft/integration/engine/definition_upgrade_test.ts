@@ -111,8 +111,8 @@ Deno.test("definition upgrade: a templated target is filled on dispatch and reco
     await repo.workItem(key, "start", { factory: "team" });
     await repo.workItem(key, "dispatch", await repo.expected(key));
     const run = await repo.run(key);
-    assertEquals(run.dispatches[0].method, {
-      modelIdOrName: `agent-${key}`,
+    assertEquals(run.dispatches[0].behavior, {
+      behaviorIdOrName: `agent-${key}`,
       methodName: "generate",
     });
     // Only the passed let values are sent; agent filled the target alone.
