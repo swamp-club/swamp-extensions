@@ -48,10 +48,17 @@ const GlobalArgsSchema = z.object({
   proxied: z.boolean().describe(
     "Whether the record is receiving the performance and security benefits of Cloudflare.",
   ).optional(),
-  settings: z.object({
-    ipv4_only: z.boolean().optional(),
-    ipv6_only: z.boolean().optional(),
-  }).describe("Settings for the DNS record.").optional(),
+  settings: z.union([
+    z.strictObject({
+      ipv4_only: z.boolean().optional(),
+      ipv6_only: z.boolean().optional(),
+    }),
+    z.strictObject({
+      ipv4_only: z.boolean().optional(),
+      ipv6_only: z.boolean().optional(),
+      flatten_cname: z.boolean().optional(),
+    }),
+  ]).describe("Settings for the DNS record.").optional(),
   tags: z.array(z.string()).describe(
     "Custom tags for the DNS record. This field has no effect on DNS responses.",
   ).optional(),
@@ -86,11 +93,81 @@ const GlobalArgsSchema = z.object({
   priority: z.number().describe(
     "Required for MX and URI records; ignored for other record types (but may still be returned by the API). Records with lower priorities are preferred. This field is to be deprecated in favor of the priority field within the data map.",
   ).optional(),
-  data: z.object({
-    flags: z.number().min(0).max(255).optional(),
-    tag: z.string().optional(),
-    value: z.string().optional(),
-  }).describe("Components of a CAA record.").optional(),
+  data: z.union([
+    z.strictObject({
+      flags: z.number().min(0).max(255).optional(),
+      tag: z.string().optional(),
+      value: z.string().optional(),
+    }),
+    z.strictObject({
+      algorithm: z.number().min(0).max(255).optional(),
+      certificate: z.string().optional(),
+      key_tag: z.number().min(0).max(65535).optional(),
+      type: z.number().min(0).max(65535).optional(),
+    }),
+    z.strictObject({
+      algorithm: z.number().min(0).max(255).optional(),
+      flags: z.number().min(0).max(65535).optional(),
+      protocol: z.number().min(0).max(255).optional(),
+      public_key: z.string().optional(),
+    }),
+    z.strictObject({
+      algorithm: z.number().min(0).max(255).optional(),
+      digest: z.string().optional(),
+      digest_type: z.number().min(0).max(255).optional(),
+      key_tag: z.number().min(0).max(65535).optional(),
+    }),
+    z.strictObject({
+      priority: z.number().min(0).max(65535).optional(),
+      target: z.string().optional(),
+      value: z.string().optional(),
+    }),
+    z.strictObject({
+      altitude: z.number().min(-100000).max(42849672.95).optional(),
+      lat_degrees: z.number().min(0).max(90).optional(),
+      lat_direction: z.enum(["N", "S"]).optional(),
+      lat_minutes: z.number().min(0).max(59).optional(),
+      lat_seconds: z.number().min(0).max(59.999).optional(),
+      long_degrees: z.number().min(0).max(180).optional(),
+      long_direction: z.enum(["E", "W"]).optional(),
+      long_minutes: z.number().min(0).max(59).optional(),
+      long_seconds: z.number().min(0).max(59.999).optional(),
+      precision_horz: z.number().min(0).max(90000000).optional(),
+      precision_vert: z.number().min(0).max(90000000).optional(),
+      size: z.number().min(0).max(90000000).optional(),
+    }),
+    z.strictObject({
+      flags: z.string().optional(),
+      order: z.number().min(0).max(65535).optional(),
+      preference: z.number().min(0).max(65535).optional(),
+      regex: z.string().optional(),
+      replacement: z.string().optional(),
+      service: z.string().optional(),
+    }),
+    z.strictObject({
+      certificate: z.string().optional(),
+      matching_type: z.number().min(0).max(255).optional(),
+      selector: z.number().min(0).max(255).optional(),
+      usage: z.number().min(0).max(255).optional(),
+    }),
+    z.strictObject({
+      port: z.number().min(0).max(65535).optional(),
+      priority: z.number().optional(),
+      target: z.string().optional(),
+      weight: z.number().min(0).max(65535).optional(),
+    }),
+    z.strictObject({
+      algorithm: z.number().min(0).max(255).optional(),
+      fingerprint: z.string().optional(),
+      type: z.number().min(0).max(255).optional(),
+    }),
+    z.strictObject({
+      target: z.string().optional(),
+      weight: z.number().min(0).max(65535).optional(),
+    }),
+  ]).describe(
+    "Components of a CAA record. | Components of a CERT record. | Components of a DNSKEY record. | Components of a DS record. | Components of a HTTPS record. | Components of a SVCB record. | Components of a LOC record. | Components of a NAPTR record. | Components of a SMIMEA record. | Components of a TLSA record. | Components of a SRV record. | Components of a SSHFP record. | Components of a URI record.",
+  ).optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -124,10 +201,17 @@ const InputsSchema = z.object({
   comment: z.string().optional(),
   name: z.string().min(1).max(255).optional(),
   proxied: z.boolean().optional(),
-  settings: z.object({
-    ipv4_only: z.boolean().optional(),
-    ipv6_only: z.boolean().optional(),
-  }).optional(),
+  settings: z.union([
+    z.strictObject({
+      ipv4_only: z.boolean().optional(),
+      ipv6_only: z.boolean().optional(),
+    }),
+    z.strictObject({
+      ipv4_only: z.boolean().optional(),
+      ipv6_only: z.boolean().optional(),
+      flatten_cname: z.boolean().optional(),
+    }),
+  ]).optional(),
   tags: z.array(z.string()).optional(),
   ttl: z.number().min(30).max(86400).optional(),
   content: z.string().optional(),
@@ -156,11 +240,79 @@ const InputsSchema = z.object({
     "URI",
   ]).optional(),
   priority: z.number().optional(),
-  data: z.object({
-    flags: z.number().min(0).max(255).optional(),
-    tag: z.string().optional(),
-    value: z.string().optional(),
-  }).optional(),
+  data: z.union([
+    z.strictObject({
+      flags: z.number().min(0).max(255).optional(),
+      tag: z.string().optional(),
+      value: z.string().optional(),
+    }),
+    z.strictObject({
+      algorithm: z.number().min(0).max(255).optional(),
+      certificate: z.string().optional(),
+      key_tag: z.number().min(0).max(65535).optional(),
+      type: z.number().min(0).max(65535).optional(),
+    }),
+    z.strictObject({
+      algorithm: z.number().min(0).max(255).optional(),
+      flags: z.number().min(0).max(65535).optional(),
+      protocol: z.number().min(0).max(255).optional(),
+      public_key: z.string().optional(),
+    }),
+    z.strictObject({
+      algorithm: z.number().min(0).max(255).optional(),
+      digest: z.string().optional(),
+      digest_type: z.number().min(0).max(255).optional(),
+      key_tag: z.number().min(0).max(65535).optional(),
+    }),
+    z.strictObject({
+      priority: z.number().min(0).max(65535).optional(),
+      target: z.string().optional(),
+      value: z.string().optional(),
+    }),
+    z.strictObject({
+      altitude: z.number().min(-100000).max(42849672.95).optional(),
+      lat_degrees: z.number().min(0).max(90).optional(),
+      lat_direction: z.enum(["N", "S"]).optional(),
+      lat_minutes: z.number().min(0).max(59).optional(),
+      lat_seconds: z.number().min(0).max(59.999).optional(),
+      long_degrees: z.number().min(0).max(180).optional(),
+      long_direction: z.enum(["E", "W"]).optional(),
+      long_minutes: z.number().min(0).max(59).optional(),
+      long_seconds: z.number().min(0).max(59.999).optional(),
+      precision_horz: z.number().min(0).max(90000000).optional(),
+      precision_vert: z.number().min(0).max(90000000).optional(),
+      size: z.number().min(0).max(90000000).optional(),
+    }),
+    z.strictObject({
+      flags: z.string().optional(),
+      order: z.number().min(0).max(65535).optional(),
+      preference: z.number().min(0).max(65535).optional(),
+      regex: z.string().optional(),
+      replacement: z.string().optional(),
+      service: z.string().optional(),
+    }),
+    z.strictObject({
+      certificate: z.string().optional(),
+      matching_type: z.number().min(0).max(255).optional(),
+      selector: z.number().min(0).max(255).optional(),
+      usage: z.number().min(0).max(255).optional(),
+    }),
+    z.strictObject({
+      port: z.number().min(0).max(65535).optional(),
+      priority: z.number().optional(),
+      target: z.string().optional(),
+      weight: z.number().min(0).max(65535).optional(),
+    }),
+    z.strictObject({
+      algorithm: z.number().min(0).max(255).optional(),
+      fingerprint: z.string().optional(),
+      type: z.number().min(0).max(255).optional(),
+    }),
+    z.strictObject({
+      target: z.string().optional(),
+      weight: z.number().min(0).max(65535).optional(),
+    }),
+  ]).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
@@ -169,7 +321,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Dns Records. Registered at `@swamp/cloudflare/dns/dns-records`. */
 export const model = {
   type: "@swamp/cloudflare/dns/dns-records",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -233,6 +385,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

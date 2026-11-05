@@ -160,6 +160,12 @@ export interface CloudflareProperty {
   properties?: Record<string, CloudflareProperty>;
   requiredProperties?: string[];
   format?: string;
+  /**
+   * Distinct object shapes for a property that request-body branches define
+   * differently (e.g. dns_records `data`, one shape per record type). Set
+   * only on `type: "object"`; generated as a union of the variants.
+   */
+  variants?: CloudflareProperty[];
 }
 
 export type CloudflareScope = "account" | "zone" | "both";
@@ -880,6 +886,8 @@ interface OApiSchema {
   maxLength?: number;
   pattern?: string;
   default?: unknown;
+  /** Internal: distinct object shapes collected by flattenDisjunction. */
+  "x-swamp-variants"?: OApiSchema[];
 }
 
 interface OApiParameter {
@@ -1366,6 +1374,9 @@ function flattenDisjunction(
         } else if (existing.enum && val.enum) {
           const merged = [...new Set([...existing.enum, ...val.enum])];
           allProps[key] = { ...existing, enum: merged };
+        } else {
+          const merged = mergeObjectVariants(existing, val, spec);
+          if (merged) allProps[key] = merged;
         }
       }
     }
@@ -1391,6 +1402,143 @@ function flattenDisjunction(
   if (Object.keys(allProps).length === 0) return {};
 
   return { properties: allProps, required, type: "object" };
+}
+
+/**
+ * Object shapes a schema contributes to a disjunction collision: its
+ * collected variants, or itself when it is an object with properties.
+ * Returns undefined for anything else (scalars, arrays, bare objects).
+ */
+function objectShapes(
+  schema: OApiSchema,
+  spec: OApiSpec,
+): OApiSchema[] | undefined {
+  if (schema["x-swamp-variants"]) return schema["x-swamp-variants"];
+  const resolved = resolveSchema(schema, spec);
+  if (resolved.properties && Object.keys(resolved.properties).length > 0) {
+    return [resolved];
+  }
+  return undefined;
+}
+
+/**
+ * Two branches define the same property as objects of different shapes
+ * (dns_records `data` is CAA in one branch and SRV in another). Keep every
+ * distinct shape as a variant instead of the first one, which silently drops
+ * the other branches' fields. Returns undefined when this is not an
+ * object-vs-object collision, or when the shapes are the same — the caller
+ * then keeps the existing schema (first-wins).
+ */
+function mergeObjectVariants(
+  existing: OApiSchema,
+  incoming: OApiSchema,
+  spec: OApiSpec,
+): OApiSchema | undefined {
+  const current = objectShapes(existing, spec);
+  const added = objectShapes(incoming, spec);
+  if (!current || !added) return undefined;
+
+  const shapes = [...current];
+  const keys = current.map((v) => shapeKey(v, spec));
+  let changed = false;
+  for (const shape of added) {
+    const key = shapeKey(shape, spec);
+    const index = keys.indexOf(key);
+    if (index === -1) {
+      keys.push(key);
+      shapes.push(shape);
+      changed = true;
+      continue;
+    }
+    // Same shape from another branch (HTTPS and SVCB): keep one variant but
+    // both descriptions, so the generated docs still name every record type.
+    const known = shapes[index].description ?? "";
+    const extra = shape.description ?? "";
+    if (extra && !known.split(" | ").includes(extra)) {
+      shapes[index] = {
+        ...shapes[index],
+        description: known ? `${known} | ${extra}` : extra,
+      };
+      changed = true;
+    }
+  }
+  if (!changed || shapes.length === 1) return undefined;
+
+  return { type: "object", "x-swamp-variants": shapes };
+}
+
+/** Schema keywords that do not change what a payload must look like. */
+const SHAPE_IGNORED_KEYS = new Set(["description", "example", "examples"]);
+
+/** Schema keywords whose value is a single subschema. */
+const SUBSCHEMA_KEYS = new Set(["items", "additionalProperties", "not"]);
+
+/** Schema keywords whose value is a list of subschemas. */
+const SUBSCHEMA_LIST_KEYS = new Set([
+  "allOf",
+  "anyOf",
+  "oneOf",
+  "x-swamp-variants",
+]);
+
+/**
+ * Canonical fingerprint of a schema's shape: $ref and allOf resolved, keys
+ * sorted, `required` sorted, documentation keywords (description, example,
+ * x-*) dropped. Keywords are only dropped on schema nodes: inside a
+ * `properties` map every key is a field name, so a field called
+ * `description` still counts. Two schemas that differ only in documentation
+ * produce the same key. The dereferenced spec has circular refs, so a node
+ * already on the current path is emitted as a marker instead of recursed
+ * into.
+ */
+function shapeKey(schema: OApiSchema, spec: OApiSpec): string {
+  const onPath = new Set<unknown>();
+
+  // Plain JSON values (enum members, defaults): keep every key.
+  const value = (node: unknown): unknown => {
+    if (Array.isArray(node)) return node.map(value);
+    if (!node || typeof node !== "object") return node;
+    const record = node as Record<string, unknown>;
+    return Object.fromEntries(
+      Object.keys(record).sort().map((k) => [k, value(record[k])]),
+    );
+  };
+
+  const schemaNode = (node: unknown): unknown => {
+    if (!node || typeof node !== "object" || Array.isArray(node)) {
+      return value(node);
+    }
+    if (onPath.has(node)) return "[circular]";
+    onPath.add(node);
+    const resolved = resolveSchema(node as OApiSchema, spec) as Record<
+      string,
+      unknown
+    >;
+    const out: Record<string, unknown> = {};
+    for (const key of Object.keys(resolved).sort()) {
+      if (SHAPE_IGNORED_KEYS.has(key)) continue;
+      if (key.startsWith("x-") && key !== "x-swamp-variants") continue;
+      const val = resolved[key];
+      if (key === "properties" && val && typeof val === "object") {
+        const props = val as Record<string, unknown>;
+        out[key] = Object.fromEntries(
+          Object.keys(props).sort().map((k) => [k, schemaNode(props[k])]),
+        );
+      } else if (SUBSCHEMA_KEYS.has(key)) {
+        out[key] = schemaNode(val);
+      } else if (SUBSCHEMA_LIST_KEYS.has(key) && Array.isArray(val)) {
+        out[key] = val.map(schemaNode);
+      } else if (key === "required" && Array.isArray(val)) {
+        out[key] = [...val].sort();
+      } else {
+        out[key] = value(val);
+      }
+    }
+    onPath.delete(node);
+    return out;
+  };
+
+  return JSON.stringify(schemaNode(schema));
 }
 
 /**
@@ -1512,10 +1660,12 @@ function mergeAllOf(allOf: OApiSchema[], spec: OApiSpec): OApiSchema {
   for (const item of allOf) {
     const resolved = resolveSchema(item, spec);
     if (resolved.properties) {
-      merged.properties = {
-        ...(merged.properties ?? {}),
-        ...resolved.properties,
-      };
+      const properties = { ...(merged.properties ?? {}) };
+      for (const [key, val] of Object.entries(resolved.properties)) {
+        const existing = properties[key];
+        properties[key] = existing ? conjoinProperty(existing, val, spec) : val;
+      }
+      merged.properties = properties;
     }
     if (resolved.required) {
       merged.required = [
@@ -1529,6 +1679,50 @@ function mergeAllOf(allOf: OApiSchema[], spec: OApiSpec): OApiSchema {
 }
 
 /**
+ * allOf branches that both define the same object property must all hold, so
+ * the property is the merge of both objects (dns CNAME `settings` is the
+ * shared ipv4_only/ipv6_only object plus flatten_cname). Anything else keeps
+ * the later definition, as before.
+ */
+function conjoinProperty(
+  existing: OApiSchema,
+  incoming: OApiSchema,
+  spec: OApiSpec,
+): OApiSchema {
+  // The dereferenced spec has circular refs, and resolving either schema can
+  // re-enter mergeAllOf, so the guards run before resolution. Merging builds
+  // fresh objects at every level, so object identity alone cannot see a
+  // cycle: nesting is also capped. Past either guard the later definition
+  // wins, which is the behaviour before allOf object properties were merged.
+  if (
+    existing === incoming || conjoining.has(existing) ||
+    conjoining.has(incoming) || conjoining.size >= 2 * MAX_CONJOIN_DEPTH
+  ) {
+    return incoming;
+  }
+  conjoining.add(existing);
+  conjoining.add(incoming);
+  try {
+    const a = resolveSchema(existing, spec);
+    const b = resolveSchema(incoming, spec);
+    if (!a.properties || !b.properties) return incoming;
+    return mergeAllOf([a, b], spec);
+  } finally {
+    conjoining.delete(existing);
+    conjoining.delete(incoming);
+  }
+}
+
+/** Original schemas conjoinProperty is currently merging (cycle guard). */
+const conjoining = new Set<OApiSchema>();
+
+/**
+ * Deepest chain of nested allOf object-property merges. Real Cloudflare
+ * bodies nest a few levels; only a circular schema reaches this.
+ */
+const MAX_CONJOIN_DEPTH = 8;
+
+/**
  * Normalize an OpenAPI property schema into CloudflareProperty.
  */
 function normalizeProperty(
@@ -1540,6 +1734,31 @@ function normalizeProperty(
   }
 
   const resolved = resolveSchema(schema, spec);
+
+  // Distinct object shapes collected by flattenDisjunction: normalize each
+  // one independently so every variant keeps its own fields and types.
+  const variantSchemas = resolved["x-swamp-variants"];
+  if (variantSchemas) {
+    // A variant is an object with properties even when the spec omits
+    // `type`; without this it would normalize to a string.
+    const variants = variantSchemas.map((v) =>
+      normalizeProperty(v.type ? v : { ...v, type: "object" }, spec)
+    );
+    const descriptions = [
+      ...new Set(
+        variants
+          .map((v) => v.description)
+          .filter((d): d is string => !!d),
+      ),
+    ];
+    return {
+      type: "object",
+      description: descriptions.length > 0
+        ? descriptions.join(" | ")
+        : resolved.description,
+      variants,
+    };
+  }
 
   // Handle oneOf/anyOf — merge object variants so enum values are unioned
   if (resolved.oneOf || resolved.anyOf) {

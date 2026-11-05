@@ -48,13 +48,21 @@ const GlobalArgsSchema = z.object({
     dead_letter_queue: z.string().optional(),
     queue_name: z.string().optional(),
     script_name: z.string().optional(),
-    settings: z.object({
-      batch_size: z.number().optional(),
-      max_concurrency: z.number().optional(),
-      max_retries: z.number().optional(),
-      max_wait_time_ms: z.number().optional(),
-      retry_delay: z.number().optional(),
-    }).optional(),
+    settings: z.union([
+      z.strictObject({
+        batch_size: z.number().optional(),
+        max_concurrency: z.number().optional(),
+        max_retries: z.number().optional(),
+        max_wait_time_ms: z.number().optional(),
+        retry_delay: z.number().optional(),
+      }),
+      z.strictObject({
+        batch_size: z.number().optional(),
+        max_retries: z.number().optional(),
+        retry_delay: z.number().optional(),
+        visibility_timeout_ms: z.number().optional(),
+      }),
+    ]).optional(),
     type: z.enum(["worker", "http_pull"]).optional(),
   })).optional(),
   consumers_total_count: z.number().optional(),
@@ -92,13 +100,21 @@ const ResourceSchema = z.object({
     dead_letter_queue: z.string().optional(),
     queue_name: z.string().optional(),
     script_name: z.string().optional(),
-    settings: z.object({
-      batch_size: z.number().optional(),
-      max_concurrency: z.number().optional(),
-      max_retries: z.number().optional(),
-      max_wait_time_ms: z.number().optional(),
-      retry_delay: z.number().optional(),
-    }).optional(),
+    settings: z.union([
+      z.looseObject({
+        batch_size: z.number().optional(),
+        max_concurrency: z.number().optional(),
+        max_retries: z.number().optional(),
+        max_wait_time_ms: z.number().optional(),
+        retry_delay: z.number().optional(),
+      }),
+      z.looseObject({
+        batch_size: z.number().optional(),
+        max_retries: z.number().optional(),
+        retry_delay: z.number().optional(),
+        visibility_timeout_ms: z.number().optional(),
+      }),
+    ]).optional(),
     type: z.string().optional(),
   })).optional(),
   consumers_total_count: z.number().optional(),
@@ -132,13 +148,21 @@ const InputsSchema = z.object({
     dead_letter_queue: z.string().optional(),
     queue_name: z.string().optional(),
     script_name: z.string().optional(),
-    settings: z.object({
-      batch_size: z.number().optional(),
-      max_concurrency: z.number().optional(),
-      max_retries: z.number().optional(),
-      max_wait_time_ms: z.number().optional(),
-      retry_delay: z.number().optional(),
-    }).optional(),
+    settings: z.union([
+      z.strictObject({
+        batch_size: z.number().optional(),
+        max_concurrency: z.number().optional(),
+        max_retries: z.number().optional(),
+        max_wait_time_ms: z.number().optional(),
+        retry_delay: z.number().optional(),
+      }),
+      z.strictObject({
+        batch_size: z.number().optional(),
+        max_retries: z.number().optional(),
+        retry_delay: z.number().optional(),
+        visibility_timeout_ms: z.number().optional(),
+      }),
+    ]).optional(),
     type: z.enum(["worker", "http_pull"]).optional(),
   })).optional(),
   consumers_total_count: z.number().optional(),
@@ -166,7 +190,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Queues. Registered at `@swamp/cloudflare/queues/queues`. */
 export const model = {
   type: "@swamp/cloudflare/queues/queues",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -225,6 +249,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

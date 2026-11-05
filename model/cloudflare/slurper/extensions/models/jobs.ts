@@ -42,10 +42,16 @@ const GlobalArgsSchema = z.object({
     keys: z.array(z.string()).optional(),
     pathPrefix: z.string().optional(),
     region: z.string().optional(),
-    secret: z.object({
-      accessKeyId: z.string(),
-      secretAccessKey: z.string(),
-    }),
+    secret: z.union([
+      z.strictObject({
+        accessKeyId: z.string(),
+        secretAccessKey: z.string(),
+      }),
+      z.strictObject({
+        clientEmail: z.string(),
+        privateKey: z.string(),
+      }),
+    ]),
     vendor: z.enum(["s3", "gcs", "r2"]),
     jurisdiction: z.string().optional(),
   }).optional(),
@@ -102,10 +108,16 @@ const InputsSchema = z.object({
     keys: z.array(z.string()).optional(),
     pathPrefix: z.string().optional(),
     region: z.string().optional(),
-    secret: z.object({
-      accessKeyId: z.string(),
-      secretAccessKey: z.string(),
-    }),
+    secret: z.union([
+      z.strictObject({
+        accessKeyId: z.string(),
+        secretAccessKey: z.string(),
+      }),
+      z.strictObject({
+        clientEmail: z.string(),
+        privateKey: z.string(),
+      }),
+    ]),
     vendor: z.enum(["s3", "gcs", "r2"]),
     jurisdiction: z.string().optional(),
   }).optional(),
@@ -126,7 +138,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Jobs. Registered at `@swamp/cloudflare/slurper/jobs`. */
 export const model = {
   type: "@swamp/cloudflare/slurper/jobs",
-  version: "2026.11.05.1",
+  version: "2026.11.05.2",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -175,6 +187,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

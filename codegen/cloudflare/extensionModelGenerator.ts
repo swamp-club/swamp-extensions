@@ -695,7 +695,16 @@ function buildGlobalArgsProperties(
   return result;
 }
 
-function generateFullFidelityZod(prop: CloudflareProperty): string {
+/**
+ * `objectCtor` is the constructor for every object at and below this point.
+ * It is `z.object` except inside a variant, where the whole variant is
+ * strict: a lenient nested object would still strip another variant's nested
+ * fields.
+ */
+function generateFullFidelityZod(
+  prop: CloudflareProperty,
+  objectCtor = "z.object",
+): string {
   switch (prop.type) {
     case "boolean":
       return "z.boolean()";
@@ -733,26 +742,25 @@ function generateFullFidelityZod(prop: CloudflareProperty): string {
 
     case "array": {
       if (prop.items) {
-        const itemExpr = generateFullFidelityZod(prop.items);
+        const itemExpr = generateFullFidelityZod(prop.items, objectCtor);
         return `z.array(${itemExpr})`;
       }
       return "z.array(z.unknown())";
     }
 
     case "object": {
-      if (prop.properties && Object.keys(prop.properties).length > 0) {
-        const requiredSet = new Set(prop.requiredProperties ?? []);
-        const fields = Object.entries(prop.properties).map(
-          ([k, v]) => {
-            const suffix = requiredSet.has(k) ? "" : ".optional()";
-            return `    ${quoteProp(k)}: ${
-              generateFullFidelityZod(v)
-            }${suffix}`;
-          },
+      if (prop.variants && prop.variants.length > 0) {
+        // Strict variants: zod tries union members in order, and a lenient
+        // all-optional member would accept another variant's payload and
+        // strip it to {} (swamp-club#4419).
+        return variantUnion(
+          prop.variants,
+          fullFidelityObject,
+          "z.strictObject",
+          objectCtor,
         );
-        return `z.object({\n${fields.join(",\n")},\n  })`;
       }
-      return "z.record(z.string(), z.unknown())";
+      return fullFidelityObject(prop, objectCtor);
     }
 
     default:
@@ -760,7 +768,50 @@ function generateFullFidelityZod(prop: CloudflareProperty): string {
   }
 }
 
-function generateSimplifiedZod(prop: CloudflareProperty): string {
+function fullFidelityObject(
+  prop: CloudflareProperty,
+  ctor = "z.object",
+): string {
+  if (prop.properties && Object.keys(prop.properties).length > 0) {
+    const requiredSet = new Set(prop.requiredProperties ?? []);
+    const fields = Object.entries(prop.properties).map(
+      ([k, v]) => {
+        const suffix = requiredSet.has(k) ? "" : ".optional()";
+        return `    ${quoteProp(k)}: ${
+          generateFullFidelityZod(v, ctor)
+        }${suffix}`;
+      },
+    );
+    return `${ctor}({\n${fields.join(",\n")},\n  })`;
+  }
+  return "z.record(z.string(), z.unknown())";
+}
+
+/**
+ * Emit a union over an object property's variants, deduplicated by the
+ * generated expression. `build(variant, ctor)` renders one variant with the
+ * given object constructor applied at every depth. A single surviving variant
+ * is emitted as a property without variants would be: with `outerCtor`,
+ * which is z.object at the top level and the enclosing variant's constructor
+ * when this property sits inside another variant.
+ */
+function variantUnion(
+  variants: CloudflareProperty[],
+  build: (variant: CloudflareProperty, ctor?: string) => string,
+  unionCtor: string,
+  outerCtor: string,
+): string {
+  const plain = [...new Set(variants.map((v) => build(v, outerCtor)))];
+  if (plain.length === 1) return plain[0];
+  const members = [...new Set(variants.map((v) => build(v, unionCtor)))];
+  return `z.union([\n${members.join(",\n")},\n])`;
+}
+
+/** `objectCtor`: see generateFullFidelityZod (loose inside a variant). */
+function generateSimplifiedZod(
+  prop: CloudflareProperty,
+  objectCtor = "z.object",
+): string {
   switch (prop.type) {
     case "boolean":
       return "z.boolean()";
@@ -771,23 +822,41 @@ function generateSimplifiedZod(prop: CloudflareProperty): string {
       return "z.number()";
     case "array": {
       if (prop.items) {
-        return `z.array(${generateSimplifiedZod(prop.items)})`;
+        return `z.array(${generateSimplifiedZod(prop.items, objectCtor)})`;
       }
       return "z.array(z.unknown())";
     }
     case "object": {
-      if (prop.properties && Object.keys(prop.properties).length > 0) {
-        const fields = Object.entries(prop.properties).map(
-          ([k, v]) =>
-            `    ${quoteProp(k)}: ${generateSimplifiedZod(v)}.optional()`,
+      if (prop.variants && prop.variants.length > 0) {
+        // ResourceSchema parses API responses, so variants stay loose: an
+        // unknown field the API adds must neither fail the parse nor be
+        // stripped from stored state.
+        return variantUnion(
+          prop.variants,
+          simplifiedObject,
+          "z.looseObject",
+          objectCtor,
         );
-        return `z.object({\n${fields.join(",\n")},\n  })`;
       }
-      return "z.record(z.string(), z.unknown())";
+      return simplifiedObject(prop, objectCtor);
     }
     default:
       return "z.unknown()";
   }
+}
+
+function simplifiedObject(
+  prop: CloudflareProperty,
+  ctor = "z.object",
+): string {
+  if (prop.properties && Object.keys(prop.properties).length > 0) {
+    const fields = Object.entries(prop.properties).map(
+      ([k, v]) =>
+        `    ${quoteProp(k)}: ${generateSimplifiedZod(v, ctor)}.optional()`,
+    );
+    return `${ctor}({\n${fields.join(",\n")},\n  })`;
+  }
+  return "z.record(z.string(), z.unknown())";
 }
 
 const SCALAR_TYPES = new Set(["string", "number", "integer", "boolean"]);

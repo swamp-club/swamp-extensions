@@ -851,3 +851,182 @@ async function assertGenerated(
   assertEquals(findBareSpecifiers(source), []);
   await assertSnapshot(t, source);
 }
+
+// ---------------------------------------------------------------------------
+// Object variants (swamp-club#4419)
+// ---------------------------------------------------------------------------
+
+const caaData: CloudflareProperty = {
+  type: "object",
+  description: "Components of a CAA record.",
+  properties: {
+    flags: { type: "number", minimum: 0, maximum: 255 },
+    tag: stringProp,
+  },
+};
+const srvData: CloudflareProperty = {
+  type: "object",
+  description: "Components of a SRV record.",
+  properties: { port: numberProp, target: stringProp },
+  requiredProperties: ["target"],
+};
+
+function variantResource(): CloudflareResource {
+  const data: CloudflareProperty = {
+    type: "object",
+    description: "Components of a CAA record. | Components of a SRV record.",
+    variants: [caaData, srvData],
+  };
+  return makeResource({
+    resourcePath: "dns_records",
+    service: "dns",
+    modelSlug: "dns-records",
+    fileName: "dns_records.ts",
+    createProperties: { name: stringProp, data },
+    updateProperties: { name: stringProp, data },
+    resourceProperties: { id: stringProp, data },
+  });
+}
+
+Deno.test("generateCloudflareExtensionModel - object variants", async (t) => {
+  const code = generateCloudflareExtensionModel({
+    resource: variantResource(),
+    extensionName: "@swamp/cloudflare",
+    version: "2026.01.01.1",
+  });
+  await assertGenerated(t, code);
+});
+
+Deno.test("generateCloudflareExtensionModel - variants are strict in arguments and loose in the resource", () => {
+  const code = generateCloudflareExtensionModel({
+    resource: variantResource(),
+    extensionName: "@swamp/cloudflare",
+    version: "2026.01.01.1",
+  });
+  const section = (start: string, end: string) =>
+    code.slice(code.indexOf(start), code.indexOf(end, code.indexOf(start)));
+
+  const globalArgs = section("const GlobalArgsSchema", "\n});");
+  const resource = section("const ResourceSchema", "\n}).passthrough();");
+  const inputs = section("const InputsSchema", "\n});");
+
+  for (const schema of [globalArgs, inputs]) {
+    assertStringIncludes(schema, "data: z.union([");
+    assertEquals(schema.split("z.strictObject(").length - 1, 2);
+    assertEquals(schema.includes("z.looseObject("), false);
+  }
+  assertStringIncludes(resource, "data: z.union([");
+  assertEquals(resource.split("z.looseObject(").length - 1, 2);
+  assertEquals(resource.includes("z.strictObject("), false);
+  // The union keeps each variant's own required fields.
+  assertStringIncludes(globalArgs, "target: z.string(),");
+});
+
+Deno.test("generateCloudflareExtensionModel - variants that render identically emit a plain object", () => {
+  const data: CloudflareProperty = {
+    type: "object",
+    variants: [
+      { ...caaData, description: "a" },
+      { ...caaData, description: "b" },
+    ],
+  };
+  const code = generateCloudflareExtensionModel({
+    resource: makeResource({
+      resourcePath: "dns_records",
+      service: "dns",
+      modelSlug: "dns-records",
+      fileName: "dns_records.ts",
+      createProperties: { data },
+    }),
+    extensionName: "@swamp/cloudflare",
+    version: "2026.01.01.1",
+  });
+  assertEquals(code.includes("z.union(["), false);
+  assertEquals(code.includes("z.strictObject("), false);
+  assertStringIncludes(code, "data: z.object({");
+});
+
+Deno.test("generateCloudflareExtensionModel - objects nested in a variant share its strictness", () => {
+  // Variants that differ only inside a nested object: a lenient nested
+  // object would let the first variant strip the second's nested field.
+  const nested = (props: Record<string, CloudflareProperty>) => ({
+    type: "object" as const,
+    properties: {
+      cfg: { type: "object" as const, properties: props },
+      list: {
+        type: "array" as const,
+        items: { type: "object" as const, properties: props },
+      },
+    },
+  });
+  const data: CloudflareProperty = {
+    type: "object",
+    variants: [
+      nested({ a: stringProp }),
+      nested({ a: stringProp, b: stringProp }),
+    ],
+  };
+  const code = generateCloudflareExtensionModel({
+    resource: makeResource({
+      resourcePath: "dns_records",
+      service: "dns",
+      modelSlug: "dns-records",
+      fileName: "dns_records.ts",
+      createProperties: {
+        data,
+        other: { type: "object", properties: { x: stringProp } },
+      },
+      resourceProperties: { id: stringProp, data },
+    }),
+    extensionName: "@swamp/cloudflare",
+    version: "2026.01.01.1",
+  });
+  const section = (start: string, end: string) =>
+    code.slice(code.indexOf(start), code.indexOf(end, code.indexOf(start)));
+  const globalArgs = section("const GlobalArgsSchema", "\n});");
+  const resource = section("const ResourceSchema", "\n}).passthrough();");
+
+  // 2 variants x (variant + cfg + list items) = 6 strict objects.
+  assertEquals(globalArgs.split("z.strictObject(").length - 1, 6);
+  assertEquals(resource.split("z.looseObject(").length - 1, 6);
+  // Objects outside a variant are unchanged.
+  assertStringIncludes(globalArgs, "other: z.object({");
+});
+
+Deno.test("generateCloudflareExtensionModel - a nested property whose variants render alike keeps the outer variant's strictness", () => {
+  // `cfg` has two variants that render identically (they differ only in
+  // something the generator ignores), so it collapses — but it sits inside
+  // a strict outer variant and must stay strict there.
+  const cfg: CloudflareProperty = {
+    type: "object",
+    variants: [
+      { type: "object", properties: { a: stringProp }, description: "x" },
+      { type: "object", properties: { a: stringProp }, description: "y" },
+    ],
+  };
+  const data: CloudflareProperty = {
+    type: "object",
+    variants: [
+      { type: "object", properties: { cfg } },
+      { type: "object", properties: { cfg, other: stringProp } },
+    ],
+  };
+  const code = generateCloudflareExtensionModel({
+    resource: makeResource({
+      resourcePath: "dns_records",
+      service: "dns",
+      modelSlug: "dns-records",
+      fileName: "dns_records.ts",
+      createProperties: { data },
+    }),
+    extensionName: "@swamp/cloudflare",
+    version: "2026.01.01.1",
+  });
+  const globalArgs = code.slice(
+    code.indexOf("const GlobalArgsSchema"),
+    code.indexOf("\n});", code.indexOf("const GlobalArgsSchema")),
+  );
+  // 2 outer variants, each with a strict cfg.
+  assertEquals(globalArgs.split("z.strictObject(").length - 1, 4);
+  assertEquals(globalArgs.includes("cfg: z.object("), false);
+});

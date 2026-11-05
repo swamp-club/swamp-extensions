@@ -39,36 +39,57 @@ import {
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  configuration: z.object({
-    authorized_keys: z.array(z.object({
-      name: z.string().optional(),
-      public_key: z.string(),
-    })).optional(),
-    command: z.array(z.string()).optional(),
-    entrypoint: z.array(z.string()).optional(),
-    environment_variables: z.array(z.object({
-      name: z.string(),
-      value: z.string(),
-    })).optional(),
-    image: z.string(),
-    instance_type: z.enum([
-      "lite",
-      "basic",
-      "standard-1",
-      "standard-2",
-      "standard-3",
-      "standard-4",
-    ]).optional(),
-    observability: z.object({
-      logs: z.object({
-        enabled: z.boolean().optional(),
+  configuration: z.union([
+    z.strictObject({
+      authorized_keys: z.array(z.strictObject({
+        name: z.string().optional(),
+        public_key: z.string(),
+      })).optional(),
+      command: z.array(z.string()).optional(),
+      entrypoint: z.array(z.string()).optional(),
+      environment_variables: z.array(z.strictObject({
+        name: z.string(),
+        value: z.string(),
+      })).optional(),
+      image: z.string(),
+      instance_type: z.enum([
+        "lite",
+        "basic",
+        "standard-1",
+        "standard-2",
+        "standard-3",
+        "standard-4",
+      ]).optional(),
+      observability: z.strictObject({
+        logs: z.strictObject({
+          enabled: z.boolean().optional(),
+        }).optional(),
       }).optional(),
-    }).optional(),
-  }).describe("User-specified container configuration.").optional(),
-  constraints: z.object({
-    jurisdiction: z.string().optional(),
-    regions: z.array(z.string()).optional(),
-  }).optional(),
+    }),
+    z.strictObject({
+      authorized_keys: z.array(z.strictObject({
+        name: z.string().optional(),
+        public_key: z.string(),
+      })).optional(),
+      wrangler_ssh: z.strictObject({
+        enabled: z.boolean().optional(),
+        port: z.number().int().min(1).max(65535).optional(),
+      }).optional(),
+    }),
+  ]).describe(
+    "User-specified container configuration. | Application-wide settings for a Durable Object-managed application.",
+  ).optional(),
+  constraints: z.union([
+    z.strictObject({
+      jurisdiction: z.string().optional(),
+      regions: z.array(z.string()).optional(),
+    }),
+    z.strictObject({
+      jurisdiction: z.enum(["eu", "fedramp", "us"]),
+    }),
+  ]).describe(
+    "The jurisdiction of a Durable Object-managed application's primary control-plane object.\nSet this when creating the application; it cannot be changed afterwards.\nOther placement constraints are not supported by this scheduling policy.\n",
+  ).optional(),
   max_instances: z.number().int().min(0).describe(
     "Sets the maximum number of instances that the application can run.",
   ).optional(),
@@ -77,7 +98,7 @@ const GlobalArgsSchema = z.object({
       enabled: z.boolean().optional(),
     }).optional(),
   }).describe(
-    "Settings for application observability such as logging. Supported fields depend\non the application's scheduling policy. Durable Object-managed applications\naccept only `logs.enabled`.\n",
+    "Settings for application observability such as logging. Supported fields depend\non the application's scheduling policy. Durable Object-managed applications\naccept only `logs.enabled`.\n | Application-wide logging settings for a Durable Object-managed application.\nThe application publishes these settings to its runtime metadata. Updating\nthem does not create a deployment or rollout.\n",
   ).optional(),
   rollout_active_grace_period: z.number().int().min(0).max(604800).describe(
     "Grace period for active instances to stay alive before becoming eligible for shutdown signal due to a rollout, in seconds.\nDefaults to 0.\n",
@@ -124,52 +145,78 @@ const ResourceSchema = z.object({
   result: z.object({
     account_id: z.string().optional(),
     active_rollout_id: z.string().optional(),
-    configuration: z.object({
-      authorized_keys: z.array(z.object({
-        name: z.string().optional(),
-        public_key: z.string().optional(),
-      })).optional(),
-      command: z.array(z.string()).optional(),
-      entrypoint: z.array(z.string()).optional(),
-      environment_variables: z.array(z.object({
-        name: z.string().optional(),
-        value: z.string().optional(),
-      })).optional(),
-      image: z.string().optional(),
-      instance_type: z.string().optional(),
-      observability: z.object({
-        logs: z.object({
-          enabled: z.boolean().optional(),
+    configuration: z.union([
+      z.looseObject({
+        authorized_keys: z.array(z.looseObject({
+          name: z.string().optional(),
+          public_key: z.string().optional(),
+        })).optional(),
+        command: z.array(z.string()).optional(),
+        entrypoint: z.array(z.string()).optional(),
+        environment_variables: z.array(z.looseObject({
+          name: z.string().optional(),
+          value: z.string().optional(),
+        })).optional(),
+        image: z.string().optional(),
+        instance_type: z.string().optional(),
+        observability: z.looseObject({
+          logs: z.looseObject({
+            enabled: z.boolean().optional(),
+          }).optional(),
         }).optional(),
-      }).optional(),
-    }).optional(),
-    constraints: z.object({
-      jurisdiction: z.string().optional(),
-      regions: z.array(z.string()).optional(),
-    }).optional(),
+      }),
+      z.looseObject({
+        authorized_keys: z.array(z.looseObject({
+          name: z.string().optional(),
+          public_key: z.string().optional(),
+        })).optional(),
+        wrangler_ssh: z.looseObject({
+          enabled: z.boolean().optional(),
+          port: z.number().optional(),
+        }).optional(),
+      }),
+    ]).optional(),
+    constraints: z.union([
+      z.looseObject({
+        jurisdiction: z.string().optional(),
+        regions: z.array(z.string()).optional(),
+      }),
+      z.looseObject({
+        jurisdiction: z.string().optional(),
+      }),
+    ]).optional(),
     created_at: z.string().optional(),
     durable_objects: z.object({
       namespace_id: z.string().optional(),
     }).optional(),
-    health: z.object({
-      errors: z.array(z.object({
-        event: z.object({
-          details: z.record(z.string(), z.unknown()).optional(),
-          id: z.string().optional(),
-          message: z.string().optional(),
-          name: z.string().optional(),
-          statusChange: z.record(z.string(), z.unknown()).optional(),
-          time: z.string().optional(),
-          type: z.string().optional(),
+    health: z.union([
+      z.looseObject({
+        errors: z.array(z.looseObject({
+          event: z.looseObject({
+            details: z.record(z.string(), z.unknown()).optional(),
+            id: z.string().optional(),
+            message: z.string().optional(),
+            name: z.string().optional(),
+            statusChange: z.record(z.string(), z.unknown()).optional(),
+            time: z.string().optional(),
+            type: z.string().optional(),
+          }).optional(),
+          instance_id: z.string().optional(),
+        })).optional(),
+        instances: z.looseObject({
+          active: z.number().optional(),
+          assigned: z.number().optional(),
         }).optional(),
-        instance_id: z.string().optional(),
-      })).optional(),
-      instances: z.object({
-        active: z.number().optional(),
-        assigned: z.number().optional(),
-      }).optional(),
-      summary: z.string().optional(),
-    }).optional(),
+        summary: z.string().optional(),
+      }),
+      z.looseObject({
+        instances: z.looseObject({
+          active: z.number().optional(),
+          starting: z.number().optional(),
+        }).optional(),
+        summary: z.string().optional(),
+      }),
+    ]).optional(),
     id: z.string().optional(),
     instances: z.number().optional(),
     max_instances: z.number().optional(),
@@ -191,36 +238,53 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
   account_id: z.string().optional(),
-  configuration: z.object({
-    authorized_keys: z.array(z.object({
-      name: z.string().optional(),
-      public_key: z.string(),
-    })).optional(),
-    command: z.array(z.string()).optional(),
-    entrypoint: z.array(z.string()).optional(),
-    environment_variables: z.array(z.object({
-      name: z.string(),
-      value: z.string(),
-    })).optional(),
-    image: z.string(),
-    instance_type: z.enum([
-      "lite",
-      "basic",
-      "standard-1",
-      "standard-2",
-      "standard-3",
-      "standard-4",
-    ]).optional(),
-    observability: z.object({
-      logs: z.object({
-        enabled: z.boolean().optional(),
+  configuration: z.union([
+    z.strictObject({
+      authorized_keys: z.array(z.strictObject({
+        name: z.string().optional(),
+        public_key: z.string(),
+      })).optional(),
+      command: z.array(z.string()).optional(),
+      entrypoint: z.array(z.string()).optional(),
+      environment_variables: z.array(z.strictObject({
+        name: z.string(),
+        value: z.string(),
+      })).optional(),
+      image: z.string(),
+      instance_type: z.enum([
+        "lite",
+        "basic",
+        "standard-1",
+        "standard-2",
+        "standard-3",
+        "standard-4",
+      ]).optional(),
+      observability: z.strictObject({
+        logs: z.strictObject({
+          enabled: z.boolean().optional(),
+        }).optional(),
       }).optional(),
-    }).optional(),
-  }).optional(),
-  constraints: z.object({
-    jurisdiction: z.string().optional(),
-    regions: z.array(z.string()).optional(),
-  }).optional(),
+    }),
+    z.strictObject({
+      authorized_keys: z.array(z.strictObject({
+        name: z.string().optional(),
+        public_key: z.string(),
+      })).optional(),
+      wrangler_ssh: z.strictObject({
+        enabled: z.boolean().optional(),
+        port: z.number().int().min(1).max(65535).optional(),
+      }).optional(),
+    }),
+  ]).optional(),
+  constraints: z.union([
+    z.strictObject({
+      jurisdiction: z.string().optional(),
+      regions: z.array(z.string()).optional(),
+    }),
+    z.strictObject({
+      jurisdiction: z.enum(["eu", "fedramp", "us"]),
+    }),
+  ]).optional(),
   max_instances: z.number().int().min(0).optional(),
   observability: z.object({
     logs: z.object({
@@ -240,7 +304,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Applications. Registered at `@swamp/cloudflare/containers/applications`. */
 export const model = {
   type: "@swamp/cloudflare/containers/applications",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.06.08.2",
@@ -337,6 +401,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

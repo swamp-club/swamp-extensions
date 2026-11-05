@@ -370,9 +370,21 @@ DigitalOcean:
 
 **allOf** (conjunction): All branch properties and required fields are merged.
 
+**allOf** branches that both define the same object property merge that
+property's fields too (DNS CNAME `settings` is the shared
+`ipv4_only`/`ipv6_only` object plus `flatten_cname`); any other repeated
+property keeps the later definition.
+
 **oneOf/anyOf** (disjunction): All branch properties are merged (union of
 fields), but required fields use **intersection** — only fields required in
-every branch are marked required.
+every branch are marked required. When branches define the same property
+differently:
+
+- both are enums: the enum values are unioned;
+- both are objects with properties and their shapes differ: every distinct shape
+  is kept as a **variant** (see [oneOf/anyOf handling](#oneofanyof-handling));
+- anything else (scalar or mixed-type collisions): the first branch wins. See
+  swamp-club#4426.
 
 ### Create-only property detection
 
@@ -1063,9 +1075,47 @@ Cloudflare uses `anyOf` for some request bodies (e.g., DNS record creation
 accepts different schemas per record type). The pipeline follows DigitalOcean's
 approach: merge all branch properties, use required-field intersection.
 
-For the 23 schemas with explicit `discriminator` mappings, the pipeline flattens
-the variants for initial generation. Discriminator-aware generation (producing
-separate per-variant types) is a candidate for future enhancement.
+A property that the branches define as objects of different shapes keeps every
+shape as a variant (`CloudflareProperty.variants`). DNS record `data` is the
+motivating case: one shape per data-carrying record type (CAA, SRV, NAPTR, …),
+with conflicting field types (`flags` is a number for CAA and a string for
+NAPTR). Keeping only the first branch's shape silently stripped every other
+record type's fields (swamp-club#4419). Variants come from both entry points
+into the disjunction merge: request bodies and property-level `oneOf`/`anyOf`
+(slurper `source.secret` is S3 keys in one branch and GCS credentials in
+another), at any depth.
+
+Shapes are compared structurally — `$ref`/`allOf` resolved, documentation keys
+(`description`, `example`, `x-*`) ignored — so branches that differ only in docs
+produce one variant. Once a property has more than one variant, a variant's
+description also lists the later branches that share its shape (HTTPS and SVCB);
+descriptions of branches that collapsed into a single shape before any second
+shape appeared are not carried over, so the generated text can omit one of them.
+Docs only — the schema is unaffected.
+
+Generated code:
+
+- **GlobalArgsSchema / InputsSchema**: `z.union([z.strictObject(...), ...])`.
+  Variants must be strict: zod tries union members in order, and a lenient
+  all-optional member would accept another variant's payload and strip it to
+  `{}`. A consequence is that an unknown key inside such a property is now a
+  validation error rather than silently dropped.
+- **ResourceSchema**: `z.union([z.looseObject(...), ...])`. It parses API
+  responses, so a field the API adds must neither fail the parse nor be stripped
+  from stored state.
+- Objects nested inside a variant (at any depth, including array items) share
+  its strictness or looseness: a lenient nested object would let the first
+  variant strip a later variant's nested fields.
+- Variants that render to the same expression are emitted once; a single
+  remaining variant is a plain `z.object`, as before.
+
+The variant chosen is not tied to the body's discriminator (`type`), so an SRV
+record with CAA-shaped `data` passes client-side and Cloudflare rejects it. A
+discriminated union would need GlobalArgsSchema itself to be a union, which
+conflicts with the `.partial()` method-run path.
+
+For the 23 schemas with explicit `discriminator` mappings, the pipeline still
+flattens the top-level variants into one GlobalArgsSchema.
 
 ---
 

@@ -147,14 +147,23 @@ const GlobalArgsSchema = z.object({
   logo_url: z.string().describe(
     "The image URL for the logo shown in the App Launcher dashboard.",
   ).optional(),
-  mfa_config: z.object({
-    allowed_authenticators: z.array(
-      z.enum(["totp", "biometrics", "security_key"]),
-    ).optional(),
-    mfa_disabled: z.boolean().optional(),
-    session_duration: z.string().optional(),
-  }).describe("Configures multi-factor authentication (MFA) settings.")
-    .optional(),
+  mfa_config: z.union([
+    z.strictObject({
+      allowed_authenticators: z.array(
+        z.enum(["totp", "biometrics", "security_key"]),
+      ).optional(),
+      mfa_disabled: z.boolean().optional(),
+      session_duration: z.string().optional(),
+    }),
+    z.strictObject({
+      allowed_authenticators: z.array(z.enum(["piv_key", "ssh_fido2_key"]))
+        .optional(),
+      mfa_disabled: z.boolean().optional(),
+      session_duration: z.string().optional(),
+    }),
+  ]).describe(
+    "Configures multi-factor authentication (MFA) settings. | Configures multi-factor authentication (MFA) settings for infrastructure applications.",
+  ).optional(),
   options_preflight_bypass: z.boolean().describe(
     "Allows options preflight requests to bypass Access authentication and go directly to the origin. Cannot turn on if cors_headers is set.",
   ).optional(),
@@ -1191,13 +1200,21 @@ const InputsSchema = z.object({
   enable_binding_cookie: z.boolean().optional(),
   http_only_cookie_attribute: z.boolean().optional(),
   logo_url: z.string().optional(),
-  mfa_config: z.object({
-    allowed_authenticators: z.array(
-      z.enum(["totp", "biometrics", "security_key"]),
-    ).optional(),
-    mfa_disabled: z.boolean().optional(),
-    session_duration: z.string().optional(),
-  }).optional(),
+  mfa_config: z.union([
+    z.strictObject({
+      allowed_authenticators: z.array(
+        z.enum(["totp", "biometrics", "security_key"]),
+      ).optional(),
+      mfa_disabled: z.boolean().optional(),
+      session_duration: z.string().optional(),
+    }),
+    z.strictObject({
+      allowed_authenticators: z.array(z.enum(["piv_key", "ssh_fido2_key"]))
+        .optional(),
+      mfa_disabled: z.boolean().optional(),
+      session_duration: z.string().optional(),
+    }),
+  ]).optional(),
   options_preflight_bypass: z.boolean().optional(),
   path_cookie_attribute: z.boolean().optional(),
   read_service_tokens_from_header: z.string().optional(),
@@ -1633,7 +1650,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Apps. Registered at `@swamp/cloudflare/access/apps`. */
 export const model = {
   type: "@swamp/cloudflare/access/apps",
-  version: "2026.10.31.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -1732,6 +1749,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.31.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

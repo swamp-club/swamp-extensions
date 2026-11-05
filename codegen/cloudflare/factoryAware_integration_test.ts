@@ -6,7 +6,11 @@
 import { assertEquals, assertRejects } from "@std/assert";
 import { generateCloudflareExtensionModel } from "./extensionModelGenerator.ts";
 import { generateCloudflareLibFile } from "./libGenerator.ts";
-import type { CloudflareResource } from "./pipeline.ts";
+import {
+  type CloudflareProperty,
+  type CloudflareResource,
+  parseResources,
+} from "./pipeline.ts";
 
 // ---------------------------------------------------------------------------
 // Stateful mock Cloudflare API server
@@ -173,14 +177,23 @@ function createMockCfServer(): {
 // Generate and import model + lib
 // ---------------------------------------------------------------------------
 
+interface ParseableSchema {
+  safeParse: (
+    input: unknown,
+  ) => { success: boolean; data?: Record<string, unknown> };
+}
+
 async function importGeneratedModel(
   _mockPort: number,
-  opts: { putUpdate?: boolean } = {},
+  opts: {
+    putUpdate?: boolean;
+    /** Extra writable properties, added to the create and update bodies. */
+    extraProperties?: Record<string, CloudflareProperty>;
+  } = {},
 ): Promise<{
   model: {
-    globalArguments: {
-      safeParse: (input: unknown) => { success: boolean };
-    };
+    globalArguments: ParseableSchema;
+    inputsSchema: ParseableSchema;
     methods: Record<
       string,
       {
@@ -222,11 +235,13 @@ async function importGeneratedModel(
       type: { type: "string", description: "Record type" },
       content: { type: "string", description: "Record content" },
       ttl: { type: "integer", description: "TTL" },
+      ...opts.extraProperties,
     },
     updateProperties: {
       name: { type: "string", description: "Record name" },
       content: { type: "string", description: "Record content" },
       ttl: { type: "integer", description: "TTL" },
+      ...opts.extraProperties,
     },
     resourceProperties: {
       id: { type: "string" },
@@ -848,6 +863,179 @@ Deno.test({
     } finally {
       restoreFetch();
       await modelCleanup();
+      await server.close();
+      restoreToken();
+    }
+  },
+});
+
+// ---------------------------------------------------------------------------
+// Per-type `data` variants (swamp-club#4419)
+// ---------------------------------------------------------------------------
+
+/**
+ * The `data` property the pipeline derives from a dns_records-shaped body:
+ * anyOf[oneOf[allOf[shared, {type, data}]]], one branch per record type.
+ */
+function parsedDataProperty(): CloudflareProperty {
+  const branch = (type: string, data: Record<string, unknown>) => ({
+    allOf: [
+      { type: "object", properties: { name: { type: "string" } } },
+      {
+        properties: {
+          type: { type: "string", enum: [type] },
+          data: {
+            type: "object",
+            description: `Components of a ${type} record.`,
+            properties: data,
+          },
+        },
+      },
+    ],
+  });
+  const body = {
+    anyOf: [{
+      oneOf: [
+        branch("CAA", {
+          flags: { type: "number", minimum: 0, maximum: 255 },
+          tag: { type: "string" },
+          value: { type: "string" },
+        }),
+        branch("NAPTR", {
+          flags: { type: "string" },
+          order: { type: "number", minimum: 0, maximum: 65535 },
+        }),
+        branch("SRV", {
+          port: { type: "number", minimum: 0, maximum: 65535 },
+          priority: { allOf: [{ type: "number", minimum: 0 }] },
+          target: { type: "string" },
+          weight: { type: "number", minimum: 0, maximum: 65535 },
+        }),
+        branch("URI", {
+          target: { type: "string" },
+          weight: { type: "number", minimum: 0, maximum: 65535 },
+        }),
+      ],
+    }],
+  };
+  const op = {
+    requestBody: { content: { "application/json": { schema: body } } },
+  };
+  const { resources } = parseResources(
+    {
+      paths: {
+        "/zones/{zone_id}/dns_records": { post: op },
+        "/zones/{zone_id}/dns_records/{dns_record_id}": {
+          get: {},
+          patch: op,
+          delete: {},
+        },
+      },
+    } as unknown as Parameters<typeof parseResources>[0],
+  );
+  return resources[0].createProperties.data;
+}
+
+const srvArgs = {
+  zone_id: "test-zone-id",
+  name: "_imaps._tcp.example.com",
+  type: "SRV",
+  ttl: 3600,
+  data: { priority: 0, weight: 1, port: 993, target: "imap.example.com" },
+};
+
+// The generated model dynamically imports the lib which creates connections
+// that outlive the test scope. sanitizeResources: false is required.
+Deno.test({
+  name: "data variants: every record type's fields survive parsing",
+  sanitizeResources: false,
+  async fn() {
+    const { model, cleanup } = await importGeneratedModel(0, {
+      extraProperties: { data: parsedDataProperty() },
+    });
+    try {
+      for (const schema of [model.globalArguments, model.inputsSchema]) {
+        const srv = schema.safeParse(srvArgs);
+        assertEquals(srv.success, true);
+        assertEquals(srv.data?.data, srvArgs.data);
+
+        // URI's keys are a subset of SRV's: the payload is unchanged
+        // whichever variant accepts it.
+        const uri = schema.safeParse({
+          zone_id: "test-zone-id",
+          data: { target: "example.com", weight: 10 },
+        });
+        assertEquals(uri.data?.data, { target: "example.com", weight: 10 });
+
+        // flags is a string for NAPTR and a number for CAA.
+        const naptr = schema.safeParse({
+          zone_id: "test-zone-id",
+          data: { flags: "S", order: 100 },
+        });
+        assertEquals(naptr.data?.data, { flags: "S", order: 100 });
+        const caa = schema.safeParse({
+          zone_id: "test-zone-id",
+          data: { flags: 0, tag: "issue", value: "ca.example.net" },
+        });
+        assertEquals(caa.data?.data, {
+          flags: 0,
+          tag: "issue",
+          value: "ca.example.net",
+        });
+
+        // A misspelled field fails instead of silently vanishing.
+        assertEquals(
+          schema.safeParse({
+            zone_id: "test-zone-id",
+            data: { port: 993, wieght: 1 },
+          }).success,
+          false,
+        );
+        // Each variant keeps its own bounds.
+        assertEquals(
+          schema.safeParse({
+            zone_id: "test-zone-id",
+            data: { flags: 300, tag: "issue" },
+          }).success,
+          false,
+        );
+      }
+    } finally {
+      await cleanup();
+    }
+  },
+});
+
+// The generated model dynamically imports the lib which creates connections
+// that outlive the test scope. sanitizeResources: false is required.
+Deno.test({
+  name: "data variants: create sends the full SRV data object",
+  sanitizeResources: false,
+  async fn() {
+    const restoreToken = withTestToken();
+    const server = createMockCfServer();
+    const { restore: restoreFetch } = redirectFetchToMock(server.port);
+    const { model, cleanup } = await importGeneratedModel(server.port, {
+      extraProperties: { data: parsedDataProperty() },
+    });
+    try {
+      // content is create-required in this fixture; real SRV records set
+      // data instead (Cloudflare marks SRV content readOnly).
+      const parsed = model.globalArguments.safeParse({
+        ...srvArgs,
+        content: "unused",
+      });
+      assertEquals(parsed.success, true);
+      const { context } = createMockContext(parsed.data!);
+
+      await model.methods.create.execute({}, context);
+
+      const [created] = [...server.records.values()];
+      assertEquals(created.data, srvArgs.data);
+      assertEquals(created.type, "SRV");
+    } finally {
+      await cleanup();
+      restoreFetch();
       await server.close();
       restoreToken();
     }
