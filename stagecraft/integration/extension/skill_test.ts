@@ -604,6 +604,14 @@ Deno.test("skill: the worked example runs as written, from start to done", async
       ],
     );
     assertEquals(run.dispatches.length, 8);
+    // No manifest, so no score: the code reviewer reads the person's waiver
+    // and is told the score was not recorded, rather than failing to read it
+    // and stopping (swamp-club #4163).
+    const review = run.dispatches.find((d) => d.stage === "code-review")
+      ?.subagentPrompts?.[0]?.prompt ?? "";
+    assert(review.includes('name == "evidence-quality-waiver"'), review);
+    assert(!review.includes('name == "evidence-quality"'), review);
+    assert(review.includes("Not recorded for this work item"), review);
     // Each reviewer's usage is the harness's one total, as the example
     // records it, and the attested total is their sum.
     const reported = commands.filter((c) => c.words.includes("record_usage"))

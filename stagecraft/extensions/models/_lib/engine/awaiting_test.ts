@@ -243,6 +243,42 @@ Deno.test("awaiting: a person's feedback after a decline is not rework: only the
   ]);
 });
 
+Deno.test("awaiting: an approval waits on a person while the reason they record is missing too", async () => {
+  const definition = parseDefinition({
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
+    tracker: { kind: "builtin" },
+    stages: [
+      {
+        id: "check",
+        initial: true,
+        evidence: [{
+          name: "reason",
+          recordedBy: "person",
+          schema: { type: "object" },
+        }],
+        transitions: [{
+          name: "waive",
+          to: "done",
+          gates: [
+            { type: "evidence-recorded", config: { name: "reason" } },
+            { type: "human-approval", config: { id: "waiver" } },
+          ],
+        }],
+      },
+      { id: "done", terminal: true },
+    ],
+  });
+  assert(definition.ok);
+  const wi = await item(1, definition.value);
+  const waits = async () =>
+    awaitings(await wi.run()).map((e) => names(e.exits));
+  assertEquals(await waits(), [["waive"]]);
+  await wi.record("evidence", "reason", { text: "no manifest" });
+  assertEquals(await waits(), [["waive"]]);
+  await wi.decide("waiver", "approve");
+  assertEquals(await waits(), [["waive"], []]);
+});
+
 Deno.test("awaiting: with minApprovals 2 the first approval leaves the exit waiting", async () => {
   const wi = await inReview(2);
   await wi.decide("go", "approve", ALICE);

@@ -1,5 +1,5 @@
 definition:
-  schemaVersion: 3
+  schemaVersion: 4
   description: |-
     Build a swamp extension from plan to release: plan it, have the plan
     reviewed, implement it, check it, have the change reviewed, and release it.
@@ -338,8 +338,9 @@ definition:
           lint and tests, and record checks. Then run
           swamp extension quality --json and record quality from its output,
           adding the commit it scored.
-          If the extension has no manifest yet, record checks and ask for the
-          quality waiver instead.
+          If the extension has no manifest yet, record checks and ask the person
+          whether to waive quality, and why. Record their answer as
+          quality-waiver, adding the commit, and ask for the waiver's approval.
         let:
           commit: artifacts["change-summary"].payload.commit
       evidence:
@@ -394,6 +395,19 @@ definition:
                   properties:
                     id: { type: string, minLength: 1 }
                     status: { type: string, minLength: 1 }
+        - name: quality-waiver
+          description: >-
+            A person's decision to waive the quality score for one commit, and
+            why, in their words; passed-with-quality-waiver needs it, and the
+            code reviewer reads it.
+          recordedBy: person
+          schema:
+            type: object
+            required: [commit, reason]
+            additionalProperties: false
+            properties:
+              commit: { type: string, pattern: "^[0-9a-f]{40}$" }
+              reason: { type: string, minLength: 1 }
       transitions:
         - name: passed
           to: code-review
@@ -417,14 +431,22 @@ definition:
           gates:
             - type: evidence-recorded
               config: { name: checks, requireField: { status: passed } }
+            - type: evidence-recorded
+              config: { name: quality-waiver }
             - type: human-approval
               config: { id: quality-waiver }
             - type: cel
               config:
                 expr: >-
                   evidence["checks"].payload.commit ==
-                  artifacts["change-summary"].payload.commit
-                message: checks must be for the change-summary commit
+                  artifacts["change-summary"].payload.commit &&
+                  (!("quality-waiver" in evidence) ||
+                  evidence["quality-waiver"].cycle != stage.cycle ||
+                  evidence["quality-waiver"].payload.commit ==
+                  artifacts["change-summary"].payload.commit)
+                message: >-
+                  checks and the quality waiver must be for the change-summary
+                  commit
         - name: failed
           to: implement
           description: >-
@@ -466,6 +488,11 @@ definition:
           You are an adversarial reviewer. Review commit {{commit}}:
           {{changeSummary}}
           Check it against the approved plan.
+          The products below may include a quality score and a person's waiver
+          of it. Go only by a record whose commit is {{commit}}. A waiver is a
+          person's decision: neither it nor the score it waives is a finding,
+          and a score it left unrecorded is not missing. A defect in the code
+          itself is still a finding.
           Rate a finding critical or high only if the change would ship a
           defect, lose data, break a stated rule, or make the declared checks
           meaningless. Gaps in process, logistics or manual verification that
@@ -478,7 +505,8 @@ definition:
           commit: artifacts["change-summary"].payload.commit
           changeSummary: artifacts["change-summary"].payload.summary
         context:
-          inject: [plan, change-summary, checks]
+          inject: [plan, change-summary, checks, quality, quality-waiver]
+          optional: [quality, quality-waiver]
       artifacts:
         - name: code-review
           kind: findings

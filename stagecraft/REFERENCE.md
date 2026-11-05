@@ -88,6 +88,11 @@ stages, work, artifacts, evidence, transitions and gates. Three things change:
   to the agent as data. Until schemaVersion 2 these were `work.bindings`, all
   sent; an older definition is upgraded on read to the same inputs, and its call
   target, plain text in v1, is escaped so it is called as written.
+- **A stage may inject a product some routes leave unrecorded**, by also naming
+  it in `work.context.optional`, which only takes names `inject` lists. A
+  dispatch reads the optional products that were recorded and names the rest,
+  in the packet's `notRecorded` and in each subagent's prompt, so the work goes
+  on without them. A required product that is missing still stops a subagent.
 - **A call's target may come from run data**:
   `modelIdOrName:
   "agent-{{workItem}}"`. Each value in it must be a non-empty
@@ -112,7 +117,8 @@ stages, work, artifacts, evidence, transitions and gates. Three things change:
   exits that can pass together with no person choosing, loops whose only way out
   is a global transition such as `abandon`, loops bounded only by the default
   cycle limit, products that some path to a stage does not produce (except
-  context from an earlier pass: a product injected from the stage's own loop),
+  context from an earlier pass: a product injected from the stage's own loop;
+  and an inject declared `optional` that some path produces),
   including products a let value, `cel` gate or approval's `when` reads without
   testing for them with `has()`, transitions only a cycle override opens, and a
   literal call target swamp would not create today. Each finding gives its path,

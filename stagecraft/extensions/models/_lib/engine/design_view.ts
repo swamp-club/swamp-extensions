@@ -70,6 +70,8 @@ export interface WorkView {
   /** The let values a workflow or method call sends as inputs. */
   passAsInputs: string[];
   inject: string[];
+  /** The injected products a route to the stage may leave unrecorded. */
+  optional: string[];
   resultEvidence?: string;
   systemPrompt?: string;
   command?: string;
@@ -289,6 +291,7 @@ export function designView(
         let: Object.keys(w.let ?? {}),
         passAsInputs: (w.workflow ?? w.method)?.passAsInputs ?? [],
         inject: w.context?.inject ?? [],
+        optional: w.context?.optional ?? [],
       };
       if (w.workflow !== undefined) work.call = w.workflow.name;
       if (w.method !== undefined) {

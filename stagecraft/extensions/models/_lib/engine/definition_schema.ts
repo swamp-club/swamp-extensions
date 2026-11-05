@@ -51,7 +51,7 @@ import { parseSummary } from "./entry_summary.ts";
 // declaration (#897).
 // ---------------------------------------------------------------------------
 
-export const DEFINITION_SCHEMA_VERSION = 3;
+export const DEFINITION_SCHEMA_VERSION = 4;
 
 /** Names for stages, transitions, artifacts, evidence, gates. Safe as path
  * segments and shell words on every platform (#2290). */
@@ -410,6 +410,9 @@ export const MethodCallSchema = z.strictObject({
 export const WorkContextSchema = z.strictObject({
   /** Artifacts and evidence handed to whoever does the work. */
   inject: z.array(NameSchema).optional(),
+  /** The injected products a route to this stage may leave unrecorded. The
+   * work is told which are absent, rather than failing to read them. */
+  optional: z.array(NameSchema).optional(),
 });
 
 export const WORK_MODES = [
@@ -897,6 +900,14 @@ function checkDocument(doc: Doc, ctx: z.RefinementCtx): void {
         fail(
           ["stages", i, "work", "context", "inject", j],
           `injects '${name}', which is not a declared artifact or evidence`,
+        );
+      }
+    });
+    (stage.work?.context?.optional ?? []).forEach((name, j) => {
+      if (!(stage.work?.context?.inject ?? []).includes(name)) {
+        fail(
+          ["stages", i, "work", "context", "optional", j],
+          `'${name}' is optional, but the stage does not inject it`,
         );
       }
     });

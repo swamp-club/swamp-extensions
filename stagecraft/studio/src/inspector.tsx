@@ -295,7 +295,13 @@ function Handoff({ s }: { s: StageView }) {
         {w.inject.length > 0 && (
           <>
             <dt>Injects</dt>
-            <dd>{w.inject.map((k) => <code key={k}>{k}</code>)}</dd>
+            <dd>
+              {w.inject.map((k) => (
+                <code key={k}>
+                  {w.optional.includes(k) ? `${k} (optional)` : k}
+                </code>
+              ))}
+            </dd>
           </>
         )}
         {w.let.length > 0 && (

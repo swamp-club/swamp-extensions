@@ -943,8 +943,10 @@ Warnings:
   injecting stage's own loop (its strongly connected component over live,
   non-global edges): that is context from an earlier pass, such as the last
   review and a person's feedback handed to the next plan, absent on the first
-  pass by design (swamp-club #2770). A producer upstream of the stage but
-  outside its loop is still reported, and gates are judged as before. CEL reads
+  pass by design (swamp-club #2770). Nor is one the stage declares in
+  `context.optional` that some path produces (swamp-club #4163). A producer
+  upstream of the stage but outside its loop is still reported, and gates are
+  judged as before. CEL reads
   (swamp-club #2792) are the fixed product references of a stage's `work.let`,
   its `cel` gates and its approvals' `when`, found by the same walker as the
   declared-name check (`cel_refs.ts`). A read of a product the expression also
@@ -1077,7 +1079,18 @@ record held a prompt no subagent saw.
 - **The engine writes the subagent prompt.** For a dispatch stage,
   `buildSubagentPrompts` gives each subagent the rendered prompt byte for byte.
   A fixed section follows it: the skill to follow, a `swamp data query` read per
-  injected product, and a result file per product with its schema, inline. The
+  injected product, and a result file per product with its schema, inline. A
+  missing injected product stops the subagent, because it may be working from
+  nothing. A route that legitimately leaves one unrecorded declares it in
+  `context.optional`: the engine knows at dispatch what the run holds, so it
+  leaves the read out and names the product as not recorded, rather than have
+  the subagent find out from a failed query (swamp-club #4163). This keeps what
+  a reviewer sees in products, not in a let value built to stand in for one: an
+  example once summed up a quality score that way, and its prompt restated the
+  stage's gates to explain what absence meant. A person's waiver is a product
+  too, evidence recorded by the person, so the reviewer reads the decision and
+  its reason. Approvals stay out of the CEL context: a gate reading one directly
+  would skip the rules that a decline blocks and a changed product voids it. The
   dispatch records these prompts, so replay shows exactly what was sent. The
   driver adds nothing. That makes the driver honest by construction, which is
   stronger than recording whatever addendum it chose to write.
@@ -1399,9 +1412,10 @@ Neither is guaranteed, so every commit evaluates the exits instead and records a
 change as it happens.
 
 An exit is **held by a person** when it is not a global transition, its cycle
-limit allows entry, every gate that is not a human approval passes, and either
-one of its human-approval gates is pending, or it is manual and has gates, all
-passing, and the agent has no way out of its own. A conditional approval whose
+limit allows entry, every gate that is not a human approval passes (evidence a
+person records still to come waits on a person too, so it does not disqualify
+the exit), and either one of its human-approval gates is pending, or it is
+manual and has gates, all passing, and the agent has no way out of its own. A conditional approval whose
 `when` is false passes, so it is no stop.
 
 The agent has a **way out of its own** while a non-manual exit is ready without

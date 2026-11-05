@@ -166,6 +166,7 @@ Deno.test("design view: the build-swamp-extension definition shows its handoffs"
     const shown = v.stages.find((x) => x.id === s.id)?.work;
     assertEquals(shown?.mode, s.work?.mode);
     assertEquals(shown?.inject, s.work?.context?.inject ?? []);
+    assertEquals(shown?.optional, s.work?.context?.optional ?? []);
     assertEquals(shown?.let, Object.keys(s.work?.let ?? {}));
   }
 });

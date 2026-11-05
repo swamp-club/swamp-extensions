@@ -1,5 +1,5 @@
 definition:
-  schemaVersion: 3
+  schemaVersion: 4
   description: |-
     A piece of content, from draft to published: write the draft, have an
     editor review it, have a person approve it, and publish it.

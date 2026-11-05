@@ -323,13 +323,13 @@ It records the resolved inputs and prompt for later replay, counts toward the
 stage's dispatch cap (one refused past it parks the work item for a person; see
 "When something fails"), and prints the dispatch id and the packet: the rendered
 prompt, then the rest as JSON (`mode`, `subagents`, `values`, `inject`,
-`products`, and for workflow and method stages `inputs` with the `workflow` or
-`method` to call). `products` lists every artifact and evidence the stage's work
-records, each with the `schema` its payload must meet: record each one. Evidence
-a person records (`recordedBy: person`, which `status` lists under
-`a person records:`) is not in it; see
-[Evidence a person records](#evidence-a-person-records). Dispatch once per
-attempt at the work, not once per tool call.
+`notRecorded` when an optional inject has no record, `products`, and for
+workflow and method stages `inputs` with the `workflow` or `method` to call).
+`products` lists every artifact and evidence the stage's work records, each with
+the `schema` its payload must meet: record each one. Evidence a person records
+(`recordedBy: person`, which `status` lists under `a person records:`) is not in
+it; see [Evidence a person records](#evidence-a-person-records). Dispatch once
+per attempt at the work, not once per tool call.
 
 For a dispatch stage, pass your scratch directory as `resultDir`. Leave it out
 and the engine makes a new temporary directory:
@@ -350,10 +350,11 @@ each between these two lines:
 
 The `(<skill>)` part appears only when the stage lists skills. Each prompt
 starts with the rendered prompt and goes on to name the skill to follow, a
-`swamp data query` read for each injected product, and a result file for each
-product with its schema. The dispatch records these prompts as they were
-printed. The status block comes after the last end line, so it is never part of
-a prompt.
+`swamp data query` read for each injected product that is required or was
+recorded, the optional ones not recorded (also the packet's `notRecorded`), and
+a result file for each product with its schema. The dispatch records these
+prompts as they were printed. The status block comes after the last end line, so
+it is never part of a prompt.
 
 Then, by `mode`:
 

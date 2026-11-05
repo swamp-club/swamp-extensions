@@ -951,3 +951,100 @@ Deno.test("dispatch: a literal target's escapes resolve, as an upgraded v1 targe
   assertEquals(packet.problems, []);
   assertEquals(packet.workflow, "{{deploy}}");
 });
+
+// --- optional injects (swamp-club #4163) -------------------------------------
+
+const OPTIONAL_INJECT = (() => {
+  const OBJECT = { type: "object" };
+  const parsed = parseDefinition({
+    schemaVersion: DEFINITION_SCHEMA_VERSION,
+    tracker: { kind: "builtin" },
+    stages: [
+      {
+        id: "review",
+        initial: true,
+        work: {
+          mode: "dispatch",
+          systemPrompt: "Review it.\n",
+          context: { inject: ["plan", "score"], optional: ["score"] },
+        },
+        artifacts: [
+          { name: "plan", schema: OBJECT },
+          { name: "review-notes", kind: "findings", reviews: "plan" },
+        ],
+        evidence: [{ name: "score", schema: OBJECT }],
+        transitions: [{ name: "done", to: "done" }],
+      },
+      { id: "done", terminal: true },
+    ],
+  });
+  if (!parsed.ok) throw new Error(parsed.errors.join("\n"));
+  return parsed.value;
+})();
+
+async function optionalInjectPacket(score: boolean) {
+  const store = memoryStore();
+  const env = testEnv();
+  await startRun(
+    store,
+    OPTIONAL_INJECT,
+    {
+      key: "wi-4",
+      tracker: TEST_TRACKER,
+      factory: "team",
+      definitionDigest: "sha256:o",
+    },
+    ALICE,
+    env,
+  );
+  if (score) {
+    await recordProduct(
+      store,
+      OPTIONAL_INJECT,
+      await expectNow(store),
+      "evidence",
+      "score",
+      { percent: 43 },
+      ALICE,
+      env,
+    );
+  }
+  const run = await loadRun(store);
+  assert(run !== null);
+  const packet = buildDispatch(
+    OPTIONAL_INJECT,
+    run,
+    await buildCelContext(run, store),
+  );
+  const [{ prompt }] = buildSubagentPrompts(OPTIONAL_INJECT, packet, {
+    key: "wi-4",
+    dispatchId: packet.dispatchId,
+    resultDir: "/scratch",
+  });
+  return { packet, prompt };
+}
+
+Deno.test("dispatch: an optional inject that was recorded is read like any other", async () => {
+  const { packet, prompt } = await optionalInjectPacket(true);
+  assertEquals(packet.inject, ["plan", "score"]);
+  assertEquals(packet.notRecorded, undefined);
+  assert(prompt.includes('name == "evidence-score"'), prompt);
+  assert(!prompt.includes("Not recorded"), prompt);
+});
+
+Deno.test("dispatch: an optional inject not recorded is named, not read, so the reviewer does not stop", async () => {
+  const { packet, prompt } = await optionalInjectPacket(false);
+  assertEquals(packet.inject, ["plan"]);
+  assertEquals(packet.notRecorded, ["score"]);
+  assertEquals(packet.problems, []);
+  assert(!prompt.includes('name == "evidence-score"'), prompt);
+  assert(prompt.includes("- score"), prompt);
+  assert(prompt.includes("Not recorded for this work item"), prompt);
+});
+
+Deno.test("dispatch: a required inject not recorded stays in the reads, so the reviewer stops", async () => {
+  const { packet, prompt } = await optionalInjectPacket(false);
+  assert(packet.inject.includes("plan"));
+  assert(prompt.includes('name == "artifact-plan"'), prompt);
+  assert(prompt.includes("stop and\nreport that"), prompt);
+});

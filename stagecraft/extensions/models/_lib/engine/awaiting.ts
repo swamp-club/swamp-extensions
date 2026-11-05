@@ -45,7 +45,8 @@ import type { RunStore } from "./run_store.ts";
 //
 // An exit is held by a person when it is not a global escape transition, its
 // cycle limit allows entry, every gate that is not a human approval passes
-// (a cooldown counts from when it lifts), and either
+// (a cooldown counts from when it lifts; evidence a person records still to
+// come waits on a person too, so it does not disqualify the exit), and either
 //   - one of its human-approval gates is pending, or
 //   - it is manual and has gates, all passing, and the agent has no way out
 //     of its own: a decision the run's state has opened, such as what to do
@@ -107,6 +108,7 @@ function heldBy(
   const gates = transition.gates ?? [];
   const pending: string[] = [];
   let readyAt: number | null = null;
+  let personEvidenceMissing = false;
   for (const [i, gate] of gates.entries()) {
     if (checks[i].pass) continue;
     if (gate.type === "human-approval") {
@@ -117,12 +119,17 @@ function heldBy(
       pending.push(gate.config.id);
       continue;
     }
+    if (recordedByPerson(definition, run.stage, gate)) {
+      personEvidenceMissing = true;
+      continue;
+    }
     const lifts = gate.type === "cooldown" ? cooldownEnd(gate, run) : null;
     if (lifts === null) return null;
     readyAt = Math.max(readyAt ?? lifts, lifts);
   }
   const manual = transition.manual === true;
-  const decision = manual && gates.length > 0 && !agentWayOut;
+  const decision = manual && gates.length > 0 && !agentWayOut &&
+    !personEvidenceMissing;
   if (pending.length === 0 && !decision) return null;
   return {
     transition: transition.name,
@@ -133,6 +140,18 @@ function heldBy(
       ? { readyAt: new Date(readyAt).toISOString() }
       : {}),
   };
+}
+
+/** Whether a gate waits on evidence a person records in this stage. */
+function recordedByPerson(
+  definition: FactoryDefinition,
+  stageId: string,
+  gate: GateSpec,
+): boolean {
+  return gate.type === "evidence-recorded" &&
+    (findStage(definition, stageId)?.evidence ?? []).some((e) =>
+      e.name === gate.config.name && e.recordedBy === "person"
+    );
 }
 
 /**

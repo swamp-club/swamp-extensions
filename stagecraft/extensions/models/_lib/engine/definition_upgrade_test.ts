@@ -428,8 +428,9 @@ Deno.test("upgrade 1 to 2: bindings become let, and a call passes every one, in 
   assertEquals(v1, before);
   assertEquals(upgraded.from, 1);
   const stages = (upgraded.definition as JsonObject).stages as JsonObject[];
-  // The whole chain runs: 1 to 2 moves bindings, 2 to 3 only the version.
-  assertEquals((upgraded.definition as JsonObject).schemaVersion, 3);
+  // The whole chain runs: 1 to 2 moves bindings, the later steps only the
+  // version.
+  assertEquals((upgraded.definition as JsonObject).schemaVersion, 4);
   assertEquals(stages[0].work, {
     mode: "interactive",
     // Template text is moved, never evaluated.

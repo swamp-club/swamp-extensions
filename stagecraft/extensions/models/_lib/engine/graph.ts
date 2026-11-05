@@ -1100,6 +1100,7 @@ export function analyzeDefinition(
   // satisfies is reported here too. An inject whose every producer is in the
   // stage's own loop is context from an earlier pass (the last review, a
   // person's feedback): absent on the first pass by design, so not reported.
+  // Nor is one the stage declares optional, which some path produces.
   // A product CEL reads without testing for it is reported on any path that
   // lacks it, with neither exemption: the read fails at run time
   // (gate-never-passes assumes cel gates can pass). Let values are evaluated
@@ -1123,6 +1124,8 @@ export function analyzeDefinition(
       name: string;
       what: string;
       source: "inject" | "gate" | "cel";
+      /** An inject the stage declares it can do without. */
+      optional?: boolean;
       onEntry: boolean;
     }[] = [];
     (stage.work?.context?.inject ?? []).forEach((name, j) => {
@@ -1135,6 +1138,7 @@ export function analyzeDefinition(
         name,
         what: "injects",
         source: "inject",
+        optional: stage.work?.context?.optional?.includes(name) === true,
         onEntry: false,
       });
     });
@@ -1201,7 +1205,7 @@ export function analyzeDefinition(
       if (ref.source === "gate" && !someHave) continue;
       if (
         ref.source === "inject" && someHave &&
-        fromOwnLoop(id, ref.kind, ref.name)
+        (ref.optional === true || fromOwnLoop(id, ref.kind, ref.name))
       ) {
         continue;
       }

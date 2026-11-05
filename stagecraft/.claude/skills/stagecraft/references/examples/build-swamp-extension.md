@@ -448,7 +448,7 @@ recorded evidence 'checks' version 1
 team-1 (Add a list method): active at stage 'check' cycle 1
   expect: --input expectedStage=check --input expectedCycle=1 --input expectedEra=88f57628-58ac-4ed2-be4c-e377568741e8
   exit passed -> code-review: not ready: evidence-recorded: evidence 'quality' has not been recorded; cel: checks and quality must be for the change-summary commit
-  exit passed-with-quality-waiver -> code-review [human: quality-waiver]: not ready: human-approval: awaiting approval 'quality-waiver' (0/1) for stage 'check' cycle 1
+  exit passed-with-quality-waiver -> code-review [human: quality-waiver]: not ready: evidence-recorded: evidence 'quality-waiver' has not been recorded; human-approval: awaiting approval 'quality-waiver' (0/1) for stage 'check' cycle 1
   exit failed -> implement: not ready: evidence-recorded: evidence 'checks': field 'status' is "passed", expected "failed"
   exit quality-failed -> implement: not ready: evidence-recorded: evidence 'quality' has not been recorded
 ```
@@ -456,9 +456,15 @@ team-1 (Add a list method): active at stage 'check' cycle 1
 > Checks passed. The extension has no manifest, so it cannot be scored. Waive
 > the quality score and move to code review? (Or abandon the work item.)
 
-The person answers: "Waive it, go on."
+The person answers: "Waive it, go on. No manifest yet." Record their reason as
+`quality-waiver`, then their approval:
 
 ```sh
+swamp model @swamp/stagecraft/work-item method run record_evidence <key> \
+  --input name=quality-waiver \
+  --input payload='{"commit":"c5aaad329c9ceb4edc0504a98ff5d6e5528ac8fd","reason":"No manifest yet."}' \
+  --input onBehalfOf=sam \
+  --input expectedStage=check --input expectedCycle=1 --input expectedEra=<era>
 swamp model @swamp/stagecraft/work-item method run approve <key> \
   --input gateId=quality-waiver --input note="No manifest yet; waive it, go on." \
   --input onBehalfOf=sam \

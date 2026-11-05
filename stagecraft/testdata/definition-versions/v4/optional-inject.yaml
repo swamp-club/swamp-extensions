@@ -1,0 +1,85 @@
+# Frozen at schemaVersion 4 (swamp-club #4163): a reviewer that reads a score
+# one route to it does not record, so the score is injected as optional. Never
+# edit it; definition_versions_test checks it still upgrades to
+# optional-inject.expected.json and its scenarios still pass.
+definition:
+  schemaVersion: 4
+  description: Score a change, or skip the score, then review it.
+  tracker:
+    kind: builtin
+  stages:
+    - id: score
+      initial: true
+      description: Score the change, or skip scoring it.
+      tracker:
+        status: in_progress
+      artifacts:
+        - name: change
+          schema:
+            type: object
+            required: [summary]
+            properties:
+              summary: { type: string }
+      evidence:
+        - name: score
+          schema:
+            type: object
+            required: [percent]
+            properties:
+              percent: { type: number }
+      transitions:
+        - name: scored
+          to: review
+          gates:
+            - type: evidence-recorded
+              config: { name: score }
+        - name: skip
+          to: review
+          manual: true
+    - id: review
+      description: A reviewer reads the score, when there is one.
+      tracker:
+        status: in_review
+      work:
+        mode: dispatch
+        systemPrompt: |
+          Review the change. Rate a finding by what it would ship.
+        context:
+          inject: [change, score]
+          optional: [score]
+      artifacts:
+        - name: review-notes
+          kind: findings
+          reviews: change
+      transitions:
+        - name: finish
+          to: done
+          gates:
+            - type: artifact-fresh
+              config: { artifact: review-notes, recordedThisCycle: true }
+    - id: done
+      terminal: true
+scenarios:
+  - scenario: scored
+    description: The change is scored, and the reviewer reads the score.
+    steps:
+      - record: { artifact: change }
+        payload: { summary: A change }
+      - record: { evidence: score }
+        payload: { percent: 43 }
+      - move: scored
+      - record: { artifact: review-notes }
+        payload: { findings: [] }
+      - move: finish
+      - expect: { stage: done }
+  - scenario: skipped
+    description: Scoring is skipped, and the review goes on without a score.
+    steps:
+      - record: { artifact: change }
+        payload: { summary: A change }
+      - move: skip
+        manual: true
+      - record: { artifact: review-notes }
+        payload: { findings: [] }
+      - move: finish
+      - expect: { stage: done }

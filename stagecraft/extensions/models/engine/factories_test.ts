@@ -720,3 +720,181 @@ Deno.test("build-swamp-extension: a run walks plan to release through the real g
   assertEquals(results.get("code-review.rework"), false);
   assertEquals(results.get("implement.submit"), false);
 });
+
+// --- what code review is told about quality (swamp-club #4163) --------------
+
+const QUALITY_REVIEW: [string, string, string][] = [
+  ["build-swamp-extension.yaml", "build-swamp-extension", "plan-to-release"],
+  ["openapi-models.yaml", "openapi-models", "spec-to-local-release"],
+];
+
+/**
+ * Walk an example's saved scenario as far as its checks, then take the given
+ * route out of check, and return the dispatch code review would get.
+ */
+async function reviewAfter(
+  definition: FactoryDefinition,
+  example: string,
+  name: string,
+  route: (commit: string) => unknown[],
+) {
+  const { scenarios } = parseExample(
+    await Deno.readTextFile(new URL(`${example}.yaml`, DEFINITIONS)),
+  );
+  const raw = scenarios.find((s) =>
+    (s as { scenario?: unknown }).scenario === name
+  ) as { steps: unknown[] } | undefined;
+  if (raw === undefined) throw new Error(`no ${example} scenario ${name}`);
+  const checks = raw.steps.findIndex((s) => {
+    const step = s as {
+      record?: { evidence?: string };
+      payload?: { status?: string };
+    };
+    return step.record?.evidence === "checks" &&
+      step.payload?.status === "passed";
+  });
+  const { payload } = raw.steps[checks] as { payload: { commit: string } };
+  const parsed = parseScenario({
+    ...raw,
+    steps: [...raw.steps.slice(0, checks + 1), ...route(payload.commit)],
+  });
+  if (!parsed.ok) throw new Error(parsed.errors.join("\n"));
+  const result = await runScenario(definition, parsed.value);
+  assertEquals(result.failures, [], `${example} ${name}`);
+  const run = await loadRun(result.store);
+  assert(run !== null);
+  assertEquals(run.stage, "code-review");
+  const context = await buildCelContext(run, result.store);
+  return {
+    context,
+    packet: buildDispatch(definition, run, context),
+    commit: payload.commit,
+  };
+}
+
+const WAIVED = (commit: string) => [
+  {
+    record: { evidence: "quality-waiver" },
+    payload: { commit, reason: "No manifest yet" },
+  },
+  { approve: "quality-waiver" },
+  { move: "passed-with-quality-waiver" },
+];
+
+for (const [file, example, name] of QUALITY_REVIEW) {
+  Deno.test(`${example}: code review reads the quality records there are, whichever way the change left check`, async () => {
+    const definition = await load(file);
+    const score = (commit: string, allPassed: boolean) => ({
+      record: { evidence: "quality" },
+      payload: { commit, status: "scored", allPassed, percentage: 43 },
+    });
+    const routes: [
+      string,
+      (commit: string) => unknown[],
+      string[],
+      string[] | undefined,
+    ][] = [
+      ["a passing score", (c) => [score(c, true), { move: "passed" }], [
+        "quality",
+      ], ["quality-waiver"]],
+      ["a waived failing score", (c) => [score(c, false), ...WAIVED(c)], [
+        "quality",
+        "quality-waiver",
+      ], undefined],
+      ["a waiver with no score", (c) => WAIVED(c), ["quality-waiver"], [
+        "quality",
+      ]],
+    ];
+    for (const [route, steps, read, notRecorded] of routes) {
+      const { packet } = await reviewAfter(definition, example, name, steps);
+      assertEquals(packet.problems, [], route);
+      assertEquals(
+        packet.inject.filter((n) => n.startsWith("quality")),
+        read,
+        route,
+      );
+      assertEquals(packet.notRecorded, notRecorded, route);
+      const [{ prompt }] = buildSubagentPrompts(definition, packet, {
+        key: "wi-1",
+        dispatchId: 1,
+        resultDir: "/scratch",
+      });
+      for (const product of read) {
+        assert(prompt.includes(`name == "evidence-${product}"`), prompt);
+      }
+    }
+  });
+
+  Deno.test(`${example}: a waiver must name the commit under review, and comes from a person`, async () => {
+    const definition = await load(file);
+    const check = stage(definition, "check");
+    const waiver = (check.evidence ?? []).find((e) =>
+      e.name === "quality-waiver"
+    );
+    assertEquals(waiver?.recordedBy, "person");
+    const exit = (check.transitions ?? []).find((t) =>
+      t.name === "passed-with-quality-waiver"
+    );
+    assert(
+      (exit?.gates ?? []).some((g) => g.type === "human-approval"),
+      "the waiver still stops for a person's approval",
+    );
+    const refused = await reviewAfter(
+      definition,
+      example,
+      name,
+      () => WAIVED("1".repeat(40)),
+    ).then(() => "", (error) => String(error));
+    assert(
+      refused.includes("the quality waiver must be for"),
+      `a waiver of another commit should not open the exit: ${refused}`,
+    );
+  });
+
+  Deno.test(`${example}: with checks passed and no score, the waiver exit waits on a person`, async () => {
+    const definition = await load(file);
+    const { scenarios } = parseExample(
+      await Deno.readTextFile(new URL(`${example}.yaml`, DEFINITIONS)),
+    );
+    const raw = scenarios.find((s) =>
+      (s as { scenario?: unknown }).scenario === name
+    ) as { steps: unknown[] };
+    const checks = raw.steps.findIndex((s) => {
+      const step = s as {
+        record?: { evidence?: string };
+        payload?: { status?: string };
+      };
+      return step.record?.evidence === "checks" &&
+        step.payload?.status === "passed";
+    });
+    const parsed = parseScenario({
+      ...raw,
+      steps: raw.steps.slice(0, checks + 1),
+    });
+    assert(parsed.ok);
+    const result = await runScenario(definition, parsed.value);
+    assertEquals(result.failures, []);
+    const run = await loadRun(result.store);
+    const awaiting = run?.journal.findLast((e) => e.type === "awaiting");
+    assert(awaiting?.type === "awaiting");
+    assert(
+      awaiting.exits.some((e) => e.transition === "passed-with-quality-waiver"),
+      JSON.stringify(awaiting.exits),
+    );
+  });
+
+  Deno.test(`${example}: code review treats a waiver as a person's decision, not a finding`, async () => {
+    const prompt = (stage(await load(file), "code-review").work?.systemPrompt ??
+      "").replace(/\s+/g, " ");
+    for (
+      const phrase of [
+        "Go only by a record whose commit is {{commit}}",
+        "neither it nor the score it waives is a finding",
+        "a score it left unrecorded is not missing",
+        "A defect in the code itself is still a finding",
+      ]
+    ) {
+      assert(prompt.includes(phrase), `no '${phrase}' in: ${prompt}`);
+    }
+  });
+}

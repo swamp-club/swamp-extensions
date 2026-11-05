@@ -551,6 +551,18 @@ Deno.test("work: injected context must be declared", () => {
   );
 });
 
+Deno.test("work: an optional inject must be one the stage injects", () => {
+  const doc = base();
+  set(doc, "stages.0.work.context", {
+    inject: ["summary"],
+    optional: ["plan"],
+  });
+  assertRejects(
+    doc,
+    "stages.0.work.context.optional.0: 'plan' is optional, but the stage does not inject it",
+  );
+});
+
 // --- products ------------------------------------------------------------
 
 Deno.test("products: every artifact and evidence has an object schema", () => {

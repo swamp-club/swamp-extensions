@@ -105,7 +105,12 @@ export interface DispatchPacket {
   prompt?: string;
   command?: string;
   constraints?: string;
+  /** The injected products to read: every required one, and each optional one
+   * that was recorded. */
   inject: string[];
+  /** The optional injects not recorded for this work item. Left out when
+   * there are none. */
+  notRecorded?: string[];
   /** Every product the stage's work records, in declaration order, its
    * schema without notes (descriptions are for the definition's authors).
    * Evidence a person records (recordedBy: person) is not the work's and is
@@ -202,6 +207,12 @@ export function buildDispatch(
     return rendered.text;
   };
 
+  const optional = work.context?.optional ?? [];
+  const absent = (work.context?.inject ?? []).filter((name) =>
+    optional.includes(name) && !Object.hasOwn(context.artifacts, name) &&
+    !Object.hasOwn(context.evidence, name)
+  );
+
   const packet: DispatchPacket = {
     stage: stage.id,
     cycle: context.stage.cycle,
@@ -214,7 +225,8 @@ export function buildDispatch(
       ? Math.max(1, (work.skills ?? []).length)
       : 0,
     values,
-    inject: work.context?.inject ?? [],
+    inject: (work.context?.inject ?? []).filter((n) => !absent.includes(n)),
+    ...(absent.length > 0 ? { notRecorded: absent } : {}),
     products: productsOf(stage),
     problems,
     ready: false,
@@ -335,8 +347,9 @@ export interface SubagentPrompt {
 /**
  * The prompts for a dispatch stage's subagents, one each: the rendered
  * prompt byte for byte, then a fixed section naming the skill to follow,
- * where to read each injected product, and where to write each product's
- * payload with the schema it must meet. Empty for other modes.
+ * where to read each injected product, which optional ones were not recorded,
+ * and where to write each product's payload with the schema it must meet.
+ * Empty for other modes.
  */
 export function buildSubagentPrompts(
   definition: FactoryDefinition,
@@ -380,6 +393,13 @@ export function buildSubagentPrompts(
           "with an error (the record is missing or not alone), stop and\n" +
           "report that; never guess the product.\n" +
           reads.join("\n"),
+        ]
+        : []),
+      ...(packet.notRecorded !== undefined
+        ? [
+          "Not recorded for this work item, which this stage allows, so do\n" +
+          "not look for them:\n" +
+          packet.notRecorded.map((name) => `- ${name}`).join("\n"),
         ]
         : []),
       ...(packet.resume !== null

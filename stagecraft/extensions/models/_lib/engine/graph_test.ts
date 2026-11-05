@@ -344,6 +344,50 @@ stages:
   ]);
 });
 
+Deno.test("graph: an optional inject a path does not produce is not a warning", () => {
+  const report = analyzeDefinition(definition(`
+stages:
+  - id: start
+    initial: true
+    transitions:
+      - { name: long, to: design }
+      - { name: short, to: build, manual: true }
+  - id: design
+    artifacts: [{ name: spec, schema: ${OBJECT} }]
+    transitions: [{ name: next, to: build }]
+  - id: build
+    work:
+      mode: interactive
+      context: { inject: [spec], optional: [spec] }
+    transitions: [{ name: finish, to: done }]
+  - id: done
+    terminal: true
+`));
+  assertEquals(report.errors, []);
+  assertEquals(report.warnings, []);
+});
+
+Deno.test("graph: an optional inject no path produces still warns", () => {
+  const report = analyzeDefinition(definition(`
+stages:
+  - id: build
+    initial: true
+    work:
+      mode: interactive
+      context: { inject: [later], optional: [later] }
+    transitions: [{ name: next, to: after }]
+  - id: after
+    artifacts: [{ name: later, schema: ${OBJECT} }]
+    transitions: [{ name: finish, to: done }]
+  - id: done
+    terminal: true
+`));
+  assertEquals(report.errors, []);
+  assertEquals(codes(report.warnings), [
+    "product-missing-on-path stages.0.work.context.inject.0 [build]",
+  ]);
+});
+
 // --- products CEL reads ------------------------------------------------------
 
 /** start reaches build directly or through design, which records the spec

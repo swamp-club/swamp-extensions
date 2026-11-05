@@ -139,10 +139,25 @@ const OPEN_TRACKER_KINDS: UpgradeStep = {
   },
 };
 
+/**
+ * 3 to 4 (#4163): a stage may mark injected products optional, for those a
+ * route to it may leave unrecorded. Nothing a v3 definition says changes; the
+ * version moves so a stagecraft before this one refuses a v4 definition as
+ * needing a newer stagecraft, rather than as an unknown key.
+ */
+const OPTIONAL_INJECTS: UpgradeStep = {
+  from: 3,
+  description: "a stage may mark injected products optional",
+  upgrade(definition) {
+    return { ...definition, schemaVersion: 4 };
+  },
+};
+
 /** Every format change since schemaVersion 1, oldest first. */
 export const DEFINITION_UPGRADES: readonly UpgradeStep[] = [
   LET_AND_PASS_AS_INPUTS,
   OPEN_TRACKER_KINDS,
+  OPTIONAL_INJECTS,
 ];
 
 /** The chain this runtime reads factory definitions with. */

@@ -350,7 +350,10 @@ went through five rounds of plan review.
 3. **Decide what each reviewer sees, through `inject`.** `work.context.inject`
    names the products handed to the stage's work. Give a reviewer what it
    reviews (the plan, the change summary) and what it checks against, not
-   everything recorded so far.
+   everything recorded so far. A reviewer stops when a product it should read is
+   missing, so when a route may leave one unrecorded, list it in
+   `work.context.optional` too: the reviewer is told it was not recorded and
+   carries on. Keep this for products the work can do without.
 4. **Say why in `description` fields, not comments.** You will rewrite this
    file, and comments do not survive that; the studio shows descriptions, not
    comments. Every stage, gate and way back that needs a reason has a
@@ -403,19 +406,19 @@ third stage). Schema and reference errors name the field that is wrong. The
 graph analysis names stages and transitions. What each graph finding means, and
 the usual fix:
 
-| Finding                 | The message says                                         | In plain words                                                        | Usual fix                                                                  |
-| ----------------------- | -------------------------------------------------------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| unreachable-stage       | "can never be entered from initial stage"                | No path leads to this stage.                                          | Add a transition to it, or remove it.                                      |
-| dead-end                | "no transition that can pass leads ... to a terminal"    | Work that reaches this stage can never finish.                        | Add a way on, or a gate that can pass.                                     |
-| gate-never-passes       | "can never pass from stage"                              | A transition waits for something that never happens on the way there. | Record the product in an earlier stage, or change the gate.                |
-| ambiguous-exit          | "can both pass with no person choosing"                  | Two ways out can open at once, and nothing picks one.                 | Make one `manual`, give it a `human-approval` gate, or make gates exclude. |
-| escape-only             | "only through a global transition"                       | The loop's only way out is `abandon`.                                 | Add a real way forward out of the loop.                                    |
-| default-cycle-bound     | "bounded only by the default cycle limit"                | The loop may run five times before anything stops it.                 | Set `maxCycles` on one of its stages, or gate it with `max-cycles`.        |
-| undescribed-way-back    | "goes back with no description"                          | A transition back to this or an earlier stage does not say why.       | Give it a `description` saying why it goes back.                           |
-| product-missing-on-path | "which this path to it does not produce" / "no path ..." | A stage injects, gates on or reads in CEL a product a route lacks.    | Record it on every route, gate where it exists, or guard with `has()`.     |
-| needs-cycle-override    | the transition, then why the cycle limits close it       | A transition opens only if a person grants an override.               | Raise `maxCycles`, or accept it: it is the loop limit working.             |
-| exploration-truncated   | "stopped at ... states"                                  | The graph was too big to check fully, so some checks were skipped.    | Simplify the loops, or accept the warning.                                 |
-| target-name             | "a name swamp would not create today"                    | A call names a model or workflow in a form swamp no longer creates.   | Fix the name, or keep it if it is an older model that still exists.        |
+| Finding                 | The message says                                         | In plain words                                                        | Usual fix                                                                                             |
+| ----------------------- | -------------------------------------------------------- | --------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| unreachable-stage       | "can never be entered from initial stage"                | No path leads to this stage.                                          | Add a transition to it, or remove it.                                                                 |
+| dead-end                | "no transition that can pass leads ... to a terminal"    | Work that reaches this stage can never finish.                        | Add a way on, or a gate that can pass.                                                                |
+| gate-never-passes       | "can never pass from stage"                              | A transition waits for something that never happens on the way there. | Record the product in an earlier stage, or change the gate.                                           |
+| ambiguous-exit          | "can both pass with no person choosing"                  | Two ways out can open at once, and nothing picks one.                 | Make one `manual`, give it a `human-approval` gate, or make gates exclude.                            |
+| escape-only             | "only through a global transition"                       | The loop's only way out is `abandon`.                                 | Add a real way forward out of the loop.                                                               |
+| default-cycle-bound     | "bounded only by the default cycle limit"                | The loop may run five times before anything stops it.                 | Set `maxCycles` on one of its stages, or gate it with `max-cycles`.                                   |
+| undescribed-way-back    | "goes back with no description"                          | A transition back to this or an earlier stage does not say why.       | Give it a `description` saying why it goes back.                                                      |
+| product-missing-on-path | "which this path to it does not produce" / "no path ..." | A stage injects, gates on or reads in CEL a product a route lacks.    | Record it on every route, gate where it exists, guard CEL with `has()`, or mark an inject `optional`. |
+| needs-cycle-override    | the transition, then why the cycle limits close it       | A transition opens only if a person grants an override.               | Raise `maxCycles`, or accept it: it is the loop limit working.                                        |
+| exploration-truncated   | "stopped at ... states"                                  | The graph was too big to check fully, so some checks were skipped.    | Simplify the loops, or accept the warning.                                                            |
+| target-name             | "a name swamp would not create today"                    | A call names a model or workflow in a form swamp no longer creates.   | Fix the name, or keep it if it is an older model that still exists.                                   |
 
 The first three are errors and fail `validate`. The rest are warnings: fix them
 unless the person agrees to keep one, since each is a real way a work item can

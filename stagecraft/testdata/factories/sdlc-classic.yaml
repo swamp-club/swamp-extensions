@@ -1,4 +1,4 @@
-schemaVersion: 3
+schemaVersion: 4
 description: >-
   plan → review → implement → test → release → UAT, with a cooldown after
   release and a CEL rule on the UAT report.
