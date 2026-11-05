@@ -369,6 +369,9 @@ export async function readTicketRecord(
     relations: relations.map((r): TicketRelationView => ({
       ...r,
       workItem: workItems.get(r.issue) ?? null,
+      // Only the built-in tracker relates across trackers, as tracker:id.
+      // Another tracker's own ids may hold a ':'.
+      external: issue.origin === "builtin" && r.issue.includes(":"),
     })),
   };
   return { state: "ok", ticket };

@@ -1929,3 +1929,30 @@ Deno.test("mark_duplicate: without a closed status to close it with, nothing is 
   );
   assert(error.message.includes("status key 'closed'"), error.message);
 });
+
+Deno.test("relate: a keyed relate to another tracker's ticket has its own ledger record, and a local one keeps its name", async () => {
+  const swamp = fakeSwamp();
+  const { calls, methods } = scripted();
+  const relate = (to: string) =>
+    run(swamp, methods, "relate", {
+      issue: "T1",
+      type: "blocked_by",
+      to,
+      workItem: "item-abcdefgh",
+      journalVersion: "4",
+    });
+  await relate("T2");
+  await relate("devswamp:devswamp-25");
+  await relate("devswamp:devswamp-26");
+  await relate("devswamp:devswamp-25");
+  assertEquals(calls, [
+    "relate T1 blocked_by T2",
+    "relate T1 blocked_by devswamp:devswamp-25",
+    "relate T1 blocked_by devswamp:devswamp-26",
+  ]);
+  const names = [...swamp.resources.get(INSTANCE)!.keys()].filter((n) =>
+    n.startsWith("delivery-relate-")
+  );
+  assertEquals(names.length, 3);
+  assert(names.includes("delivery-relate-item-abcdefgh-4-T1-blocked_by-T2"));
+});

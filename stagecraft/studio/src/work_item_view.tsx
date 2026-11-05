@@ -504,7 +504,7 @@ export function TicketBody(
               return (
                 <li key={i}>
                   {relationText(r)} {key === null
-                    ? factory === undefined
+                    ? factory === undefined || r.external
                       ? r.display
                       : (
                         <TicketLink factory={factory} id={r.issue}>

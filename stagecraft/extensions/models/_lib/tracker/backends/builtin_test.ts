@@ -26,6 +26,7 @@ import {
   ENTRY_SPEC,
 } from "./builtin.ts";
 import { TrackerError, type TrackerErrorKind } from "../core/adapter.ts";
+import type { ExternalRead } from "./builtin_peers.ts";
 import { assertTrackerConformance } from "../core/tracker_conformance.ts";
 import {
   type Answer,
@@ -576,4 +577,255 @@ Deno.test("conformance passes: a tracker that breaks the contract fails, naming 
   });
   assertEquals([state.done, state.passed], [true, false]);
   assert(state.failure?.includes("expected"), state.failure);
+});
+
+// ---------------------------------------------------------------------------
+// Relations to a ticket in another tracker (#4376).
+// ---------------------------------------------------------------------------
+
+/** A built-in adapter over memory, reading another tracker as `answers` say. */
+async function externalBoard(answers: Record<string, ExternalRead> = {}) {
+  const memory = memoryStore();
+  const reads: string[] = [];
+  const warnings: string[] = [];
+  const board = adapterWith(memory.store, {
+    instance: "ops-tracker",
+    external: {
+      read: (ref) => {
+        const key = `${ref.tracker}:${ref.id}`;
+        reads.push(key);
+        return Promise.resolve(
+          answers[key] ??
+            {
+              state: "unresolved",
+              reason: "no_peer",
+              detail: "no peer",
+            } as const,
+        );
+      },
+      warn: (message) => warnings.push(message),
+    },
+  });
+  const a = await board.create({ title: "a", body: "", type: "bug" });
+  return { ...memory, board, a, reads, warnings };
+}
+
+Deno.test("builtin: a relation to another tracker that cannot be read is recorded as written, with a warning naming the way back", async () => {
+  const { board, a, reads, warnings } = await externalBoard();
+  assertEquals(await board.relate(a.id, "related_to", "devswamp:devswamp-25"), {
+    changed: true,
+  });
+  assertEquals((await board.fetchIssue(a.id)).relations, [{
+    type: "related_to",
+    direction: "outgoing",
+    issue: "devswamp:devswamp-25",
+    display: "devswamp:devswamp-25",
+  }]);
+  assertEquals(reads, ["devswamp:devswamp-25"]);
+  assertEquals(warnings.length, 1);
+  assert(warnings[0].includes("no_peer"), warnings[0]);
+  assert(warnings[0].includes("unrelate"), warnings[0]);
+  assert(warnings[0].includes("to=devswamp:devswamp-25"), warnings[0]);
+});
+
+Deno.test("builtin: a relation to another tracker that can be read keeps its stable id, however it was written", async () => {
+  const { board, a, warnings } = await externalBoard({
+    "jira:SREMON-2131": {
+      state: "resolved",
+      id: "sremon-2131",
+      display: "SREMON-2131",
+      status: "open",
+    },
+  });
+  await board.relate(a.id, "blocked_by", "jira:SREMON-2131");
+  assertEquals((await board.fetchIssue(a.id)).relations, [{
+    type: "blocked_by",
+    direction: "outgoing",
+    issue: "jira:sremon-2131",
+    display: "jira:SREMON-2131",
+  }]);
+  assertEquals(warnings, []);
+  // Written either way, it is the one relation, and it goes either way.
+  assertEquals(await board.relate(a.id, "blocked_by", "jira:sremon-2131"), {
+    changed: false,
+  });
+  assertEquals(await board.unrelate(a.id, "blocked_by", "jira:SREMON-2131"), {
+    changed: true,
+  });
+  assertEquals((await board.fetchIssue(a.id)).relations, []);
+});
+
+Deno.test("builtin: what the other tracker calls a ticket is kept only if it can be read back", async () => {
+  const { board, a } = await externalBoard({
+    "devswamp:odd": {
+      state: "resolved",
+      id: "has a space",
+      display: "also spaced",
+      status: "open",
+    },
+    "devswamp:shown": {
+      state: "resolved",
+      id: "shown-1",
+      display: "SHOWN ONE",
+      status: "open",
+    },
+  });
+  await board.relate(a.id, "related_to", "devswamp:odd");
+  await board.relate(a.id, "blocked_by", "devswamp:shown");
+  assertEquals(
+    (await board.fetchIssue(a.id)).relations.map((r) => [r.issue, r.display]),
+    [
+      ["devswamp:odd", "devswamp:odd"],
+      ["devswamp:shown-1", "devswamp:shown-1"],
+    ],
+  );
+  assertEquals(await board.unrelate(a.id, "related_to", "devswamp:odd"), {
+    changed: true,
+  });
+  assertEquals(await board.unrelate(a.id, "blocked_by", "devswamp:shown-1"), {
+    changed: true,
+  });
+});
+
+Deno.test("builtin: relating and unrelating another tracker's ticket again writes nothing, and unrelate never reads that tracker", async () => {
+  const { board, a, reads, records } = await externalBoard();
+  const issue = `issue-${a.id}`;
+  await board.relate(a.id, "related_to", "devswamp:x");
+  const written = records.get(issue)!.versions.length;
+  assertEquals(reads.length, 1);
+  assertEquals(await board.relate(a.id, "related_to", "devswamp:x"), {
+    changed: false,
+  });
+  assertEquals(reads.length, 1);
+  assertEquals(records.get(issue)!.versions.length, written);
+  assertEquals(await board.unrelate(a.id, "blocked_by", "devswamp:x"), {
+    changed: false,
+  });
+  assertEquals(await board.unrelate(a.id, "related_to", "devswamp:x"), {
+    changed: true,
+  });
+  assertEquals(await board.unrelate(a.id, "related_to", "devswamp:x"), {
+    changed: false,
+  });
+  assertEquals(reads.length, 1);
+});
+
+Deno.test("builtin: only blocked_by and related_to reach another tracker, writing nothing otherwise", async () => {
+  const { board, a, reads } = await externalBoard();
+  for (const type of ["parent_of", "duplicate_of"] as const) {
+    await failsWith(
+      "invalid",
+      () => board.relate(a.id, type, "devswamp:x"),
+      "blocked_by or related_to",
+    );
+  }
+  assertEquals(reads, []);
+  assertEquals((await board.fetchIssue(a.id)).relations, []);
+});
+
+Deno.test("builtin: a malformed reference is refused, and the subject must exist", async () => {
+  const { board, a } = await externalBoard();
+  await failsWith("invalid", () => board.relate(a.id, "related_to", "Dev:x"));
+  await failsWith("invalid", () => board.relate(a.id, "related_to", "a:"));
+  await failsWith(
+    "not_found",
+    () => board.relate("cue-99", "related_to", "devswamp:x"),
+  );
+});
+
+Deno.test("builtin: a reference naming this instance is one of its own tickets, under the local rules", async () => {
+  const { board, a, reads } = await externalBoard();
+  const b = await board.create({ title: "b", body: "", type: "bug" });
+  await board.relate(a.id, "parent_of", `ops-tracker:${b.id}`);
+  assertEquals((await board.fetchIssue(b.id)).relations, [{
+    type: "parent_of",
+    direction: "incoming",
+    issue: a.id,
+    display: a.display,
+  }]);
+  await failsWith(
+    "not_found",
+    () => board.relate(a.id, "related_to", "ops-tracker:cue-99"),
+  );
+  await board.unrelate(a.id, "parent_of", `ops-tracker:${b.id}`);
+  assertEquals((await board.fetchIssue(b.id)).relations, []);
+  assertEquals(reads, []);
+});
+
+Deno.test("builtin: a supplied id is never read as a reference, and cannot hold the separator", async () => {
+  const { board, a, reads } = await externalBoard();
+  const supplied = await board.create({
+    id: "SREMON-2131",
+    title: "s",
+    body: "",
+    type: "bug",
+  });
+  await board.relate(a.id, "blocked_by", supplied.id);
+  await board.relate(a.id, "related_to", supplied.display);
+  assertEquals(
+    (await board.fetchIssue(supplied.id)).relations.map((r) => r.issue),
+    [a.id, a.id],
+  );
+  assertEquals(reads, []);
+  await failsWith(
+    "invalid",
+    () => board.create({ id: "ABC:1", title: "s", body: "", type: "bug" }),
+  );
+});
+
+Deno.test("builtin: a local relation is written on both tickets as before, with no reading of another tracker", async () => {
+  const { board, a, reads, warnings } = await externalBoard();
+  const b = await board.create({ title: "b", body: "", type: "bug" });
+  assertEquals(await board.relate(a.id, "blocked_by", b.id), { changed: true });
+  assertEquals((await board.fetchIssue(a.id)).relations, [{
+    type: "blocked_by",
+    direction: "outgoing",
+    issue: b.id,
+    display: b.display,
+  }]);
+  assertEquals((await board.fetchIssue(b.id)).relations, [{
+    type: "blocked_by",
+    direction: "incoming",
+    issue: a.id,
+    display: a.display,
+  }]);
+  await failsWith(
+    "not_found",
+    () => board.relate(a.id, "related_to", "devswamp-25"),
+    "no ticket 'devswamp-25'",
+  );
+  assertEquals(await board.unrelate(a.id, "blocked_by", b.id), {
+    changed: true,
+  });
+  assertEquals(reads, []);
+  assertEquals(warnings, []);
+});
+
+Deno.test("builtin: a version with no external relations keeps one through a rewrite, and refuses to act on it", async () => {
+  // An adapter with no reader, as an older version's is: the record it reads
+  // and rewrites holds a reference written by a newer one.
+  const { store, records } = memoryStore();
+  const old = adapterWith(store);
+  const a = await old.create({ title: "a", body: "", type: "bug" });
+  const relation = {
+    type: "blocked_by",
+    direction: "outgoing",
+    issue: "devswamp:devswamp-25",
+    display: "devswamp:devswamp-25",
+  };
+  const name = `issue-${a.id}`;
+  const record = records.get(name)!;
+  record.versions.push({ ...record.versions.at(-1)!, relations: [relation] });
+  await old.setStatus(a.id, "shipped");
+  assertEquals(records.get(name)!.versions.at(-1)!.relations, [relation]);
+  assertEquals((await old.fetchIssue(a.id)).relations, [relation as never]);
+});
+
+Deno.test("builtin: with no reader, another tracker's ticket is still recorded", async () => {
+  const { store } = memoryStore();
+  const board = adapterWith(store);
+  const a = await board.create({ title: "a", body: "", type: "bug" });
+  assertEquals(await board.relate(a.id, "related_to", "devswamp:x"), {
+    changed: true,
+  });
 });

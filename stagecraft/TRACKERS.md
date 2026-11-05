@@ -141,6 +141,12 @@ ids.
 A relation's `type` is `parent_of`, `blocked_by`, `related_to` or
 `duplicate_of`. `X parent_of Y` reads as `outgoing` on X and `incoming` on Y.
 
+`to` and a relation's `issue` are your tracker's own stable ids, in whatever form
+it has, and stagecraft does not parse them. Relating a ticket to one in another
+tracker (`<tracker>:<id>`) is the built-in tracker's alone for now, and nothing in
+this contract asks it of you. If trackers written as extensions gain it, it will
+be an optional capability in `describe`, so this contract's version does not move.
+
 ## Failures
 
 A failure's `kind` is one of:

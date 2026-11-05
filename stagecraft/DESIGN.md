@@ -2799,7 +2799,8 @@ and README offer only the built-in tracker and Linear.
 **Decision.** `@swamp/stagecraft/tracker` keeps tickets in swamp data on the
 tracker instance, for a project with no external tracker. It implements the
 whole contract, `create` and the history capability included, and makes no
-network call. Its tracker name, the `externalRefs` key, is `builtin`.
+network call unless a peer is a swamp serve ("Relations to another tracker"). Its
+tracker name, the `externalRefs` key, is `builtin`.
 
 - **Ids.** A ticket's id is `<prefix>-<n>` (`blog-12`): the instance's `prefix`
   (see "Keys are stagecraft's"), then a number from a counter kept in the
@@ -2860,6 +2861,70 @@ log. The counter is unique within one swamp repository's data: two clones with
 separate local data can each file `blog-5`, and since work-item definitions are
 committed files, the clash shows when they merge. Share one datastore, or file a
 tracker's tickets from one place.
+
+### Relations to another tracker
+
+**Decision (swamp-club #4376).** A built-in ticket may be `blocked_by` or
+`related_to` a ticket in another tracker, named `<tracker>:<id>`, and stagecraft
+records and reports that relation. **It applies no rule of its own.** Whether a
+blocker stops work is each factory's to decide, in its stages (Seth), so `claim`,
+`publish` and the definition schema do not change, and the record says what a status
+is called, never whether it means finished.
+
+- **The reference.** Split at the first `:`. The tracker is a model name and the id
+  is opaque, in its own case. Built-in ids (`supplied()` included) and model names
+  cannot hold a `:`, so no local id is read as one. Only the built-in tracker parses
+  `to`: another tracker's ids may hold a `:`.
+- **One-sided.** The other tracker may not be writable from here, so only the
+  subject's outgoing side is written, and the rule that a relation is kept on both
+  tickets holds for local ones alone. There is nothing to race, or to finish after a
+  crash.
+- **Stored in the existing fields.** `issue` and `display` hold the qualified text.
+  A new field would be stripped when an older version parses and rewrites the record
+  (`BuiltinIssueSchema` strips unknown keys), leaving a bare id that reads as a local
+  ticket. As written, an older version keeps the relation through a rewrite, refuses
+  to `unrelate` it, and links to a ticket page that is not there.
+- **Read when asked.** `relate` (to keep the stable id) and `fetch_issue` read the
+  other tracker; the adapter's own ticket read does not, so `claim` and `publish`
+  never contact a peer and a peer being down costs them nothing. A read never
+  throws, but a record that cannot be written fails `fetch_issue`, so an older one
+  never looks current, and reads stop after 10 seconds each and 30 a call, because the tracker
+  instance's lock is held meanwhile.
+- **The record.** `relations-<id>`, beside the ticket, since "no read overwrites" a
+  built-in ticket. It lists every relation, local ones too, so a factory has one
+  place to read. A method has no return value, so a record is how `fetch_issue`
+  returns it; a log line does not reach `--json`. It keeps status, id and display,
+  not the other ticket's title or body, so little crosses repositories.
+- **Peers.** Another instance in the repository needs no configuration. Otherwise
+  `peers` names a repository by absolute path or a serve by URL, read with the swamp
+  binary's `data query`: local and remote flows both. A peer wins over this
+  instance's own name, since two repositories may both call their tracker `board`. The reader is its own, in
+  `_lib/tracker/backends/builtin_peers.ts`: the seam keeps tracker code from
+  `studio_remote.ts`.
+- **Credentials.** A peer's optional token is a sensitive argument from a vault, for
+  whoever is not logged in; otherwise swamp's stored login for that URL applies, which
+  is per server. A peer's URL comes from a definition, so unlike the studio's reader,
+  whose server the operator chooses, the child takes only its account and its own
+  directories from the `SWAMP_` environment, kept by name as the integration
+  harness does, since a list of what to drop misses each new variable. The token goes in a private temporary file, removed
+  however the read ends: `--token` would show in process listings.
+
+**Why not a rule in stagecraft.** An earlier answer had dependencies warn and allow an
+override (2026-09-30). A warning is a rule too, and one strict factory and one that
+ignores dependencies would both be wrong under any default. A definition setting was
+considered and declined: a stage already says everything a setting could.
+
+**Why built-in only.** Linear and the Lab have nowhere to keep a foreign reference.
+The contract does not change; if a tracker written as an extension wants this, it is
+an optional capability in `describe`, which does not move the contract version.
+
+**Known gaps.** The other ticket shows nothing unless related from its side. A deleted
+ticket reads as `not_found` until someone runs `unrelate`. A repository path reads as
+unresolved where it does not exist. A snapshot peer reports its last read. Status is
+not shown in the studio, which reads stored tickets; an external relation there is
+plain text. A factory's check is a stage, so it runs however the work item started,
+and a person or agent following it could still get it wrong: nothing but the factory
+enforces it.
 
 ### Start from a ticket
 
@@ -3095,6 +3160,22 @@ Scenarios have no includes: variants of one late path each repeat the walk that
 reaches it. An include step would be its own change.
 
 ## Decision log
+
+### 2026-11-05: relations to another tracker, and each factory decides (swamp-club #4376)
+
+**Decision.** See "Relations to another tracker". A built-in ticket relates to one in
+another tracker as `<tracker>:<id>`; `fetch_issue` writes a `relations-<id>` record;
+peers are a repository path or a swamp serve, with an optional vault token. stagecraft
+applies no rule: no `claim` gate, warning or definition setting (Seth chose a stage,
+in the factory, over a setting), which replaces the 2026-09-30 answer that
+dependencies warn. `respect-dependencies.yaml` is the worked example. Model versions:
+the built-in tracker 2026.11.05.1.
+
+**Proven.** `integration/tracker/external_relations_test.ts`: two repositories by path
+and through a real token-authenticated serve, a status change, every way of being
+unresolved, and the token in no file the reading repository keeps. Not proven: a
+serve peer on swamp's stored login, since `server-login` writes the user's own
+`servers.json`.
 
 ### 2026-11-02: a factory with many stages on a laptop screen (swamp-club #3380)
 

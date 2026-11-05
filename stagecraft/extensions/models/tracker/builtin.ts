@@ -33,6 +33,16 @@ import {
   DEFAULT_TYPES,
   ENTRY_SPEC,
 } from "../_lib/tracker/backends/builtin.ts";
+import {
+  type Peer,
+  type PeerReader,
+  peerReader,
+  PeersSchema,
+  RELATIONS_SPEC,
+  relationsName,
+  RelationsRecordSchema,
+  relationStatuses,
+} from "../_lib/tracker/backends/builtin_peers.ts";
 import { TrackerError } from "../_lib/tracker/core/adapter.ts";
 import {
   type CredentialSources,
@@ -44,6 +54,7 @@ import {
   DeliveryInputs,
   deliveryKeyOf,
   ISSUE_SPEC,
+  issueName,
   prefixArgument,
   prefixOf,
   type TrackerContext,
@@ -56,8 +67,9 @@ import {
 
 // ---------------------------------------------------------------------------
 // The built-in tracker: one instance per project, keeping its tickets in
-// swamp data. It has every tracker method, set_type too, and never makes a
-// network call; see DESIGN.md, "The built-in tracker". prefix, statuses and
+// swamp data. It has every tracker method, set_type too, and makes no network
+// call unless a peer is a swamp serve; see DESIGN.md, "The built-in tracker".
+// prefix, statuses and
 // types are the instance's own arguments: a factory definition names only
 // the tracker's kind, and a factory names this instance.
 // ---------------------------------------------------------------------------
@@ -80,6 +92,13 @@ export const BuiltinArgumentsSchema = z.object({
       "The ticket types: a list, or a JSON list as a string. Defaults to " +
         DEFAULT_TYPES.join(", "),
     ),
+  peers: PeersSchema.optional().describe(
+    "Other trackers to read tickets from, by the name a <tracker>:<id> " +
+      "reference uses: { repo } for another repository on this machine, or " +
+      "{ server, token } for a swamp serve, with its token from a vault. The " +
+      "name is that tracker's instance name there, unless instance says " +
+      "otherwise. A name not listed is looked for in this repository",
+  ),
 });
 
 function argumentsOf(globalArgs: Record<string, unknown>) {
@@ -219,6 +238,8 @@ export interface BuiltinMethodOptions {
   /** Where swamp's stored login, whom publish assigns, is read from. */
   sources?: Pick<CredentialSources, "readAuthFile">;
   now?: () => Date;
+  /** How another tracker is read. */
+  reader?(ctx: TrackerContext, peers: Record<string, Peer>): PeerReader;
 }
 
 /** The shared tracker methods over the built-in tracker, plus set_type. */
@@ -226,6 +247,17 @@ export function builtinMethods(options: BuiltinMethodOptions = {}) {
   const now = options.now ?? (() => new Date());
   const sources = options.sources ?? defaultSources(BUILTIN);
   const argsOf = (ctx: TrackerContext) => ctx.globalArgs ?? {};
+  const readerOf = (ctx: TrackerContext): PeerReader => {
+    const peers = argumentsOf(argsOf(ctx)).peers ?? {};
+    if (options.reader !== undefined) return options.reader(ctx, peers);
+    const { queryData } = ctx;
+    return peerReader({
+      peers,
+      ...(queryData === undefined
+        ? {}
+        : { query: (predicate) => queryData.call(ctx, predicate) }),
+    });
+  };
   const adapterOf = (ctx: TrackerContext): BuiltinAdapter => {
     if (ctx.readResource === undefined || ctx.writeResource === undefined) {
       throw new Error(
@@ -235,6 +267,16 @@ export function builtinMethods(options: BuiltinMethodOptions = {}) {
     const args = argumentsOf(argsOf(ctx));
     return builtinAdapter({
       prefix: prefixOf(ctx),
+      // A peer with this instance's name is that peer: two repositories may
+      // both call their tracker board. Then only a bare id is a local ticket.
+      ...(ctx.definition?.name === undefined ||
+          Object.hasOwn(args.peers ?? {}, ctx.definition.name)
+        ? {}
+        : { instance: ctx.definition.name }),
+      external: {
+        read: (ref) => readerOf(ctx).read(ref),
+        warn: (warning) => ctx.logger.info("{warning}", { warning }),
+      },
       statuses: listFrom("statuses", args.statuses, DEFAULT_STATUSES),
       types: listFrom("types", args.types, DEFAULT_TYPES),
       store: {
@@ -262,6 +304,42 @@ export function builtinMethods(options: BuiltinMethodOptions = {}) {
       ),
     // A ticket's work items take the ticket's id: blog-12, then blog-12-2.
     claimBase: (issue) => issue.id,
+    // Beside the ticket, never in it: what its relations are known to be now,
+    // for a factory's stage to read. A ticket with none, and none before,
+    // has nothing to say.
+    afterFetch: async (ctx, issue) => {
+      const name = relationsName(issue.id);
+      if (ctx.readResource === undefined || ctx.writeResource === undefined) {
+        return [];
+      }
+      if (
+        issue.relations.length === 0 && await ctx.readResource(name) === null
+      ) {
+        return [];
+      }
+      const relations = await relationStatuses(
+        issue.relations,
+        BUILTIN,
+        readerOf(ctx),
+        (id) => ctx.readResource!(issueName(id)),
+      );
+      for (const r of relations.filter((r) => r.external)) {
+        ctx.logger.info("{summary}", {
+          summary:
+            `${issue.display} ${r.direction === "outgoing" ? "" : "<- "}` +
+            `${r.type} ${r.display}: ${
+              r.status ?? `unresolved (${r.reason}: ${r.detail})`
+            }`,
+        });
+      }
+      return [
+        await ctx.writeResource(RELATIONS_SPEC, name, {
+          issue: issue.id,
+          checkedAt: now().toISOString(),
+          relations,
+        }),
+      ];
+    },
     // A built-in ticket's assignees are swamp users: the stored login's,
     // whichever server it is for.
     assignee: async () => {
@@ -334,7 +412,7 @@ export const model = {
   // A string literal: swamp reads the type from the source without running
   // it. builtin_test checks it equals BUILTIN_TYPE.
   type: "@swamp/stagecraft/tracker",
-  version: "2026.10.12.2",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.10.12.1",
@@ -346,6 +424,12 @@ export const model = {
       toVersion: "2026.10.12.2",
       description: "Add describe, operate and round, the methods the " +
         "shipped tracker workflows call (no argument change)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
+      description: "Relate to a ticket in another tracker: an optional peers " +
+        "argument, and fetch_issue records a relations record (#4376)",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -368,6 +452,14 @@ export const model = {
     [COUNTER_SPEC]: {
       description: "The next ticket number create tries, one record per prefix",
       schema: BuiltinCounterSchema,
+      lifetime: "infinite" as const,
+      garbageCollection: 5,
+    },
+    [RELATIONS_SPEC]: {
+      description:
+        "What a ticket's relations were known to be at the last fetch_issue, " +
+        "one record per ticket",
+      schema: RelationsRecordSchema,
       lifetime: "infinite" as const,
       garbageCollection: 5,
     },

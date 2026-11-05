@@ -200,6 +200,22 @@ export interface TrackerContext extends ClaimContext {
 }
 
 /**
+ * The ledger suffix of a relation: its source, type and target. A target that
+ * cannot be part of a record name, another tracker's ticket as `tracker:id`,
+ * goes by a digest of it, so each still has its own record.
+ */
+async function relationSuffix(
+  issue: string,
+  type: RelationType,
+  to: string,
+): Promise<string> {
+  const name = /^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(to) && !to.includes("..")
+    ? to
+    : `ref-${(await digestOf({ to })).replace(/^sha256:/, "").slice(0, 32)}`;
+  return `${issue}-${type}-${name}`;
+}
+
+/**
  * The ledger record for a keyed write. publish keeps its own records
  * (`delivery-publish-<action>-...`), so a key someone passed to comment or
  * set_status by hand never stands in for, or blocks, a publish.
@@ -385,6 +401,12 @@ export interface TrackerModelOptions {
    * fetched and before anything is written: throws to refuse.
    */
   beforeClaim?(ctx: TrackerContext, issue: TrackerIssue): Promise<void>;
+  /**
+   * What a tracker records when a ticket is fetched, beside the ticket: the
+   * built-in tracker's relations record. Only fetch_issue calls it, so no
+   * other read pays for what it reads. Returns the data handles it wrote.
+   */
+  afterFetch?(ctx: TrackerContext, issue: TrackerIssue): Promise<unknown[]>;
   /**
    * The base of a ticket's work-item keys; by default its display id as a
    * key, with the prefix leading an id that is only a number.
@@ -896,7 +918,7 @@ export function deliveries(
   };
 
   /** A due write, prepared: the ledger checked and the operation known. */
-  const prepare = (
+  const prepare = async (
     ctx: TrackerContext,
     due: DueWrite,
     userOf?: () => Promise<string>,
@@ -982,7 +1004,7 @@ export function deliveries(
               : `${phrase} is already ${
                 write.remove ? "absent" : "recorded"
               }; wrote nothing`,
-          `${write.issue}-${write.type}-${write.to}`,
+          await relationSuffix(write.issue, write.type, write.to),
         );
       }
       case "assign":
@@ -1343,7 +1365,9 @@ const relateArguments = z.object({
     "parent_of, blocked_by, related_to or duplicate_of",
   ),
   to: z.string().min(1).describe(
-    "The other ticket's stable id: the child, the blocker, or the canonical",
+    "The other ticket's stable id: the child, the blocker, or the canonical. " +
+      "On the built-in tracker, <tracker>:<id> names a ticket in another " +
+      "tracker, for blocked_by and related_to",
   ),
   ...DeliveryInputs,
 });
@@ -2074,11 +2098,14 @@ export async function fetchWith(
   ctx: TrackerContext,
   args: { issue: string },
   port: TrackerPort,
-  options: Pick<TrackerModelOptions, "tracker">,
+  options: Pick<TrackerModelOptions, "tracker" | "afterFetch">,
   now: () => Date,
 ): Promise<MethodOutput> {
   const issue = await port.fetch(args.issue);
   const handles = await recordSnapshot(ctx, port, options.tracker, issue, now);
+  // Not caught: a factory reads this to decide, so a failed write must not
+  // leave an older record looking current.
+  handles.push(...await options.afterFetch?.(ctx, issue) ?? []);
   ctx.logger.info("{summary}", {
     summary: `${issue.display} (${issue.id}): ${issue.title} ` +
       `[${issue.status.name}]`,

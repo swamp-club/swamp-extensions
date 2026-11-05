@@ -325,3 +325,42 @@ Deno.test("ticket: a record of the same name on another kind of tracker is not t
     id: "T-1",
   });
 });
+
+Deno.test("ticket: a built-in ticket's relation to another tracker is marked, and another tracker's own id with a colon is not", async () => {
+  const relation = (issue: string) => ({
+    type: "blocked_by",
+    direction: "outgoing",
+    issue,
+    display: issue,
+  });
+  const issue = (origin: "builtin" | "snapshot") => ({
+    origin,
+    tracker: "builtin",
+    id: "T-1",
+    display: "T-1",
+    title: "Add the thing",
+    status: { id: "open", name: "open" },
+    relations: [relation("devswamp:devswamp-25"), relation("T-2")],
+    ...(origin === "builtin"
+      ? {
+        body: "",
+        type: "bug",
+        createdAt: "2026-10-01T00:00:00.000Z",
+        updatedAt: "2026-10-01T00:00:00.000Z",
+      }
+      : { fetchedAt: "2026-10-01T00:00:00.000Z" }),
+  });
+  for (
+    const [origin, expected] of [
+      ["builtin", [true, false]],
+      ["snapshot", [false, false]],
+    ] as const
+  ) {
+    const it = await item();
+    putTracker(it, it.instance, "issue", "issue-T-1", issue(origin));
+    const found = await readTicket(it.query, bound(it.run, "T-1"));
+    if (found.state !== "ok") throw new Error(`state ${found.state}`);
+    assertEquals(found.ticket.relations.map((r) => r.external), [...expected]);
+    assertEquals(found.ticket.relations.map((r) => r.workItem), [null, null]);
+  }
+});

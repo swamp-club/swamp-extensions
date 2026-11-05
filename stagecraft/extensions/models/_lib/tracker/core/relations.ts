@@ -39,6 +39,61 @@ export const TrackerRelationSchema = z.object({
   display: z.string(),
 });
 
+/**
+ * The relations the built-in tracker keeps to a ticket in another tracker: the
+ * ones with no rule that needs reading both tickets.
+ */
+export const EXTERNAL_RELATION_TYPES: readonly RelationType[] = [
+  "blocked_by",
+  "related_to",
+];
+
+/** A ticket in another tracker: `tracker:id`. */
+export interface ExternalRef {
+  tracker: string;
+  /** Opaque, as the other tracker writes it, in any case. */
+  id: string;
+}
+
+// The other tracker's name: swamp's model name alphabet, which has no ':'.
+const EXTERNAL_TRACKER = /^[a-z0-9][a-z0-9_-]*$/;
+const EXTERNAL_ID_MAX_LENGTH = 256;
+
+/**
+ * The other tracker and ticket `ref` names, split at its first ':', or null
+ * when it has no ':' and so is a ticket of this tracker. Only the built-in
+ * tracker calls this: its ids and swamp's model names cannot hold a ':', so no
+ * local id is ever read as a reference. Another tracker's own ids may hold one.
+ */
+export function parseExternalRef(
+  ref: string,
+  tracker: string,
+): ExternalRef | null {
+  const colon = ref.indexOf(":");
+  if (colon === -1) return null;
+  const name = ref.slice(0, colon);
+  const id = ref.slice(colon + 1);
+  const refuse = (why: string): never => {
+    throw new TrackerError(
+      "invalid",
+      tracker,
+      `'${ref}' is not a reference to another tracker's ticket ` +
+        `(<tracker>:<id>): ${why}`,
+    );
+  };
+  if (!EXTERNAL_TRACKER.test(name)) {
+    refuse("the tracker is a lowercase model name");
+  }
+  if (id === "" || id.length > EXTERNAL_ID_MAX_LENGTH) {
+    refuse(`the id is 1 to ${EXTERNAL_ID_MAX_LENGTH} characters`);
+  }
+  // deno-lint-ignore no-control-regex
+  if (/[\s\u0000-\u001f\u007f]/.test(id)) {
+    refuse("the id has no spaces or control characters");
+  }
+  return { tracker: name, id };
+}
+
 /** How deep the parent-cycle walk goes, as the Lab's does. */
 const MAX_PARENT_DEPTH = 10;
 

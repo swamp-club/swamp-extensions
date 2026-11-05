@@ -45,6 +45,7 @@ const EXPECTED: Record<string, string[]> = {
   "incident-review.yaml": [],
   "minimal.yaml": [],
   "openapi-models.yaml": [],
+  "respect-dependencies.yaml": [],
   "starter.yaml": [
     "default-cycle-bound stages.0 (from stage 'plan')",
     "default-cycle-bound stages.2 (from stage 'implement')",

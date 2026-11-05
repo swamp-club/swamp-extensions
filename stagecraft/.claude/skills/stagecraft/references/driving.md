@@ -22,9 +22,10 @@ Placeholders are in angle brackets: `<key>`, `<factory>`, `<stage>`, `<cycle>`,
 9. [Advance: the propulsion rule](#advance-the-propulsion-rule)
 10. [Human stops](#human-stops)
 11. [Keep the ticket in step](#keep-the-ticket-in-step)
-12. [Duplicates](#duplicates)
-13. [When something fails](#when-something-fails)
-14. [Resuming](#resuming)
+12. [Respect a ticket's dependencies](#respect-a-tickets-dependencies)
+13. [Duplicates](#duplicates)
+14. [When something fails](#when-something-fails)
+15. [Resuming](#resuming)
 
 ## The two model types
 
@@ -756,6 +757,39 @@ so `claim` there finds this work item, and `claim` on the old ticket reserves a
 new one. Publish right after a retarget: a `claim` on the new ticket before then
 reserves a second work item, and `publish` refuses to move the index onto a
 ticket that already has one.
+
+## Respect a ticket's dependencies
+
+stagecraft records what a ticket is blocked by and reports its status, and
+applies no rule of its own: `claim` and `publish` do the same whatever a ticket
+is blocked by. Whether a blocker stops work is the factory's to decide. A
+factory that cares has a first stage that checks, as
+`examples/respect-dependencies.yaml` does.
+
+Read the dependencies now, not from memory or an earlier read. On the built-in
+tracker, a blocker may be in this tracker or, as `<tracker>:<id>`, in another:
+
+```sh
+swamp workflow run @swamp/stagecraft/fetch-issue --input tracker=<tracker> --input issue=<id>
+swamp data query 'modelName == "<tracker>" && name == "relations-<id>"' --select content --single --json
+```
+
+The record's `relations` lists each relation with its `state`. `resolved` has
+the other ticket's `status`, by that tracker's name for it; `unresolved` has a
+`reason` and `detail` instead. No record means the ticket has never had a
+relation. Apply the factory's rule to the outgoing `blocked_by` entries, as its
+stage describes it:
+
+- **Which statuses count as finished** is the factory's, since trackers name
+  theirs differently. The example takes `shipped` and `closed`.
+- **An unresolved entry** is the factory's call too. The other tracker may be
+  down, or the ticket deleted, so say the `reason` when you stop. The example
+  treats it as not finished, and a person can go on anyway.
+
+Record what you found, with the record's `checkedAt`, and stop for a person when
+the rule says to. Never advance past a blocker on your own because it looks
+done. A person can clear a stale relation with `unrelate` (see `REFERENCE.md`,
+"Relations to another tracker").
 
 ## Duplicates
 

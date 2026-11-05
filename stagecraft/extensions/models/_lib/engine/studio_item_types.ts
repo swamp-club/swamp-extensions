@@ -129,6 +129,8 @@ export interface TicketActivityView {
 export interface TicketRelationView extends IssueRelation {
   /** The newest work item on that ticket, in any factory, or null. */
   workItem: string | null;
+  /** True for a ticket in another tracker, which has no page here. */
+  external: boolean;
 }
 
 /** The ticket as the Ticket tab shows it, from the tracker's stored record. */

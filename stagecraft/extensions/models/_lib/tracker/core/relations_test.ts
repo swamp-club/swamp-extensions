@@ -20,7 +20,7 @@ import {
   type TrackerIssue,
   type TrackerRelation,
 } from "./adapter.ts";
-import { checkRelate } from "./relations.ts";
+import { checkRelate, parseExternalRef } from "./relations.ts";
 
 // checkRelate over tickets in memory; tracker_conformance.ts checks the same
 // rules through each adapter.
@@ -153,4 +153,49 @@ Deno.test("relations: a relation only the target shows still exists", async () =
   const { check, issues } = tickets(2, [[0, "parent_of", 1]]);
   issues.get("t0")!.relations = [];
   assertEquals((await check(0, "parent_of", 1)).exists, true);
+});
+
+Deno.test("parseExternalRef: an id with no colon is this tracker's, whatever else it holds", () => {
+  for (
+    const id of ["ops-18", "SREMON-2131", "a_b-c", "abc", "1a", "x.y", "a/b"]
+  ) {
+    assertEquals(parseExternalRef(id, "builtin"), null);
+  }
+});
+
+Deno.test("parseExternalRef: splits at the first colon and keeps the id as written", () => {
+  assertEquals(parseExternalRef("devswamp:devswamp-25", "builtin"), {
+    tracker: "devswamp",
+    id: "devswamp-25",
+  });
+  assertEquals(parseExternalRef("jira:SREMON-2131", "builtin"), {
+    tracker: "jira",
+    id: "SREMON-2131",
+  });
+  assertEquals(parseExternalRef("gh:acme/repo#12:x", "builtin"), {
+    tracker: "gh",
+    id: "acme/repo#12:x",
+  });
+});
+
+Deno.test("parseExternalRef: refuses what could not be a reference, naming the form", async () => {
+  for (
+    const ref of [
+      ":x",
+      "x:",
+      "Dev:x",
+      "de v:x",
+      "-a:x",
+      "a:b c",
+      "a:b\nc",
+      `a:${"x".repeat(257)}`,
+    ]
+  ) {
+    const error = await assertRejects(
+      () => Promise.resolve().then(() => parseExternalRef(ref, "builtin")),
+      TrackerError,
+    );
+    assertEquals(error.kind, "invalid", ref);
+    assertEquals(error.message.includes("<tracker>:<id>"), true, ref);
+  }
 });

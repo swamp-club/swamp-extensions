@@ -32,7 +32,13 @@ import {
   type TrackerIssue,
   type TrackerRelation,
 } from "../core/adapter.ts";
-import { checkRelate } from "../core/relations.ts";
+import {
+  checkRelate,
+  EXTERNAL_RELATION_TYPES,
+  type ExternalRef,
+  parseExternalRef,
+} from "../core/relations.ts";
+import type { ExternalRead } from "./builtin_peers.ts";
 import {
   type BuiltinIssue,
   BuiltinIssueSchema,
@@ -55,7 +61,9 @@ import {
 // has the assign capability. A relation is kept on both tickets'
 // records, the subject's side written first and removed last; a re-run after
 // a crash between the two finishes the job, checking the rules again first.
-// It never makes a network call.
+// A relation to a ticket in another tracker, `tracker:id`, is kept on this
+// ticket's record only, since that tracker cannot be written from here. Without
+// a serve peer, it never makes a network call.
 // ---------------------------------------------------------------------------
 
 export const BUILTIN = "builtin";
@@ -136,9 +144,19 @@ export interface BuiltinStore {
   records?(spec: string, issueId: string): Promise<Record<string, unknown>[]>;
 }
 
+/** How the adapter reads a ticket in another tracker, and says it could not. */
+export interface BuiltinExternal {
+  read(ref: ExternalRef): Promise<ExternalRead>;
+  warn(message: string): void;
+}
+
 export interface BuiltinOptions {
   /** Leads every id: lowercase letters, digits and '-', at most 12. */
   prefix: string;
+  /** This instance's name: `<it>:<id>` is one of its own tickets. */
+  instance?: string;
+  /** Absent, a relation to another tracker is recorded without being read. */
+  external?: BuiltinExternal;
   /** The status names; a new ticket starts in the first. */
   statuses: readonly string[];
   types: readonly string[];
@@ -293,6 +311,92 @@ export function builtinAdapter(options: BuiltinOptions): BuiltinAdapter {
         display: from.display,
       },
     };
+  }
+
+  /** The other tracker's ticket `ref` names; null for one of this tracker's. */
+  function externalOf(ref: string): ExternalRef | null {
+    const external = parseExternalRef(ref, BUILTIN);
+    return external?.tracker === options.instance ? null : external;
+  }
+
+  /** `ref` with this instance's own name taken off, if it has it. */
+  function localOf(ref: string): string {
+    const external = parseExternalRef(ref, BUILTIN);
+    return external === null ? ref : external.id;
+  }
+
+  // Compared without case: a reference may be written as the ticket's display
+  // id, and no tracker has two tickets differing only by case.
+  const sameRef = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+  /** The relation `from type ref` on the ticket, if it holds it. */
+  function externalSide(
+    issue: BuiltinIssue,
+    type: RelationType,
+    ref: string,
+  ): TrackerRelation | undefined {
+    return issue.relations.find((r) =>
+      r.type === type && r.direction === "outgoing" &&
+      (sameRef(r.issue, ref) || sameRef(r.display, ref))
+    );
+  }
+
+  /**
+   * Relate a ticket to one in another tracker: recorded on this ticket alone,
+   * whether or not that tracker can be read now. Read, it is kept under its
+   * stable id; not, as written.
+   */
+  async function relateExternal(
+    from: string,
+    type: RelationType,
+    to: string,
+    ref: ExternalRef,
+  ): Promise<RelationChange> {
+    if (!EXTERNAL_RELATION_TYPES.includes(type)) {
+      return fail(
+        "invalid",
+        `${type} needs both tickets in this tracker; a ticket in another ` +
+          `tracker can be ${EXTERNAL_RELATION_TYPES.join(" or ")}`,
+      );
+    }
+    const source = await read(from);
+    if (externalSide(source, type, to) !== undefined) {
+      return { changed: false };
+    }
+    const found = await options.external?.read(ref);
+    // What the other tracker calls it is kept only if it can be read back as a
+    // reference, or the relation could never be read or removed by it.
+    const usable = (text: string): boolean => {
+      try {
+        return parseExternalRef(text, BUILTIN) !== null;
+      } catch {
+        return false;
+      }
+    };
+    const stable = found?.state === "resolved"
+      ? `${ref.tracker}:${found.id}`
+      : to;
+    const issueRef = usable(stable) ? stable : to;
+    const displayed = found?.state === "resolved"
+      ? `${ref.tracker}:${found.display}`
+      : to;
+    const side: TrackerRelation = {
+      type,
+      direction: "outgoing",
+      issue: issueRef,
+      display: usable(displayed) ? displayed : issueRef,
+    };
+    if (externalSide(source, type, side.issue) !== undefined) {
+      return { changed: false };
+    }
+    if (found?.state === "unresolved") {
+      options.external?.warn(
+        `recorded ${source.id} ${type} ${to} without reading it ` +
+          `(${found.reason}: ${found.detail}); if it is a typo, run unrelate ` +
+          `with issue=${source.id} type=${type} to=${to}`,
+      );
+    }
+    return { changed: await setSide(source, side, true) };
   }
 
   const status = (name: string) => ({ id: name, name });
@@ -537,8 +641,13 @@ export function builtinAdapter(options: BuiltinOptions): BuiltinAdapter {
     async relate(
       from: string,
       type: RelationType,
-      to: string,
+      given: string,
     ): Promise<RelationChange> {
+      const external = externalOf(given);
+      if (external !== null) {
+        return await relateExternal(from, type, given, external);
+      }
+      const to = localOf(given);
       const source = await read(from);
       const target = await read(to);
       const side = sides(toIssue(source), type, toIssue(target));
@@ -581,8 +690,17 @@ export function builtinAdapter(options: BuiltinOptions): BuiltinAdapter {
     async unrelate(
       from: string,
       type: RelationType,
-      to: string,
+      given: string,
     ): Promise<RelationChange> {
+      // Another tracker's ticket is never contacted: only this ticket holds
+      // the relation, so it can go however that tracker is doing.
+      if (externalOf(given) !== null) {
+        const source = await read(from);
+        const side = externalSide(source, type, given);
+        if (side === undefined) return { changed: false };
+        return { changed: await setSide(source, side, false) };
+      }
+      const to = localOf(given);
       const source = await read(from);
       const target = await read(to);
       const side = sides(toIssue(source), type, toIssue(target));

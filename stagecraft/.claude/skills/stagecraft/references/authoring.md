@@ -98,6 +98,7 @@ closest to the interview, then change it:
 | Their process                                     | Start from              |
 | ------------------------------------------------- | ----------------------- |
 | One step, or trying stagecraft out                | `minimal`               |
+| Work waits for the tickets it is blocked by       | `respect-dependencies`  |
 | A change: plan, implement, check, review, release | `starter`               |
 | Writing reviewed, approved and published          | `content-review`        |
 | An incident written up and signed off             | `incident-review`       |

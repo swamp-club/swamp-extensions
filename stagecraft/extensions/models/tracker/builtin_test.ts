@@ -21,6 +21,8 @@ import {
   ticketRecords,
 } from "./builtin.ts";
 import { BUILTIN_TYPE } from "../_lib/tracker/backends/builtin.ts";
+import type { ExternalRead } from "../_lib/tracker/backends/builtin_peers.ts";
+import { RoundRecordSchema } from "../_lib/tracker/core/round_method.ts";
 import { TrackerError } from "../_lib/tracker/core/adapter.ts";
 import { type FakeSwamp, fakeSwamp } from "../_lib/engine/tracker_testing.ts";
 import {
@@ -29,6 +31,37 @@ import {
 } from "../_lib/tracker/core/test_support.ts";
 
 const INSTANCE = "tracker";
+
+/** A model whose reader gives these answers, counting its reads. */
+function withReader(answers: Record<string, ExternalRead>) {
+  const reads: string[] = [];
+  const methods = builtinMethods({
+    reader: () => ({
+      read: (ref) => {
+        const key = `${ref.tracker}:${ref.id}`;
+        reads.push(key);
+        return Promise.resolve(
+          answers[key] ??
+            { state: "unresolved", reason: "timeout", detail: "slow" } as const,
+        );
+      },
+    }),
+    now: () => new Date("2026-11-05T00:00:00Z"),
+  });
+  const call = async (
+    swamp: FakeSwamp,
+    name: keyof typeof methods,
+    raw: Record<string, unknown>,
+  ) => {
+    const method = methods[name];
+    const execute = method.execute as (
+      args: unknown,
+      ctx: ReturnType<FakeSwamp["context"]>,
+    ) => Promise<unknown>;
+    return await execute(method.arguments.parse(raw), swamp.context(INSTANCE));
+  };
+  return { call, reads };
+}
 
 type MethodName = keyof typeof model.methods;
 
@@ -329,4 +362,269 @@ Deno.test("builtin model: publish assigns the ticket to the stored login's user 
     );
     assertEquals(warned, username === undefined);
   }
+});
+
+// ---------------------------------------------------------------------------
+// What a ticket's relations are known to be (#4376).
+// ---------------------------------------------------------------------------
+
+const RESOLVED: ExternalRead = {
+  state: "resolved",
+  id: "devswamp-25",
+  display: "devswamp-25",
+  status: "in_progress",
+};
+
+Deno.test("builtin model: fetch_issue records each relation's status, local and external, and leaves the ticket alone", async () => {
+  const swamp = withArgs({ prefix: "ops" });
+  const { call: run, reads } = withReader({
+    "devswamp:devswamp-25": RESOLVED,
+  });
+  await run(swamp, "create", { title: "a", body: "x", type: "bug" });
+  await run(swamp, "create", { title: "b", body: "x", type: "bug" });
+  await run(swamp, "set_status", { issue: "ops-2", status: "shipped" });
+  await run(swamp, "relate", {
+    issue: "ops-1",
+    type: "blocked_by",
+    to: "ops-2",
+  });
+  await run(swamp, "relate", {
+    issue: "ops-1",
+    type: "blocked_by",
+    to: "devswamp:devswamp-25",
+  });
+  await run(swamp, "relate", {
+    issue: "ops-1",
+    type: "related_to",
+    to: "elsewhere:x",
+  });
+  reads.length = 0;
+  const written = record(swamp, "issue-ops-1")?.length;
+
+  await run(swamp, "fetch_issue", { issue: "ops-1" });
+
+  assertEquals(record(swamp, "issue-ops-1")?.length, written);
+  assertEquals(reads, ["devswamp:devswamp-25", "elsewhere:x"]);
+  assertEquals(record(swamp, "relations-ops-1")?.at(-1), {
+    issue: "ops-1",
+    checkedAt: "2026-11-05T00:00:00.000Z",
+    relations: [
+      {
+        type: "blocked_by",
+        direction: "outgoing",
+        issue: "ops-2",
+        display: "ops-2",
+        external: false,
+        state: "resolved",
+        status: "shipped",
+      },
+      {
+        type: "blocked_by",
+        direction: "outgoing",
+        issue: "devswamp:devswamp-25",
+        display: "devswamp:devswamp-25",
+        external: true,
+        state: "resolved",
+        status: "in_progress",
+      },
+      {
+        type: "related_to",
+        direction: "outgoing",
+        issue: "elsewhere:x",
+        display: "elsewhere:x",
+        external: true,
+        state: "unresolved",
+        reason: "timeout",
+        detail: "slow",
+      },
+    ],
+  });
+  assert(
+    swamp.logs.some((l) =>
+      String(l.props?.summary).includes("elsewhere:x: unresolved (timeout")
+    ),
+  );
+});
+
+Deno.test("builtin model: a ticket with no relations writes no record, and one that lost its relations says so", async () => {
+  const swamp = withArgs({ prefix: "ops" });
+  const { call: run } = withReader({ "devswamp:devswamp-25": RESOLVED });
+  await run(swamp, "create", { title: "a", body: "x", type: "bug" });
+  await run(swamp, "fetch_issue", { issue: "ops-1" });
+  assertEquals(record(swamp, "relations-ops-1"), undefined);
+  const to = {
+    issue: "ops-1",
+    type: "blocked_by",
+    to: "devswamp:devswamp-25",
+  };
+  await run(swamp, "relate", to);
+  await run(swamp, "fetch_issue", { issue: "ops-1" });
+  await run(swamp, "unrelate", to);
+  await run(swamp, "fetch_issue", { issue: "ops-1" });
+  assertEquals(record(swamp, "relations-ops-1")?.length, 2);
+  assertEquals(
+    (record(swamp, "relations-ops-1")?.at(-1) as { relations: unknown[] })
+      .relations,
+    [],
+  );
+});
+
+Deno.test("builtin model: the fetch-issue workflow's calls record the relations once, with one read per ticket", async () => {
+  const swamp = withArgs({ prefix: "ops" });
+  const { call: run, reads } = withReader({
+    "devswamp:devswamp-25": RESOLVED,
+  });
+  await run(swamp, "create", { title: "a", body: "x", type: "bug" });
+  const to = {
+    issue: "ops-1",
+    type: "blocked_by",
+    to: "devswamp:devswamp-25",
+  };
+  await run(swamp, "relate", to);
+  reads.length = 0;
+  const args = { kind: "fetch_issue", issue: "ops-1", run: "r1" };
+  for (let n = 0; n < 6; n++) {
+    await run(swamp, "round", args);
+    const state = RoundRecordSchema.parse(
+      record(swamp, "round-fetch_issue-r1")?.at(-1),
+    );
+    if (state.done) break;
+    for (const op of [...state.ops, ...state.reads]) {
+      await run(swamp, "operate", {
+        operation: op.operation,
+        request: op.request,
+        answer: op.answer,
+        run: "r1",
+      });
+    }
+  }
+  assertEquals(record(swamp, "relations-ops-1")?.length, 1);
+  assertEquals(reads, ["devswamp:devswamp-25"]);
+});
+
+Deno.test("builtin model: a relations record that cannot be written fails fetch_issue, so an older one never looks current", async () => {
+  const swamp = withArgs({ prefix: "ops" });
+  const { call: run } = withReader({ "devswamp:devswamp-25": RESOLVED });
+  await run(swamp, "create", { title: "a", body: "x", type: "bug" });
+  await run(swamp, "relate", {
+    issue: "ops-1",
+    type: "blocked_by",
+    to: "devswamp:devswamp-25",
+  });
+  await run(swamp, "fetch_issue", { issue: "ops-1" });
+  const methods = builtinMethods({
+    reader: () => ({ read: () => Promise.resolve(RESOLVED) }),
+  });
+  const ctx = swamp.context(INSTANCE);
+  const failing = {
+    ...ctx,
+    writeResource: () => Promise.reject(new Error("no space")),
+  };
+  const method = methods.fetch_issue;
+  await assertRejects(
+    () =>
+      (method.execute as (a: unknown, c: unknown) => Promise<unknown>)(
+        method.arguments.parse({ issue: "ops-1" }),
+        failing,
+      ),
+    Error,
+    "no space",
+  );
+});
+
+Deno.test("builtin model: a peer with this instance's name is that peer, not this tracker", async () => {
+  const swamp = withArgs({
+    prefix: "ops",
+    peers: { [INSTANCE]: { repo: "/work/other" } },
+  });
+  const { call: run, reads } = withReader({
+    [`${INSTANCE}:ops-1`]: {
+      state: "resolved",
+      id: "ops-1",
+      display: "ops-1",
+      status: "shipped",
+    },
+  });
+  await run(swamp, "create", { title: "a", body: "x", type: "bug" });
+  await run(swamp, "create", { title: "b", body: "x", type: "bug" });
+  await run(swamp, "relate", {
+    issue: "ops-2",
+    type: "blocked_by",
+    to: `${INSTANCE}:ops-1`,
+  });
+  assertEquals(reads, [`${INSTANCE}:ops-1`]);
+  // The local ops-1, same id, is untouched, and the record reads the peer's.
+  const local = record(swamp, "issue-ops-1")?.at(-1) as {
+    relations: unknown[];
+  };
+  assertEquals(local.relations, []);
+  await run(swamp, "fetch_issue", { issue: "ops-2" });
+  const entry = (record(swamp, "relations-ops-2")?.at(-1) as {
+    relations: { external: boolean; status: string }[];
+  }).relations[0];
+  assertEquals([entry.external, entry.status], [true, "shipped"]);
+});
+
+Deno.test("builtin model: without such a peer, this instance's own name is a local ticket", async () => {
+  const swamp = withArgs({ prefix: "ops" });
+  const { call: run, reads } = withReader({});
+  await run(swamp, "create", { title: "a", body: "x", type: "bug" });
+  await run(swamp, "create", { title: "b", body: "x", type: "bug" });
+  await run(swamp, "relate", {
+    issue: "ops-2",
+    type: "blocked_by",
+    to: `${INSTANCE}:ops-1`,
+  });
+  assertEquals(reads, []);
+  assertEquals(
+    (record(swamp, "issue-ops-1")?.at(-1) as { relations: unknown[] }).relations
+      .length,
+    1,
+  );
+});
+
+Deno.test("builtin model: a claim's read never contacts another tracker", async () => {
+  const swamp = withArgs({ prefix: "ops" });
+  const { call: run, reads } = withReader({
+    "devswamp:devswamp-25": RESOLVED,
+  });
+  await run(swamp, "create", { title: "a", body: "x", type: "bug" });
+  await run(swamp, "relate", {
+    issue: "ops-1",
+    type: "blocked_by",
+    to: "devswamp:devswamp-25",
+  });
+  reads.length = 0;
+  await run(swamp, "claim", { issue: "ops-1", dryRun: true });
+  assertEquals(reads, []);
+  assertEquals(record(swamp, "relations-ops-1"), undefined);
+});
+
+Deno.test("builtin model: peers are checked: one route each, an absolute path, and a token only where it may go", () => {
+  const parses = (peers: unknown) =>
+    model.globalArguments.safeParse({ peers }).success;
+  assert(parses({ devswamp: { repo: "/work/devswamp" } }));
+  assert(parses({ devswamp: { repo: "C:\\work\\devswamp" } }));
+  assert(parses({ devswamp: { server: "wss://swamp.acme.example" } }));
+  assert(parses({ devswamp: { server: "http://other.example:9090" } }));
+  assert(parses({
+    devswamp: {
+      server: "https://swamp.acme.example",
+      token: "\${{ vault.get(v, k) }}",
+    },
+  }));
+  assert(parses({ d: { server: "http://127.0.0.1:9090", token: "t" } }));
+  assert(parses({ d: { server: "\${{ vars.url }}", token: "t" } }));
+
+  assert(!parses({ devswamp: {} }));
+  assert(!parses({ devswamp: { repo: "/a", server: "ws://b" } }));
+  assert(!parses({ devswamp: { repo: "../devswamp" } }));
+  assert(!parses({ devswamp: { repo: "--config=/x" } }));
+  assert(!parses({ devswamp: { server: "--token=x" } }));
+  assert(!parses({ devswamp: { server: "file:///etc/passwd" } }));
+  assert(!parses({ devswamp: { repo: "/a", token: "t" } }));
+  assert(!parses({ devswamp: { server: "http://other.example", token: "t" } }));
+  assert(!parses({ devswamp: { server: "ws://other.example", token: "t" } }));
+  assert(!parses({ "Dev:swamp": { repo: "/a" } }));
+  assert(!parses({ devswamp: { repo: "/a", extra: 1 } }));
 });

@@ -42,10 +42,11 @@ This skill covers **authoring** a factory and **driving** its work items.
 - A factory definition to start from: write the closest example in
   [references/examples/](references/examples/) into a factory's model definition
   (its `definition:` and `scenarios:` blocks, under `globalArguments:`), then
-  run `validate`. `minimal.yaml` is one stage; `starter.yaml` is a general
-  change from plan to release; `content-review.yaml` reviews, approves and
-  publishes a piece of writing; `incident-review.yaml` writes up an incident to
-  a signed-off review; `openapi-models.yaml` turns an API's OpenAPI spec into
+  run `validate`. `minimal.yaml` is one stage; `respect-dependencies.yaml`
+  starts work only once a ticket's blockers are finished; `starter.yaml` is a
+  general change from plan to release; `content-review.yaml` reviews, approves
+  and publishes a piece of writing; `incident-review.yaml` writes up an incident
+  to a signed-off review; `openapi-models.yaml` turns an API's OpenAPI spec into
   swamp models; `build-swamp-extension.yaml` builds a swamp extension. Each
   factory definition's description says what it is for and what to change first.
 - Saved scenarios, the paths `validate` checks a factory still allows: add one
@@ -153,10 +154,14 @@ no ticket. See
 tickets (a parent and its child, a blocker) on a tracker stagecraft ships, use
 `swamp model method run <tracker> relate --input issue=<id> --input type=<parent_of|blocked_by|related_to|duplicate_of> --input to=<id>`
 with stable ids; `unrelate` takes the same inputs. Every tracker refuses a
-second parent, a parent cycle and a duplicate chain the same way. Relations
-belong to the tracker: read them with
+second parent, a parent cycle and a duplicate chain the same way. On the
+built-in tracker, `to` may be a ticket in another tracker, `<tracker>:<id>`, for
+`blocked_by` and `related_to`. Relations belong to the tracker: read them with
 `swamp workflow run @swamp/stagecraft/fetch-issue --input tracker=<tracker> --input issue=<id>`,
-not from memory. When a person says a ticket duplicates another, mark it with
+not from memory. stagecraft applies no rule to a blocker: whether one stops work
+is the factory's, in its stages. See
+[references/driving.md](references/driving.md#respect-a-tickets-dependencies).
+When a person says a ticket duplicates another, mark it with
 `swamp workflow run @swamp/stagecraft/mark-duplicate --input tracker=<tracker> --input issue=<duplicate> --input primary=<primary>`,
 which also closes it; its work moves to the primary by a retarget or the
 definition's duplicate exit. See

@@ -197,6 +197,8 @@ first, and each example passes the factory type's schema and `validate` with its
 saved scenarios (`extensions/models/engine/examples_test.ts`):
 
 - `minimal.yaml`: one stage of work, then done.
+- `respect-dependencies.yaml`: work starts once what the ticket is blocked by is
+  finished, or a person says to go on.
 - `starter.yaml`: a general change, from plan through plan review, implement,
   verify and code review to release.
 - `content-review.yaml`: a piece of writing, from draft through an editorial
@@ -660,8 +662,9 @@ See [DESIGN.md](DESIGN.md), "Summary and metrics", for what each metric means.
 ## Built-in tracker
 
 `@swamp/stagecraft/tracker` keeps tickets in swamp data, for a project with no
-external tracker. It makes no network call. Keep one instance per project. See
-[DESIGN.md](DESIGN.md), "The built-in tracker".
+external tracker. It makes no network call, unless a [peer](#relations-to-another-tracker)
+is a swamp serve. Keep one instance per project. See [DESIGN.md](DESIGN.md), "The
+built-in tracker".
 
 ```bash
 swamp model create @swamp/stagecraft/tracker board --json
@@ -713,6 +716,100 @@ relations: a second parent, a parent cycle, a second canonical, a duplicate of a
 duplicate, and a duplicate that has duplicates of its own. `fetch_issue` reports
 a ticket's relations, each with its direction; `related_to` is read with one
 too. The built-in tracker keeps them on both tickets.
+
+### Relations to another tracker
+
+On the built-in tracker, `to` may name a ticket in another tracker as
+`<tracker>:<id>`, for `blocked_by` and `related_to`:
+
+```bash
+swamp model method run ops-tracker relate --input issue=ops-18 \
+  --input type=blocked_by --input to=devswamp:devswamp-25
+swamp model method run ops-tracker unrelate --input issue=ops-18 \
+  --input type=blocked_by --input to=devswamp:devswamp-25
+```
+
+The relation is kept on this ticket only, since the other tracker may not be
+writable from here: the other ticket shows nothing, unless you run `relate` there
+too. It is recorded whether or not the other tracker can be read. When it can, the
+relation is kept under the ticket's stable id; when not, it is kept as written,
+with a warning that prints the `unrelate` to run if it was a typo. `unrelate` never
+contacts the other tracker. `parent_of` and `duplicate_of` are refused, because
+their rules need both tickets. Built-in ids and swamp model names cannot contain a
+`:`, so a local id is never read as a reference. Other trackers keep to their own
+tickets.
+
+`<tracker>` is the other tracker's instance name. One in this repository needs no
+configuration. Any other is a **peer**, named in this instance's `peers`, which is
+read at `relate` and `fetch_issue` and at nothing else, so `claim` and `publish`
+never contact one. A peer's name is the tracker's instance name there, unless its
+`instance` says otherwise, so two peers can both be called `board` there. A peer
+named the same as this instance is that peer: only a bare id is then a local ticket.:
+
+```yaml
+globalArguments:
+  peers:
+    devswamp: { repo: /work/devswamp } # another repository on this machine
+    platform: # a swamp serve
+      server: wss://swamp.example.com
+      token: ${{ vault.get(secrets, platform-swamp-token) }}
+```
+
+- **`repo`** is an absolute path, so it reads as unresolved on a machine or remote
+  worker that does not have it. It grants nothing the user running swamp cannot
+  already read.
+- **`server`** is a `ws`, `wss`, `http` or `https` URL, read with `swamp data query
+  --server`. **`token`** is optional, and comes from a vault: use it wherever no one
+  is logged in, such as workers and CI. Without it, swamp's stored login for that
+  URL is used (`swamp auth server-login`). A token is sent only over TLS or to this
+  machine. A token that can read a server's data can read all of it, so give this
+  one its own token. Serve allows 50 connections a minute per address, and a
+  `fetch_issue` makes one per external relation, or two when the first does not find
+  the ticket by name.
+- A peer's URL comes from a definition, so its swamp is given none of your serve
+  settings from the environment. It keeps only your swamp account and where swamp
+  keeps its files; every other `SWAMP_` variable is left out.
+
+`fetch_issue` and the `fetch-issue` workflow write what the ticket's relations are
+known to be to a `relations-<id>` record, beside the ticket, for every relation,
+local and external. A ticket that has never had a relation gets no record:
+
+```bash
+swamp data query 'modelName == "ops-tracker" && name == "relations-ops-18"' \
+  --select content --single --json
+```
+
+```json
+{
+  "issue": "ops-18",
+  "checkedAt": "2026-11-05T12:00:00.000Z",
+  "relations": [
+    {
+      "type": "blocked_by",
+      "direction": "outgoing",
+      "issue": "devswamp:devswamp-25",
+      "display": "devswamp:devswamp-25",
+      "external": true,
+      "state": "resolved",
+      "status": "in_progress"
+    }
+  ]
+}
+```
+
+An `unresolved` entry has a `reason` instead of a `status`, and a `detail`:
+`no_peer`, `unreachable`, `auth`, `rate_limited`, `not_found`, `timeout`,
+`bad_answer` or `unsupported_runtime`. A peer that is a snapshot of another tracker,
+such as Linear, adds `fetchedAt`, when that snapshot was taken. A relation to a
+deleted ticket stays `not_found` until someone runs `unrelate`. The record is a last
+read: run `fetch-issue` again before acting on it. Reads stop after 10 seconds each
+and 30 seconds a call, since the tracker's lock is held meanwhile.
+
+**stagecraft applies no rule of its own to a relation.** `claim` and `publish` do
+the same whatever a ticket is blocked by, and the record reports each status by
+name without saying whether it means finished. Whether a blocker stops work is the
+factory's to decide, in its stages: see
+[`respect-dependencies.yaml`](.claude/skills/stagecraft/references/examples/respect-dependencies.yaml).
 
 To mark a duplicate, which also closes it (Linear closes a duplicate itself):
 
