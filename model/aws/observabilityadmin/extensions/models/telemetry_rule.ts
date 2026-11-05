@@ -275,8 +275,10 @@ const GlobalArgsSchema = z.object({
       "AWS::BedrockAgentCore::Memory",
       "AWS::BedrockAgentCore::Gateway",
       "AWS::BedrockAgentCore::WorkloadIdentity",
+      "AWS::BedrockAgentCore::PaymentManager",
+      "AWS::XRay::TransactionSearchConfig",
     ]).describe("Resource Type associated with the Telemetry Rule"),
-    TelemetryType: z.enum(["Logs", "Traces", "Metrics"]).describe(
+    TelemetryType: z.enum(["Logs", "Traces", "Metrics", "Insights"]).describe(
       "Telemetry Type associated with the Telemetry Rule",
     ),
     TelemetrySourceTypes: z.array(
@@ -363,8 +365,10 @@ const InputsSchema = z.object({
       "AWS::BedrockAgentCore::Memory",
       "AWS::BedrockAgentCore::Gateway",
       "AWS::BedrockAgentCore::WorkloadIdentity",
+      "AWS::BedrockAgentCore::PaymentManager",
+      "AWS::XRay::TransactionSearchConfig",
     ]).describe("Resource Type associated with the Telemetry Rule").optional(),
-    TelemetryType: z.enum(["Logs", "Traces", "Metrics"]).describe(
+    TelemetryType: z.enum(["Logs", "Traces", "Metrics", "Insights"]).describe(
       "Telemetry Type associated with the Telemetry Rule",
     ).optional(),
     TelemetrySourceTypes: z.array(
@@ -418,7 +422,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ObservabilityAdmin TelemetryRule. Registered at `@swamp/aws/observabilityadmin/telemetry-rule`. */
 export const model = {
   type: "@swamp/aws/observabilityadmin/telemetry-rule",
-  version: "2026.10.25.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.09.11.1",
@@ -442,6 +446,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

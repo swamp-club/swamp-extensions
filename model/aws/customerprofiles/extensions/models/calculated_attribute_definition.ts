@@ -276,7 +276,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CustomerProfiles CalculatedAttributeDefinition. Registered at `@swamp/aws/customerprofiles/calculated-attribute-definition`. */
 export const model = {
   type: "@swamp/aws/customerprofiles/calculated-attribute-definition",
-  version: "2026.10.25.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -340,6 +340,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -460,6 +465,8 @@ export const model = {
           [
             "DomainName",
             "CalculatedAttributeName",
+            "Statistic",
+            "AttributeDetails",
             "UseHistoricalData",
             "Conditions/Range/TimestampSource",
             "Conditions/Range/TimestampFormat",

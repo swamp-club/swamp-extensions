@@ -62,7 +62,7 @@ const GlobalArgsSchema = z.object({
       "A name to identify the origin access control. You can specify up to 64 characters.",
     ),
     OriginAccessControlOriginType: z.string().regex(
-      new RegExp("^(s3|mediastore|lambda|mediapackagev2)$"),
+      new RegExp("^(s3|mediastore|lambda|mediapackagev2|execute-api)$"),
     ).describe("The type of origin that this origin access control is for."),
     SigningBehavior: z.string().regex(
       new RegExp("^(never|no-override|always|always-amz-auth)$"),
@@ -102,7 +102,7 @@ const InputsSchema = z.object({
       "A name to identify the origin access control. You can specify up to 64 characters.",
     ).optional(),
     OriginAccessControlOriginType: z.string().regex(
-      new RegExp("^(s3|mediastore|lambda|mediapackagev2)$"),
+      new RegExp("^(s3|mediastore|lambda|mediapackagev2|execute-api)$"),
     ).describe("The type of origin that this origin access control is for.")
       .optional(),
     SigningBehavior: z.string().regex(
@@ -135,7 +135,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFront OriginAccessControl. Registered at `@swamp/aws/cloudfront/origin-access-control`. */
 export const model = {
   type: "@swamp/aws/cloudfront/origin-access-control",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -204,6 +204,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

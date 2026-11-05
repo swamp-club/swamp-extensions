@@ -94,11 +94,13 @@ const GlobalArgsSchema = z.object({
       "startsWith",
       "endsWith",
       "find",
+      "notContains",
       "in",
+      "notIn",
     ]),
     value: z.string().min(1).max(512),
   })).describe(
-    "Structured search as a JSON array of {field, op, value} objects. Use the 'in' operator with an array value to bulk-check up to 100 values. Multiple conditions are AND'd together. Max 10 conditions per request.",
+    'Structured search as a JSON array of {field, op, value} objects, AND\'d together. Max 10 conditions per request. `in` and `notIn` take an array of up to 100 values. Exclusions: `not` drops events without a value for the field; `notIn` and `notContains` keep them. On intelligence datasets, a `notIn` list containing `"unknown"` also drops them; analytics datasets treat `"unknown"` as a literal value.',
   ).optional(),
   searchBranches: z.array(z.array(z.object({
     field: z.enum([
@@ -132,7 +134,9 @@ const GlobalArgsSchema = z.object({
       "startsWith",
       "endsWith",
       "find",
+      "notContains",
       "in",
+      "notIn",
     ]),
     value: z.string().min(1).max(512),
   }))).describe(
@@ -242,7 +246,9 @@ const InputsSchema = z.object({
       "startsWith",
       "endsWith",
       "find",
+      "notContains",
       "in",
+      "notIn",
     ]),
     value: z.string().min(1).max(512),
   })).optional(),
@@ -278,7 +284,9 @@ const InputsSchema = z.object({
       "startsWith",
       "endsWith",
       "find",
+      "notContains",
       "in",
+      "notIn",
     ]),
     value: z.string().min(1).max(512),
   }))).optional(),
@@ -290,7 +298,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Events. Registered at `@swamp/cloudflare/cloudforce-one/events`. */
 export const model = {
   type: "@swamp/cloudflare/cloudforce-one/events",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.10.02.1",
@@ -314,6 +322,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

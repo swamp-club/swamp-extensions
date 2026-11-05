@@ -214,6 +214,11 @@ const GlobalArgsSchema = z.object({
   isolated_workers: z.boolean().describe(
     "A boolean value indicating whether worker nodes in the cluster are not assigned public IP addresses. When omitted on create, the default value is false. When enabled, a NAT gateway must exist in the VPC where the cluster is created.",
   ).optional(),
+  insights: z.object({
+    logs: z.boolean().optional(),
+  }).describe(
+    "An object specifying the Insights telemetry that the customer opts in to for the Kubernetes cluster. This is only accepted when creating a cluster and is not returned in responses. If the object is omitted, or if `logs` is not set, no opt-in is recorded for the cluster.",
+  ).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -447,13 +452,16 @@ const InputsSchema = z.object({
     ]).optional(),
   })).optional(),
   isolated_workers: z.boolean().optional(),
+  insights: z.object({
+    logs: z.boolean().optional(),
+  }).optional(),
   token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean kubernetes cluster. Registered at `@swamp/digitalocean/kubernetes-cluster`. */
 export const model = {
   type: "@swamp/digitalocean/kubernetes-cluster",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -568,6 +576,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
+      description: "Added: insights",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -685,6 +698,7 @@ export const model = {
         if (g.coredns_autoscaler !== undefined) {
           body.coredns_autoscaler = g.coredns_autoscaler;
         }
+        if (g.insights !== undefined) body.insights = g.insights;
         let result = await create(
           "/v2/kubernetes/clusters",
           body,

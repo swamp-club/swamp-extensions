@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/gcp/contactcenterinsights"
-version: "2026.11.01.1"
+version: "2026.11.05.1"
 license: "AGPL-3.0-or-later"
 description: "Google Cloud contactcenterinsights infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -11,8 +11,6 @@ labels:
   - contactcenterinsights
   - cloud
   - infrastructure
-releaseNotes: |
-  - Updated: authorizedviewsets_authorizedviews_conversations, authorizedviewsets_authorizedviews_conversations_assessments, conversations, conversations_assessments, datasets_conversations, qascorecards_revisions_qaquestions
 models:
   - analysisrules.ts
   - assessmentrules.ts
@@ -29,7 +27,6 @@ models:
   - conversations_assessments_notes.ts
   - conversations_feedbacklabels.ts
   - dashboards.ts
-  - dashboards_charts.ts
   - datasets.ts
   - datasets_conversations.ts
   - datasets_conversations_feedbacklabels.ts

@@ -156,6 +156,29 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Identifier. Unique identifier for the audit schedule. Format: projects/{project}/locations/{location}/auditSchedules/{audit_schedule} folders/{folder}/locations/{location}/auditSchedules/{audit_schedule} organizations/{organization}/locations/{location}/auditSchedules/{audit_schedule}",
   ).optional(),
+  parameterOverrides: z.record(
+    z.string(),
+    z.object({
+      parameters: z.array(z.object({
+        name: z.string().describe("Required. The name or key of the parameter.")
+          .optional(),
+        parameterValue: z.object({
+          boolValue: z.unknown().describe("Optional. A boolean value.")
+            .optional(),
+          numberValue: z.unknown().describe("Optional. A double value.")
+            .optional(),
+          oneofValue: z.unknown().describe("Circular reference to Parameter")
+            .optional(),
+          stringListValue: z.unknown().describe("Optional. A repeated string.")
+            .optional(),
+          stringValue: z.unknown().describe("Optional. A string value.")
+            .optional(),
+        }).describe("Required. The value of the parameter.").optional(),
+      })).describe("The list of parameter overrides.").optional(),
+    }),
+  ).describe(
+    'Optional. Maps dynamic parameter overrides by Cloud Control resource name at execution time. For example, `{"organizations/123/locations/global/cloudControls/control-1": {parameters: [...]}}`',
+  ).optional(),
   reportFormat: z.enum([
     "AUDIT_REPORT_FORMAT_UNSPECIFIED",
     "AUDIT_REPORT_FORMAT_ODF",
@@ -209,6 +232,7 @@ const StateSchema = z.object({
   lastTriggerTime: z.string().optional(),
   name: z.string(),
   nextRunTime: z.string().optional(),
+  parameterOverrides: z.record(z.string(), z.unknown()).optional(),
   reportFormat: z.string().optional(),
   scheduleConfig: z.object({
     endTime: z.string(),
@@ -240,6 +264,29 @@ const InputsSchema = z.object({
   ).optional(),
   name: z.string().describe(
     "Identifier. Unique identifier for the audit schedule. Format: projects/{project}/locations/{location}/auditSchedules/{audit_schedule} folders/{folder}/locations/{location}/auditSchedules/{audit_schedule} organizations/{organization}/locations/{location}/auditSchedules/{audit_schedule}",
+  ).optional(),
+  parameterOverrides: z.record(
+    z.string(),
+    z.object({
+      parameters: z.array(z.object({
+        name: z.string().describe("Required. The name or key of the parameter.")
+          .optional(),
+        parameterValue: z.object({
+          boolValue: z.unknown().describe("Optional. A boolean value.")
+            .optional(),
+          numberValue: z.unknown().describe("Optional. A double value.")
+            .optional(),
+          oneofValue: z.unknown().describe("Circular reference to Parameter")
+            .optional(),
+          stringListValue: z.unknown().describe("Optional. A repeated string.")
+            .optional(),
+          stringValue: z.unknown().describe("Optional. A string value.")
+            .optional(),
+        }).describe("Required. The value of the parameter.").optional(),
+      })).describe("The list of parameter overrides.").optional(),
+    }),
+  ).describe(
+    'Optional. Maps dynamic parameter overrides by Cloud Control resource name at execution time. For example, `{"organizations/123/locations/global/cloudControls/control-1": {parameters: [...]}}`',
   ).optional(),
   reportFormat: z.enum([
     "AUDIT_REPORT_FORMAT_UNSPECIFIED",
@@ -311,7 +358,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Audit Manager AuditSchedules. Registered at `@swamp/gcp/auditmanager/auditschedules`. */
 export const model = {
   type: "@swamp/gcp/auditmanager/auditschedules",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -321,6 +368,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
+      description: "Added: parameterOverrides",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -356,6 +408,9 @@ export const model = {
         }
         if (g["gcsUri"] !== undefined) body["gcsUri"] = g["gcsUri"];
         if (g["name"] !== undefined) body["name"] = g["name"];
+        if (g["parameterOverrides"] !== undefined) {
+          body["parameterOverrides"] = g["parameterOverrides"];
+        }
         if (g["reportFormat"] !== undefined) {
           body["reportFormat"] = g["reportFormat"];
         }
@@ -481,6 +536,9 @@ export const model = {
           body["displayName"] = g["displayName"];
         }
         if (g["gcsUri"] !== undefined) body["gcsUri"] = g["gcsUri"];
+        if (g["parameterOverrides"] !== undefined) {
+          body["parameterOverrides"] = g["parameterOverrides"];
+        }
         if (g["reportFormat"] !== undefined) {
           body["reportFormat"] = g["reportFormat"];
         }

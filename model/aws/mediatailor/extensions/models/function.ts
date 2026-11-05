@@ -38,6 +38,18 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const HttpRequestCacheConfigurationSchema = z.object({
+  TtlMinimumSeconds: z.number().int().min(1).describe(
+    "The lower bound, in seconds, on how long MediaTailor caches a response. MediaTailor also uses this value as the cache duration when a response has no Cache-Control max-age directive.",
+  ),
+  TtlMaximumSeconds: z.number().int().min(1).describe(
+    "The upper bound, in seconds, on how long MediaTailor caches a response. This value must be greater than or equal to TtlMinimumSeconds.",
+  ),
+  Key: z.string().describe(
+    "A JSONata expression that MediaTailor evaluates to a custom cache key. By default, the cache key is a hash of the HTTP URL, request body, and HTTP method; request headers are not included. The evaluated key must be smaller than 1 KB.",
+  ).optional(),
+});
+
 const FunctionRefSchema = z.object({
   RunCondition: z.string().describe(
     "An optional expression that evaluates to a boolean. MediaTailor evaluates this expression immediately before running the child function, using the accumulated state at that point. If the expression evaluates to false, MediaTailor skips the child function. If omitted, the child function always runs.",
@@ -98,6 +110,9 @@ const GlobalArgsSchema = z.object({
     Headers: z.record(z.string(), z.string()).describe(
       "A map of HTTP headers to include in the request.",
     ).optional(),
+    Cache: HttpRequestCacheConfigurationSchema.describe(
+      "The optional response-caching configuration for the function. When present, MediaTailor caches the responses that the function receives from the HTTP endpoint, within the time-to-live (TTL) bounds that you specify. Omit this configuration to disable response caching.",
+    ).optional(),
   }).describe("Configuration for HTTP request functions.").optional(),
   AwsServiceRequestConfiguration: z.object({
     Runtime: z.enum(["JSONATA"]).describe(
@@ -118,6 +133,9 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     Headers: z.record(z.string(), z.string()).describe(
       "A map of HTTP header names to expression values. MediaTailor evaluates each header value expression at runtime and includes the result in the outbound request to the AWS service. Use this to pass any headers required by the target service operation. You can include a maximum of 50 headers.",
+    ).optional(),
+    Cache: HttpRequestCacheConfigurationSchema.describe(
+      "The optional response-caching configuration for the function. When present, MediaTailor caches the responses that the function receives from the AWS service, within the time-to-live (TTL) bounds that you specify. Omit this configuration to disable response caching.",
     ).optional(),
     TargetService: z.string().min(1).max(63).regex(new RegExp("[a-z0-9-]+"))
       .describe(
@@ -192,6 +210,9 @@ const GlobalArgsSchema = z.object({
     Headers: z.record(z.string(), z.string()).describe(
       "A map of HTTP header names to expression values. MediaTailor evaluates each header value expression at runtime and includes the result in the outbound request. Headers beginning with X-Amz- are reserved by the service, and method override headers are not allowed.",
     ).optional(),
+    Cache: HttpRequestCacheConfigurationSchema.describe(
+      "The optional response-caching configuration for the function. When present, MediaTailor caches the responses that the function receives from the HTTP endpoint, within the time-to-live (TTL) bounds that you specify. Omit this configuration to disable response caching.",
+    ).optional(),
   }).describe(
     "The configuration for a VAST_REQUEST function. Specifies the HTTP method, URL, headers, body, timeout, and output expressions for a request to a VAST endpoint. MediaTailor parses the response as VAST and resolves wrapper redirects, then makes the parsed ads available to the function's output expressions. For more information, see Function types and composition (https://docs.aws.amazon.com/mediatailor/latest/ug/monetization-functions-types.html) in the MediaTailor User Guide.",
   ).optional(),
@@ -213,6 +234,7 @@ const StateSchema = z.object({
     Url: z.string(),
     Body: z.string(),
     Headers: z.record(z.string(), z.unknown()),
+    Cache: HttpRequestCacheConfigurationSchema,
   }).optional(),
   AwsServiceRequestConfiguration: z.object({
     Runtime: z.string(),
@@ -222,6 +244,7 @@ const StateSchema = z.object({
     Url: z.string(),
     Body: z.string(),
     Headers: z.record(z.string(), z.unknown()),
+    Cache: HttpRequestCacheConfigurationSchema,
     TargetService: z.string(),
     TargetRegion: z.string(),
   }).optional(),
@@ -250,6 +273,7 @@ const StateSchema = z.object({
     Url: z.string(),
     Body: z.string(),
     Headers: z.record(z.string(), z.unknown()),
+    Cache: HttpRequestCacheConfigurationSchema,
   }).optional(),
   Tags: z.array(TagSchema).optional(),
 }).passthrough();
@@ -293,6 +317,9 @@ const InputsSchema = z.object({
     Headers: z.record(z.string(), z.string()).describe(
       "A map of HTTP headers to include in the request.",
     ).optional(),
+    Cache: HttpRequestCacheConfigurationSchema.describe(
+      "The optional response-caching configuration for the function. When present, MediaTailor caches the responses that the function receives from the HTTP endpoint, within the time-to-live (TTL) bounds that you specify. Omit this configuration to disable response caching.",
+    ).optional(),
   }).describe("Configuration for HTTP request functions.").optional(),
   AwsServiceRequestConfiguration: z.object({
     Runtime: z.enum(["JSONATA"]).describe(
@@ -313,6 +340,9 @@ const InputsSchema = z.object({
     ).optional(),
     Headers: z.record(z.string(), z.string()).describe(
       "A map of HTTP header names to expression values. MediaTailor evaluates each header value expression at runtime and includes the result in the outbound request to the AWS service. Use this to pass any headers required by the target service operation. You can include a maximum of 50 headers.",
+    ).optional(),
+    Cache: HttpRequestCacheConfigurationSchema.describe(
+      "The optional response-caching configuration for the function. When present, MediaTailor caches the responses that the function receives from the AWS service, within the time-to-live (TTL) bounds that you specify. Omit this configuration to disable response caching.",
     ).optional(),
     TargetService: z.string().min(1).max(63).regex(new RegExp("[a-z0-9-]+"))
       .describe(
@@ -387,6 +417,9 @@ const InputsSchema = z.object({
     Headers: z.record(z.string(), z.string()).describe(
       "A map of HTTP header names to expression values. MediaTailor evaluates each header value expression at runtime and includes the result in the outbound request. Headers beginning with X-Amz- are reserved by the service, and method override headers are not allowed.",
     ).optional(),
+    Cache: HttpRequestCacheConfigurationSchema.describe(
+      "The optional response-caching configuration for the function. When present, MediaTailor caches the responses that the function receives from the HTTP endpoint, within the time-to-live (TTL) bounds that you specify. Omit this configuration to disable response caching.",
+    ).optional(),
   }).describe(
     "The configuration for a VAST_REQUEST function. Specifies the HTTP method, URL, headers, body, timeout, and output expressions for a request to a VAST endpoint. MediaTailor parses the response as VAST and resolves wrapper redirects, then makes the parsed ads available to the function's output expressions. For more information, see Function types and composition (https://docs.aws.amazon.com/mediatailor/latest/ug/monetization-functions-types.html) in the MediaTailor User Guide.",
   ).optional(),
@@ -414,7 +447,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaTailor Function. Registered at `@swamp/aws/mediatailor/function`. */
 export const model = {
   type: "@swamp/aws/mediatailor/function",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -444,6 +477,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

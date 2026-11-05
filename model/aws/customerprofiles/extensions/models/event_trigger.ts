@@ -98,6 +98,45 @@ const PeriodSchema = z.object({
   ).optional(),
 });
 
+const IntentSchema = z.object({
+  IntentDomain: z.enum(["DEFAULT"]).describe("The domain of the intent."),
+  Type: z.enum([
+    "PRICE_SENSITIVITY",
+    "UPGRADE_UPSELL_PROPENSITY",
+    "LAST_SEARCH_INTENT",
+  ]).describe("The type of the intent."),
+});
+
+const IntentFilterConditionSchema = z.object({
+  Intent: IntentSchema.describe(
+    "Identifies a predicted intent by domain and type.",
+  ),
+  ComparisonOperator: z.enum([
+    "INCLUSIVE",
+    "EXCLUSIVE",
+    "CONTAINS",
+    "GREATER_THAN",
+    "LESS_THAN",
+    "GREATER_THAN_OR_EQUAL",
+    "LESS_THAN_OR_EQUAL",
+    "EQUAL",
+  ]).describe(
+    "The operator used to compare the predicted intent against a list of values.",
+  ),
+  Values: z.array(z.string().min(1).max(255)).describe(
+    "A list of intent values used for comparison.",
+  ),
+});
+
+const IntentFilterGroupSchema = z.object({
+  Conditions: z.array(IntentFilterConditionSchema).describe(
+    "A list of intent filter conditions.",
+  ),
+  LogicalOperator: z.enum(["ANY", "ALL", "NONE"]).describe(
+    "The operator used to combine multiple dimensions.",
+  ),
+});
+
 const TagSchema = z.object({
   Key: z.string().min(1).max(128).describe(
     "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
@@ -151,6 +190,16 @@ const GlobalArgsSchema = z.object({
     .describe(
       "The destination is triggered only for profiles that meet the criteria of a segment definition.",
     ).optional(),
+  IntentFilterDefinition: z.object({
+    Groups: z.array(IntentFilterGroupSchema).describe(
+      "A list of intent filter groups combined by the definition's logical operator.",
+    ),
+    LogicalOperator: z.enum(["ANY", "ALL", "NONE"]).describe(
+      "The operator used to combine multiple dimensions.",
+    ),
+  }).describe(
+    "Filters the destination to profiles whose predicted intents meet the specified conditions.",
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -167,6 +216,10 @@ const StateSchema = z.object({
     Periods: z.array(PeriodSchema),
   }).optional(),
   SegmentFilter: z.string().optional(),
+  IntentFilterDefinition: z.object({
+    Groups: z.array(IntentFilterGroupSchema),
+    LogicalOperator: z.string(),
+  }).optional(),
   CreatedAt: z.string().optional(),
   LastUpdatedAt: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
@@ -208,6 +261,16 @@ const InputsSchema = z.object({
     .describe(
       "The destination is triggered only for profiles that meet the criteria of a segment definition.",
     ).optional(),
+  IntentFilterDefinition: z.object({
+    Groups: z.array(IntentFilterGroupSchema).describe(
+      "A list of intent filter groups combined by the definition's logical operator.",
+    ).optional(),
+    LogicalOperator: z.enum(["ANY", "ALL", "NONE"]).describe(
+      "The operator used to combine multiple dimensions.",
+    ).optional(),
+  }).describe(
+    "Filters the destination to profiles whose predicted intents meet the specified conditions.",
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -232,7 +295,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CustomerProfiles EventTrigger. Registered at `@swamp/aws/customerprofiles/event-trigger`. */
 export const model = {
   type: "@swamp/aws/customerprofiles/event-trigger",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -297,6 +360,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
+      description: "Added: IntentFilterDefinition",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -78,6 +78,9 @@ const GlobalArgsSchema = z.object({
   Arn: z.string().describe(
     "The Amazon Resource Name (ARN) of the profile association.",
   ).optional(),
+  Priority: z.number().int().describe(
+    "The priority of the profile association, used to order the profiles applied to a VPC when multiple profiles are associated with it. Lower values have higher precedence. Omit for the first profile associated with a VPC. This orders whole profiles on a VPC and is distinct from the DNS Firewall rule group priority carried in a ProfileResourceAssociation's ResourceProperties.",
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -87,6 +90,7 @@ const StateSchema = z.object({
   Name: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
   Arn: z.string().optional(),
+  Priority: z.number().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -112,6 +116,9 @@ const InputsSchema = z.object({
   Arn: z.string().describe(
     "The Amazon Resource Name (ARN) of the profile association.",
   ).optional(),
+  Priority: z.number().int().describe(
+    "The priority of the profile association, used to order the profiles applied to a VPC when multiple profiles are associated with it. Lower values have higher precedence. Omit for the first profile associated with a VPC. This orders whole profiles on a VPC and is distinct from the DNS Firewall rule group priority carried in a ProfileResourceAssociation's ResourceProperties.",
+  ).optional(),
 });
 
 const _credentialKeys = new Set([
@@ -133,7 +140,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Route53Profiles ProfileAssociation. Registered at `@swamp/aws/route53profiles/profile-association`. */
 export const model = {
   type: "@swamp/aws/route53profiles/profile-association",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -193,6 +200,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
+      description: "Added: Priority",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

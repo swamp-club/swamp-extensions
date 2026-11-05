@@ -110,6 +110,7 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  cloudControlParameterStates: z.record(z.string(), z.unknown()).optional(),
   complianceFramework: z.string().optional(),
   complianceStandard: z.string().optional(),
   controlDetails: z.array(z.object({
@@ -196,7 +197,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Audit Manager AuditReports. Registered at `@swamp/gcp/auditmanager/auditreports`. */
 export const model = {
   type: "@swamp/gcp/auditmanager/auditreports",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.10.06.1",
@@ -210,6 +211,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -377,6 +383,7 @@ export const model = {
         complianceFramework: z.any().optional(),
         complianceStandard: z.any().optional(),
         gcsUri: z.any().optional(),
+        parameterOverrides: z.any().optional(),
         reportFormat: z.any().optional(),
         validateOnly: z.any().optional(),
       }),
@@ -409,6 +416,9 @@ export const model = {
           body["complianceStandard"] = args["complianceStandard"];
         }
         if (args["gcsUri"] !== undefined) body["gcsUri"] = args["gcsUri"];
+        if (args["parameterOverrides"] !== undefined) {
+          body["parameterOverrides"] = args["parameterOverrides"];
+        }
         if (args["reportFormat"] !== undefined) {
           body["reportFormat"] = args["reportFormat"];
         }

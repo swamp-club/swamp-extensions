@@ -39,20 +39,20 @@ import {
 import type { AwsCredentials } from "./_lib/aws.ts";
 
 const ConformancePackInputParameterSchema = z.object({
-  ParameterName: z.string().min(0).max(255).describe(
-    "Key part of key-value pair with value being parameter value",
-  ),
   ParameterValue: z.string().min(0).max(4096).describe(
     "Value part of key-value pair with key being parameter Name",
+  ),
+  ParameterName: z.string().min(0).max(255).describe(
+    "Key part of key-value pair with value being parameter value",
   ),
 });
 
 const TagSchema = z.object({
-  Key: z.string().min(1).max(128).describe(
-    "The key name of the tag. You can specify a value that is 1 to 127 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
-  ),
   Value: z.string().min(0).max(256).describe(
     "The value for the tag. You can specify a value that is 1 to 255 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
+  ),
+  Key: z.string().min(1).max(128).describe(
+    "The key name of the tag. You can specify a value that is 1 to 127 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
   ),
 });
 
@@ -69,50 +69,50 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
+  ConformancePackInputParameters: z.array(ConformancePackInputParameterSchema)
+    .describe("A list of ConformancePackInputParameter objects.").optional(),
+  TemplateSSMDocumentDetails: z.object({
+    DocumentVersion: z.string().min(1).max(128).optional(),
+    DocumentName: z.string().min(3).max(128).optional(),
+  }).describe(
+    "The TemplateSSMDocumentDetails object contains the name of the SSM document and the version of the SSM document.",
+  ).optional(),
+  DeliveryS3Bucket: z.string().min(0).max(63).describe(
+    "AWS Config stores intermediate files while processing conformance pack template.",
+  ).optional(),
   ConformancePackName: z.string().min(1).max(256).regex(
     new RegExp("[a-zA-Z][-a-zA-Z0-9]*"),
   ).describe(
     "Name of the conformance pack which will be assigned as the unique identifier.",
   ),
-  DeliveryS3Bucket: z.string().min(0).max(63).describe(
-    "AWS Config stores intermediate files while processing conformance pack template.",
-  ).optional(),
   DeliveryS3KeyPrefix: z.string().min(0).max(1024).describe(
     "The prefix for delivery S3 bucket.",
   ).optional(),
   TemplateBody: z.string().min(1).max(51200).describe(
     "A string containing full conformance pack template body. You can only specify one of the template body or template S3Uri fields.",
   ).optional(),
+  Tags: z.array(TagSchema).describe("The tags for the conformance pack.")
+    .optional(),
   TemplateS3Uri: z.string().min(1).max(1024).regex(new RegExp("s3://.*"))
     .describe(
       "Location of file containing the template body which points to the conformance pack template that is located in an Amazon S3 bucket. You can only specify one of the template body or template S3Uri fields.",
     ).optional(),
-  TemplateSSMDocumentDetails: z.object({
-    DocumentName: z.string().min(3).max(128).optional(),
-    DocumentVersion: z.string().min(1).max(128).optional(),
-  }).describe(
-    "The TemplateSSMDocumentDetails object contains the name of the SSM document and the version of the SSM document.",
-  ).optional(),
-  ConformancePackInputParameters: z.array(ConformancePackInputParameterSchema)
-    .describe("A list of ConformancePackInputParameter objects.").optional(),
-  Tags: z.array(TagSchema).describe("The tags for the conformance pack.")
-    .optional(),
 });
 
 const StateSchema = z.object({
-  ConformancePackName: z.string(),
-  DeliveryS3Bucket: z.string().optional(),
-  DeliveryS3KeyPrefix: z.string().optional(),
-  TemplateBody: z.string().optional(),
-  TemplateS3Uri: z.string().optional(),
-  TemplateSSMDocumentDetails: z.object({
-    DocumentName: z.string(),
-    DocumentVersion: z.string(),
-  }).optional(),
   ConformancePackInputParameters: z.array(ConformancePackInputParameterSchema)
     .optional(),
+  TemplateSSMDocumentDetails: z.object({
+    DocumentVersion: z.string(),
+    DocumentName: z.string(),
+  }).optional(),
+  DeliveryS3Bucket: z.string().optional(),
   ConformancePackArn: z.string().optional(),
+  ConformancePackName: z.string(),
+  DeliveryS3KeyPrefix: z.string().optional(),
+  TemplateBody: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
+  TemplateS3Uri: z.string().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -122,13 +122,21 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
+  ConformancePackInputParameters: z.array(ConformancePackInputParameterSchema)
+    .describe("A list of ConformancePackInputParameter objects.").optional(),
+  TemplateSSMDocumentDetails: z.object({
+    DocumentVersion: z.string().min(1).max(128).optional(),
+    DocumentName: z.string().min(3).max(128).optional(),
+  }).describe(
+    "The TemplateSSMDocumentDetails object contains the name of the SSM document and the version of the SSM document.",
+  ).optional(),
+  DeliveryS3Bucket: z.string().min(0).max(63).describe(
+    "AWS Config stores intermediate files while processing conformance pack template.",
+  ).optional(),
   ConformancePackName: z.string().min(1).max(256).regex(
     new RegExp("[a-zA-Z][-a-zA-Z0-9]*"),
   ).describe(
     "Name of the conformance pack which will be assigned as the unique identifier.",
-  ).optional(),
-  DeliveryS3Bucket: z.string().min(0).max(63).describe(
-    "AWS Config stores intermediate files while processing conformance pack template.",
   ).optional(),
   DeliveryS3KeyPrefix: z.string().min(0).max(1024).describe(
     "The prefix for delivery S3 bucket.",
@@ -136,20 +144,12 @@ const InputsSchema = z.object({
   TemplateBody: z.string().min(1).max(51200).describe(
     "A string containing full conformance pack template body. You can only specify one of the template body or template S3Uri fields.",
   ).optional(),
+  Tags: z.array(TagSchema).describe("The tags for the conformance pack.")
+    .optional(),
   TemplateS3Uri: z.string().min(1).max(1024).regex(new RegExp("s3://.*"))
     .describe(
       "Location of file containing the template body which points to the conformance pack template that is located in an Amazon S3 bucket. You can only specify one of the template body or template S3Uri fields.",
     ).optional(),
-  TemplateSSMDocumentDetails: z.object({
-    DocumentName: z.string().min(3).max(128).optional(),
-    DocumentVersion: z.string().min(1).max(128).optional(),
-  }).describe(
-    "The TemplateSSMDocumentDetails object contains the name of the SSM document and the version of the SSM document.",
-  ).optional(),
-  ConformancePackInputParameters: z.array(ConformancePackInputParameterSchema)
-    .describe("A list of ConformancePackInputParameter objects.").optional(),
-  Tags: z.array(TagSchema).describe("The tags for the conformance pack.")
-    .optional(),
 });
 
 const _credentialKeys = new Set([
@@ -171,7 +171,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Config ConformancePack. Registered at `@swamp/aws/config/conformance-pack`. */
 export const model = {
   type: "@swamp/aws/config/conformance-pack",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -235,6 +235,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

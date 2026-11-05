@@ -1665,6 +1665,26 @@ const GlobalArgsSchema = z.object({
         }).describe(
           "Optional. The accurate time configuration for the node pool.",
         ).optional(),
+        additionalEtcHosts: z.array(z.object({
+          host: z.unknown().describe("The hostname of the host.").optional(),
+          ip: z.unknown().describe("The IPv4 or IPv6 address of the host.")
+            .optional(),
+        })).describe("Optional. Additional entries to be added to /etc/hosts.")
+          .optional(),
+        additionalEtcResolvConf: z.array(z.object({
+          key: z.unknown().describe("The key of resolved.conf").optional(),
+          value: z.unknown().describe("Optional. The value of resolved.conf")
+            .optional(),
+        })).describe(
+          "Optional. Additional entries to be added to /etc/resolv.conf.",
+        ).optional(),
+        additionalEtcSystemdResolvedConf: z.array(z.object({
+          key: z.unknown().describe("The key of resolved.conf").optional(),
+          value: z.unknown().describe("Optional. The value of resolved.conf")
+            .optional(),
+        })).describe(
+          "Optional. Additional entries to be added to /etc/systemd/resolved.conf.",
+        ).optional(),
         cgroupMode: z.enum([
           "CGROUP_MODE_UNSPECIFIED",
           "CGROUP_MODE_V1",
@@ -1709,6 +1729,27 @@ const GlobalArgsSchema = z.object({
             "Optional. Amount of 2M hugepages",
           ).optional(),
         }).describe("Optional. Amounts for 2M and 1G hugepages").optional(),
+        kernelOverrides: z.object({
+          kernelCommandlineOverrides: z.object({
+            initOnAlloc: z.unknown().describe(
+              "Optional. Defines the change of init_on_alloc.",
+            ).optional(),
+            specRstackOverflow: z.unknown().describe(
+              "Optional. Defines the change of spec_rstack_overflow.",
+            ).optional(),
+          }).describe(
+            "Optional. Allow setting for optional kernel command line arguments overrides.",
+          ).optional(),
+          lruGen: z.object({
+            enabled: z.unknown().describe("Optional. Enable lrugen.")
+              .optional(),
+            minTtlMs: z.unknown().describe(
+              "Optional. Users can write N to min_ttl_ms to prevent the working set of N milliseconds from getting evicted.",
+            ).optional(),
+          }).describe("Optional. lrugen (Multi-Gen LRU) options").optional(),
+        }).describe(
+          "Optional. Defines the kernel overrides to be applied to the nodes. Note: sysctl changes are defined separately in the sysctls fields.",
+        ).optional(),
         nodeKernelModuleLoading: z.object({
           policy: z.enum([
             "POLICY_UNSPECIFIED",
@@ -1768,6 +1809,9 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         sysctls: z.record(z.string(), z.string()).describe(
           "The Linux kernel parameters to be applied to the nodes and all pods running on the nodes. The following parameters are supported. net.core.busy_poll net.core.busy_read net.core.netdev_max_backlog net.core.rmem_max net.core.rmem_default net.core.wmem_default net.core.wmem_max net.core.optmem_max net.core.somaxconn net.ipv4.neigh.default.gc_thresh1 net.ipv4.neigh.default.gc_thresh2 net.ipv4.neigh.default.gc_thresh3 net.ipv4.tcp_rmem net.ipv4.tcp_wmem net.ipv4.tcp_tw_reuse net.ipv4.tcp_mtu_probing net.ipv4.tcp_max_orphans net.ipv4.tcp_max_tw_buckets net.ipv4.tcp_syn_retries net.ipv4.tcp_ecn net.ipv4.tcp_congestion_control net.netfilter.nf_conntrack_max net.netfilter.nf_conntrack_buckets net.netfilter.nf_conntrack_tcp_timeout_close_wait net.netfilter.nf_conntrack_tcp_timeout_time_wait net.netfilter.nf_conntrack_tcp_timeout_established net.netfilter.nf_conntrack_acct kernel.keys.maxkeys kernel.keys.maxbytes kernel.shmmni kernel.shmmax kernel.shmall kernel.core_pattern kernel.perf_event_paranoid kernel.sched_rt_runtime_us kernel.softlockup_panic kernel.yama.ptrace_scope kernel.kptr_restrict kernel.dmesg_restrict kernel.sysrq fs.aio-max-nr fs.file-max fs.inotify.max_user_instances fs.inotify.max_user_watches fs.nr_open vm.dirty_background_ratio vm.dirty_background_bytes vm.dirty_expire_centisecs vm.dirty_ratio vm.dirty_bytes vm.dirty_writeback_centisecs vm.max_map_count vm.overcommit_memory vm.overcommit_ratio vm.vfs_cache_pressure vm.swappiness vm.watermark_scale_factor vm.min_free_kbytes",
+        ).optional(),
+        timeZone: z.string().describe(
+          "Optional. Configures the timezone of the node.",
         ).optional(),
         transparentHugepageDefrag: z.enum([
           "TRANSPARENT_HUGEPAGE_DEFRAG_UNSPECIFIED",
@@ -1981,6 +2025,26 @@ const GlobalArgsSchema = z.object({
         }).describe(
           "Optional. The accurate time configuration for the node pool.",
         ).optional(),
+        additionalEtcHosts: z.array(z.object({
+          host: z.unknown().describe("The hostname of the host.").optional(),
+          ip: z.unknown().describe("The IPv4 or IPv6 address of the host.")
+            .optional(),
+        })).describe("Optional. Additional entries to be added to /etc/hosts.")
+          .optional(),
+        additionalEtcResolvConf: z.array(z.object({
+          key: z.unknown().describe("The key of resolved.conf").optional(),
+          value: z.unknown().describe("Optional. The value of resolved.conf")
+            .optional(),
+        })).describe(
+          "Optional. Additional entries to be added to /etc/resolv.conf.",
+        ).optional(),
+        additionalEtcSystemdResolvedConf: z.array(z.object({
+          key: z.unknown().describe("The key of resolved.conf").optional(),
+          value: z.unknown().describe("Optional. The value of resolved.conf")
+            .optional(),
+        })).describe(
+          "Optional. Additional entries to be added to /etc/systemd/resolved.conf.",
+        ).optional(),
         cgroupMode: z.enum([
           "CGROUP_MODE_UNSPECIFIED",
           "CGROUP_MODE_V1",
@@ -2025,6 +2089,27 @@ const GlobalArgsSchema = z.object({
             "Optional. Amount of 2M hugepages",
           ).optional(),
         }).describe("Optional. Amounts for 2M and 1G hugepages").optional(),
+        kernelOverrides: z.object({
+          kernelCommandlineOverrides: z.object({
+            initOnAlloc: z.unknown().describe(
+              "Optional. Defines the change of init_on_alloc.",
+            ).optional(),
+            specRstackOverflow: z.unknown().describe(
+              "Optional. Defines the change of spec_rstack_overflow.",
+            ).optional(),
+          }).describe(
+            "Optional. Allow setting for optional kernel command line arguments overrides.",
+          ).optional(),
+          lruGen: z.object({
+            enabled: z.unknown().describe("Optional. Enable lrugen.")
+              .optional(),
+            minTtlMs: z.unknown().describe(
+              "Optional. Users can write N to min_ttl_ms to prevent the working set of N milliseconds from getting evicted.",
+            ).optional(),
+          }).describe("Optional. lrugen (Multi-Gen LRU) options").optional(),
+        }).describe(
+          "Optional. Defines the kernel overrides to be applied to the nodes. Note: sysctl changes are defined separately in the sysctls fields.",
+        ).optional(),
         nodeKernelModuleLoading: z.object({
           policy: z.enum([
             "POLICY_UNSPECIFIED",
@@ -2084,6 +2169,9 @@ const GlobalArgsSchema = z.object({
         ).optional(),
         sysctls: z.record(z.string(), z.string()).describe(
           "The Linux kernel parameters to be applied to the nodes and all pods running on the nodes. The following parameters are supported. net.core.busy_poll net.core.busy_read net.core.netdev_max_backlog net.core.rmem_max net.core.rmem_default net.core.wmem_default net.core.wmem_max net.core.optmem_max net.core.somaxconn net.ipv4.neigh.default.gc_thresh1 net.ipv4.neigh.default.gc_thresh2 net.ipv4.neigh.default.gc_thresh3 net.ipv4.tcp_rmem net.ipv4.tcp_wmem net.ipv4.tcp_tw_reuse net.ipv4.tcp_mtu_probing net.ipv4.tcp_max_orphans net.ipv4.tcp_max_tw_buckets net.ipv4.tcp_syn_retries net.ipv4.tcp_ecn net.ipv4.tcp_congestion_control net.netfilter.nf_conntrack_max net.netfilter.nf_conntrack_buckets net.netfilter.nf_conntrack_tcp_timeout_close_wait net.netfilter.nf_conntrack_tcp_timeout_time_wait net.netfilter.nf_conntrack_tcp_timeout_established net.netfilter.nf_conntrack_acct kernel.keys.maxkeys kernel.keys.maxbytes kernel.shmmni kernel.shmmax kernel.shmall kernel.core_pattern kernel.perf_event_paranoid kernel.sched_rt_runtime_us kernel.softlockup_panic kernel.yama.ptrace_scope kernel.kptr_restrict kernel.dmesg_restrict kernel.sysrq fs.aio-max-nr fs.file-max fs.inotify.max_user_instances fs.inotify.max_user_watches fs.nr_open vm.dirty_background_ratio vm.dirty_background_bytes vm.dirty_expire_centisecs vm.dirty_ratio vm.dirty_bytes vm.dirty_writeback_centisecs vm.max_map_count vm.overcommit_memory vm.overcommit_ratio vm.vfs_cache_pressure vm.swappiness vm.watermark_scale_factor vm.min_free_kbytes",
+        ).optional(),
+        timeZone: z.string().describe(
+          "Optional. Configures the timezone of the node.",
         ).optional(),
         transparentHugepageDefrag: z.enum([
           "TRANSPARENT_HUGEPAGE_DEFRAG_UNSPECIFIED",
@@ -2756,6 +2844,15 @@ const GlobalArgsSchema = z.object({
           accurateTimeConfig: z.unknown().describe(
             "Optional. The accurate time configuration for the node pool.",
           ).optional(),
+          additionalEtcHosts: z.unknown().describe(
+            "Optional. Additional entries to be added to /etc/hosts.",
+          ).optional(),
+          additionalEtcResolvConf: z.unknown().describe(
+            "Optional. Additional entries to be added to /etc/resolv.conf.",
+          ).optional(),
+          additionalEtcSystemdResolvedConf: z.unknown().describe(
+            "Optional. Additional entries to be added to /etc/systemd/resolved.conf.",
+          ).optional(),
           cgroupMode: z.unknown().describe(
             "cgroup_mode specifies the cgroup mode to be used on the node.",
           ).optional(),
@@ -2768,6 +2865,9 @@ const GlobalArgsSchema = z.object({
           hugepages: z.unknown().describe(
             "Optional. Amounts for 2M and 1G hugepages",
           ).optional(),
+          kernelOverrides: z.unknown().describe(
+            "Optional. Defines the kernel overrides to be applied to the nodes. Note: sysctl changes are defined separately in the sysctls fields.",
+          ).optional(),
           nodeKernelModuleLoading: z.unknown().describe(
             "Optional. Configuration for kernel module loading on nodes. When enabled, the node pool will be provisioned with a Container-Optimized OS image that enforces kernel module signature verification.",
           ).optional(),
@@ -2779,6 +2879,9 @@ const GlobalArgsSchema = z.object({
           ).optional(),
           sysctls: z.unknown().describe(
             "The Linux kernel parameters to be applied to the nodes and all pods running on the nodes. The following parameters are supported. net.core.busy_poll net.core.busy_read net.core.netdev_max_backlog net.core.rmem_max net.core.rmem_default net.core.wmem_default net.core.wmem_max net.core.optmem_max net.core.somaxconn net.ipv4.neigh.default.gc_thresh1 net.ipv4.neigh.default.gc_thresh2 net.ipv4.neigh.default.gc_thresh3 net.ipv4.tcp_rmem net.ipv4.tcp_wmem net.ipv4.tcp_tw_reuse net.ipv4.tcp_mtu_probing net.ipv4.tcp_max_orphans net.ipv4.tcp_max_tw_buckets net.ipv4.tcp_syn_retries net.ipv4.tcp_ecn net.ipv4.tcp_congestion_control net.netfilter.nf_conntrack_max net.netfilter.nf_conntrack_buckets net.netfilter.nf_conntrack_tcp_timeout_close_wait net.netfilter.nf_conntrack_tcp_timeout_time_wait net.netfilter.nf_conntrack_tcp_timeout_established net.netfilter.nf_conntrack_acct kernel.keys.maxkeys kernel.keys.maxbytes kernel.shmmni kernel.shmmax kernel.shmall kernel.core_pattern kernel.perf_event_paranoid kernel.sched_rt_runtime_us kernel.softlockup_panic kernel.yama.ptrace_scope kernel.kptr_restrict kernel.dmesg_restrict kernel.sysrq fs.aio-max-nr fs.file-max fs.inotify.max_user_instances fs.inotify.max_user_watches fs.nr_open vm.dirty_background_ratio vm.dirty_background_bytes vm.dirty_expire_centisecs vm.dirty_ratio vm.dirty_bytes vm.dirty_writeback_centisecs vm.max_map_count vm.overcommit_memory vm.overcommit_ratio vm.vfs_cache_pressure vm.swappiness vm.watermark_scale_factor vm.min_free_kbytes",
+          ).optional(),
+          timeZone: z.unknown().describe(
+            "Optional. Configures the timezone of the node.",
           ).optional(),
           transparentHugepageDefrag: z.unknown().describe(
             "Optional. Defines the transparent hugepage defrag configuration on the node. VM hugepage allocation can be managed by either limiting defragmentation for delayed allocation or skipping it entirely for immediate allocation only. See https://docs.kernel.org/admin-guide/mm/transhuge.html for more details.",
@@ -4557,6 +4660,28 @@ const GlobalArgsSchema = z.object({
       }).describe(
         "Optional. The accurate time configuration for the node pool.",
       ).optional(),
+      additionalEtcHosts: z.array(z.object({
+        host: z.string().describe("The hostname of the host.").optional(),
+        ip: z.string().describe("The IPv4 or IPv6 address of the host.")
+          .optional(),
+      })).describe("Optional. Additional entries to be added to /etc/hosts.")
+        .optional(),
+      additionalEtcResolvConf: z.array(z.object({
+        key: z.string().describe("The key of resolved.conf").optional(),
+        value: z.array(z.unknown()).describe(
+          "Optional. The value of resolved.conf",
+        ).optional(),
+      })).describe(
+        "Optional. Additional entries to be added to /etc/resolv.conf.",
+      ).optional(),
+      additionalEtcSystemdResolvedConf: z.array(z.object({
+        key: z.string().describe("The key of resolved.conf").optional(),
+        value: z.array(z.unknown()).describe(
+          "Optional. The value of resolved.conf",
+        ).optional(),
+      })).describe(
+        "Optional. Additional entries to be added to /etc/systemd/resolved.conf.",
+      ).optional(),
       cgroupMode: z.enum([
         "CGROUP_MODE_UNSPECIFIED",
         "CGROUP_MODE_V1",
@@ -4601,6 +4726,30 @@ const GlobalArgsSchema = z.object({
           "Optional. Amount of 2M hugepages",
         ).optional(),
       }).describe("Optional. Amounts for 2M and 1G hugepages").optional(),
+      kernelOverrides: z.object({
+        kernelCommandlineOverrides: z.object({
+          initOnAlloc: z.enum([
+            "INIT_ON_ALLOC_UNSPECIFIED",
+            "INIT_ON_ALLOC_OFF",
+          ]).describe("Optional. Defines the change of init_on_alloc.")
+            .optional(),
+          specRstackOverflow: z.enum([
+            "SPEC_RSTACK_OVERFLOW_UNSPECIFIED",
+            "SPEC_RSTACK_OVERFLOW_OFF",
+          ]).describe("Optional. Defines the change of spec_rstack_overflow.")
+            .optional(),
+        }).describe(
+          "Optional. Allow setting for optional kernel command line arguments overrides.",
+        ).optional(),
+        lruGen: z.object({
+          enabled: z.boolean().describe("Optional. Enable lrugen.").optional(),
+          minTtlMs: z.number().int().describe(
+            "Optional. Users can write N to min_ttl_ms to prevent the working set of N milliseconds from getting evicted.",
+          ).optional(),
+        }).describe("Optional. lrugen (Multi-Gen LRU) options").optional(),
+      }).describe(
+        "Optional. Defines the kernel overrides to be applied to the nodes. Note: sysctl changes are defined separately in the sysctls fields.",
+      ).optional(),
       nodeKernelModuleLoading: z.object({
         policy: z.enum([
           "POLICY_UNSPECIFIED",
@@ -4658,6 +4807,9 @@ const GlobalArgsSchema = z.object({
       ).optional(),
       sysctls: z.record(z.string(), z.string()).describe(
         "The Linux kernel parameters to be applied to the nodes and all pods running on the nodes. The following parameters are supported. net.core.busy_poll net.core.busy_read net.core.netdev_max_backlog net.core.rmem_max net.core.rmem_default net.core.wmem_default net.core.wmem_max net.core.optmem_max net.core.somaxconn net.ipv4.neigh.default.gc_thresh1 net.ipv4.neigh.default.gc_thresh2 net.ipv4.neigh.default.gc_thresh3 net.ipv4.tcp_rmem net.ipv4.tcp_wmem net.ipv4.tcp_tw_reuse net.ipv4.tcp_mtu_probing net.ipv4.tcp_max_orphans net.ipv4.tcp_max_tw_buckets net.ipv4.tcp_syn_retries net.ipv4.tcp_ecn net.ipv4.tcp_congestion_control net.netfilter.nf_conntrack_max net.netfilter.nf_conntrack_buckets net.netfilter.nf_conntrack_tcp_timeout_close_wait net.netfilter.nf_conntrack_tcp_timeout_time_wait net.netfilter.nf_conntrack_tcp_timeout_established net.netfilter.nf_conntrack_acct kernel.keys.maxkeys kernel.keys.maxbytes kernel.shmmni kernel.shmmax kernel.shmall kernel.core_pattern kernel.perf_event_paranoid kernel.sched_rt_runtime_us kernel.softlockup_panic kernel.yama.ptrace_scope kernel.kptr_restrict kernel.dmesg_restrict kernel.sysrq fs.aio-max-nr fs.file-max fs.inotify.max_user_instances fs.inotify.max_user_watches fs.nr_open vm.dirty_background_ratio vm.dirty_background_bytes vm.dirty_expire_centisecs vm.dirty_ratio vm.dirty_bytes vm.dirty_writeback_centisecs vm.max_map_count vm.overcommit_memory vm.overcommit_ratio vm.vfs_cache_pressure vm.swappiness vm.watermark_scale_factor vm.min_free_kbytes",
+      ).optional(),
+      timeZone: z.string().describe(
+        "Optional. Configures the timezone of the node.",
       ).optional(),
       transparentHugepageDefrag: z.enum([
         "TRANSPARENT_HUGEPAGE_DEFRAG_UNSPECIFIED",
@@ -5580,6 +5732,18 @@ const StateSchema = z.object({
       accurateTimeConfig: z.object({
         enablePtpKvmTimeSync: z.boolean(),
       }),
+      additionalEtcHosts: z.array(z.object({
+        host: z.string(),
+        ip: z.string(),
+      })),
+      additionalEtcResolvConf: z.array(z.object({
+        key: z.string(),
+        value: z.array(z.unknown()),
+      })),
+      additionalEtcSystemdResolvedConf: z.array(z.object({
+        key: z.string(),
+        value: z.array(z.unknown()),
+      })),
       cgroupMode: z.string(),
       customNodeInit: z.object({
         initScript: z.object({
@@ -5596,6 +5760,16 @@ const StateSchema = z.object({
       hugepages: z.object({
         hugepageSize1g: z.number(),
         hugepageSize2m: z.number(),
+      }),
+      kernelOverrides: z.object({
+        kernelCommandlineOverrides: z.object({
+          initOnAlloc: z.string(),
+          specRstackOverflow: z.string(),
+        }),
+        lruGen: z.object({
+          enabled: z.boolean(),
+          minTtlMs: z.number(),
+        }),
       }),
       nodeKernelModuleLoading: z.object({
         policy: z.string(),
@@ -5621,6 +5795,7 @@ const StateSchema = z.object({
         }),
       }),
       sysctls: z.record(z.string(), z.unknown()),
+      timeZone: z.string(),
       transparentHugepageDefrag: z.string(),
       transparentHugepageEnabled: z.string(),
     }),
@@ -5702,6 +5877,18 @@ const StateSchema = z.object({
       accurateTimeConfig: z.object({
         enablePtpKvmTimeSync: z.boolean(),
       }),
+      additionalEtcHosts: z.array(z.object({
+        host: z.string(),
+        ip: z.string(),
+      })),
+      additionalEtcResolvConf: z.array(z.object({
+        key: z.string(),
+        value: z.array(z.unknown()),
+      })),
+      additionalEtcSystemdResolvedConf: z.array(z.object({
+        key: z.string(),
+        value: z.array(z.unknown()),
+      })),
       cgroupMode: z.string(),
       customNodeInit: z.object({
         initScript: z.object({
@@ -5718,6 +5905,16 @@ const StateSchema = z.object({
       hugepages: z.object({
         hugepageSize1g: z.number(),
         hugepageSize2m: z.number(),
+      }),
+      kernelOverrides: z.object({
+        kernelCommandlineOverrides: z.object({
+          initOnAlloc: z.string(),
+          specRstackOverflow: z.string(),
+        }),
+        lruGen: z.object({
+          enabled: z.boolean(),
+          minTtlMs: z.number(),
+        }),
       }),
       nodeKernelModuleLoading: z.object({
         policy: z.string(),
@@ -5743,6 +5940,7 @@ const StateSchema = z.object({
         }),
       }),
       sysctls: z.record(z.string(), z.unknown()),
+      timeZone: z.string(),
       transparentHugepageDefrag: z.string(),
       transparentHugepageEnabled: z.string(),
     }),
@@ -6049,6 +6247,9 @@ const StateSchema = z.object({
         accurateTimeConfig: z.object({
           enablePtpKvmTimeSync: z.unknown(),
         }),
+        additionalEtcHosts: z.array(z.unknown()),
+        additionalEtcResolvConf: z.array(z.unknown()),
+        additionalEtcSystemdResolvedConf: z.array(z.unknown()),
         cgroupMode: z.string(),
         customNodeInit: z.object({
           initScript: z.unknown(),
@@ -6060,6 +6261,10 @@ const StateSchema = z.object({
         hugepages: z.object({
           hugepageSize1g: z.unknown(),
           hugepageSize2m: z.unknown(),
+        }),
+        kernelOverrides: z.object({
+          kernelCommandlineOverrides: z.unknown(),
+          lruGen: z.unknown(),
         }),
         nodeKernelModuleLoading: z.object({
           policy: z.unknown(),
@@ -6075,6 +6280,7 @@ const StateSchema = z.object({
           ephemeralLocalSsdProfile: z.unknown(),
         }),
         sysctls: z.record(z.string(), z.unknown()),
+        timeZone: z.string(),
         transparentHugepageDefrag: z.string(),
         transparentHugepageEnabled: z.string(),
       }),
@@ -7852,6 +8058,26 @@ const InputsSchema = z.object({
         }).describe(
           "Optional. The accurate time configuration for the node pool.",
         ).optional(),
+        additionalEtcHosts: z.array(z.object({
+          host: z.unknown().describe("The hostname of the host.").optional(),
+          ip: z.unknown().describe("The IPv4 or IPv6 address of the host.")
+            .optional(),
+        })).describe("Optional. Additional entries to be added to /etc/hosts.")
+          .optional(),
+        additionalEtcResolvConf: z.array(z.object({
+          key: z.unknown().describe("The key of resolved.conf").optional(),
+          value: z.unknown().describe("Optional. The value of resolved.conf")
+            .optional(),
+        })).describe(
+          "Optional. Additional entries to be added to /etc/resolv.conf.",
+        ).optional(),
+        additionalEtcSystemdResolvedConf: z.array(z.object({
+          key: z.unknown().describe("The key of resolved.conf").optional(),
+          value: z.unknown().describe("Optional. The value of resolved.conf")
+            .optional(),
+        })).describe(
+          "Optional. Additional entries to be added to /etc/systemd/resolved.conf.",
+        ).optional(),
         cgroupMode: z.enum([
           "CGROUP_MODE_UNSPECIFIED",
           "CGROUP_MODE_V1",
@@ -7896,6 +8122,27 @@ const InputsSchema = z.object({
             "Optional. Amount of 2M hugepages",
           ).optional(),
         }).describe("Optional. Amounts for 2M and 1G hugepages").optional(),
+        kernelOverrides: z.object({
+          kernelCommandlineOverrides: z.object({
+            initOnAlloc: z.unknown().describe(
+              "Optional. Defines the change of init_on_alloc.",
+            ).optional(),
+            specRstackOverflow: z.unknown().describe(
+              "Optional. Defines the change of spec_rstack_overflow.",
+            ).optional(),
+          }).describe(
+            "Optional. Allow setting for optional kernel command line arguments overrides.",
+          ).optional(),
+          lruGen: z.object({
+            enabled: z.unknown().describe("Optional. Enable lrugen.")
+              .optional(),
+            minTtlMs: z.unknown().describe(
+              "Optional. Users can write N to min_ttl_ms to prevent the working set of N milliseconds from getting evicted.",
+            ).optional(),
+          }).describe("Optional. lrugen (Multi-Gen LRU) options").optional(),
+        }).describe(
+          "Optional. Defines the kernel overrides to be applied to the nodes. Note: sysctl changes are defined separately in the sysctls fields.",
+        ).optional(),
         nodeKernelModuleLoading: z.object({
           policy: z.enum([
             "POLICY_UNSPECIFIED",
@@ -7955,6 +8202,9 @@ const InputsSchema = z.object({
         ).optional(),
         sysctls: z.record(z.string(), z.string()).describe(
           "The Linux kernel parameters to be applied to the nodes and all pods running on the nodes. The following parameters are supported. net.core.busy_poll net.core.busy_read net.core.netdev_max_backlog net.core.rmem_max net.core.rmem_default net.core.wmem_default net.core.wmem_max net.core.optmem_max net.core.somaxconn net.ipv4.neigh.default.gc_thresh1 net.ipv4.neigh.default.gc_thresh2 net.ipv4.neigh.default.gc_thresh3 net.ipv4.tcp_rmem net.ipv4.tcp_wmem net.ipv4.tcp_tw_reuse net.ipv4.tcp_mtu_probing net.ipv4.tcp_max_orphans net.ipv4.tcp_max_tw_buckets net.ipv4.tcp_syn_retries net.ipv4.tcp_ecn net.ipv4.tcp_congestion_control net.netfilter.nf_conntrack_max net.netfilter.nf_conntrack_buckets net.netfilter.nf_conntrack_tcp_timeout_close_wait net.netfilter.nf_conntrack_tcp_timeout_time_wait net.netfilter.nf_conntrack_tcp_timeout_established net.netfilter.nf_conntrack_acct kernel.keys.maxkeys kernel.keys.maxbytes kernel.shmmni kernel.shmmax kernel.shmall kernel.core_pattern kernel.perf_event_paranoid kernel.sched_rt_runtime_us kernel.softlockup_panic kernel.yama.ptrace_scope kernel.kptr_restrict kernel.dmesg_restrict kernel.sysrq fs.aio-max-nr fs.file-max fs.inotify.max_user_instances fs.inotify.max_user_watches fs.nr_open vm.dirty_background_ratio vm.dirty_background_bytes vm.dirty_expire_centisecs vm.dirty_ratio vm.dirty_bytes vm.dirty_writeback_centisecs vm.max_map_count vm.overcommit_memory vm.overcommit_ratio vm.vfs_cache_pressure vm.swappiness vm.watermark_scale_factor vm.min_free_kbytes",
+        ).optional(),
+        timeZone: z.string().describe(
+          "Optional. Configures the timezone of the node.",
         ).optional(),
         transparentHugepageDefrag: z.enum([
           "TRANSPARENT_HUGEPAGE_DEFRAG_UNSPECIFIED",
@@ -8168,6 +8418,26 @@ const InputsSchema = z.object({
         }).describe(
           "Optional. The accurate time configuration for the node pool.",
         ).optional(),
+        additionalEtcHosts: z.array(z.object({
+          host: z.unknown().describe("The hostname of the host.").optional(),
+          ip: z.unknown().describe("The IPv4 or IPv6 address of the host.")
+            .optional(),
+        })).describe("Optional. Additional entries to be added to /etc/hosts.")
+          .optional(),
+        additionalEtcResolvConf: z.array(z.object({
+          key: z.unknown().describe("The key of resolved.conf").optional(),
+          value: z.unknown().describe("Optional. The value of resolved.conf")
+            .optional(),
+        })).describe(
+          "Optional. Additional entries to be added to /etc/resolv.conf.",
+        ).optional(),
+        additionalEtcSystemdResolvedConf: z.array(z.object({
+          key: z.unknown().describe("The key of resolved.conf").optional(),
+          value: z.unknown().describe("Optional. The value of resolved.conf")
+            .optional(),
+        })).describe(
+          "Optional. Additional entries to be added to /etc/systemd/resolved.conf.",
+        ).optional(),
         cgroupMode: z.enum([
           "CGROUP_MODE_UNSPECIFIED",
           "CGROUP_MODE_V1",
@@ -8212,6 +8482,27 @@ const InputsSchema = z.object({
             "Optional. Amount of 2M hugepages",
           ).optional(),
         }).describe("Optional. Amounts for 2M and 1G hugepages").optional(),
+        kernelOverrides: z.object({
+          kernelCommandlineOverrides: z.object({
+            initOnAlloc: z.unknown().describe(
+              "Optional. Defines the change of init_on_alloc.",
+            ).optional(),
+            specRstackOverflow: z.unknown().describe(
+              "Optional. Defines the change of spec_rstack_overflow.",
+            ).optional(),
+          }).describe(
+            "Optional. Allow setting for optional kernel command line arguments overrides.",
+          ).optional(),
+          lruGen: z.object({
+            enabled: z.unknown().describe("Optional. Enable lrugen.")
+              .optional(),
+            minTtlMs: z.unknown().describe(
+              "Optional. Users can write N to min_ttl_ms to prevent the working set of N milliseconds from getting evicted.",
+            ).optional(),
+          }).describe("Optional. lrugen (Multi-Gen LRU) options").optional(),
+        }).describe(
+          "Optional. Defines the kernel overrides to be applied to the nodes. Note: sysctl changes are defined separately in the sysctls fields.",
+        ).optional(),
         nodeKernelModuleLoading: z.object({
           policy: z.enum([
             "POLICY_UNSPECIFIED",
@@ -8271,6 +8562,9 @@ const InputsSchema = z.object({
         ).optional(),
         sysctls: z.record(z.string(), z.string()).describe(
           "The Linux kernel parameters to be applied to the nodes and all pods running on the nodes. The following parameters are supported. net.core.busy_poll net.core.busy_read net.core.netdev_max_backlog net.core.rmem_max net.core.rmem_default net.core.wmem_default net.core.wmem_max net.core.optmem_max net.core.somaxconn net.ipv4.neigh.default.gc_thresh1 net.ipv4.neigh.default.gc_thresh2 net.ipv4.neigh.default.gc_thresh3 net.ipv4.tcp_rmem net.ipv4.tcp_wmem net.ipv4.tcp_tw_reuse net.ipv4.tcp_mtu_probing net.ipv4.tcp_max_orphans net.ipv4.tcp_max_tw_buckets net.ipv4.tcp_syn_retries net.ipv4.tcp_ecn net.ipv4.tcp_congestion_control net.netfilter.nf_conntrack_max net.netfilter.nf_conntrack_buckets net.netfilter.nf_conntrack_tcp_timeout_close_wait net.netfilter.nf_conntrack_tcp_timeout_time_wait net.netfilter.nf_conntrack_tcp_timeout_established net.netfilter.nf_conntrack_acct kernel.keys.maxkeys kernel.keys.maxbytes kernel.shmmni kernel.shmmax kernel.shmall kernel.core_pattern kernel.perf_event_paranoid kernel.sched_rt_runtime_us kernel.softlockup_panic kernel.yama.ptrace_scope kernel.kptr_restrict kernel.dmesg_restrict kernel.sysrq fs.aio-max-nr fs.file-max fs.inotify.max_user_instances fs.inotify.max_user_watches fs.nr_open vm.dirty_background_ratio vm.dirty_background_bytes vm.dirty_expire_centisecs vm.dirty_ratio vm.dirty_bytes vm.dirty_writeback_centisecs vm.max_map_count vm.overcommit_memory vm.overcommit_ratio vm.vfs_cache_pressure vm.swappiness vm.watermark_scale_factor vm.min_free_kbytes",
+        ).optional(),
+        timeZone: z.string().describe(
+          "Optional. Configures the timezone of the node.",
         ).optional(),
         transparentHugepageDefrag: z.enum([
           "TRANSPARENT_HUGEPAGE_DEFRAG_UNSPECIFIED",
@@ -8943,6 +9237,15 @@ const InputsSchema = z.object({
           accurateTimeConfig: z.unknown().describe(
             "Optional. The accurate time configuration for the node pool.",
           ).optional(),
+          additionalEtcHosts: z.unknown().describe(
+            "Optional. Additional entries to be added to /etc/hosts.",
+          ).optional(),
+          additionalEtcResolvConf: z.unknown().describe(
+            "Optional. Additional entries to be added to /etc/resolv.conf.",
+          ).optional(),
+          additionalEtcSystemdResolvedConf: z.unknown().describe(
+            "Optional. Additional entries to be added to /etc/systemd/resolved.conf.",
+          ).optional(),
           cgroupMode: z.unknown().describe(
             "cgroup_mode specifies the cgroup mode to be used on the node.",
           ).optional(),
@@ -8955,6 +9258,9 @@ const InputsSchema = z.object({
           hugepages: z.unknown().describe(
             "Optional. Amounts for 2M and 1G hugepages",
           ).optional(),
+          kernelOverrides: z.unknown().describe(
+            "Optional. Defines the kernel overrides to be applied to the nodes. Note: sysctl changes are defined separately in the sysctls fields.",
+          ).optional(),
           nodeKernelModuleLoading: z.unknown().describe(
             "Optional. Configuration for kernel module loading on nodes. When enabled, the node pool will be provisioned with a Container-Optimized OS image that enforces kernel module signature verification.",
           ).optional(),
@@ -8966,6 +9272,9 @@ const InputsSchema = z.object({
           ).optional(),
           sysctls: z.unknown().describe(
             "The Linux kernel parameters to be applied to the nodes and all pods running on the nodes. The following parameters are supported. net.core.busy_poll net.core.busy_read net.core.netdev_max_backlog net.core.rmem_max net.core.rmem_default net.core.wmem_default net.core.wmem_max net.core.optmem_max net.core.somaxconn net.ipv4.neigh.default.gc_thresh1 net.ipv4.neigh.default.gc_thresh2 net.ipv4.neigh.default.gc_thresh3 net.ipv4.tcp_rmem net.ipv4.tcp_wmem net.ipv4.tcp_tw_reuse net.ipv4.tcp_mtu_probing net.ipv4.tcp_max_orphans net.ipv4.tcp_max_tw_buckets net.ipv4.tcp_syn_retries net.ipv4.tcp_ecn net.ipv4.tcp_congestion_control net.netfilter.nf_conntrack_max net.netfilter.nf_conntrack_buckets net.netfilter.nf_conntrack_tcp_timeout_close_wait net.netfilter.nf_conntrack_tcp_timeout_time_wait net.netfilter.nf_conntrack_tcp_timeout_established net.netfilter.nf_conntrack_acct kernel.keys.maxkeys kernel.keys.maxbytes kernel.shmmni kernel.shmmax kernel.shmall kernel.core_pattern kernel.perf_event_paranoid kernel.sched_rt_runtime_us kernel.softlockup_panic kernel.yama.ptrace_scope kernel.kptr_restrict kernel.dmesg_restrict kernel.sysrq fs.aio-max-nr fs.file-max fs.inotify.max_user_instances fs.inotify.max_user_watches fs.nr_open vm.dirty_background_ratio vm.dirty_background_bytes vm.dirty_expire_centisecs vm.dirty_ratio vm.dirty_bytes vm.dirty_writeback_centisecs vm.max_map_count vm.overcommit_memory vm.overcommit_ratio vm.vfs_cache_pressure vm.swappiness vm.watermark_scale_factor vm.min_free_kbytes",
+          ).optional(),
+          timeZone: z.unknown().describe(
+            "Optional. Configures the timezone of the node.",
           ).optional(),
           transparentHugepageDefrag: z.unknown().describe(
             "Optional. Defines the transparent hugepage defrag configuration on the node. VM hugepage allocation can be managed by either limiting defragmentation for delayed allocation or skipping it entirely for immediate allocation only. See https://docs.kernel.org/admin-guide/mm/transhuge.html for more details.",
@@ -10744,6 +11053,28 @@ const InputsSchema = z.object({
       }).describe(
         "Optional. The accurate time configuration for the node pool.",
       ).optional(),
+      additionalEtcHosts: z.array(z.object({
+        host: z.string().describe("The hostname of the host.").optional(),
+        ip: z.string().describe("The IPv4 or IPv6 address of the host.")
+          .optional(),
+      })).describe("Optional. Additional entries to be added to /etc/hosts.")
+        .optional(),
+      additionalEtcResolvConf: z.array(z.object({
+        key: z.string().describe("The key of resolved.conf").optional(),
+        value: z.array(z.unknown()).describe(
+          "Optional. The value of resolved.conf",
+        ).optional(),
+      })).describe(
+        "Optional. Additional entries to be added to /etc/resolv.conf.",
+      ).optional(),
+      additionalEtcSystemdResolvedConf: z.array(z.object({
+        key: z.string().describe("The key of resolved.conf").optional(),
+        value: z.array(z.unknown()).describe(
+          "Optional. The value of resolved.conf",
+        ).optional(),
+      })).describe(
+        "Optional. Additional entries to be added to /etc/systemd/resolved.conf.",
+      ).optional(),
       cgroupMode: z.enum([
         "CGROUP_MODE_UNSPECIFIED",
         "CGROUP_MODE_V1",
@@ -10788,6 +11119,30 @@ const InputsSchema = z.object({
           "Optional. Amount of 2M hugepages",
         ).optional(),
       }).describe("Optional. Amounts for 2M and 1G hugepages").optional(),
+      kernelOverrides: z.object({
+        kernelCommandlineOverrides: z.object({
+          initOnAlloc: z.enum([
+            "INIT_ON_ALLOC_UNSPECIFIED",
+            "INIT_ON_ALLOC_OFF",
+          ]).describe("Optional. Defines the change of init_on_alloc.")
+            .optional(),
+          specRstackOverflow: z.enum([
+            "SPEC_RSTACK_OVERFLOW_UNSPECIFIED",
+            "SPEC_RSTACK_OVERFLOW_OFF",
+          ]).describe("Optional. Defines the change of spec_rstack_overflow.")
+            .optional(),
+        }).describe(
+          "Optional. Allow setting for optional kernel command line arguments overrides.",
+        ).optional(),
+        lruGen: z.object({
+          enabled: z.boolean().describe("Optional. Enable lrugen.").optional(),
+          minTtlMs: z.number().int().describe(
+            "Optional. Users can write N to min_ttl_ms to prevent the working set of N milliseconds from getting evicted.",
+          ).optional(),
+        }).describe("Optional. lrugen (Multi-Gen LRU) options").optional(),
+      }).describe(
+        "Optional. Defines the kernel overrides to be applied to the nodes. Note: sysctl changes are defined separately in the sysctls fields.",
+      ).optional(),
       nodeKernelModuleLoading: z.object({
         policy: z.enum([
           "POLICY_UNSPECIFIED",
@@ -10845,6 +11200,9 @@ const InputsSchema = z.object({
       ).optional(),
       sysctls: z.record(z.string(), z.string()).describe(
         "The Linux kernel parameters to be applied to the nodes and all pods running on the nodes. The following parameters are supported. net.core.busy_poll net.core.busy_read net.core.netdev_max_backlog net.core.rmem_max net.core.rmem_default net.core.wmem_default net.core.wmem_max net.core.optmem_max net.core.somaxconn net.ipv4.neigh.default.gc_thresh1 net.ipv4.neigh.default.gc_thresh2 net.ipv4.neigh.default.gc_thresh3 net.ipv4.tcp_rmem net.ipv4.tcp_wmem net.ipv4.tcp_tw_reuse net.ipv4.tcp_mtu_probing net.ipv4.tcp_max_orphans net.ipv4.tcp_max_tw_buckets net.ipv4.tcp_syn_retries net.ipv4.tcp_ecn net.ipv4.tcp_congestion_control net.netfilter.nf_conntrack_max net.netfilter.nf_conntrack_buckets net.netfilter.nf_conntrack_tcp_timeout_close_wait net.netfilter.nf_conntrack_tcp_timeout_time_wait net.netfilter.nf_conntrack_tcp_timeout_established net.netfilter.nf_conntrack_acct kernel.keys.maxkeys kernel.keys.maxbytes kernel.shmmni kernel.shmmax kernel.shmall kernel.core_pattern kernel.perf_event_paranoid kernel.sched_rt_runtime_us kernel.softlockup_panic kernel.yama.ptrace_scope kernel.kptr_restrict kernel.dmesg_restrict kernel.sysrq fs.aio-max-nr fs.file-max fs.inotify.max_user_instances fs.inotify.max_user_watches fs.nr_open vm.dirty_background_ratio vm.dirty_background_bytes vm.dirty_expire_centisecs vm.dirty_ratio vm.dirty_bytes vm.dirty_writeback_centisecs vm.max_map_count vm.overcommit_memory vm.overcommit_ratio vm.vfs_cache_pressure vm.swappiness vm.watermark_scale_factor vm.min_free_kbytes",
+      ).optional(),
+      timeZone: z.string().describe(
+        "Optional. Configures the timezone of the node.",
       ).optional(),
       transparentHugepageDefrag: z.enum([
         "TRANSPARENT_HUGEPAGE_DEFRAG_UNSPECIFIED",
@@ -11212,7 +11570,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Kubernetes Engine Clusters. Registered at `@swamp/gcp/container/clusters`. */
 export const model = {
   type: "@swamp/gcp/container/clusters",
-  version: "2026.10.26.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -11491,6 +11849,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.26.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

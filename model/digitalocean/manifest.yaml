@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/digitalocean"
-version: "2026.11.03.1"
+version: "2026.11.05.1"
 license: "AGPL-3.0-or-later"
 description: "DigitalOcean infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -10,8 +10,8 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: action_gateway_provider_credential
-  - Updated: microvm
+  - Added: agent_workspace, insight_dashboard
+  - Updated: agent_session, kubernetes_cluster
 models:
   - action_gateway_connection.ts
   - action_gateway_mcp_server.ts
@@ -23,6 +23,7 @@ models:
   - agent_session.ts
   - agent_template.ts
   - agent_trigger.ts
+  - agent_workspace.ts
   - app_deployment.ts
   - app_platform.ts
   - byoip_prefix.ts
@@ -47,6 +48,7 @@ models:
   - function_namespace.ts
   - function_namespace_trigger.ts
   - insight_alert_rule.ts
+  - insight_dashboard.ts
   - insight_notification_channel.ts
   - kubernetes_cluster.ts
   - kubernetes_cluster_node_pool.ts

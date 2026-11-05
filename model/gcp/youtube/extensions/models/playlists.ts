@@ -285,6 +285,16 @@ const GlobalArgsSchema = z.object({
       }).describe(
         "The quad high definition (1440p / 2K) quality image for this resource.",
       ).optional(),
+      shortsAspectRatio: z.object({
+        height: z.number().int().describe(
+          "(Optional) Height of the thumbnail image.",
+        ).optional(),
+        url: z.string().describe("The thumbnail image's URL.").optional(),
+        width: z.number().int().describe(
+          "(Optional) Width of the thumbnail image.",
+        ).optional(),
+      }).describe("The Shorts aspect ratio (9:16) image for this resource.")
+        .optional(),
       standard: z.object({
         height: z.number().int().describe(
           "(Optional) Height of the thumbnail image.",
@@ -382,6 +392,11 @@ const StateSchema = z.object({
         width: z.number(),
       }),
       qhd: z.object({
+        height: z.number(),
+        url: z.string(),
+        width: z.number(),
+      }),
+      shortsAspectRatio: z.object({
         height: z.number(),
         url: z.string(),
         width: z.number(),
@@ -529,6 +544,16 @@ const InputsSchema = z.object({
       }).describe(
         "The quad high definition (1440p / 2K) quality image for this resource.",
       ).optional(),
+      shortsAspectRatio: z.object({
+        height: z.number().int().describe(
+          "(Optional) Height of the thumbnail image.",
+        ).optional(),
+        url: z.string().describe("The thumbnail image's URL.").optional(),
+        width: z.number().int().describe(
+          "(Optional) Width of the thumbnail image.",
+        ).optional(),
+      }).describe("The Shorts aspect ratio (9:16) image for this resource.")
+        .optional(),
       standard: z.object({
         height: z.number().int().describe(
           "(Optional) Height of the thumbnail image.",
@@ -602,7 +627,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data Playlists. Registered at `@swamp/gcp/youtube/playlists`. */
 export const model = {
   type: "@swamp/gcp/youtube/playlists",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -746,6 +771,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

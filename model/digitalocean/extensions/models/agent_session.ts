@@ -64,6 +64,9 @@ const GlobalArgsSchema = z.object({
   ]).describe(
     "Optional placement check, not a placement choice: the session is always created in the region whose API host served the request. If set, it must equal that region, or the request fails with 400 and a region_mismatch message. Honored only for teams on the regional routing rollout; ignored otherwise.",
   ).optional(),
+  workspace_id: z.string().max(255).describe(
+    "Optional persistent workspace to attach at create; its files are mounted at `/workspace`. The workspace must be `AVAILABLE`, otherwise the request returns 409. Accepted only in this JSON form; an environment spec that contains workspace_id is rejected with 400. Returns 403 when persistent workspaces are not enabled for the team.",
+  ).optional(),
   token: z.string().meta({ sensitive: true }).describe(
     "DigitalOcean API token; overrides the DO_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -90,6 +93,7 @@ const ResourceSchema = z.object({
   openai_session_id: z.string().optional(),
   openai_environment_id: z.string().optional(),
   region: z.string().optional(),
+  workspace_id: z.string().optional(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
@@ -115,13 +119,14 @@ const InputsSchema = z.object({
     "syd1",
     "atl1",
   ]).optional(),
+  workspace_id: z.string().max(255).optional(),
   token: z.string().meta({ sensitive: true }).optional(),
 });
 
 /** Swamp extension model for DigitalOcean agent session. Registered at `@swamp/digitalocean/agent-session`. */
 export const model = {
   type: "@swamp/digitalocean/agent-session",
-  version: "2026.10.31.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
@@ -131,6 +136,11 @@ export const model = {
     {
       toVersion: "2026.10.31.1",
       description: "Added: region",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
+      description: "Added: workspace_id",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -182,6 +192,7 @@ export const model = {
           body.resume_on_topoff = g.resume_on_topoff;
         }
         if (g.region !== undefined) body.region = g.region;
+        if (g.workspace_id !== undefined) body.workspace_id = g.workspace_id;
         const result = await create(
           "/v2/agents/sessions",
           body,

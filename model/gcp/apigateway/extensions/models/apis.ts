@@ -142,9 +142,6 @@ const LIST_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
-  name: z.string().describe(
-    "Instance name for this resource (used as the unique identifier in the factory pattern)",
-  ),
   accessToken: z.string().meta({ sensitive: true }).describe(
     "GCP OAuth2 access token; overrides GCP_ACCESS_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -170,6 +167,9 @@ const GlobalArgsSchema = z.object({
   managedService: z.string().describe(
     "Optional. Immutable. The name of a Google Managed Service ( https://cloud.google.com/service-infrastructure/docs/glossary#managed). If not specified, a new Service will automatically be created in the same project as this API.",
   ).optional(),
+  name: z.string().describe(
+    "Identifier. Resource name of the API. Format: projects/{project}/locations/global/apis/{api}",
+  ).optional(),
   apiId: z.string().describe(
     "Required. Identifier to assign to the API. Must be unique within scope of the parent resource.",
   ).optional(),
@@ -191,7 +191,6 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  name: z.string().optional(),
   accessToken: z.string().meta({ sensitive: true }).optional(),
   credentialsJson: z.string().meta({ sensitive: true }).optional(),
   project: z.string().optional(),
@@ -204,6 +203,9 @@ const InputsSchema = z.object({
   ).optional(),
   managedService: z.string().describe(
     "Optional. Immutable. The name of a Google Managed Service ( https://cloud.google.com/service-infrastructure/docs/glossary#managed). If not specified, a new Service will automatically be created in the same project as this API.",
+  ).optional(),
+  name: z.string().describe(
+    "Identifier. Resource name of the API. Format: projects/{project}/locations/global/apis/{api}",
   ).optional(),
   apiId: z.string().describe(
     "Required. Identifier to assign to the API. Must be unique within scope of the parent resource.",
@@ -239,7 +241,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API Gateway Apis. Registered at `@swamp/gcp/apigateway/apis`. */
 export const model = {
   type: "@swamp/gcp/apigateway/apis",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -386,6 +388,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -423,6 +430,7 @@ export const model = {
         if (g["managedService"] !== undefined) {
           body["managedService"] = g["managedService"];
         }
+        if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["apiId"] !== undefined) params["apiId"] = String(g["apiId"]);
         if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
@@ -455,10 +463,8 @@ export const model = {
           },
           credentials,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = ((g.name ?? result.name)?.toString() ?? "current")
+          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -489,10 +495,11 @@ export const model = {
           params,
           credentials,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? args.identifier).replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName =
+          ((g.name ?? result.name)?.toString() ?? args.identifier).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -690,9 +697,10 @@ export const model = {
     list: {
       description: "List apis resources",
       arguments: z.object({
-        filter: z.string().describe("Filter.").optional(),
-        orderBy: z.string().describe("Order by parameters.").optional(),
-        pageSize: z.number().describe("Page size.").optional(),
+        filter: z.string().describe("Optional. Filter.").optional(),
+        orderBy: z.string().describe("Optional. Order by parameters.")
+          .optional(),
+        pageSize: z.number().describe("Optional. Page size.").optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
         ).optional(),

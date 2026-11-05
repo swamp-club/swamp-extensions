@@ -243,6 +243,11 @@ const StateSchema = z.object({
         url: z.string(),
         width: z.number(),
       }),
+      shortsAspectRatio: z.object({
+        height: z.number(),
+        url: z.string(),
+        width: z.number(),
+      }),
       standard: z.object({
         height: z.number(),
         url: z.string(),
@@ -300,7 +305,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud YouTube Data Activities. Registered at `@swamp/gcp/youtube/activities`. */
 export const model = {
   type: "@swamp/gcp/youtube/activities",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -444,6 +449,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -47,11 +47,11 @@ const GlobalArgsSchema = z.object({
       secretAccessKey: z.string(),
     }),
     vendor: z.enum(["s3", "gcs", "r2"]),
-    jurisdiction: z.enum(["default", "eu", "us", "fedramp"]).optional(),
+    jurisdiction: z.string().optional(),
   }).optional(),
   target: z.object({
     bucket: z.string(),
-    jurisdiction: z.enum(["default", "eu", "us", "fedramp"]).optional(),
+    jurisdiction: z.string().optional(),
     secret: z.object({
       accessKeyId: z.string(),
       secretAccessKey: z.string(),
@@ -107,11 +107,11 @@ const InputsSchema = z.object({
       secretAccessKey: z.string(),
     }),
     vendor: z.enum(["s3", "gcs", "r2"]),
-    jurisdiction: z.enum(["default", "eu", "us", "fedramp"]).optional(),
+    jurisdiction: z.string().optional(),
   }).optional(),
   target: z.object({
     bucket: z.string(),
-    jurisdiction: z.enum(["default", "eu", "us", "fedramp"]).optional(),
+    jurisdiction: z.string().optional(),
     secret: z.object({
       accessKeyId: z.string(),
       secretAccessKey: z.string(),
@@ -126,7 +126,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Jobs. Registered at `@swamp/cloudflare/slurper/jobs`. */
 export const model = {
   type: "@swamp/cloudflare/slurper/jobs",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -170,6 +170,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -145,9 +145,6 @@ const LIST_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
-  name: z.string().describe(
-    "Instance name for this resource (used as the unique identifier in the factory pattern)",
-  ),
   accessToken: z.string().meta({ sensitive: true }).describe(
     "GCP OAuth2 access token; overrides GCP_ACCESS_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -203,6 +200,9 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   })).describe(
     'Optional. Service Configuration files. At least one must be included when using gRPC service definitions. See https://cloud.google.com/endpoints/docs/grpc/grpc-service-config#service_configuration_overview for the expected file contents. If multiple files are specified, the files are merged with the following rules: * All singular scalar fields are merged using "last one wins" semantics in the order of the files uploaded. * Repeated fields are concatenated. * Singular embedded messages are merged using these rules for nested fields.',
+  ).optional(),
+  name: z.string().describe(
+    "Identifier. Resource name of the API Config. Format: projects/{project}/locations/global/apis/{api}/configs/{api_config}",
   ).optional(),
   openapiDocuments: z.array(z.object({
     document: z.object({
@@ -260,7 +260,6 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  name: z.string().optional(),
   accessToken: z.string().meta({ sensitive: true }).optional(),
   credentialsJson: z.string().meta({ sensitive: true }).optional(),
   project: z.string().optional(),
@@ -304,6 +303,9 @@ const InputsSchema = z.object({
     ).optional(),
   })).describe(
     'Optional. Service Configuration files. At least one must be included when using gRPC service definitions. See https://cloud.google.com/endpoints/docs/grpc/grpc-service-config#service_configuration_overview for the expected file contents. If multiple files are specified, the files are merged with the following rules: * All singular scalar fields are merged using "last one wins" semantics in the order of the files uploaded. * Repeated fields are concatenated. * Singular embedded messages are merged using these rules for nested fields.',
+  ).optional(),
+  name: z.string().describe(
+    "Identifier. Resource name of the API Config. Format: projects/{project}/locations/global/apis/{api}/configs/{api_config}",
   ).optional(),
   openapiDocuments: z.array(z.object({
     document: z.object({
@@ -353,7 +355,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API Gateway Apis.Configs. Registered at `@swamp/gcp/apigateway/apis-configs`. */
 export const model = {
   type: "@swamp/gcp/apigateway/apis-configs",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -516,6 +518,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -558,6 +565,7 @@ export const model = {
         if (g["managedServiceConfigs"] !== undefined) {
           body["managedServiceConfigs"] = g["managedServiceConfigs"];
         }
+        if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["openapiDocuments"] !== undefined) {
           body["openapiDocuments"] = g["openapiDocuments"];
         }
@@ -593,10 +601,8 @@ export const model = {
           },
           credentials,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = ((g.name ?? result.name)?.toString() ?? "current")
+          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -627,10 +633,11 @@ export const model = {
           params,
           credentials,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? args.identifier).replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName =
+          ((g.name ?? result.name)?.toString() ?? args.identifier).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -837,9 +844,10 @@ export const model = {
     list: {
       description: "List configs resources",
       arguments: z.object({
-        filter: z.string().describe("Filter.").optional(),
-        orderBy: z.string().describe("Order by parameters.").optional(),
-        pageSize: z.number().describe("Page size.").optional(),
+        filter: z.string().describe("Optional. Filter.").optional(),
+        orderBy: z.string().describe("Optional. Order by parameters.")
+          .optional(),
+        pageSize: z.number().describe("Optional. Page size.").optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
         ).optional(),

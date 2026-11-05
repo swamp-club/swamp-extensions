@@ -221,6 +221,20 @@ const GlobalArgsSchema = z.object({
   labels: z.record(z.string(), z.string()).describe(
     "Optional. Labels as key value pairs",
   ).optional(),
+  loggingConfig: z.object({
+    enabled: z.boolean().describe(
+      "Optional. Whether platform logging (`ftp.googleapis.com/ftp_events`) is enabled for this server. Defaults to `false`.",
+    ).optional(),
+    verbosity: z.enum([
+      "LOG_VERBOSITY_UNSPECIFIED",
+      "ALL_EVENTS",
+      "TRANSFERS_AND_AUTH_ONLY",
+      "ERRORS_ONLY",
+    ]).describe(
+      "Optional. The verbosity level of logs emitted when `enabled` is `true`. Defaults to `ALL_EVENTS` if unspecified when `enabled` is `true`.",
+    ).optional(),
+  }).describe("Optional. Configuration for Cloud Logging on the Server.")
+    .optional(),
   name: z.string().describe("Identifier. name of resource").optional(),
   requestId: z.string().describe(
     "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -261,6 +275,10 @@ const StateSchema = z.object({
     serviceAttachment: z.string(),
   }).optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
+  loggingConfig: z.object({
+    enabled: z.boolean(),
+    verbosity: z.string(),
+  }).optional(),
   name: z.string(),
   satisfiesPzi: z.boolean().optional(),
   satisfiesPzs: z.boolean().optional(),
@@ -327,6 +345,20 @@ const InputsSchema = z.object({
   labels: z.record(z.string(), z.string()).describe(
     "Optional. Labels as key value pairs",
   ).optional(),
+  loggingConfig: z.object({
+    enabled: z.boolean().describe(
+      "Optional. Whether platform logging (`ftp.googleapis.com/ftp_events`) is enabled for this server. Defaults to `false`.",
+    ).optional(),
+    verbosity: z.enum([
+      "LOG_VERBOSITY_UNSPECIFIED",
+      "ALL_EVENTS",
+      "TRANSFERS_AND_AUTH_ONLY",
+      "ERRORS_ONLY",
+    ]).describe(
+      "Optional. The verbosity level of logs emitted when `enabled` is `true`. Defaults to `ALL_EVENTS` if unspecified when `enabled` is `true`.",
+    ).optional(),
+  }).describe("Optional. Configuration for Cloud Logging on the Server.")
+    .optional(),
   name: z.string().describe("Identifier. name of resource").optional(),
   requestId: z.string().describe(
     "Optional. An optional request ID to identify requests. Specify a unique request ID so that if you must retry your request, the server will know to ignore the request if it has already been completed. The server will guarantee that for at least 60 minutes since the first request. For example, consider a situation where you make an initial request and the request times out. If you make the request again with the same request ID, the server can check if original operation with the same request ID was received, and if so, will ignore the second request. This prevents clients from accidentally creating duplicate commitments. The request ID must be a valid UUID with the exception that zero UUID is not supported (00000000-0000-0000-0000-000000000000).",
@@ -365,7 +397,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud FTP Servers. Registered at `@swamp/gcp/ftp/servers`. */
 export const model = {
   type: "@swamp/gcp/ftp/servers",
-  version: "2026.10.29.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.08.13.1",
@@ -390,6 +422,11 @@ export const model = {
     {
       toVersion: "2026.10.29.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
+      description: "Added: loggingConfig",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -433,6 +470,9 @@ export const model = {
           body["internalConfig"] = g["internalConfig"];
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        if (g["loggingConfig"] !== undefined) {
+          body["loggingConfig"] = g["loggingConfig"];
+        }
         if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["requestId"] !== undefined) {
           params["requestId"] = String(g["requestId"]);
@@ -573,6 +613,9 @@ export const model = {
           body["internalConfig"] = g["internalConfig"];
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        if (g["loggingConfig"] !== undefined) {
+          body["loggingConfig"] = g["loggingConfig"];
+        }
         const updateMaskKeys = Object.keys(body);
         if (updateMaskKeys.length > 0) {
           params["updateMask"] = updateMaskKeys.join(",");

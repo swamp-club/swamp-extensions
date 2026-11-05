@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/aws/ec2"
-version: "2026.11.02.1"
+version: "2026.11.05.1"
 license: "AGPL-3.0-or-later"
 description: "AWS EC2 infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -10,6 +10,8 @@ labels:
   - ec2
   - cloud
   - infrastructure
+releaseNotes: |
+  - Added: client_vpn_target_network_association
 models:
   - application_status_check.ts
   - capacity_manager_data_export.ts
@@ -18,6 +20,7 @@ models:
   - carrier_gateway.ts
   - client_vpn_authorization_rule.ts
   - client_vpn_route.ts
+  - client_vpn_target_network_association.ts
   - customer_gateway.ts
   - dhcpoptions.ts
   - ec2fleet.ts

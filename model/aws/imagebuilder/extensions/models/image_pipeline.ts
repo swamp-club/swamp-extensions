@@ -71,6 +71,16 @@ const EcrConfigurationSchema = z.object({
   ).optional(),
 });
 
+const ScanResultConditionSchema = z.object({
+  MaximumSeverityLabel: z.enum(["INFORMATIONAL", "LOW", "MEDIUM", "HIGH"])
+    .describe(
+      "The maximum severity allowed for findings on the output AMI. A finding above this severity fails the image, unless FixAvailable excludes it.",
+    ),
+  FixAvailable: z.boolean().describe(
+    "Specifies whether only findings that have a fix available count toward MaximumSeverityLabel. When false, Image Builder counts every finding. The default is true.",
+  ).optional(),
+});
+
 const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Instance name for this resource (used as the unique identifier in the factory pattern)",
@@ -146,6 +156,14 @@ const GlobalArgsSchema = z.object({
     ImageScanningEnabled: z.boolean().describe(
       "This sets whether Image Builder keeps a snapshot of the vulnerability scans that Amazon Inspector runs against the test instance when you create a new image.",
     ).optional(),
+    ImageScanningTypes: z.array(
+      z.enum(["TEST_INSTANCE_CVE", "ON_DEMAND_AMI_CVE"]),
+    ).describe(
+      "The type of vulnerability scan that Image Builder runs for AMI output when ImageScanningEnabled is true. Specify a single value. If you omit ImageScanningTypes, Image Builder uses TEST_INSTANCE_CVE. With TEST_INSTANCE_CVE, Amazon Inspector scans the test instance during image tests, and you must activate Amazon Inspector for Amazon EC2 scanning in your account. With ON_DEMAND_AMI_CVE, Amazon Inspector starts an on-demand scan of the output AMI during image tests. You must build from an image recipe, but you do not need to activate Amazon Inspector in your account.",
+    ).optional(),
+    ScanResultCondition: ScanResultConditionSchema.describe(
+      "The condition that the output AMI's scan results must meet for the image to pass. You can set ScanResultCondition only when ImageScanningTypes is ON_DEMAND_AMI_CVE. If you omit it, Image Builder starts the scan but does not wait for it or use its results to pass or fail the image.",
+    ).optional(),
   }).describe(
     "Contains settings for vulnerability scans that Amazon Inspector runs against the test instance during image creation.",
   ).optional(),
@@ -193,6 +211,8 @@ const StateSchema = z.object({
   ImageScanningConfiguration: z.object({
     EcrConfiguration: EcrConfigurationSchema,
     ImageScanningEnabled: z.boolean(),
+    ImageScanningTypes: z.array(z.string()),
+    ScanResultCondition: ScanResultConditionSchema,
   }).optional(),
   ExecutionRole: z.string().optional(),
   LoggingConfiguration: z.object({
@@ -271,6 +291,14 @@ const InputsSchema = z.object({
     ImageScanningEnabled: z.boolean().describe(
       "This sets whether Image Builder keeps a snapshot of the vulnerability scans that Amazon Inspector runs against the test instance when you create a new image.",
     ).optional(),
+    ImageScanningTypes: z.array(
+      z.enum(["TEST_INSTANCE_CVE", "ON_DEMAND_AMI_CVE"]),
+    ).describe(
+      "The type of vulnerability scan that Image Builder runs for AMI output when ImageScanningEnabled is true. Specify a single value. If you omit ImageScanningTypes, Image Builder uses TEST_INSTANCE_CVE. With TEST_INSTANCE_CVE, Amazon Inspector scans the test instance during image tests, and you must activate Amazon Inspector for Amazon EC2 scanning in your account. With ON_DEMAND_AMI_CVE, Amazon Inspector starts an on-demand scan of the output AMI during image tests. You must build from an image recipe, but you do not need to activate Amazon Inspector in your account.",
+    ).optional(),
+    ScanResultCondition: ScanResultConditionSchema.describe(
+      "The condition that the output AMI's scan results must meet for the image to pass. You can set ScanResultCondition only when ImageScanningTypes is ON_DEMAND_AMI_CVE. If you omit it, Image Builder starts the scan but does not wait for it or use its results to pass or fail the image.",
+    ).optional(),
   }).describe(
     "Contains settings for vulnerability scans that Amazon Inspector runs against the test instance during image creation.",
   ).optional(),
@@ -313,7 +341,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ImageBuilder ImagePipeline. Registered at `@swamp/aws/imagebuilder/image-pipeline`. */
 export const model = {
   type: "@swamp/aws/imagebuilder/image-pipeline",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -387,6 +415,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

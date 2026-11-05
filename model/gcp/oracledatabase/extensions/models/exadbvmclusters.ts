@@ -175,6 +175,9 @@ const GlobalArgsSchema = z.object({
   displayName: z.string().describe(
     "Required. Immutable. The display name for the ExadbVmCluster. The name does not have to be unique within your project. The name must be 1-255 characters long and can only contain alphanumeric characters.",
   ).optional(),
+  identityConnectorDisabled: z.boolean().describe(
+    "Optional. Input only. Immutable. If set to true, disables the automatic provisioning of the Workload Identity Connector during creation. If set to false or omitted, the Workload Identity Connector will be automatically provisioned by default. Note: Provisioning the Workload Identity Connector is a prerequisite for enabling Google Cloud CMEK.",
+  ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. The labels or tags associated with the ExadbVmCluster.",
   ).optional(),
@@ -299,8 +302,12 @@ const StateSchema = z.object({
   gcpOracleZone: z.string().optional(),
   identityConnector: z.object({
     connectionState: z.string(),
+    identityConnectorId: z.string(),
+    lifecycleStateDetails: z.string(),
     serviceAgentEmail: z.string(),
+    workloadIdentityPool: z.string(),
   }).optional(),
+  identityConnectorDisabled: z.boolean().optional(),
   labels: z.record(z.string(), z.unknown()).optional(),
   name: z.string(),
   odbNetwork: z.string().optional(),
@@ -351,6 +358,9 @@ const InputsSchema = z.object({
   ).optional(),
   displayName: z.string().describe(
     "Required. Immutable. The display name for the ExadbVmCluster. The name does not have to be unique within your project. The name must be 1-255 characters long and can only contain alphanumeric characters.",
+  ).optional(),
+  identityConnectorDisabled: z.boolean().describe(
+    "Optional. Input only. Immutable. If set to true, disables the automatic provisioning of the Workload Identity Connector during creation. If set to false or omitted, the Workload Identity Connector will be automatically provisioned by default. Note: Provisioning the Workload Identity Connector is a prerequisite for enabling Google Cloud CMEK.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. The labels or tags associated with the ExadbVmCluster.",
@@ -494,7 +504,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Oracle Database@Google Cloud ExadbVmClusters. Registered at `@swamp/gcp/oracledatabase/exadbvmclusters`. */
 export const model = {
   type: "@swamp/gcp/oracledatabase/exadbvmclusters",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -641,6 +651,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.05.1",
+      description: "Added: identityConnectorDisabled",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -673,6 +688,9 @@ export const model = {
         }
         if (g["displayName"] !== undefined) {
           body["displayName"] = g["displayName"];
+        }
+        if (g["identityConnectorDisabled"] !== undefined) {
+          body["identityConnectorDisabled"] = g["identityConnectorDisabled"];
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["name"] !== undefined) body["name"] = g["name"];
@@ -985,6 +1003,78 @@ export const model = {
           dataHandles.push(handle);
         }
         return { dataHandles, result: { count: items.length, nextPageToken } };
+      },
+    },
+    disable_identity_connector: {
+      description: "disable identity connector",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["name"]),
+          );
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "oracledatabase.projects.locations.exadbVmClusters.disableIdentityConnector",
+            "path": "v1/{+name}:disableIdentityConnector",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          {},
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    enable_identity_connector: {
+      description: "enable identity connector",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["name"]),
+          );
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "oracledatabase.projects.locations.exadbVmClusters.enableIdentityConnector",
+            "path": "v1/{+name}:enableIdentityConnector",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          {},
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
       },
     },
   },

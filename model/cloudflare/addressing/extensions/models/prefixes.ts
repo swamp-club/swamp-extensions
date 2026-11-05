@@ -42,7 +42,7 @@ const GlobalArgsSchema = z.object({
   description: z.string().max(1000).describe("Description of the prefix.")
     .optional(),
   asn: z.number().int().describe(
-    "Autonomous System Number (ASN) the prefix will be advertised under.",
+    "Autonomous System Number (ASN) the prefix will be advertised under. Use 13335 for Cloudflare's ASN, or your own ASN as an integer without the AS prefix. The IRR route and RPKI ROA must authorize this ASN.",
   ).optional(),
   cidr: z.string().describe(
     "IP Prefix in Classless Inter-Domain Routing format.",
@@ -70,6 +70,8 @@ const ResourceSchema = z.object({
   advertised_modified_at: z.string().optional(),
   approved: z.string().optional(),
   asn: z.number().optional(),
+  asn_ownership_validation_state: z.string().optional(),
+  aspa_validation_state: z.string().optional(),
   cidr: z.string().optional(),
   created_at: z.string().optional(),
   delegate_loa_creation: z.boolean().optional(),
@@ -102,7 +104,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Prefixes. Registered at `@swamp/cloudflare/addressing/prefixes`. */
 export const model = {
   type: "@swamp/cloudflare/addressing/prefixes",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -141,6 +143,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

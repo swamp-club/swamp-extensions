@@ -833,10 +833,10 @@ const GlobalArgsSchema = z.object({
           "Required. Wi-Fi SSID represented as a string.",
         ).optional(),
       })).describe(
-        "Optional. List of Wi-Fi SSIDs that should be applied in the policy. This field must be non-empty when WifiSsidPolicyType is set to WIFI_SSID_ALLOWLIST. If this is set to a non-empty list, then a NonComplianceDetail detail with API_LEVEL is reported if the Android version is less than 13 and a NonComplianceDetail with MANAGEMENT_MODE is reported for non-company-owned devices.",
+        "Optional. List of Wi-Fi SSIDs that should be applied in the policy. This field must be non-empty when wifiSsidPolicyType is set to WIFI_SSID_ALLOWLIST.",
       ).optional(),
     }).describe(
-      "Optional. Restrictions on which Wi-Fi SSIDs the device can connect to. Note that this does not affect which networks can be configured on the device. Supported on company-owned devices running Android 13 and above.",
+      "Optional. Restrictions on which Wi-Fi SSIDs the device can connect to. Note that this does not affect which networks can be configured on the device.Supported on Android 13 (API level 33) and higher on fully managed devices and work profiles on company-owned devices. A NonComplianceDetail with MANAGEMENT_MODE is reported on other management modes. A NonComplianceDetail with API_LEVEL is reported if the Android version is less than 13 (API level 33).",
     ).optional(),
   }).describe(
     "Optional. Covers controls for device connectivity such as Wi-Fi, USB data access, keyboard/mouse connections, and more.",
@@ -2857,10 +2857,10 @@ const InputsSchema = z.object({
           "Required. Wi-Fi SSID represented as a string.",
         ).optional(),
       })).describe(
-        "Optional. List of Wi-Fi SSIDs that should be applied in the policy. This field must be non-empty when WifiSsidPolicyType is set to WIFI_SSID_ALLOWLIST. If this is set to a non-empty list, then a NonComplianceDetail detail with API_LEVEL is reported if the Android version is less than 13 and a NonComplianceDetail with MANAGEMENT_MODE is reported for non-company-owned devices.",
+        "Optional. List of Wi-Fi SSIDs that should be applied in the policy. This field must be non-empty when wifiSsidPolicyType is set to WIFI_SSID_ALLOWLIST.",
       ).optional(),
     }).describe(
-      "Optional. Restrictions on which Wi-Fi SSIDs the device can connect to. Note that this does not affect which networks can be configured on the device. Supported on company-owned devices running Android 13 and above.",
+      "Optional. Restrictions on which Wi-Fi SSIDs the device can connect to. Note that this does not affect which networks can be configured on the device.Supported on Android 13 (API level 33) and higher on fully managed devices and work profiles on company-owned devices. A NonComplianceDetail with MANAGEMENT_MODE is reported on other management modes. A NonComplianceDetail with API_LEVEL is reported if the Android version is less than 13 (API level 33).",
     ).optional(),
   }).describe(
     "Optional. Covers controls for device connectivity such as Wi-Fi, USB data access, keyboard/mouse connections, and more.",
@@ -3749,7 +3749,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Android Management Enterprises.Policies. Registered at `@swamp/gcp/androidmanagement/enterprises-policies`. */
 export const model = {
   type: "@swamp/gcp/androidmanagement/enterprises-policies",
-  version: "2026.11.03.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3979,6 +3979,11 @@ export const model = {
     {
       toVersion: "2026.11.03.1",
       description: "Added: deviceWidePolicies",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

@@ -104,6 +104,11 @@ const GlobalArgsSchema = z.object({
   DbParameterGroupIdentifier: z.string().min(3).max(64).regex(
     new RegExp("^[a-zA-Z0-9]+$"),
   ).describe("The name of an existing InfluxDB parameter group.").optional(),
+  KmsKeyId: z.string().min(1).max(2048).regex(
+    new RegExp("^[a-zA-Z0-9:/_\\-]+$"),
+  ).describe(
+    "The customer managed key used to encrypt data in the InfluxDB cluster.",
+  ).optional(),
   FailoverMode: z.enum(["AUTOMATIC", "NO_FAILOVER"]).describe(
     "Failover mode of the InfluxDB cluster.",
   ).optional(),
@@ -159,7 +164,12 @@ const StateSchema = z.object({
   InfluxAuthParametersSecretArn: z.string().optional(),
   Port: z.number().optional(),
   DbInstanceType: z.string().optional(),
+  EffectiveDbParameterGroupIdentifier: z.string().optional(),
   VpcSubnetIds: z.array(z.string()).optional(),
+  MemberModeCounts: z.array(z.object({
+    Mode: z.string(),
+    Count: z.number(),
+  })).optional(),
   DeploymentType: z.string().optional(),
   Name: z.string().optional(),
   Endpoint: z.string().optional(),
@@ -171,6 +181,8 @@ const StateSchema = z.object({
   Password: z.string().optional(),
   DbParameterGroupIdentifier: z.string().optional(),
   Status: z.string().optional(),
+  KmsKeyId: z.string().optional(),
+  MemberCount: z.number().optional(),
   FailoverMode: z.string().optional(),
   ReaderEndpoint: z.string().optional(),
   AllocatedStorage: z.number().optional(),
@@ -241,6 +253,11 @@ const InputsSchema = z.object({
   DbParameterGroupIdentifier: z.string().min(3).max(64).regex(
     new RegExp("^[a-zA-Z0-9]+$"),
   ).describe("The name of an existing InfluxDB parameter group.").optional(),
+  KmsKeyId: z.string().min(1).max(2048).regex(
+    new RegExp("^[a-zA-Z0-9:/_\\-]+$"),
+  ).describe(
+    "The customer managed key used to encrypt data in the InfluxDB cluster.",
+  ).optional(),
   FailoverMode: z.enum(["AUTOMATIC", "NO_FAILOVER"]).describe(
     "Failover mode of the InfluxDB cluster.",
   ).optional(),
@@ -311,7 +328,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Timestream InfluxDBCluster. Registered at `@swamp/aws/timestream/influx-dbcluster`. */
 export const model = {
   type: "@swamp/aws/timestream/influx-dbcluster",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -376,6 +393,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
+      description: "Added: KmsKeyId",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -498,6 +520,7 @@ export const model = {
             "AllocatedStorage",
             "DeploymentType",
             "NetworkType",
+            "KmsKeyId",
           ],
           credentials,
         );

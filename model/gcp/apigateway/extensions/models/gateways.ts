@@ -142,9 +142,6 @@ const LIST_CONFIG = {
 } as const;
 
 const GlobalArgsSchema = z.object({
-  name: z.string().describe(
-    "Instance name for this resource (used as the unique identifier in the factory pattern)",
-  ),
   accessToken: z.string().meta({ sensitive: true }).describe(
     "GCP OAuth2 access token; overrides GCP_ACCESS_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -169,6 +166,9 @@ const GlobalArgsSchema = z.object({
   displayName: z.string().describe("Optional. Display name.").optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. Resource labels to represent user-provided metadata. Refer to cloud documentation on labels for more details. https://cloud.google.com/compute/docs/labeling-resources",
+  ).optional(),
+  name: z.string().describe(
+    "Identifier. Resource name of the Gateway. Format: projects/{project}/locations/{location}/gateways/{gateway}",
   ).optional(),
   streamingMode: z.enum([
     "STREAMING_MODE_UNSPECIFIED",
@@ -200,7 +200,6 @@ const StateSchema = z.object({
 type StateData = z.infer<typeof StateSchema>;
 
 const InputsSchema = z.object({
-  name: z.string().optional(),
   accessToken: z.string().meta({ sensitive: true }).optional(),
   credentialsJson: z.string().meta({ sensitive: true }).optional(),
   project: z.string().optional(),
@@ -213,6 +212,9 @@ const InputsSchema = z.object({
   displayName: z.string().describe("Optional. Display name.").optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. Resource labels to represent user-provided metadata. Refer to cloud documentation on labels for more details. https://cloud.google.com/compute/docs/labeling-resources",
+  ).optional(),
+  name: z.string().describe(
+    "Identifier. Resource name of the Gateway. Format: projects/{project}/locations/{location}/gateways/{gateway}",
   ).optional(),
   streamingMode: z.enum([
     "STREAMING_MODE_UNSPECIFIED",
@@ -254,7 +256,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API Gateway Gateways. Registered at `@swamp/gcp/apigateway/gateways`. */
 export const model = {
   type: "@swamp/gcp/apigateway/gateways",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -411,6 +413,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -447,6 +454,7 @@ export const model = {
           body["displayName"] = g["displayName"];
         }
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
+        if (g["name"] !== undefined) body["name"] = g["name"];
         if (g["streamingMode"] !== undefined) {
           body["streamingMode"] = g["streamingMode"];
         }
@@ -484,10 +492,8 @@ export const model = {
           },
           credentials,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? "current").replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName = ((g.name ?? result.name)?.toString() ?? "current")
+          .replace(/[\/\\]/g, "_").replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -518,10 +524,11 @@ export const model = {
           params,
           credentials,
         ) as StateData;
-        const instanceName = (g.name?.toString() ?? args.identifier).replace(
-          /[\/\\]/g,
-          "_",
-        ).replace(/\.\./g, "_").replace(/\0/g, "");
+        const instanceName =
+          ((g.name ?? result.name)?.toString() ?? args.identifier).replace(
+            /[\/\\]/g,
+            "_",
+          ).replace(/\.\./g, "_").replace(/\0/g, "");
         const handle = await context.writeResource(
           "state",
           instanceName,
@@ -720,9 +727,10 @@ export const model = {
     list: {
       description: "List gateways resources",
       arguments: z.object({
-        filter: z.string().describe("Filter.").optional(),
-        orderBy: z.string().describe("Order by parameters.").optional(),
-        pageSize: z.number().describe("Page size.").optional(),
+        filter: z.string().describe("Optional. Filter.").optional(),
+        orderBy: z.string().describe("Optional. Order by parameters.")
+          .optional(),
+        pageSize: z.number().describe("Optional. Page size.").optional(),
         maxPages: z.number().describe(
           "Maximum number of pages to fetch (default: 10)",
         ).optional(),

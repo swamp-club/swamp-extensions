@@ -47,7 +47,7 @@ const CloudWatchLoggingSchema = z.object({
 });
 
 const CpuConfigurationSchema = z.object({
-  Architecture: z.enum(["ARM_64"]),
+  Architecture: z.enum(["ARM_64", "X86_64"]),
 });
 
 const ResourcesSchema = z.object({
@@ -132,6 +132,13 @@ const GlobalArgsSchema = z.object({
   EnvironmentVariables: z.array(EnvironmentVariableSchema).describe(
     "Environment variables to set in the container during the snapshot build.",
   ),
+  KmsKeyIdentifier: z.string().min(1).max(2048).regex(
+    new RegExp(
+      "^(arn:aws[a-z-]*:kms:[a-z0-9-]+:[0-9]{12}:(key|alias)/[a-zA-Z0-9:/_-]+|alias/[a-zA-Z0-9:/_-]+|[a-zA-Z0-9-]+)$",
+    ),
+  ).describe(
+    "The customer managed KMS key used to encrypt the MicroVM image configuration at rest. When omitted, a service owned key is used.",
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "Key-value pairs to associate with the MicroVM image for organization and management.",
   ).optional(),
@@ -162,6 +169,7 @@ const StateSchema = z.object({
     MicrovmImageHooks: MicrovmImageHooksSchema,
   }).optional(),
   EnvironmentVariables: z.array(EnvironmentVariableSchema).optional(),
+  KmsKeyIdentifier: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
   LatestActiveImageVersion: z.string().optional(),
   LatestFailedImageVersion: z.string().optional(),
@@ -211,6 +219,13 @@ const InputsSchema = z.object({
   EnvironmentVariables: z.array(EnvironmentVariableSchema).describe(
     "Environment variables to set in the container during the snapshot build.",
   ).optional(),
+  KmsKeyIdentifier: z.string().min(1).max(2048).regex(
+    new RegExp(
+      "^(arn:aws[a-z-]*:kms:[a-z0-9-]+:[0-9]{12}:(key|alias)/[a-zA-Z0-9:/_-]+|alias/[a-zA-Z0-9:/_-]+|[a-zA-Z0-9-]+)$",
+    ),
+  ).describe(
+    "The customer managed KMS key used to encrypt the MicroVM image configuration at rest. When omitted, a service owned key is used.",
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "Key-value pairs to associate with the MicroVM image for organization and management.",
   ).optional(),
@@ -235,7 +250,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda MicrovmImage. Registered at `@swamp/aws/lambda/microvm-image`. */
 export const model = {
   type: "@swamp/aws/lambda/microvm-image",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -255,6 +270,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
+      description: "Added: KmsKeyIdentifier",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
