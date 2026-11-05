@@ -53,10 +53,13 @@ const GlobalArgsSchema = z.object({
   health_check: z.object({
     enabled: z.boolean().optional(),
     rate: z.enum(["low", "mid", "high"]).optional(),
-    target: z.object({
-      effective: z.string().optional(),
-      saved: z.string().optional(),
-    }).optional(),
+    target: z.union([
+      z.strictObject({
+        effective: z.string().optional(),
+        saved: z.string().optional(),
+      }),
+      z.string(),
+    ]).optional(),
     type: z.enum(["reply", "request"]).optional(),
     direction: z.enum(["unidirectional", "bidirectional"]).optional(),
   }).optional(),
@@ -120,10 +123,13 @@ const ResourceSchema = z.object({
     health_check: z.object({
       enabled: z.boolean().optional(),
       rate: z.string().optional(),
-      target: z.object({
-        effective: z.string().optional(),
-        saved: z.string().optional(),
-      }).optional(),
+      target: z.union([
+        z.looseObject({
+          effective: z.string().optional(),
+          saved: z.string().optional(),
+        }),
+        z.string(),
+      ]).optional(),
       type: z.string().optional(),
       direction: z.string().optional(),
     }).optional(),
@@ -149,10 +155,13 @@ const InputsSchema = z.object({
   health_check: z.object({
     enabled: z.boolean().optional(),
     rate: z.enum(["low", "mid", "high"]).optional(),
-    target: z.object({
-      effective: z.string().optional(),
-      saved: z.string().optional(),
-    }).optional(),
+    target: z.union([
+      z.strictObject({
+        effective: z.string().optional(),
+        saved: z.string().optional(),
+      }),
+      z.string(),
+    ]).optional(),
     type: z.enum(["reply", "request"]).optional(),
     direction: z.enum(["unidirectional", "bidirectional"]).optional(),
   }).optional(),
@@ -176,7 +185,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Gre Tunnels. Registered at `@swamp/cloudflare/magic/gre-tunnels`. */
 export const model = {
   type: "@swamp/cloudflare/magic/gre-tunnels",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -235,6 +244,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

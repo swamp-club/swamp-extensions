@@ -55,7 +55,28 @@ const GlobalArgsSchema = z.object({
   allowRequestPattern: z.array(z.string()).describe(
     "Only allow requests that match the provided regex patterns, eg. '/^.*\\.(css)'. Reject rules are applied first.",
   ).optional(),
-  allowResourceTypes: z.array(z.enum(["document"])).describe(
+  allowResourceTypes: z.array(
+    z.enum([
+      "document",
+      "stylesheet",
+      "image",
+      "media",
+      "font",
+      "script",
+      "texttrack",
+      "xhr",
+      "fetch",
+      "prefetch",
+      "eventsource",
+      "websocket",
+      "manifest",
+      "signedexchange",
+      "ping",
+      "cspviolationreport",
+      "preflight",
+      "other",
+    ]),
+  ).describe(
     "Only allow requests that match the provided resource types, eg. 'image' or 'script'. Reject rules are applied first.",
   ).optional(),
   authenticate: z.object({
@@ -68,7 +89,7 @@ const GlobalArgsSchema = z.object({
   browser: z.enum(["kitesurf"]).describe(
     "Rendering backend for this crawl. Set to `kitesurf` to render pages with Kitesurf (beta). Only valid when `render` is `true`.",
   ).optional(),
-  contentUse: z.enum(["reference"]).optional(),
+  contentUse: z.enum(["reference", "full"]).optional(),
   cookies: z.array(z.object({
     domain: z.string().optional(),
     expires: z.number().optional(),
@@ -76,32 +97,37 @@ const GlobalArgsSchema = z.object({
     name: z.string(),
     partitionKey: z.string().optional(),
     path: z.string().optional(),
-    priority: z.enum(["Low"]).optional(),
+    priority: z.enum(["Low", "Medium", "High"]).optional(),
     sameParty: z.boolean().optional(),
-    sameSite: z.enum(["Strict"]).optional(),
+    sameSite: z.enum(["Strict", "Lax", "None"]).optional(),
     secure: z.boolean().optional(),
     sourcePort: z.number().optional(),
-    sourceScheme: z.enum(["Unset"]).optional(),
+    sourceScheme: z.enum(["Unset", "NonSecure", "Secure"]).optional(),
     url: z.string().optional(),
     value: z.string(),
   })).describe(
     "Check [options](https://pptr.dev/api/puppeteer.page.setcookie).",
   ).optional(),
-  crawlPurposes: z.array(z.enum(["search"])).describe(
+  crawlPurposes: z.array(z.enum(["search", "ai-input", "ai-train"])).describe(
     "List of crawl purposes to respect Content-Signal directives in robots.txt. Allowed values: 'search', 'ai-input', 'ai-train'. Learn more: https://contentsignals.org/. Default: ['search', 'ai-input', 'ai-train'].",
   ).optional(),
   depth: z.number().min(1).max(100000).describe(
     "Maximum number of levels deep the crawler will traverse from the starting URL.",
   ).optional(),
   emulateMediaType: z.string().optional(),
-  formats: z.array(z.enum(["html"])).describe(
+  formats: z.array(z.enum(["html", "markdown", "json"])).describe(
     "Formats to return. Default is `html`.",
   ).optional(),
   gotoOptions: z.object({
     referer: z.string().optional(),
     referrerPolicy: z.string().optional(),
     timeout: z.number().max(60000).optional(),
-    waitUntil: z.enum(["load"]).optional(),
+    waitUntil: z.union([
+      z.enum(["load", "domcontentloaded", "networkidle0", "networkidle2"]),
+      z.array(
+        z.enum(["load", "domcontentloaded", "networkidle0", "networkidle2"]),
+      ),
+    ]).optional(),
   }).describe("Check [options](https://pptr.dev/api/puppeteer.gotooptions).")
     .optional(),
   jsonOptions: z.object({
@@ -133,7 +159,28 @@ const GlobalArgsSchema = z.object({
   rejectRequestPattern: z.array(z.string()).describe(
     "Block undesired requests that match the provided regex patterns, eg. '/^.*\\.(css)'.",
   ).optional(),
-  rejectResourceTypes: z.array(z.enum(["document"])).describe(
+  rejectResourceTypes: z.array(
+    z.enum([
+      "document",
+      "stylesheet",
+      "image",
+      "media",
+      "font",
+      "script",
+      "texttrack",
+      "xhr",
+      "fetch",
+      "prefetch",
+      "eventsource",
+      "websocket",
+      "manifest",
+      "signedexchange",
+      "ping",
+      "cspviolationreport",
+      "preflight",
+      "other",
+    ]),
+  ).describe(
     "Block undesired requests that match the provided resource types, eg. 'image' or 'script'.",
   ).optional(),
   render: z.boolean().describe(
@@ -141,7 +188,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   setExtraHTTPHeaders: z.record(z.string(), z.unknown()).optional(),
   setJavaScriptEnabled: z.boolean().optional(),
-  source: z.enum(["sitemaps"]).optional(),
+  source: z.enum(["sitemaps", "links", "all"]).optional(),
   url: z.string().describe("URL to navigate to, eg. `https://example.com`.")
     .optional(),
   viewport: z.object({
@@ -227,14 +274,35 @@ const InputsSchema = z.object({
     url: z.string().optional(),
   })).optional(),
   allowRequestPattern: z.array(z.string()).optional(),
-  allowResourceTypes: z.array(z.enum(["document"])).optional(),
+  allowResourceTypes: z.array(
+    z.enum([
+      "document",
+      "stylesheet",
+      "image",
+      "media",
+      "font",
+      "script",
+      "texttrack",
+      "xhr",
+      "fetch",
+      "prefetch",
+      "eventsource",
+      "websocket",
+      "manifest",
+      "signedexchange",
+      "ping",
+      "cspviolationreport",
+      "preflight",
+      "other",
+    ]),
+  ).optional(),
   authenticate: z.object({
     password: z.string().min(1),
     username: z.string().min(1),
   }).optional(),
   bestAttempt: z.boolean().optional(),
   browser: z.enum(["kitesurf"]).optional(),
-  contentUse: z.enum(["reference"]).optional(),
+  contentUse: z.enum(["reference", "full"]).optional(),
   cookies: z.array(z.object({
     domain: z.string().optional(),
     expires: z.number().optional(),
@@ -242,24 +310,29 @@ const InputsSchema = z.object({
     name: z.string(),
     partitionKey: z.string().optional(),
     path: z.string().optional(),
-    priority: z.enum(["Low"]).optional(),
+    priority: z.enum(["Low", "Medium", "High"]).optional(),
     sameParty: z.boolean().optional(),
-    sameSite: z.enum(["Strict"]).optional(),
+    sameSite: z.enum(["Strict", "Lax", "None"]).optional(),
     secure: z.boolean().optional(),
     sourcePort: z.number().optional(),
-    sourceScheme: z.enum(["Unset"]).optional(),
+    sourceScheme: z.enum(["Unset", "NonSecure", "Secure"]).optional(),
     url: z.string().optional(),
     value: z.string(),
   })).optional(),
-  crawlPurposes: z.array(z.enum(["search"])).optional(),
+  crawlPurposes: z.array(z.enum(["search", "ai-input", "ai-train"])).optional(),
   depth: z.number().min(1).max(100000).optional(),
   emulateMediaType: z.string().optional(),
-  formats: z.array(z.enum(["html"])).optional(),
+  formats: z.array(z.enum(["html", "markdown", "json"])).optional(),
   gotoOptions: z.object({
     referer: z.string().optional(),
     referrerPolicy: z.string().optional(),
     timeout: z.number().max(60000).optional(),
-    waitUntil: z.enum(["load"]).optional(),
+    waitUntil: z.union([
+      z.enum(["load", "domcontentloaded", "networkidle0", "networkidle2"]),
+      z.array(
+        z.enum(["load", "domcontentloaded", "networkidle0", "networkidle2"]),
+      ),
+    ]).optional(),
   }).optional(),
   jsonOptions: z.object({
     custom_ai: z.array(z.object({
@@ -282,11 +355,32 @@ const InputsSchema = z.object({
     includeSubdomains: z.boolean().optional(),
   }).optional(),
   rejectRequestPattern: z.array(z.string()).optional(),
-  rejectResourceTypes: z.array(z.enum(["document"])).optional(),
+  rejectResourceTypes: z.array(
+    z.enum([
+      "document",
+      "stylesheet",
+      "image",
+      "media",
+      "font",
+      "script",
+      "texttrack",
+      "xhr",
+      "fetch",
+      "prefetch",
+      "eventsource",
+      "websocket",
+      "manifest",
+      "signedexchange",
+      "ping",
+      "cspviolationreport",
+      "preflight",
+      "other",
+    ]),
+  ).optional(),
   render: z.boolean().optional(),
   setExtraHTTPHeaders: z.record(z.string(), z.unknown()).optional(),
   setJavaScriptEnabled: z.boolean().optional(),
-  source: z.enum(["sitemaps"]).optional(),
+  source: z.enum(["sitemaps", "links", "all"]).optional(),
   url: z.string().optional(),
   viewport: z.object({
     deviceScaleFactor: z.number().optional(),
@@ -311,7 +405,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Crawl. Registered at `@swamp/cloudflare/browser-rendering/crawl`. */
 export const model = {
   type: "@swamp/cloudflare/browser-rendering/crawl",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.08.15.1",
@@ -355,6 +449,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

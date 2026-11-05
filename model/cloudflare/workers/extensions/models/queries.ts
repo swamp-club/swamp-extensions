@@ -127,7 +127,11 @@ const GlobalArgsSchema = z.object({
         "ENDS_WITH",
       ]).optional(),
       type: z.enum(["string", "number", "boolean"]).optional(),
-      value: z.string().optional(),
+      value: z.union([
+        z.string(),
+        z.number(),
+        z.boolean(),
+      ]).optional(),
     })).optional(),
     groupBys: z.array(z.object({
       type: z.enum(["string", "number", "boolean"]),
@@ -183,7 +187,11 @@ const ResourceSchema = z.object({
       key: z.string().optional(),
       operation: z.string().optional(),
       type: z.string().optional(),
-      value: z.string().optional(),
+      value: z.union([
+        z.string(),
+        z.number(),
+        z.boolean(),
+      ]).optional(),
     })).optional(),
     groupBys: z.array(z.object({
       type: z.string().optional(),
@@ -301,7 +309,11 @@ const InputsSchema = z.object({
         "ENDS_WITH",
       ]).optional(),
       type: z.enum(["string", "number", "boolean"]).optional(),
-      value: z.string().optional(),
+      value: z.union([
+        z.string(),
+        z.number(),
+        z.boolean(),
+      ]).optional(),
     })).optional(),
     groupBys: z.array(z.object({
       type: z.enum(["string", "number", "boolean"]),
@@ -331,7 +343,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Queries. Registered at `@swamp/cloudflare/workers/queries`. */
 export const model = {
   type: "@swamp/cloudflare/workers/queries",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -390,6 +402,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

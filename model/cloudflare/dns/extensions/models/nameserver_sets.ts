@@ -89,11 +89,20 @@ const ResourceSchema = z.object({
     ip_set: z.number().optional(),
     name: z.string().optional(),
     advanced: z.boolean().optional(),
-    nameservers: z.array(z.object({
-      ipv4: z.array(z.string()).optional(),
-      ipv6: z.array(z.string()).optional(),
-      name: z.string().optional(),
-    })).optional(),
+    nameservers: z.union([
+      z.array(z.looseObject({
+        ipv4: z.array(z.string()).optional(),
+        ipv6: z.array(z.string()).optional(),
+        name: z.string().optional(),
+      })),
+      z.array(z.looseObject({
+        ipv4: z.array(z.string()).optional(),
+        ipv4_groups: z.array(z.string()).optional(),
+        ipv6: z.array(z.string()).optional(),
+        ipv6_groups: z.array(z.string()).optional(),
+        name: z.string().optional(),
+      })),
+    ]).optional(),
   }).optional(),
   id: z.string(),
 }).passthrough();
@@ -117,7 +126,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Nameserver Sets. Registered at `@swamp/cloudflare/dns/nameserver-sets`. */
 export const model = {
   type: "@swamp/cloudflare/dns/nameserver-sets",
-  version: "2026.10.28.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.09.29.1",
@@ -146,6 +155,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

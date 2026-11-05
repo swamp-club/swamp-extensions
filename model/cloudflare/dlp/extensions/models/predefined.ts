@@ -121,7 +121,11 @@ const ResourceSchema = z.object({
         available: z.boolean().optional(),
       }).optional(),
       deprecated: z.boolean().optional(),
-      variant: z.string().optional(),
+      variant: z.object({
+        description: z.string().optional(),
+        topic_type: z.string().optional(),
+        type: z.string().optional(),
+      }).optional(),
       case_sensitive: z.boolean().optional(),
       secret: z.boolean().optional(),
       word_list: z.array(z.string()).optional(),
@@ -152,7 +156,11 @@ const ResourceSchema = z.object({
         available: z.boolean().optional(),
       }).optional(),
       deprecated: z.boolean().optional(),
-      variant: z.string().optional(),
+      variant: z.object({
+        description: z.string().optional(),
+        topic_type: z.string().optional(),
+        type: z.string().optional(),
+      }).optional(),
       case_sensitive: z.boolean().optional(),
       secret: z.boolean().optional(),
       word_list: z.array(z.string()).optional(),
@@ -193,7 +201,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Predefined. Registered at `@swamp/cloudflare/dlp/predefined`. */
 export const model = {
   type: "@swamp/cloudflare/dlp/predefined",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -262,6 +270,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

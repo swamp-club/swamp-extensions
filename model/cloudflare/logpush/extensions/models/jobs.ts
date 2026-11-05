@@ -64,9 +64,24 @@ const GlobalArgsSchema = z.object({
   logpull_options: z.string().max(4096).describe(
     "This field is deprecated. Use `output_options` instead. Configuration string. It specifies things like requested fields and timestamp formats. If migrating from the logpull api, copy the url (full url or just the query string) of your call here, and logpush will keep on making this call for you, setting start and end times appropriately.",
   ).optional(),
-  max_upload_bytes: z.union([z.literal(0)]).optional(),
-  max_upload_interval_seconds: z.union([z.literal(0)]).optional(),
-  max_upload_records: z.union([z.literal(0)]).optional(),
+  max_upload_bytes: z.union([
+    z.union([z.literal(0)]),
+    z.number().int().min(5000000).max(1000000000),
+  ]).describe(
+    "The maximum uncompressed file size of a batch of logs. This setting value must be between `5 MB` and `1 GB`, or `0` to disable it. Note that you cannot set a minimum file size; this means that log files may be much smaller than this batch size.",
+  ).optional(),
+  max_upload_interval_seconds: z.union([
+    z.union([z.literal(0)]),
+    z.number().int().min(30).max(300),
+  ]).describe(
+    "The maximum interval in seconds for log batches. This setting must be between 30 and 300 seconds (5 minutes), or `0` to disable it. Note that you cannot specify a minimum interval for log batches; this means that log files may be sent in shorter intervals than this.",
+  ).optional(),
+  max_upload_records: z.union([
+    z.union([z.literal(0)]),
+    z.number().int().min(1000).max(1000000),
+  ]).describe(
+    "The maximum number of log lines per batch. This setting must be between 1000 and 1,000,000 lines, or `0` to disable it. Note that you cannot specify a minimum number of log lines per batch; this means that log files may contain many fewer lines than this.",
+  ).optional(),
   name: z.string().max(512).regex(new RegExp("^[a-zA-Z0-9\\._-]*$")).describe(
     "Optional human readable job name. Not unique. Cloudflare suggests. that you set this to a meaningful string, like the domain name, to make it easier to identify your job.",
   ).optional(),
@@ -195,9 +210,18 @@ const InputsSchema = z.object({
   frequency: z.enum(["high", "low"]).optional(),
   kind: z.enum(["", "edge"]).optional(),
   logpull_options: z.string().max(4096).optional(),
-  max_upload_bytes: z.union([z.literal(0)]).optional(),
-  max_upload_interval_seconds: z.union([z.literal(0)]).optional(),
-  max_upload_records: z.union([z.literal(0)]).optional(),
+  max_upload_bytes: z.union([
+    z.union([z.literal(0)]),
+    z.number().int().min(5000000).max(1000000000),
+  ]).optional(),
+  max_upload_interval_seconds: z.union([
+    z.union([z.literal(0)]),
+    z.number().int().min(30).max(300),
+  ]).optional(),
+  max_upload_records: z.union([
+    z.union([z.literal(0)]),
+    z.number().int().min(1000).max(1000000),
+  ]).optional(),
   name: z.string().max(512).regex(new RegExp("^[a-zA-Z0-9\\._-]*$")).optional(),
   output_options: z.object({
     "CVE-2021-44228": z.boolean().optional(),
@@ -271,7 +295,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Jobs. Registered at `@swamp/cloudflare/logpush/jobs`. */
 export const model = {
   type: "@swamp/cloudflare/logpush/jobs",
-  version: "2026.10.28.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -355,6 +379,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.28.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

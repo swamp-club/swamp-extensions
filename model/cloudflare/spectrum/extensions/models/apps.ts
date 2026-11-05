@@ -70,7 +70,12 @@ const GlobalArgsSchema = z.object({
     type: z.enum(["", "A", "AAAA", "SRV"]).optional(),
   }).describe("The name and type of DNS record for the Spectrum application.")
     .optional(),
-  origin_port: z.number().int().optional(),
+  origin_port: z.union([
+    z.number().int(),
+    z.string(),
+  ]).describe(
+    'The destination port at the origin. Only specified in conjunction with origin_dns. May use an integer to specify a single origin port, for example `1000`, or a string to specify a range of origin ports, for example `"1000-2000"`.\nNotes: If specifying a port range, the number of ports in the range must match the number of ports specified in the "protocol" field.',
+  ).optional(),
   origin_worker_id: z.string().regex(new RegExp("^[0-9a-f]{32}$")).describe(
     'Optional Worker script tag (worker ID) to use as the application\'s origin. Only supported for TCP applications with traffic_type "worker"; mutually exclusive with origin_direct, origin_dns, origin_port, proxy_protocol, and argo_smart_routing. tls may only be "off" or "flexible".',
   ).optional(),
@@ -145,7 +150,10 @@ const ResourceSchema = z.object({
       ttl: z.number().optional(),
       type: z.string().optional(),
     }).optional(),
-    origin_port: z.number().optional(),
+    origin_port: z.union([
+      z.number(),
+      z.string(),
+    ]).optional(),
     origin_worker_id: z.string().optional(),
     origin_worker_name: z.string().optional(),
     origin_worker_status: z.string().optional(),
@@ -183,7 +191,10 @@ const InputsSchema = z.object({
     ttl: z.number().int().min(600).optional(),
     type: z.enum(["", "A", "AAAA", "SRV"]).optional(),
   }).optional(),
-  origin_port: z.number().int().optional(),
+  origin_port: z.union([
+    z.number().int(),
+    z.string(),
+  ]).optional(),
   origin_worker_id: z.string().regex(new RegExp("^[0-9a-f]{32}$")).optional(),
   origin_worker_name: z.string().optional(),
   origin_worker_status: z.enum(["available", "not_found", "unknown"])
@@ -201,7 +212,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Apps. Registered at `@swamp/cloudflare/spectrum/apps`. */
 export const model = {
   type: "@swamp/cloudflare/spectrum/apps",
-  version: "2026.11.03.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -281,6 +292,11 @@ export const model = {
     {
       toVersion: "2026.11.03.1",
       description: "Added: origin_worker_name, origin_worker_status",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

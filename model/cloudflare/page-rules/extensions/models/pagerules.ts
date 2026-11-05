@@ -79,25 +79,44 @@ const GlobalArgsSchema = z.object({
       "true_client_ip_header",
       "waf",
     ]).optional(),
-    value: z.enum([
-      "on",
-      "off",
-      "bypass",
-      "basic",
-      "simplified",
-      "aggressive",
-      "cache_everything",
-      "lossless",
-      "lossy",
-      "essentially_off",
-      "low",
-      "medium",
-      "high",
-      "under_attack",
-      "flexible",
-      "full",
-      "strict",
-      "origin_pull",
+    value: z.union([
+      z.number().int().min(0).max(31536000),
+      z.strictObject({
+        cookie: z.strictObject({
+          check_presence: z.array(z.string().min(1)).optional(),
+          include: z.array(z.string().min(1)).optional(),
+        }).optional(),
+        header: z.strictObject({
+          check_presence: z.array(z.string().min(1)).optional(),
+          exclude: z.array(z.string().min(1)).optional(),
+          include: z.array(z.string().min(1)).optional(),
+        }).optional(),
+        host: z.strictObject({
+          resolved: z.boolean().optional(),
+        }).optional(),
+        query_string: z.strictObject({
+          exclude: z.union([
+            z.enum(["*"]),
+            z.array(z.string().min(1)),
+          ]).optional(),
+          include: z.union([
+            z.enum(["*"]),
+            z.array(z.string().min(1)),
+          ]).optional(),
+        }).optional(),
+        user: z.strictObject({
+          device_type: z.boolean().optional(),
+          geo: z.boolean().optional(),
+          lang: z.boolean().optional(),
+        }).optional(),
+      }),
+      z.record(z.string(), z.unknown()),
+      z.number().int().min(1).max(31536000),
+      z.strictObject({
+        status_code: z.union([z.literal(301), z.literal(302)]).optional(),
+        url: z.string().max(1500).optional(),
+      }),
+      z.string(),
     ]).optional(),
   })).describe(
     "The set of actions to perform if the targets of this rule match the\nrequest. Actions can redirect to another URL or override settings, but\nnot both.\n",
@@ -139,7 +158,44 @@ const GlobalArgsSchema = z.object({
 const ResourceSchema = z.object({
   actions: z.array(z.object({
     id: z.string().optional(),
-    value: z.string().optional(),
+    value: z.union([
+      z.number(),
+      z.looseObject({
+        cookie: z.looseObject({
+          check_presence: z.array(z.string()).optional(),
+          include: z.array(z.string()).optional(),
+        }).optional(),
+        header: z.looseObject({
+          check_presence: z.array(z.string()).optional(),
+          exclude: z.array(z.string()).optional(),
+          include: z.array(z.string()).optional(),
+        }).optional(),
+        host: z.looseObject({
+          resolved: z.boolean().optional(),
+        }).optional(),
+        query_string: z.looseObject({
+          exclude: z.union([
+            z.string(),
+            z.array(z.string()),
+          ]).optional(),
+          include: z.union([
+            z.string(),
+            z.array(z.string()),
+          ]).optional(),
+        }).optional(),
+        user: z.looseObject({
+          device_type: z.boolean().optional(),
+          geo: z.boolean().optional(),
+          lang: z.boolean().optional(),
+        }).optional(),
+      }),
+      z.record(z.string(), z.unknown()),
+      z.looseObject({
+        status_code: z.number().optional(),
+        url: z.string().optional(),
+      }),
+      z.string(),
+    ]).optional(),
   })).optional(),
   created_on: z.string().optional(),
   id: z.string(),
@@ -197,25 +253,44 @@ const InputsSchema = z.object({
       "true_client_ip_header",
       "waf",
     ]).optional(),
-    value: z.enum([
-      "on",
-      "off",
-      "bypass",
-      "basic",
-      "simplified",
-      "aggressive",
-      "cache_everything",
-      "lossless",
-      "lossy",
-      "essentially_off",
-      "low",
-      "medium",
-      "high",
-      "under_attack",
-      "flexible",
-      "full",
-      "strict",
-      "origin_pull",
+    value: z.union([
+      z.number().int().min(0).max(31536000),
+      z.strictObject({
+        cookie: z.strictObject({
+          check_presence: z.array(z.string().min(1)).optional(),
+          include: z.array(z.string().min(1)).optional(),
+        }).optional(),
+        header: z.strictObject({
+          check_presence: z.array(z.string().min(1)).optional(),
+          exclude: z.array(z.string().min(1)).optional(),
+          include: z.array(z.string().min(1)).optional(),
+        }).optional(),
+        host: z.strictObject({
+          resolved: z.boolean().optional(),
+        }).optional(),
+        query_string: z.strictObject({
+          exclude: z.union([
+            z.enum(["*"]),
+            z.array(z.string().min(1)),
+          ]).optional(),
+          include: z.union([
+            z.enum(["*"]),
+            z.array(z.string().min(1)),
+          ]).optional(),
+        }).optional(),
+        user: z.strictObject({
+          device_type: z.boolean().optional(),
+          geo: z.boolean().optional(),
+          lang: z.boolean().optional(),
+        }).optional(),
+      }),
+      z.record(z.string(), z.unknown()),
+      z.number().int().min(1).max(31536000),
+      z.strictObject({
+        status_code: z.union([z.literal(301), z.literal(302)]).optional(),
+        url: z.string().max(1500).optional(),
+      }),
+      z.string(),
     ]).optional(),
   })).optional(),
   priority: z.number().int().optional(),
@@ -245,7 +320,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Pagerules. Registered at `@swamp/cloudflare/page-rules/pagerules`. */
 export const model = {
   type: "@swamp/cloudflare/page-rules/pagerules",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -289,6 +364,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

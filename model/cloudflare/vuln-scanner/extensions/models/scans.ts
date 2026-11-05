@@ -73,7 +73,13 @@ const ResourceSchema = z.object({
         steps: z.array(z.object({
           assertions: z.array(z.object({
             description: z.string().optional(),
-            kind: z.string().optional(),
+            kind: z.object({
+              parameters: z.object({
+                max: z.number().optional(),
+                min: z.number().optional(),
+              }).optional(),
+              type: z.string().optional(),
+            }).optional(),
             observed: z.number().optional(),
             outcome: z.string().optional(),
           })).optional(),
@@ -96,7 +102,11 @@ const ResourceSchema = z.object({
             })).optional(),
           }).optional(),
           response: z.object({
-            body: z.string().optional(),
+            body: z.object({
+              kind: z.string().optional(),
+              contents: z.string().optional(),
+              truncated: z.boolean().optional(),
+            }).optional(),
             header_names: z.array(z.string()).optional(),
             status: z.number().optional(),
             status_text: z.string().optional(),
@@ -132,7 +142,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Scans. Registered at `@swamp/cloudflare/vuln-scanner/scans`. */
 export const model = {
   type: "@swamp/cloudflare/vuln-scanner/scans",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -171,6 +181,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

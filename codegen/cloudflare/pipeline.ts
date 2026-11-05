@@ -148,7 +148,14 @@ const CLOUDFLARE_SPEC_URL =
 // --- Public types ---
 
 export interface CloudflareProperty {
-  type: "string" | "number" | "integer" | "boolean" | "array" | "object";
+  type:
+    | "string"
+    | "number"
+    | "integer"
+    | "boolean"
+    | "array"
+    | "object"
+    | "union";
   description?: string;
   enum?: (string | number)[];
   minLength?: number;
@@ -162,8 +169,10 @@ export interface CloudflareProperty {
   format?: string;
   /**
    * Distinct object shapes for a property that request-body branches define
-   * differently (e.g. dns_records `data`, one shape per record type). Set
-   * only on `type: "object"`; generated as a union of the variants.
+   * differently (e.g. dns_records `data`, one shape per record type), on
+   * `type: "object"`; or the members of a mixed-type union (page-rules
+   * action `value` is a string, an integer or an object), on
+   * `type: "union"`. Generated as a union of the variants.
    */
   variants?: CloudflareProperty[];
 }
@@ -888,6 +897,8 @@ interface OApiSchema {
   default?: unknown;
   /** Internal: distinct object shapes collected by flattenDisjunction. */
   "x-swamp-variants"?: OApiSchema[];
+  /** Internal: canonical members of a mixed-type union (see unionOf). */
+  "x-swamp-union"?: OApiSchema[];
 }
 
 interface OApiParameter {
@@ -1371,9 +1382,19 @@ function flattenDisjunction(
         const existing = allProps[key];
         if (!existing) {
           allProps[key] = val;
-        } else if (existing.enum && val.enum) {
+        } else if (
+          existing.enum && val.enum &&
+          (existing.type === val.type || !existing.type || !val.type)
+        ) {
           const merged = [...new Set([...existing.enum, ...val.enum])];
           allProps[key] = { ...existing, enum: merged };
+        } else if (isMixedCollision(existing, val, spec)) {
+          const merged = unionOf(
+            [...unionMembers(existing, spec), ...unionMembers(val, spec)],
+            existing.description,
+            spec,
+          );
+          if (merged) allProps[key] = merged;
         } else {
           const merged = mergeObjectVariants(existing, val, spec);
           if (merged) allProps[key] = merged;
@@ -1402,6 +1423,139 @@ function flattenDisjunction(
   if (Object.keys(allProps).length === 0) return {};
 
   return { properties: allProps, required, type: "object" };
+}
+
+/**
+ * The members a schema contributes to a mixed-type union: its collected
+ * union members or object variants, else its oneOf/anyOf branches (resolved
+ * and expanded recursively, `null` dropped), else the resolved schema itself.
+ */
+function unionMembers(
+  schema: OApiSchema,
+  spec: OApiSpec,
+  onPath: Set<OApiSchema> = new Set(),
+): OApiSchema[] {
+  if (schema["x-swamp-union"]) return schema["x-swamp-union"];
+  if (schema["x-swamp-variants"]) return schema["x-swamp-variants"];
+  const resolved = resolveSchema(schema, spec);
+  const branches = resolved.oneOf ?? resolved.anyOf;
+  if (!branches || resolved.properties) return [resolved];
+  // The dereferenced spec has circular refs: a disjunction already being
+  // expanded further up is kept as one member instead of recursed into.
+  if (onPath.has(resolved)) return [resolved];
+  onPath.add(resolved);
+  try {
+    return branches
+      .flatMap((b) => unionMembers(b, spec, onPath))
+      .filter(isTypedMember);
+  } finally {
+    onPath.delete(resolved);
+  }
+}
+
+/**
+ * A branch that says what it accepts. `null` is dropped (nullability is not
+ * modelled), and so is a branch with no type and no properties, which the
+ * single-type path also skipped rather than guess at.
+ */
+function isTypedMember(member: OApiSchema): boolean {
+  if (member["x-swamp-variants"] || member["x-swamp-union"]) return true;
+  if (member.type) return member.type !== "null";
+  return !!member.properties;
+}
+
+/** An object member: declared `type: "object"`, or has properties. */
+function isObjectMember(member: OApiSchema): boolean {
+  return member.type === "object" || !!member.properties;
+}
+
+/**
+ * Whether a disjunction collision involves anything but objects. Object-only
+ * collisions keep the object-variant merge (mergeObjectVariants) unchanged;
+ * any non-object member on either side makes it a mixed-type union.
+ */
+function isMixedCollision(
+  existing: OApiSchema,
+  incoming: OApiSchema,
+  spec: OApiSpec,
+): boolean {
+  return [...unionMembers(existing, spec), ...unionMembers(incoming, spec)]
+    .some((m) => !isObjectMember(m));
+}
+
+const SCALAR_SCHEMA_TYPES = new Set(["string", "number", "integer", "boolean"]);
+
+/** A scalar member with no constraint the generated zod would enforce. */
+function isUnconstrainedScalar(member: OApiSchema): boolean {
+  if (!member.type || !SCALAR_SCHEMA_TYPES.has(member.type)) return false;
+  return !member.enum && member.pattern === undefined &&
+    member.minLength === undefined && member.maxLength === undefined &&
+    member.minimum === undefined && member.maximum === undefined;
+}
+
+/**
+ * Canonical union members, in first-seen order: enum members of the same
+ * scalar type merge into one (values in first-seen order); an unconstrained
+ * scalar absorbs every other member of its type (and an unconstrained number
+ * absorbs integers); anything else is deduplicated by shape.
+ */
+function canonicalMembers(
+  members: OApiSchema[],
+  spec: OApiSpec,
+): OApiSchema[] {
+  const resolved = members.map((m) =>
+    m["x-swamp-variants"] || m["x-swamp-union"] ? m : resolveSchema(m, spec)
+  ).filter(isTypedMember);
+  const unconstrained = new Set(
+    resolved.filter(isUnconstrainedScalar).map((m) => m.type!),
+  );
+  const absorbed = (m: OApiSchema): boolean => {
+    if (!m.type) return false;
+    if (m.type === "integer" && unconstrained.has("number")) return true;
+    return unconstrained.has(m.type) && !isUnconstrainedScalar(m);
+  };
+
+  const out: OApiSchema[] = [];
+  const keys: string[] = [];
+  const enumIndex = new Map<string, number>();
+  for (const m of resolved) {
+    if (absorbed(m)) continue;
+    if (m.enum && m.type && SCALAR_SCHEMA_TYPES.has(m.type)) {
+      const at = enumIndex.get(m.type);
+      if (at !== undefined) {
+        const values = [...new Set([...out[at].enum!, ...m.enum])];
+        out[at] = { ...out[at], enum: values };
+        keys[at] = shapeKey(out[at], spec);
+        continue;
+      }
+      enumIndex.set(m.type, out.length);
+    }
+    const key = shapeKey(m, spec);
+    if (keys.includes(key)) continue;
+    keys.push(key);
+    out.push(m);
+  }
+  return out;
+}
+
+/**
+ * A mixed-type union of the given members. When they canonicalize to a
+ * single member, that member: whichever branch came first, an enum and a
+ * plain string of the same property give the plain string. Undefined when
+ * no member says what it accepts (the caller keeps what it had).
+ */
+function unionOf(
+  members: OApiSchema[],
+  description: string | undefined,
+  spec: OApiSpec,
+): OApiSchema | undefined {
+  const canonical = canonicalMembers(members, spec);
+  if (canonical.length === 0) return undefined;
+  if (canonical.length === 1) return canonical[0];
+  return {
+    ...(description ? { description } : {}),
+    "x-swamp-union": canonical,
+  };
 }
 
 /**
@@ -1479,6 +1633,7 @@ const SUBSCHEMA_LIST_KEYS = new Set([
   "anyOf",
   "oneOf",
   "x-swamp-variants",
+  "x-swamp-union",
 ]);
 
 /**
@@ -1517,7 +1672,10 @@ function shapeKey(schema: OApiSchema, spec: OApiSpec): string {
     const out: Record<string, unknown> = {};
     for (const key of Object.keys(resolved).sort()) {
       if (SHAPE_IGNORED_KEYS.has(key)) continue;
-      if (key.startsWith("x-") && key !== "x-swamp-variants") continue;
+      if (
+        key.startsWith("x-") && key !== "x-swamp-variants" &&
+        key !== "x-swamp-union"
+      ) continue;
       const val = resolved[key];
       if (key === "properties" && val && typeof val === "object") {
         const props = val as Record<string, unknown>;
@@ -1649,6 +1807,13 @@ function resolveSchema(schema: OApiSchema, spec: OApiSpec): OApiSchema {
   }
 
   if (schema.allOf) {
+    // allOf around a single oneOf/anyOf is just that disjunction; merging it
+    // would keep only the description and type, dropping every branch
+    // (containers durable_objects became a string).
+    if (schema.allOf.length === 1) {
+      const inner = resolveSchema(schema.allOf[0], spec);
+      if ((inner.oneOf || inner.anyOf) && !inner.properties) return inner;
+    }
     return mergeAllOf(schema.allOf, spec);
   }
 
@@ -1723,6 +1888,61 @@ const conjoining = new Set<OApiSchema>();
 const MAX_CONJOIN_DEPTH = 8;
 
 /**
+ * Normalize mixed-type union members. Object variants inside a member are
+ * lifted into the union itself, so the generated code is one flat z.union.
+ * A union that comes down to one member is that member.
+ */
+function normalizeUnion(
+  members: OApiSchema[],
+  description: string | undefined,
+  spec: OApiSpec,
+): CloudflareProperty {
+  const variants = members.flatMap((m) => {
+    const prop = normalizeProperty(
+      !m.type && m.properties ? { ...m, type: "object" } : m,
+      spec,
+    );
+    if (prop.type === "union" || (prop.type === "object" && prop.variants)) {
+      return prop.variants!;
+    }
+    return [prop];
+  });
+  // Members that differ only in what the generated code ignores (docs,
+  // string format: dns `content` is an IPv4 or an IPv6 string) are one.
+  const seen = new Set<string>();
+  const distinct = variants.filter((v) => {
+    const key = JSON.stringify(generatedShape(v));
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  if (distinct.length === 1) {
+    return {
+      ...distinct[0],
+      description: description ?? distinct[0].description,
+    };
+  }
+  return { type: "union", description, variants: distinct };
+}
+
+/** Property-level disjunctions normalizeProperty is expanding (cycle guard). */
+const normalizingUnions = new Set<OApiSchema>();
+
+/** A property without the fields generated code does not read. */
+function generatedShape(prop: CloudflareProperty): unknown {
+  const { description: _d, format: _f, ...rest } = prop;
+  return {
+    ...rest,
+    items: prop.items && generatedShape(prop.items),
+    properties: prop.properties &&
+      Object.fromEntries(
+        Object.entries(prop.properties).map(([k, v]) => [k, generatedShape(v)]),
+      ),
+    variants: prop.variants?.map(generatedShape),
+  };
+}
+
+/**
  * Normalize an OpenAPI property schema into CloudflareProperty.
  */
 function normalizeProperty(
@@ -1760,9 +1980,50 @@ function normalizeProperty(
     };
   }
 
+  // A mixed-type union collected by flattenDisjunction or below.
+  const unionSchemas = resolved["x-swamp-union"];
+  if (unionSchemas) {
+    return normalizeUnion(unionSchemas, resolved.description, spec);
+  }
+
   // Handle oneOf/anyOf — merge object variants so enum values are unioned
   if (resolved.oneOf || resolved.anyOf) {
     const variants = resolved.oneOf ?? resolved.anyOf!;
+    // Branches of more than one type (string | number | boolean, a slug or
+    // an object): keep every type instead of the first non-null one. Object
+    // branches still merge into one object, as below.
+    // A disjunction already being normalized further up (a recursive
+    // "scalar or array of itself" schema) takes the single-type path below,
+    // which stops at its first typed branch.
+    const recursing = normalizingUnions.has(schema) ||
+      normalizingUnions.has(resolved);
+    const members = recursing
+      ? []
+      : canonicalMembers(unionMembers(resolved, spec), spec);
+    if (members.length === 1 && !isObjectMember(members[0])) {
+      // Same-type branches that canonicalize to one (an enum and a plain
+      // string): that member, not whichever branch came first.
+      return normalizeProperty(members[0], spec);
+    }
+    if (members.length > 1 && members.some((m) => !isObjectMember(m))) {
+      const objects = members.filter(isObjectMember);
+      const others = members.filter((m) => !isObjectMember(m));
+      const objectMember = objects.length > 1
+        ? [flattenDisjunction(objects, spec)]
+        : objects;
+      normalizingUnions.add(schema);
+      normalizingUnions.add(resolved);
+      try {
+        return normalizeUnion(
+          [...objectMember, ...others],
+          resolved.description,
+          spec,
+        );
+      } finally {
+        normalizingUnions.delete(schema);
+        normalizingUnions.delete(resolved);
+      }
+    }
     const objectVariants = variants
       .map((v) => resolveSchema(v, spec))
       .filter((v) => v.type === "object" || v.properties);

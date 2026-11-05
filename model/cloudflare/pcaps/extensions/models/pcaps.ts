@@ -53,9 +53,10 @@ const GlobalArgsSchema = z.object({
   system: z.enum(["magic-transit"]).describe(
     "The system used to collect packet captures.",
   ).optional(),
-  time_limit: z.number().min(1).max(300).describe(
-    "The packet capture duration in seconds.",
-  ).optional(),
+  time_limit: z.union([
+    z.number().min(1).max(300),
+    z.number().min(1).max(86400),
+  ]).describe("The packet capture duration in seconds.").optional(),
   type: z.enum(["simple", "full"]).describe(
     "The type of packet capture. `Simple` captures sampled packets, and `full` captures entire payloads and non-sampled packets.",
   ).optional(),
@@ -129,7 +130,10 @@ const InputsSchema = z.object({
   offset_time: z.string().optional(),
   packet_limit: z.number().min(1).max(10000).optional(),
   system: z.enum(["magic-transit"]).optional(),
-  time_limit: z.number().min(1).max(300).optional(),
+  time_limit: z.union([
+    z.number().min(1).max(300),
+    z.number().min(1).max(86400),
+  ]).optional(),
   type: z.enum(["simple", "full"]).optional(),
   byte_limit: z.number().min(1).max(1000000000).optional(),
   colo_name: z.string().optional(),
@@ -142,7 +146,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Pcaps. Registered at `@swamp/cloudflare/pcaps/pcaps`. */
 export const model = {
   type: "@swamp/cloudflare/pcaps/pcaps",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -186,6 +190,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

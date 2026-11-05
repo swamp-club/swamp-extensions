@@ -62,7 +62,12 @@ const GlobalArgsSchema = z.object({
   tags: z.array(z.string()).describe(
     "Custom tags for the DNS record. This field has no effect on DNS responses.",
   ).optional(),
-  ttl: z.number().min(30).max(86400).optional(),
+  ttl: z.union([
+    z.number().min(30).max(86400),
+    z.union([z.literal(1)]),
+  ]).describe(
+    "Time To Live (TTL) of the DNS record in seconds. Setting to 1 means 'automatic'. Value must be between 60 and 86400, with the minimum reduced to 30 for Enterprise zones.",
+  ).optional(),
   content: z.string().describe("A valid IPv4 address.").optional(),
   private_routing: z.boolean().describe(
     "Enables private network routing to the origin.",
@@ -213,7 +218,10 @@ const InputsSchema = z.object({
     }),
   ]).optional(),
   tags: z.array(z.string()).optional(),
-  ttl: z.number().min(30).max(86400).optional(),
+  ttl: z.union([
+    z.number().min(30).max(86400),
+    z.union([z.literal(1)]),
+  ]).optional(),
   content: z.string().optional(),
   private_routing: z.boolean().optional(),
   type: z.enum([
@@ -321,7 +329,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Dns Records. Registered at `@swamp/cloudflare/dns/dns-records`. */
 export const model = {
   type: "@swamp/cloudflare/dns/dns-records",
-  version: "2026.11.05.1",
+  version: "2026.11.05.2",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -390,6 +398,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

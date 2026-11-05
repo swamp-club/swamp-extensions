@@ -375,16 +375,26 @@ property's fields too (DNS CNAME `settings` is the shared
 `ipv4_only`/`ipv6_only` object plus `flatten_cname`); any other repeated
 property keeps the later definition.
 
+An `allOf` whose only member is a `oneOf`/`anyOf` is that disjunction, so the
+disjunction is kept instead of being merged away (containers `durable_objects`
+was `allOf[oneOf[{namespace_id}, {class_name, script_name}]]` and used to
+generate as a string). A `oneOf`/`anyOf` inside a multi-member `allOf` is still
+dropped.
+
 **oneOf/anyOf** (disjunction): All branch properties are merged (union of
 fields), but required fields use **intersection** — only fields required in
 every branch are marked required. When branches define the same property
 differently:
 
-- both are enums: the enum values are unioned;
+- both are enums of the same type: the enum values are unioned;
 - both are objects with properties and their shapes differ: every distinct shape
   is kept as a **variant** (see [oneOf/anyOf handling](#oneofanyof-handling));
-- anything else (scalar or mixed-type collisions): the first branch wins. See
-  swamp-club#4426.
+- anything else is involved (a scalar, an array, or a branch that is itself a
+  mixed `oneOf`/`anyOf`): every distinct type is kept as a **mixed-type union**
+  (see [Mixed-type unions](#mixed-type-unions)). When the members come down to
+  one (same type, differing only in documentation or a constraint an
+  unconstrained member makes moot), that member is the property, whichever
+  branch came first: an `["on"]` enum and a plain string give a plain string.
 
 ### Create-only property detection
 
@@ -1116,6 +1126,61 @@ conflicts with the `.partial()` method-run path.
 
 For the 23 schemas with explicit `discriminator` mappings, the pipeline still
 flattens the top-level variants into one GlobalArgsSchema.
+
+### Mixed-type unions
+
+A property can take values of more than one type: page-rules action `value` is
+an on/off string, a TTL integer or a `forwarding_url` object depending on the
+action; cloudforce-one search `value` is a string, a number, a boolean or an
+array of them; dns `ttl` is a number of seconds or `1` for automatic. Keeping
+only the first type rejected every other one client-side (swamp-club#4426). Such
+a property is a `CloudflareProperty` with `type: "union"` whose `variants` are
+its members. Unions come from both entry points: a disjunction collision
+(above), and a property-level `oneOf`/`anyOf`. A property-level disjunction
+whose branches come down to one scalar member is that member, so a `oneOf` of
+single-value enums is one enum of all the values (browser-rendering crawl
+`formats` used to accept only `html`). A property-level disjunction of objects
+only still merges into one object, as before; with other types present, its
+object branches merge into one object member of the union. A disjunction that
+contains itself (a "string or array of itself" expression) is expanded once; the
+nested reference takes its first typed branch.
+
+Members are canonical, in first-seen order:
+
+- `null` branches and branches with no type are dropped. A `oneOf[X, null]` is
+  still just `X`; nullability is not modelled.
+- Enum members of one scalar type merge into one enum, values in first-seen
+  order, so the result does not depend on which branch came first.
+- An unconstrained scalar (no enum, pattern, length or range) absorbs the other
+  members of its type, and an unconstrained number absorbs integers.
+- Other members are deduplicated by shape, and members that generate the same
+  code (dns `content`: an IPv4 or an IPv6 string, `format` is not generated)
+  collapse to one. A union of one member is a plain property.
+- Object variants of a member are lifted into the union, so the generated code
+  is one flat `z.union`.
+
+Generated code:
+
+- **GlobalArgsSchema / InputsSchema**: `z.union([...])` with object members as
+  `z.strictObject`, for the same reason as object variants.
+- **ResourceSchema**: `z.union([...])` with `z.looseObject` members.
+- **lookup** filters on a union of scalars (dns `ttl`); a union with an object
+  or array member is not filterable.
+- **PUT live fill** of a field that contains a union, at any depth, requires
+  every alternative the response allows to fit some alternative of the request:
+  member order does not matter, integer and number match, and objects compare
+  only the properties both sides declare, as `sameShape` does. `liveFillFields`
+  alone compares types only (every union has the type `union`, and a union never
+  equals a plain type), so a fitting field is passed to it with the response's
+  shape: a request `string | integer` with a `string` response is filled.
+
+Arrays whose item shapes differ across branches are unions of arrays (Access app
+`destinations`), so one array cannot mix items of two shapes. A branch that is a
+bare object (no properties) is a `z.record` member, which accepts any object, so
+a misspelt key in a union that also has strict object members is not caught
+client-side (page-rules `value`). The union is not tied to a sibling
+discriminator either: a TTL is accepted for any page-rule action and Cloudflare
+rejects the mismatch.
 
 ---
 

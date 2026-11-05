@@ -65,7 +65,10 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
-  result: z.record(z.string(), z.unknown()).optional(),
+  result: z.union([
+    z.record(z.string(), z.unknown()),
+    z.string(),
+  ]).optional(),
   errors: z.array(z.object({
     code: z.number().optional(),
     message: z.string().optional(),
@@ -98,7 +101,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Ua Rules. Registered at `@swamp/cloudflare/firewall/ua-rules`. */
 export const model = {
   type: "@swamp/cloudflare/firewall/ua-rules",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -142,6 +145,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

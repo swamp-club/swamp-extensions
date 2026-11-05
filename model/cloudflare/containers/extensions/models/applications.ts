@@ -103,9 +103,11 @@ const GlobalArgsSchema = z.object({
   rollout_active_grace_period: z.number().int().min(0).max(604800).describe(
     "Grace period for active instances to stay alive before becoming eligible for shutdown signal due to a rollout, in seconds.\nDefaults to 0.\n",
   ).optional(),
-  durable_objects: z.string().describe(
-    "Set of properties to configure a Durable Object-backed application.",
-  ).optional(),
+  durable_objects: z.object({
+    namespace_id: z.string().optional(),
+    class_name: z.string().optional(),
+    script_name: z.string().optional(),
+  }).optional(),
   instances: z.number().int().min(0).describe(
     "The initial number of deployments to create.",
   ).optional(),
@@ -292,7 +294,11 @@ const InputsSchema = z.object({
     }).optional(),
   }).optional(),
   rollout_active_grace_period: z.number().int().min(0).max(604800).optional(),
-  durable_objects: z.string().optional(),
+  durable_objects: z.object({
+    namespace_id: z.string().optional(),
+    class_name: z.string().optional(),
+    script_name: z.string().optional(),
+  }).optional(),
   instances: z.number().int().min(0).optional(),
   name: z.string().optional(),
   scheduling_policy: z.string().optional(),
@@ -304,7 +310,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Applications. Registered at `@swamp/cloudflare/containers/applications`. */
 export const model = {
   type: "@swamp/cloudflare/containers/applications",
-  version: "2026.11.05.1",
+  version: "2026.11.05.2",
   upgrades: [
     {
       toVersion: "2026.06.08.2",
@@ -406,6 +412,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -526,9 +537,6 @@ export const model = {
             "rollout_active_grace_period",
             String(g.rollout_active_grace_period),
           ]);
-        }
-        if (g.durable_objects !== undefined) {
-          filters.push(["durable_objects", String(g.durable_objects)]);
         }
         if (g.instances !== undefined) {
           filters.push(["instances", String(g.instances)]);

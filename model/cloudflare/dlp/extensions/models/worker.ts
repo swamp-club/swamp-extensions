@@ -39,7 +39,10 @@ import {
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  default: z.string().optional(),
+  default: z.union([
+    z.number(),
+    z.enum(["veto"]),
+  ]).optional(),
   name: z.string().describe("A name for this validator, at most 50 characters.")
     .optional(),
   script_tag: z.string().describe(
@@ -58,7 +61,10 @@ const GlobalArgsSchema = z.object({
 
 const ResourceSchema = z.object({
   created_at: z.string().optional(),
-  default: z.string().optional(),
+  default: z.union([
+    z.number(),
+    z.string(),
+  ]).optional(),
   id: z.string(),
   name: z.string().optional(),
   referenced_by: z.object({
@@ -77,7 +83,10 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
   account_id: z.string().optional(),
-  default: z.string().optional(),
+  default: z.union([
+    z.number(),
+    z.enum(["veto"]),
+  ]).optional(),
   name: z.string().optional(),
   script_tag: z.string().optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
@@ -88,7 +97,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Worker. Registered at `@swamp/cloudflare/dlp/worker`. */
 export const model = {
   type: "@swamp/cloudflare/dlp/worker",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.10.20.1",
@@ -97,6 +106,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

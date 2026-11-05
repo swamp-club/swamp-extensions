@@ -46,7 +46,10 @@ const GlobalArgsSchema = z.object({
   conditions: z.array(z.object({
     operator: z.enum(["InList", "NotInList", "MatchRegex", "NotMatchRegex"]),
     selector: z.enum(["Recipients", "Sender", "DLPProfiles"]),
-    value: z.array(z.string()),
+    value: z.union([
+      z.array(z.string()),
+      z.string(),
+    ]),
   })).describe("Triggered if all conditions match.").optional(),
   description: z.string().optional(),
   enabled: z.boolean().optional(),
@@ -70,7 +73,10 @@ const ResourceSchema = z.object({
   conditions: z.array(z.object({
     operator: z.string().optional(),
     selector: z.string().optional(),
-    value: z.array(z.string()).optional(),
+    value: z.union([
+      z.array(z.string()),
+      z.string(),
+    ]).optional(),
   })).optional(),
   created_at: z.string().optional(),
   description: z.string().optional(),
@@ -93,7 +99,10 @@ const InputsSchema = z.object({
   conditions: z.array(z.object({
     operator: z.enum(["InList", "NotInList", "MatchRegex", "NotMatchRegex"]),
     selector: z.enum(["Recipients", "Sender", "DLPProfiles"]),
-    value: z.array(z.string()),
+    value: z.union([
+      z.array(z.string()),
+      z.string(),
+    ]),
   })).optional(),
   description: z.string().optional(),
   enabled: z.boolean().optional(),
@@ -106,7 +115,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Rules. Registered at `@swamp/cloudflare/dlp/rules`. */
 export const model = {
   type: "@swamp/cloudflare/dlp/rules",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -150,6 +159,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

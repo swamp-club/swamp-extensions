@@ -98,7 +98,23 @@ const GlobalArgsSchema = z.object({
       "in",
       "notIn",
     ]),
-    value: z.string().min(1).max(512),
+    value: z.union([
+      z.string().min(1).max(512),
+      z.array(z.string().min(1).max(512)),
+      z.number(),
+      z.string().regex(new RegExp("^-?(?:\\d+\\.?\\d*|\\.\\d+)$")),
+      z.array(z.union([
+        z.number(),
+        z.string().regex(new RegExp("^-?(?:\\d+\\.?\\d*|\\.\\d+)$")),
+      ])),
+      z.boolean(),
+      z.enum(["true", "false", "1", "0"]),
+      z.array(z.union([
+        z.boolean(),
+        z.enum(["true", "false", "1", "0"]),
+        z.union([z.literal(1), z.literal(0)]),
+      ])),
+    ]),
   })).describe(
     'Structured search as a JSON array of {field, op, value} objects, AND\'d together. Max 10 conditions per request. `in` and `notIn` take an array of up to 100 values. Exclusions: `not` drops events without a value for the field; `notIn` and `notContains` keep them. On intelligence datasets, a `notIn` list containing `"unknown"` also drops them; analytics datasets treat `"unknown"` as a literal value.',
   ).optional(),
@@ -138,7 +154,23 @@ const GlobalArgsSchema = z.object({
       "in",
       "notIn",
     ]),
-    value: z.string().min(1).max(512),
+    value: z.union([
+      z.string().min(1).max(512),
+      z.array(z.string().min(1).max(512)),
+      z.number(),
+      z.string().regex(new RegExp("^-?(?:\\d+\\.?\\d*|\\.\\d+)$")),
+      z.array(z.union([
+        z.number(),
+        z.string().regex(new RegExp("^-?(?:\\d+\\.?\\d*|\\.\\d+)$")),
+      ])),
+      z.boolean(),
+      z.enum(["true", "false", "1", "0"]),
+      z.array(z.union([
+        z.boolean(),
+        z.enum(["true", "false", "1", "0"]),
+        z.union([z.literal(1), z.literal(0)]),
+      ])),
+    ]),
   }))).describe(
     "OR branches of structured search filters. Filters within a branch are AND'd, branches are OR'd, and the result is AND'd with `search`: `AND(search) AND OR(AND(branch 1), ...)`. Max 8 branches of 1-10 conditions each. Not supported for analytics datasets, and `indicator` filters are not yet supported inside branches. Cursor pages carry the original branches, so do not resend them with `cursor`.",
   ).optional(),
@@ -250,7 +282,23 @@ const InputsSchema = z.object({
       "in",
       "notIn",
     ]),
-    value: z.string().min(1).max(512),
+    value: z.union([
+      z.string().min(1).max(512),
+      z.array(z.string().min(1).max(512)),
+      z.number(),
+      z.string().regex(new RegExp("^-?(?:\\d+\\.?\\d*|\\.\\d+)$")),
+      z.array(z.union([
+        z.number(),
+        z.string().regex(new RegExp("^-?(?:\\d+\\.?\\d*|\\.\\d+)$")),
+      ])),
+      z.boolean(),
+      z.enum(["true", "false", "1", "0"]),
+      z.array(z.union([
+        z.boolean(),
+        z.enum(["true", "false", "1", "0"]),
+        z.union([z.literal(1), z.literal(0)]),
+      ])),
+    ]),
   })).optional(),
   searchBranches: z.array(z.array(z.object({
     field: z.enum([
@@ -288,7 +336,23 @@ const InputsSchema = z.object({
       "in",
       "notIn",
     ]),
-    value: z.string().min(1).max(512),
+    value: z.union([
+      z.string().min(1).max(512),
+      z.array(z.string().min(1).max(512)),
+      z.number(),
+      z.string().regex(new RegExp("^-?(?:\\d+\\.?\\d*|\\.\\d+)$")),
+      z.array(z.union([
+        z.number(),
+        z.string().regex(new RegExp("^-?(?:\\d+\\.?\\d*|\\.\\d+)$")),
+      ])),
+      z.boolean(),
+      z.enum(["true", "false", "1", "0"]),
+      z.array(z.union([
+        z.boolean(),
+        z.enum(["true", "false", "1", "0"]),
+        z.union([z.literal(1), z.literal(0)]),
+      ])),
+    ]),
   }))).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
@@ -298,7 +362,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Events. Registered at `@swamp/cloudflare/cloudforce-one/events`. */
 export const model = {
   type: "@swamp/cloudflare/cloudforce-one/events",
-  version: "2026.11.05.1",
+  version: "2026.11.05.2",
   upgrades: [
     {
       toVersion: "2026.10.02.1",
@@ -327,6 +391,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

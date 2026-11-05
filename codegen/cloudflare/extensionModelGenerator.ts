@@ -490,12 +490,16 @@ export function generateCloudflareExtensionModel(
         updateRequired.push(name);
       }
     }
+    const requestProps = Object.keys(resource.updateProperties).length > 0
+      ? resource.updateProperties
+      : resource.createProperties;
     const liveFill = isFullReplacement
       ? liveFillFields(
-        updateKeys,
-        Object.keys(resource.updateProperties).length > 0
-          ? resource.updateProperties
-          : resource.createProperties,
+        updateKeys.filter((k) =>
+          createRequiredSet.has(k) ||
+          !unionMismatch(requestProps[k], resource.resourceProperties[k])
+        ),
+        unionFitShapes(requestProps, resource.resourceProperties),
         resource.resourceProperties,
         new Set(updateRequired),
       )
@@ -763,9 +767,110 @@ function generateFullFidelityZod(
       return fullFidelityObject(prop, objectCtor);
     }
 
+    case "union":
+      // Mixed-type union (swamp-club#4426). Object members are strict for
+      // the same reason as object variants above.
+      return variantUnion(
+        prop.variants ?? [],
+        generateFullFidelityZod,
+        "z.strictObject",
+        objectCtor,
+      );
+
     default:
       return "z.unknown()";
   }
+}
+
+/** Whether a property contains a mixed-type union at any depth. */
+function containsUnion(prop: CloudflareProperty | undefined): boolean {
+  if (!prop) return false;
+  if (prop.type === "union") return true;
+  if (containsUnion(prop.items)) return true;
+  if (prop.variants?.some(containsUnion)) return true;
+  return Object.values(prop.properties ?? {}).some(containsUnion);
+}
+
+/**
+ * Live fill must not copy a field whose live value the request may reject.
+ * liveFillFields compares types, and two unions always share the type
+ * "union" whatever their members, at the top level or nested in items and
+ * properties. A field containing a union is filled only when every shape the
+ * response allows is accepted by the request (see responseFits).
+ */
+function unionMismatch(
+  request: CloudflareProperty | undefined,
+  response: CloudflareProperty | undefined,
+): boolean {
+  if (!request || !response) return false;
+  if (!containsUnion(request) && !containsUnion(response)) return false;
+  return !responseFits(response, request);
+}
+
+/**
+ * The request properties liveFillFields should compare. A field containing a
+ * union that the response fits (see responseFits) is given the response's
+ * shape, with the request's description: sameShape compares types, and would
+ * otherwise reject a request union against a plain response type (a request
+ * `string | integer` whose response is a `string`). Fields that do not fit
+ * are already filtered out by unionMismatch; the rest are unchanged.
+ */
+function unionFitShapes(
+  requestProps: Record<string, CloudflareProperty>,
+  responseProps: Record<string, CloudflareProperty>,
+): Record<string, CloudflareProperty> {
+  const out: Record<string, CloudflareProperty> = { ...requestProps };
+  for (const [name, request] of Object.entries(requestProps)) {
+    const response = responseProps[name];
+    if (!response) continue;
+    if (!containsUnion(request) && !containsUnion(response)) continue;
+    if (!responseFits(response, request)) continue;
+    out[name] = { ...response, description: request.description };
+  }
+  return out;
+}
+
+/** The alternatives a property allows: its union or variant members, or itself. */
+function alternatives(prop: CloudflareProperty): CloudflareProperty[] {
+  return prop.variants && prop.variants.length > 0
+    ? prop.variants.flatMap(alternatives)
+    : [prop];
+}
+
+/**
+ * Whether every value the response shape allows fits the request shape:
+ * each response alternative matches some request alternative (member order
+ * does not matter), integer and number count as one type, and objects are
+ * compared on the properties both sides declare, as sameShape does.
+ */
+function responseFits(
+  response: CloudflareProperty,
+  request: CloudflareProperty,
+  depth = 0,
+): boolean {
+  if (depth > 8) return true;
+  const requestAlts = alternatives(request);
+  return alternatives(response).every((res) =>
+    requestAlts.some((req) => alternativeFits(res, req, depth))
+  );
+}
+
+function alternativeFits(
+  response: CloudflareProperty,
+  request: CloudflareProperty,
+  depth: number,
+): boolean {
+  const kind = (t: string) => t === "integer" ? "number" : t;
+  if (kind(response.type) !== kind(request.type)) return false;
+  if (response.items || request.items) {
+    if (!response.items || !request.items) return false;
+    if (!responseFits(response.items, request.items, depth + 1)) return false;
+  }
+  for (const [name, req] of Object.entries(request.properties ?? {})) {
+    const res = response.properties?.[name];
+    if (res && !responseFits(res, req, depth + 1)) return false;
+  }
+  return true;
 }
 
 function fullFidelityObject(
@@ -840,6 +945,14 @@ function generateSimplifiedZod(
       }
       return simplifiedObject(prop, objectCtor);
     }
+    case "union":
+      // Loose object members, as for object variants above.
+      return variantUnion(
+        prop.variants ?? [],
+        generateSimplifiedZod,
+        "z.looseObject",
+        objectCtor,
+      );
     default:
       return "z.unknown()";
   }
@@ -861,6 +974,12 @@ function simplifiedObject(
 
 const SCALAR_TYPES = new Set(["string", "number", "integer", "boolean"]);
 
+/** A scalar, or a union of scalars (dns `ttl`: a number or 1 for auto). */
+function isScalar(prop: CloudflareProperty): boolean {
+  if (prop.type === "union") return (prop.variants ?? []).every(isScalar);
+  return SCALAR_TYPES.has(prop.type);
+}
+
 function collectFilterableFields(
   resource: CloudflareResource,
   skipFields: Set<string>,
@@ -872,7 +991,7 @@ function collectFilterableFields(
   const result: string[] = [];
   for (const [name, prop] of Object.entries(allProps)) {
     if (skipFields.has(name)) continue;
-    if (!SCALAR_TYPES.has(prop.type)) continue;
+    if (!isScalar(prop)) continue;
     result.push(name);
   }
   return result;

@@ -41,9 +41,17 @@ const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
   description: z.string().describe("Specifies the description of the index.")
     .optional(),
-  config: z.string().describe(
-    "Specifies the type of configuration to use for the index.",
-  ).optional(),
+  config: z.object({
+    dimensions: z.number().int().min(1).max(1536).optional(),
+    metric: z.enum(["cosine", "euclidean", "dot-product"]).optional(),
+    preset: z.enum([
+      "@cf/baai/bge-small-en-v1.5",
+      "@cf/baai/bge-base-en-v1.5",
+      "@cf/baai/bge-large-en-v1.5",
+      "openai/text-embedding-ada-002",
+      "cohere/embed-multilingual-v2.0",
+    ]).optional(),
+  }).optional(),
   name: z.string().regex(new RegExp("^([a-z]+[a-z0-9_-]*[a-z0-9]+)$"))
     .optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
@@ -75,7 +83,17 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 const InputsSchema = z.object({
   account_id: z.string().optional(),
   description: z.string().optional(),
-  config: z.string().optional(),
+  config: z.object({
+    dimensions: z.number().int().min(1).max(1536).optional(),
+    metric: z.enum(["cosine", "euclidean", "dot-product"]).optional(),
+    preset: z.enum([
+      "@cf/baai/bge-small-en-v1.5",
+      "@cf/baai/bge-base-en-v1.5",
+      "@cf/baai/bge-large-en-v1.5",
+      "openai/text-embedding-ada-002",
+      "cohere/embed-multilingual-v2.0",
+    ]).optional(),
+  }).optional(),
   name: z.string().regex(new RegExp("^([a-z]+[a-z0-9_-]*[a-z0-9]+)$"))
     .optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
@@ -86,7 +104,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Indexes. Registered at `@swamp/cloudflare/vectorize/indexes`. */
 export const model = {
   type: "@swamp/cloudflare/vectorize/indexes",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -135,6 +153,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -231,7 +254,6 @@ export const model = {
         if (g.description !== undefined) {
           filters.push(["description", String(g.description)]);
         }
-        if (g.config !== undefined) filters.push(["config", String(g.config)]);
         if (g.name !== undefined) filters.push(["name", String(g.name)]);
         if (filters.length === 0) {
           throw new Error(

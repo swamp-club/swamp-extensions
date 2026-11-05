@@ -1030,3 +1030,259 @@ Deno.test("generateCloudflareExtensionModel - a nested property whose variants r
   assertEquals(globalArgs.split("z.strictObject(").length - 1, 4);
   assertEquals(globalArgs.includes("cfg: z.object("), false);
 });
+
+// ---------------------------------------------------------------------------
+// Mixed-type unions (swamp-club#4426)
+// ---------------------------------------------------------------------------
+
+/** page-rules action value: a string enum, a TTL, or a forwarding object. */
+const actionValue: CloudflareProperty = {
+  type: "union",
+  description: "The action's value.",
+  variants: [
+    { type: "string", enum: ["on", "off"] },
+    { type: "integer", minimum: 0 },
+    {
+      type: "object",
+      properties: { url: stringProp, status_code: numberProp },
+      requiredProperties: ["url"],
+    },
+  ],
+};
+
+function unionResource(
+  overrides: Partial<CloudflareResource> = {},
+): CloudflareResource {
+  return makeResource({
+    resourcePath: "pagerules",
+    service: "page-rules",
+    modelSlug: "pagerules",
+    fileName: "pagerules.ts",
+    createProperties: { name: stringProp, value: actionValue },
+    updateProperties: { name: stringProp, value: actionValue },
+    resourceProperties: { id: stringProp, value: actionValue },
+    ...overrides,
+  });
+}
+
+Deno.test("generateCloudflareExtensionModel - mixed-type union", async (t) => {
+  const code = generateCloudflareExtensionModel({
+    resource: unionResource(),
+    extensionName: "@swamp/cloudflare",
+    version: "2026.01.01.1",
+  });
+  await assertGenerated(t, code);
+});
+
+Deno.test("generateCloudflareExtensionModel - union members keep their constraints, strict objects in arguments and loose in the resource", () => {
+  const code = generateCloudflareExtensionModel({
+    resource: unionResource(),
+    extensionName: "@swamp/cloudflare",
+    version: "2026.01.01.1",
+  });
+  const section = (start: string, end: string) =>
+    code.slice(code.indexOf(start), code.indexOf(end, code.indexOf(start)));
+  const globalArgs = section("const GlobalArgsSchema", "\n});");
+  const resource = section("const ResourceSchema", "\n}).passthrough();");
+
+  assertStringIncludes(globalArgs, "value: z.union([");
+  assertStringIncludes(globalArgs, `z.enum(["on", "off"])`);
+  assertStringIncludes(globalArgs, "z.number().int().min(0)");
+  assertEquals(globalArgs.split("z.strictObject(").length - 1, 1);
+  assertStringIncludes(globalArgs, "url: z.string(),");
+  assertStringIncludes(globalArgs, `.describe("The action's value.")`);
+
+  assertStringIncludes(resource, "value: z.union([");
+  assertStringIncludes(resource, "z.string()");
+  assertStringIncludes(resource, "z.number()");
+  assertEquals(resource.split("z.looseObject(").length - 1, 1);
+  assertEquals(resource.includes("z.strictObject("), false);
+});
+
+Deno.test("generateCloudflareExtensionModel - union members that render alike collapse to one", () => {
+  // Distinct enums in the arguments, but both are z.string() in the
+  // resource schema.
+  const value: CloudflareProperty = {
+    type: "union",
+    variants: [
+      { type: "string", enum: ["a"] },
+      { type: "string", pattern: "^b" },
+    ],
+  };
+  const code = generateCloudflareExtensionModel({
+    resource: unionResource({
+      createProperties: { value },
+      updateProperties: {},
+      resourceProperties: { id: stringProp, value },
+    }),
+    extensionName: "@swamp/cloudflare",
+    version: "2026.01.01.1",
+  });
+  const resource = code.slice(
+    code.indexOf("const ResourceSchema"),
+    code.indexOf("\n}).passthrough();", code.indexOf("const ResourceSchema")),
+  );
+  assertStringIncludes(resource, "value: z.string().optional()");
+  assertStringIncludes(code, "value: z.union([");
+});
+
+Deno.test("lookup - a union of scalars is filterable, a union with an object is not", () => {
+  const ttl: CloudflareProperty = {
+    type: "union",
+    variants: [{ type: "number", minimum: 30 }, { type: "number", enum: [1] }],
+  };
+  const code = generateCloudflareExtensionModel({
+    resource: unionResource({
+      createProperties: { name: stringProp, value: actionValue, ttl },
+    }),
+    extensionName: "@swamp/cloudflare",
+    version: "2026.01.01.1",
+  });
+  const lookup = code.slice(code.indexOf("    lookup: {"));
+  assertEquals(lookup.includes(`"value"`), false);
+  assertStringIncludes(lookup, `filters.push(["ttl", String(g.ttl)]);`);
+  assertStringIncludes(lookup, `"name"`);
+});
+
+Deno.test("generateCloudflareExtensionModel - PUT update does not live-fill a union whose response members differ", () => {
+  // The response can hold a boolean, which no request member accepts.
+  const responseValue: CloudflareProperty = {
+    type: "union",
+    variants: [stringProp, { type: "boolean" }],
+  };
+  const nested = (value: CloudflareProperty): CloudflareProperty => ({
+    type: "array",
+    items: { type: "object", properties: { id: stringProp, value } },
+  });
+  const updateOf = (resource: CloudflareResource) => {
+    const code = generateCloudflareExtensionModel({
+      resource,
+      extensionName: "@swamp/cloudflare",
+      version: "2026.01.01.1",
+    });
+    return code.slice(
+      code.indexOf("    update: {"),
+      code.indexOf("    delete: {"),
+    );
+  };
+
+  // Top-level and nested (page-rules actions[].value) mismatches are skipped.
+  const mismatched = updateOf(unionResource({
+    updateMethod: "PUT",
+    updateProperties: {
+      name: stringProp,
+      value: actionValue,
+      actions: nested(actionValue),
+    },
+    resourceProperties: {
+      id: stringProp,
+      name: stringProp,
+      value: responseValue,
+      actions: nested(responseValue),
+    },
+  }));
+  assertStringIncludes(
+    mismatched,
+    `const unset = ["name"].filter((k) => body[k] === undefined);`,
+  );
+
+  // Same members in another order, and response objects with extra fields
+  // (cloudforce-one structured `meta`), are still filled.
+  const reordered: CloudflareProperty = {
+    type: "union",
+    variants: [stringProp, { type: "boolean" }, numberProp],
+  };
+  const meta = (value: CloudflareProperty, extra = {}) => ({
+    type: "array" as const,
+    items: {
+      type: "object" as const,
+      properties: { key: stringProp, value, ...extra },
+    },
+  });
+  const structural = updateOf(unionResource({
+    updateMethod: "PUT",
+    updateProperties: {
+      name: stringProp,
+      meta: meta({
+        type: "union",
+        variants: [stringProp, numberProp, { type: "boolean" }],
+      }),
+    },
+    resourceProperties: {
+      id: stringProp,
+      name: stringProp,
+      meta: meta(reordered, { type: stringProp }),
+    },
+  }));
+  assertStringIncludes(
+    structural,
+    `const unset = ["meta","name"].filter((k) => body[k] === undefined);`,
+  );
+
+  // A response member the request does not accept is not filled, even if
+  // every request member appears in the response.
+  const wider = updateOf(unionResource({
+    updateMethod: "PUT",
+    updateProperties: {
+      name: stringProp,
+      value: { type: "union", variants: [stringProp, numberProp] },
+    },
+    resourceProperties: {
+      id: stringProp,
+      name: stringProp,
+      value: {
+        type: "union",
+        variants: [stringProp, numberProp, { type: "boolean" }],
+      },
+    },
+  }));
+  assertStringIncludes(
+    wider,
+    `const unset = ["name"].filter((k) => body[k] === undefined);`,
+  );
+
+  // A plain response type that fits the request union is filled, at the
+  // top level and nested.
+  const intOrString: CloudflareProperty = {
+    type: "union",
+    variants: [stringProp, { type: "integer" }],
+  };
+  const plainResponse = updateOf(unionResource({
+    updateMethod: "PUT",
+    updateProperties: {
+      name: stringProp,
+      value: intOrString,
+      actions: nested(intOrString),
+    },
+    resourceProperties: {
+      id: stringProp,
+      name: stringProp,
+      value: stringProp,
+      actions: nested(stringProp),
+    },
+  }));
+  assertStringIncludes(
+    plainResponse,
+    `const unset = ["actions","name","value"].filter((k) => body[k] === undefined);`,
+  );
+
+  // Identical unions are still filled.
+  const matching = updateOf(unionResource({
+    updateMethod: "PUT",
+    updateProperties: {
+      name: stringProp,
+      value: actionValue,
+      actions: nested(actionValue),
+    },
+    resourceProperties: {
+      id: stringProp,
+      name: stringProp,
+      value: actionValue,
+      actions: nested(actionValue),
+    },
+  }));
+  assertStringIncludes(
+    matching,
+    `const unset = ["actions","name","value"].filter((k) => body[k] === undefined);`,
+  );
+});

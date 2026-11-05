@@ -53,7 +53,11 @@ const GlobalArgsSchema = z.object({
         "matches",
       ]).optional(),
       type: z.enum(["scalar", "array", "header"]),
-      value: z.string().optional(),
+      value: z.union([
+        z.string(),
+        z.number(),
+        z.boolean(),
+      ]).optional(),
       conditions: z.array(z.object({
         operator: z.enum([
           "==",
@@ -66,7 +70,11 @@ const GlobalArgsSchema = z.object({
           "matches",
         ]),
         subfield: z.string().min(1).max(128),
-        value: z.string(),
+        value: z.union([
+          z.string(),
+          z.number(),
+          z.boolean(),
+        ]),
       })).optional(),
       quantifier: z.enum(["any", "all"]).optional(),
       header_name: z.string().min(1).max(256).optional(),
@@ -82,7 +90,11 @@ const GlobalArgsSchema = z.object({
     key: z.string().min(1).max(128).regex(
       new RegExp("^[a-zA-Z_][a-zA-Z0-9_]*$"),
     ),
-    value: z.string().max(10000),
+    value: z.union([
+      z.string().max(10000),
+      z.number(),
+      z.boolean(),
+    ]),
   })).optional(),
   name: z.string().min(1).max(255).optional(),
   status: z.enum(["silent", "blocking"]).describe(
@@ -120,7 +132,11 @@ const ResourceSchema = z.object({
   meta: z.array(z.object({
     key: z.string().optional(),
     type: z.string().optional(),
-    value: z.string().optional(),
+    value: z.union([
+      z.string(),
+      z.boolean(),
+      z.number(),
+    ]).optional(),
   })).optional(),
   name: z.string().optional(),
   namespaces: z.array(z.string()).optional(),
@@ -155,7 +171,11 @@ const InputsSchema = z.object({
         "matches",
       ]).optional(),
       type: z.enum(["scalar", "array", "header"]),
-      value: z.string().optional(),
+      value: z.union([
+        z.string(),
+        z.number(),
+        z.boolean(),
+      ]).optional(),
       conditions: z.array(z.object({
         operator: z.enum([
           "==",
@@ -168,7 +188,11 @@ const InputsSchema = z.object({
           "matches",
         ]),
         subfield: z.string().min(1).max(128),
-        value: z.string(),
+        value: z.union([
+          z.string(),
+          z.number(),
+          z.boolean(),
+        ]),
       })).optional(),
       quantifier: z.enum(["any", "all"]).optional(),
       header_name: z.string().min(1).max(256).optional(),
@@ -183,7 +207,11 @@ const InputsSchema = z.object({
     key: z.string().min(1).max(128).regex(
       new RegExp("^[a-zA-Z_][a-zA-Z0-9_]*$"),
     ),
-    value: z.string().max(10000),
+    value: z.union([
+      z.string().max(10000),
+      z.number(),
+      z.boolean(),
+    ]),
   })).optional(),
   name: z.string().min(1).max(255).optional(),
   status: z.enum(["silent", "blocking"]).optional(),
@@ -205,7 +233,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Structured. Registered at `@swamp/cloudflare/cloudforce-one/structured`. */
 export const model = {
   type: "@swamp/cloudflare/cloudforce-one/structured",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.08.27.1",
@@ -239,6 +267,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

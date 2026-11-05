@@ -1041,3 +1041,84 @@ Deno.test({
     }
   },
 });
+
+// ---------------------------------------------------------------------------
+// Mixed-type unions (swamp-club#4426)
+// ---------------------------------------------------------------------------
+
+/**
+ * page-rules actions[].value through the real parser: branches give it as
+ * a string enum, a TTL integer and a forwarding_url object.
+ */
+function parsedActionValueProperty(): CloudflareProperty {
+  const branch = (id: string, value: Record<string, unknown>) => ({
+    type: "object",
+    properties: { id: { type: "string", enum: [id] }, value },
+  });
+  const body = {
+    oneOf: [
+      branch("ssl", { type: "string", enum: ["off", "flexible", "full"] }),
+      branch("edge_cache_ttl", { type: "integer", minimum: 1 }),
+      branch("forwarding_url", {
+        type: "object",
+        properties: {
+          url: { type: "string" },
+          status_code: { type: "integer", enum: [301, 302] },
+        },
+        required: ["url"],
+      }),
+      branch("browser_check", { type: "string", enum: ["on", "off"] }),
+    ],
+  };
+  const op = {
+    requestBody: { content: { "application/json": { schema: body } } },
+  };
+  const { resources } = parseResources(
+    {
+      paths: {
+        "/zones/{zone_id}/pagerules": { post: op },
+        "/zones/{zone_id}/pagerules/{pagerule_id}": {
+          get: {},
+          patch: op,
+          delete: {},
+        },
+      },
+    } as unknown as Parameters<typeof parseResources>[0],
+  );
+  return resources[0].createProperties.value;
+}
+
+// The generated model dynamically imports the lib which creates connections
+// that outlive the test scope. sanitizeResources: false is required.
+Deno.test({
+  name: "mixed-type union: page-rule values of every branch type parse",
+  sanitizeResources: false,
+  async fn() {
+    const { model, cleanup } = await importGeneratedModel(0, {
+      extraProperties: { value: parsedActionValueProperty() },
+    });
+    try {
+      for (const schema of [model.globalArguments, model.inputsSchema]) {
+        const parse = (value: unknown) =>
+          schema.safeParse({ zone_id: "test-zone-id", value });
+
+        assertEquals(parse("full").data?.value, "full");
+        // An enum from a later branch, merged into the first.
+        assertEquals(parse("on").data?.value, "on");
+        assertEquals(parse(7200).data?.value, 7200);
+        const forward = { url: "https://example.com/*", status_code: 301 };
+        assertEquals(parse(forward).data?.value, forward);
+
+        // Each member keeps its constraints, and nothing else is accepted.
+        assertEquals(parse("sideways").success, false);
+        assertEquals(parse(0).success, false);
+        assertEquals(parse(1.5).success, false);
+        assertEquals(parse({ status_code: 301 }).success, false);
+        assertEquals(parse({ url: "x", stauts_code: 301 }).success, false);
+        assertEquals(parse(true).success, false);
+      }
+    } finally {
+      await cleanup();
+    }
+  },
+});

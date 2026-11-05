@@ -39,7 +39,19 @@ import {
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  data: z.string().optional(),
+  data: z.union([
+    z.record(z.string(), z.unknown()),
+    z.array(z.union([
+      z.record(z.string(), z.unknown()),
+      z.array(z.string()),
+      z.string(),
+      z.number(),
+      z.boolean(),
+    ])),
+    z.string(),
+    z.number(),
+    z.boolean(),
+  ]).optional(),
   import_path: z.string().min(1).max(255).regex(
     new RegExp("^metadata\\.[A-Za-z0-9_]+$"),
   ).describe(
@@ -61,7 +73,19 @@ const GlobalArgsSchema = z.object({
 
 const ResourceSchema = z.object({
   created_at: z.string().optional(),
-  data: z.string().optional(),
+  data: z.union([
+    z.record(z.string(), z.unknown()),
+    z.array(z.union([
+      z.record(z.string(), z.unknown()),
+      z.array(z.string()),
+      z.string(),
+      z.number(),
+      z.boolean(),
+    ])),
+    z.string(),
+    z.number(),
+    z.boolean(),
+  ]).optional(),
   id: z.string(),
   import_path: z.string().optional(),
   name: z.string().optional(),
@@ -72,7 +96,19 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
   account_id: z.string().optional(),
-  data: z.string().optional(),
+  data: z.union([
+    z.record(z.string(), z.unknown()),
+    z.array(z.union([
+      z.record(z.string(), z.unknown()),
+      z.array(z.string()),
+      z.string(),
+      z.number(),
+      z.boolean(),
+    ])),
+    z.string(),
+    z.number(),
+    z.boolean(),
+  ]).optional(),
   import_path: z.string().min(1).max(255).regex(
     new RegExp("^metadata\\.[A-Za-z0-9_]+$"),
   ).optional(),
@@ -85,7 +121,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Rego-metadata. Registered at `@swamp/cloudflare/cws/rego-metadata`. */
 export const model = {
   type: "@swamp/cloudflare/cws/rego-metadata",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.10.20.1",
@@ -94,6 +130,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -191,7 +232,6 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/cws/rego-metadata";
         const filters: [string, string][] = [];
-        if (g.data !== undefined) filters.push(["data", String(g.data)]);
         if (g.import_path !== undefined) {
           filters.push(["import_path", String(g.import_path)]);
         }

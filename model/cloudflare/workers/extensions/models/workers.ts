@@ -104,7 +104,17 @@ const GlobalArgsSchema = z.object({
         propagation_policy: z.enum(["authenticated", "accept"]).optional(),
       }).optional(),
     }).optional(),
-    placement: z.record(z.string(), z.unknown()).optional(),
+    placement: z.object({
+      mode: z.enum(["smart", "targeted"]).optional(),
+      region: z.string().optional(),
+      hostname: z.string().optional(),
+      host: z.string().optional(),
+      target: z.array(z.object({
+        region: z.string().optional(),
+        hostname: z.string().optional(),
+        host: z.string().optional(),
+      })).optional(),
+    }).optional(),
     tail_consumers: z.array(z.object({
       name: z.string(),
     })).optional(),
@@ -228,7 +238,17 @@ const ResourceSchema = z.object({
         propagation_policy: z.string().optional(),
       }).optional(),
     }).optional(),
-    placement: z.record(z.string(), z.unknown()).optional(),
+    placement: z.object({
+      mode: z.string().optional(),
+      region: z.string().optional(),
+      hostname: z.string().optional(),
+      host: z.string().optional(),
+      target: z.array(z.object({
+        region: z.string().optional(),
+        hostname: z.string().optional(),
+        host: z.string().optional(),
+      })).optional(),
+    }).optional(),
     tail_consumers: z.array(z.object({
       name: z.string().optional(),
     })).optional(),
@@ -340,7 +360,17 @@ const InputsSchema = z.object({
         propagation_policy: z.enum(["authenticated", "accept"]).optional(),
       }).optional(),
     }).optional(),
-    placement: z.record(z.string(), z.unknown()).optional(),
+    placement: z.object({
+      mode: z.enum(["smart", "targeted"]).optional(),
+      region: z.string().optional(),
+      hostname: z.string().optional(),
+      host: z.string().optional(),
+      target: z.array(z.object({
+        region: z.string().optional(),
+        hostname: z.string().optional(),
+        host: z.string().optional(),
+      })).optional(),
+    }).optional(),
     tail_consumers: z.array(z.object({
       name: z.string(),
     })).optional(),
@@ -394,7 +424,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Workers. Registered at `@swamp/cloudflare/workers/workers`. */
 export const model = {
   type: "@swamp/cloudflare/workers/workers",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -463,6 +493,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

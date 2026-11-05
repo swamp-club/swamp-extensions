@@ -198,7 +198,11 @@ const ResourceSchema = z.object({
       count: z.number().optional(),
       groups: z.array(z.object({
         key: z.string().optional(),
-        value: z.string().optional(),
+        value: z.union([
+          z.string(),
+          z.number(),
+          z.boolean(),
+        ]).optional(),
       })).optional(),
       interval: z.number().optional(),
       sampleInterval: z.number().optional(),
@@ -212,7 +216,11 @@ const ResourceSchema = z.object({
         firstSeen: z.string().optional(),
         groups: z.array(z.object({
           key: z.string().optional(),
-          value: z.string().optional(),
+          value: z.union([
+            z.string(),
+            z.number(),
+            z.boolean(),
+          ]).optional(),
         })).optional(),
         interval: z.number().optional(),
         lastSeen: z.string().optional(),
@@ -227,7 +235,11 @@ const ResourceSchema = z.object({
       count: z.number().optional(),
       groups: z.array(z.object({
         key: z.string().optional(),
-        value: z.string().optional(),
+        value: z.union([
+          z.string(),
+          z.number(),
+          z.boolean(),
+        ]).optional(),
       })).optional(),
       interval: z.number().optional(),
       sampleInterval: z.number().optional(),
@@ -241,7 +253,11 @@ const ResourceSchema = z.object({
         firstSeen: z.string().optional(),
         groups: z.array(z.object({
           key: z.string().optional(),
-          value: z.string().optional(),
+          value: z.union([
+            z.string(),
+            z.number(),
+            z.boolean(),
+          ]).optional(),
         })).optional(),
         interval: z.number().optional(),
         lastSeen: z.string().optional(),
@@ -334,7 +350,10 @@ const ResourceSchema = z.object({
         wallTimeMs: z.number().optional(),
       }).optional(),
       dataset: z.string().optional(),
-      source: z.string().optional(),
+      source: z.union([
+        z.record(z.string(), z.unknown()),
+        z.string(),
+      ]).optional(),
       timestamp: z.number().optional(),
     })).optional(),
     fields: z.array(z.object({
@@ -389,7 +408,11 @@ const ResourceSchema = z.object({
           key: z.string().optional(),
           operation: z.string().optional(),
           type: z.string().optional(),
-          value: z.string().optional(),
+          value: z.union([
+            z.string(),
+            z.number(),
+            z.boolean(),
+          ]).optional(),
         })).optional(),
         groupBys: z.array(z.object({
           type: z.string().optional(),
@@ -559,7 +582,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Query. Registered at `@swamp/cloudflare/workers/query`. */
 export const model = {
   type: "@swamp/cloudflare/workers/query",
-  version: "2026.10.29.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -638,6 +661,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

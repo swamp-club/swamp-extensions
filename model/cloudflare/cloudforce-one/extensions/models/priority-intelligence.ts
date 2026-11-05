@@ -120,7 +120,23 @@ const GlobalArgsSchema = z.object({
         "in",
         "notIn",
       ]),
-      value: z.string().min(1).max(512),
+      value: z.union([
+        z.string().min(1).max(512),
+        z.array(z.string().min(1).max(512)),
+        z.number(),
+        z.string().regex(new RegExp("^-?(?:\\d+\\.?\\d*|\\.\\d+)$")),
+        z.array(z.union([
+          z.number(),
+          z.string().regex(new RegExp("^-?(?:\\d+\\.?\\d*|\\.\\d+)$")),
+        ])),
+        z.boolean(),
+        z.enum(["true", "false", "1", "0"]),
+        z.array(z.union([
+          z.boolean(),
+          z.enum(["true", "false", "1", "0"]),
+          z.union([z.literal(1), z.literal(0)]),
+        ])),
+      ]),
     }))),
     version: z.number().int().optional(),
   }).optional(),
@@ -223,7 +239,23 @@ const InputsSchema = z.object({
         "in",
         "notIn",
       ]),
-      value: z.string().min(1).max(512),
+      value: z.union([
+        z.string().min(1).max(512),
+        z.array(z.string().min(1).max(512)),
+        z.number(),
+        z.string().regex(new RegExp("^-?(?:\\d+\\.?\\d*|\\.\\d+)$")),
+        z.array(z.union([
+          z.number(),
+          z.string().regex(new RegExp("^-?(?:\\d+\\.?\\d*|\\.\\d+)$")),
+        ])),
+        z.boolean(),
+        z.enum(["true", "false", "1", "0"]),
+        z.array(z.union([
+          z.boolean(),
+          z.enum(["true", "false", "1", "0"]),
+          z.union([z.literal(1), z.literal(0)]),
+        ])),
+      ]),
     }))),
     version: z.number().int().optional(),
   }).optional(),
@@ -240,7 +272,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Priority-intelligence. Registered at `@swamp/cloudflare/cloudforce-one/priority-intelligence`. */
 export const model = {
   type: "@swamp/cloudflare/cloudforce-one/priority-intelligence",
-  version: "2026.11.05.1",
+  version: "2026.11.05.2",
   upgrades: [
     {
       toVersion: "2026.09.29.1",
@@ -280,6 +312,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.2",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

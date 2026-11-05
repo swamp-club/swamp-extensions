@@ -63,7 +63,8 @@ const GlobalArgsSchema = z.object({
   default: z.boolean().describe(
     "Whether the policy is the account default. WARP group profiles cannot set this field.",
   ).optional(),
-  description: z.string().describe("A description of the policy.").optional(),
+  description: z.string().max(500).describe("A description of the policy.")
+    .optional(),
   disable_auto_fallback: z.boolean().describe(
     "If the `dns_server` field of a fallback domain is not present, the client will fall back to a best guess of the default/system DNS resolvers unless this policy option is set to `true`.",
   ).optional(),
@@ -246,7 +247,7 @@ const InputsSchema = z.object({
   }).optional(),
   captive_portal: z.number().optional(),
   default: z.boolean().optional(),
-  description: z.string().optional(),
+  description: z.string().max(500).optional(),
   disable_auto_fallback: z.boolean().optional(),
   dns_search_suffixes: z.array(z.object({
     description: z.string().optional(),
@@ -301,7 +302,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Policy. Registered at `@swamp/cloudflare/devices/policy`. */
 export const model = {
   type: "@swamp/cloudflare/devices/policy",
-  version: "2026.10.27.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -385,6 +386,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.27.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

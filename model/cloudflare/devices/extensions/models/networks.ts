@@ -39,9 +39,10 @@ import {
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  config: z.record(z.string(), z.unknown()).describe(
-    "The configuration object containing information for the WARP client to detect the managed network.",
-  ).optional(),
+  config: z.object({
+    sha256: z.string().optional(),
+    tls_sockaddr: z.string(),
+  }).optional(),
   name: z.string().describe(
     "The name of the device managed network. This name must be unique.",
   ).optional(),
@@ -73,7 +74,10 @@ type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
   account_id: z.string().optional(),
-  config: z.record(z.string(), z.unknown()).optional(),
+  config: z.object({
+    sha256: z.string().optional(),
+    tls_sockaddr: z.string(),
+  }).optional(),
   name: z.string().optional(),
   type: z.enum(["tls"]).optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
@@ -84,7 +88,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Networks. Registered at `@swamp/cloudflare/devices/networks`. */
 export const model = {
   type: "@swamp/cloudflare/devices/networks",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -133,6 +137,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -56,7 +56,11 @@ const GlobalArgsSchema = z.object({
     key: z.string().min(1).max(128).regex(
       new RegExp("^[a-zA-Z_][a-zA-Z0-9_]*$"),
     ),
-    value: z.string().max(10000),
+    value: z.union([
+      z.string().max(10000),
+      z.number(),
+      z.boolean(),
+    ]),
   })).describe(
     "Adds YARA meta entries to the rule's meta block and stores them in rule_meta alongside content metadata. Use valid YARA identifiers for keys; exclude 'name', 'enabled', and 'description'. You may repeat keys.",
   ).optional(),
@@ -101,7 +105,11 @@ const ResourceSchema = z.object({
   meta: z.array(z.object({
     key: z.string().optional(),
     type: z.string().optional(),
-    value: z.string().optional(),
+    value: z.union([
+      z.string(),
+      z.boolean(),
+      z.number(),
+    ]).optional(),
   })).optional(),
   name: z.string().optional(),
   namespaces: z.array(z.string()).optional(),
@@ -131,7 +139,11 @@ const InputsSchema = z.object({
     key: z.string().min(1).max(128).regex(
       new RegExp("^[a-zA-Z_][a-zA-Z0-9_]*$"),
     ),
-    value: z.string().max(10000),
+    value: z.union([
+      z.string().max(10000),
+      z.number(),
+      z.boolean(),
+    ]),
   })).optional(),
   name: z.string().min(1).max(255).optional(),
   namespaces: z.array(z.string().min(1).max(255)).optional(),
@@ -158,7 +170,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Rules. Registered at `@swamp/cloudflare/cloudforce-one/rules`. */
 export const model = {
   type: "@swamp/cloudflare/cloudforce-one/rules",
-  version: "2026.10.23.1",
+  version: "2026.11.05.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -227,6 +239,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
