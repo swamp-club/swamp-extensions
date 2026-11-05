@@ -275,16 +275,29 @@ Deno.test({
   name: "listJobs rejects when the deadline passes before any page arrives",
   sanitizeResources: false,
   fn: async () => {
+    // Throttle only the first request and hang every retry: if every request
+    // were throttled, the SDK could exhaust its 3 attempts within a short
+    // jittered backoff and reject with "Rate exceeded" before the deadline
+    // (swamp-club#4427). The retry-after hint makes the SDK's first backoff
+    // about 1000ms, so the deadline always passes while the SDK is still
+    // waiting out that backoff.
+    let release = () => {};
+    const hung = new Promise<void>((resolve) => release = resolve);
     let calls = 0;
-    const { server, url } = createMockServer(() => {
+    const { server, url } = createMockServer(async () => {
       calls++;
-      return new Response(JSON.stringify({ message: "Rate exceeded" }), {
-        status: 429,
-        headers: {
-          "content-type": "application/json",
-          "x-amzn-errortype": "LimitExceededException",
-        },
-      });
+      if (calls === 1) {
+        return new Response(JSON.stringify({ message: "Rate exceeded" }), {
+          status: 429,
+          headers: {
+            "content-type": "application/json",
+            "x-amzn-errortype": "LimitExceededException",
+            "x-amz-retry-after": "1000",
+          },
+        });
+      }
+      await hung;
+      return jsonResponse({ jobSummaries: [] });
     });
 
     await withEndpoint(url, server, async () => {
@@ -296,7 +309,7 @@ Deno.test({
       );
       assert(Date.now() - started < 5000, "deadline was not enforced");
       assert(calls >= 1);
-    });
+    }, release);
   },
 });
 
