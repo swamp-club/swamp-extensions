@@ -263,9 +263,13 @@ swamp behavior run brotli-fleet scanFleet \
 ```
 
 `ubuntu@192.0.2.10` logs in as `ubuntu`; a plain entry like `192.0.2.12` uses
-the model's `sshUser`. Every host uses the model's `sshKey`. Data and logs are
-still named by the host alone, and the report's suggested commands keep each
-host's user. Listing one host with two different users is an error.
+the model's `sshUser`. Every host uses the model's `sshKey`. Each host's status
+is still named by the host alone and its log `<host>-log`, and the report's
+suggested commands keep each host's user. Listing one host with two different
+users is an error, and so is a host named `fleet`: the fleet summary is logged
+under that name. A list holding both `a` and `a-log` is refused too, since
+`a`'s log would share `a-log`'s status name. Earlier versions logged under the
+status name; a scan deletes such a leftover log before it writes the status.
 
 SSH runs non-interactively (`BatchMode=yes`, so a key or agent must already
 work), accepts a new host key on first connection and refuses a changed one,

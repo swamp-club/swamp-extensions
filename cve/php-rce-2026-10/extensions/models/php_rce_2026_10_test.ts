@@ -1765,18 +1765,73 @@ Deno.test("failedMitigation keeps the options the run was asked for", () => {
 
 type FleetStatus = { target: string; error?: string; sshUser?: string };
 
+/** A stored version of a data name, as the data repository describes it. */
+type StoredVersion = { version: number; tags: Record<string, string> };
+
 /**
- * Run scanFleet or mitigate with Deno.Command replaced by a process that
- * fails as ssh does when it cannot connect, recording each argv. Every host
- * then gets an error status, which still shows which target it was reached at.
+ * Records the kind each data name is written as, and refuses one name written
+ * as a file and a resource, in one run (swamp-club #3700) or across runs
+ * (#4302), as swamp does. `stored` is data earlier runs left, served and
+ * deleted through `repo`. Each refusal is also kept, so a method that catches
+ * the error still shows it.
+ */
+function strictNames(stored: Record<string, StoredVersion[]> = {}) {
+  const kinds = new Map<string, string>();
+  const clashes: string[] = [];
+  const deleted: string[] = [];
+  const claim = (kind: string, name: string) => {
+    const prior = kinds.get(name) ??
+      stored[name]?.find((v) => v.tags.type !== kind)?.tags.type;
+    if (prior !== undefined && prior !== kind) {
+      const message =
+        `Duplicate data instance name '${name}' (already written as ${prior})`;
+      clashes.push(message);
+      throw new Error(message);
+    }
+    kinds.set(name, kind);
+  };
+  const repo = {
+    findByName: (_t: string, _id: string, name: string, version?: number) => {
+      const versions = stored[name] ?? [];
+      return Promise.resolve(
+        (version === undefined
+          ? versions[versions.length - 1]
+          : versions.find((v) => v.version === version)) ?? null,
+      );
+    },
+    delete: (_t: string, _id: string, name: string, version?: number) => {
+      deleted.push(`${name}@${version ?? "all"}`);
+      stored[name] = version === undefined
+        ? []
+        : (stored[name] ?? []).filter((v) => v.version !== version);
+      return Promise.resolve();
+    },
+  };
+  return { claim, clashes, kinds, repo, deleted };
+}
+
+/** What versions before #4383 left: the target's log under its status name. */
+const OLD_LOG: StoredVersion = {
+  version: 1,
+  tags: { type: "file", specName: "log" },
+};
+
+/**
+ * Run scan, scanFleet or mitigate with Deno.Command replaced by a process
+ * that fails as ssh does when it cannot connect, recording each argv. Every
+ * host then gets an error status, which still shows which target it was
+ * reached at. scan reaches globals.targetHost, and is given output to read.
  */
 async function runHosts(
-  method: "scanFleet" | "mitigate",
+  method: "scan" | "scanFleet" | "mitigate",
   hosts: string,
   globals: Record<string, unknown> = {},
+  output?: string,
+  stored: Record<string, StoredVersion[]> = {},
 ) {
   const argvs: string[][] = [];
   const resources: Record<string, FleetStatus> = {};
+  const names = strictNames(stored);
   const empty = () =>
     new ReadableStream<Uint8Array>({ start: (c) => c.close() });
   class FakeCommand {
@@ -1787,10 +1842,21 @@ async function runHosts(
     spawn() {
       argvs.push(this.#args);
       return {
-        stdout: empty(),
+        stdout: output === undefined
+          ? empty()
+          : new ReadableStream<Uint8Array>({
+            start: (c) => {
+              c.enqueue(new TextEncoder().encode(output));
+              c.close();
+            },
+          }),
         stderr: empty(),
         stdin: new WritableStream<Uint8Array>(),
-        status: Promise.resolve({ code: 255, success: false }),
+        status: Promise.resolve(
+          output === undefined
+            ? { code: 255, success: false }
+            : { code: 0, success: true },
+        ),
       };
     }
   }
@@ -1801,17 +1867,26 @@ async function runHosts(
     const context = {
       globalArgs: model.globalArguments.parse(globals),
       logger: { info: () => {}, debug: () => {} },
-      createFileWriter: () => ({
-        writeLine: () => Promise.resolve(),
-        writeText: () => Promise.resolve({}),
-        finalize: () => Promise.resolve({}),
-      }),
+      modelType: "@swamp/test",
+      modelId: "m-1",
+      dataRepository: names.repo,
+      createFileWriter: (_spec: string, name: string) => {
+        names.claim("file", name);
+        return {
+          writeLine: () => Promise.resolve(),
+          writeText: () => Promise.resolve({}),
+          finalize: () => Promise.resolve({}),
+        };
+      },
       writeResource: (_spec: string, name: string, data: unknown) => {
+        names.claim("resource", name);
         resources[name] = data as FleetStatus;
         return Promise.resolve({ name });
       },
     } as unknown as Parameters<typeof model.methods.scanFleet.execute>[1];
-    if (method === "scanFleet") {
+    if (method === "scan") {
+      await model.methods.scan.execute({}, context);
+    } else if (method === "scanFleet") {
       await model.methods.scanFleet.execute({ hosts }, context);
     } else {
       await model.methods.mitigate.execute(
@@ -1827,7 +1902,7 @@ async function runHosts(
   } finally {
     deno.Command = original;
   }
-  return { argvs, resources };
+  return { argvs, resources, names };
 }
 
 /** The ssh target each command ran against: the argument after "--". */
@@ -1917,3 +1992,98 @@ for (const method of ["scanFleet", "mitigate"] as const) {
     );
   });
 }
+
+// --- Log and status names (swamp-club #4383) --------------------------------
+
+for (const method of ["scan", "scanFleet", "mitigate"] as const) {
+  Deno.test(`${method}: each target's log is <target>-log, apart from its status (#4383)`, async () => {
+    // scan throws when the host gives no output, so it gets a probe to read;
+    // the fleet methods write an error status for an unreachable host.
+    const { resources, names } = await runHosts(
+      method,
+      "192.0.2.10,192.0.2.11",
+      { sshUser: "ops", sshKey: "/keys/id", targetHost: "192.0.2.10" },
+      method === "scan" ? OFFICIAL_APACHE : undefined,
+    );
+    assertEquals(names.clashes, []);
+    const targets = method === "scan"
+      ? ["192.0.2.10"]
+      : ["192.0.2.10", "192.0.2.11"];
+    for (const target of targets) {
+      assert(resources[target], `no status for ${target}`);
+      assertEquals(names.kinds.get(target), "resource");
+      assertEquals(names.kinds.get(`${target}-log`), "file");
+    }
+  });
+}
+
+Deno.test("scanFleet refuses a host whose status would share the fleet summary log's name", async () => {
+  await assertRejects(
+    () => runHosts("scanFleet", "10.0.0.1,ops@fleet"),
+    Error,
+    "fleet would write its status under the fleet summary log's name",
+  );
+});
+
+Deno.test("a log an earlier version left under the status name is deleted, and the status written (#4383)", async () => {
+  for (const method of ["scan", "scanFleet", "mitigate"] as const) {
+    const stored: Record<string, StoredVersion[]> = {
+      "192.0.2.10": [{ ...OLD_LOG }],
+      // swamp before #3700 let the status follow the log under one name.
+      "192.0.2.11": [
+        { ...OLD_LOG },
+        { version: 2, tags: { type: "resource", specName: "status" } },
+      ],
+    };
+    const { resources, names } = await runHosts(
+      method,
+      "192.0.2.10,192.0.2.11",
+      { sshUser: "ops", sshKey: "/keys/id", targetHost: "192.0.2.10" },
+      method === "scan" ? OFFICIAL_APACHE : undefined,
+      stored,
+    );
+    assertEquals(names.clashes, [], method);
+    assert(resources["192.0.2.10"], `${method}: no status for 192.0.2.10`);
+    const expected = method === "scan"
+      ? ["192.0.2.10@1"]
+      : ["192.0.2.10@1", "192.0.2.11@1"];
+    assertEquals(names.deleted.sort(), expected, method);
+  }
+});
+
+for (const method of ["scanFleet", "mitigate"] as const) {
+  Deno.test(`${method} refuses a host whose log would share another host's status name`, async () => {
+    await assertRejects(
+      () =>
+        runHosts(method, "web,web-log", {
+          sshUser: "ops",
+          sshKey: "/keys/id",
+          targetHost: "192.0.2.10",
+        }),
+      Error,
+      "web's log and web-log's status would both be stored as web-log",
+    );
+  });
+}
+
+Deno.test("another target's current log under a status name is never deleted (#4383)", async () => {
+  // web's log from an earlier run of this version, then a host named web-log.
+  const current: StoredVersion = {
+    version: 1,
+    tags: { type: "file", specName: "log", logFor: "web" },
+  };
+  const stored: Record<string, StoredVersion[]> = { "web-log": [current] };
+  await assertRejects(
+    () =>
+      runHosts(
+        "scan",
+        "",
+        { sshUser: "ops", sshKey: "/keys/id", targetHost: "web-log" },
+        OFFICIAL_APACHE,
+        stored,
+      ),
+    Error,
+    "Duplicate data instance name 'web-log'",
+  );
+  assertEquals(stored["web-log"], [current]);
+});

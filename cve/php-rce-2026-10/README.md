@@ -230,9 +230,13 @@ swamp behavior run php-rce-scanner scanFleet \
 ```
 
 `ubuntu@192.0.2.10` logs in as `ubuntu`; a plain entry like `192.0.2.12` uses the model's
-`sshUser`. Every host uses the model's `sshKey`. Data and logs are still named
-by the host alone, and the report's suggested commands keep each host's user.
-Listing one host with two different users is an error.
+`sshUser`. Every host uses the model's `sshKey`. Each host's status is still
+named by the host alone and its log `<host>-log`, and the report's suggested
+commands keep each host's user. Listing one host with two different users is an
+error, and so is a host named `fleet`: the fleet summary is logged under that
+name. A list holding both `a` and `a-log` is refused too, since
+`a`'s log would share `a-log`'s status name. Earlier versions logged under the
+status name; a scan deletes such a leftover log before it writes the status.
 
 SSH runs non-interactively (`BatchMode=yes`) and accepts new host keys on first
 connection. Each command has a time limit (3 minutes for the scan, 30 minutes
@@ -307,6 +311,7 @@ reach the Docker socket, the result says the containers were not inspected.
 
 ```bash
 swamp data get php-rce-scanner <host-or-label> --json | jq .content
+swamp data get php-rce-scanner <host-or-label>-log    # the run log
 swamp data list php-rce-scanner --json
 ```
 

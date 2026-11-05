@@ -606,8 +606,11 @@ export function buildProbeScript(opts: {
       opts.searchPaths.map(shQuote).join(" ")
     }; do [ -d "$d" ] || continue; find "$d" -maxdepth 9 -path '*certifi/cacert.pem' 2>/dev/null | head -50; done | sort -u)`,
   );
+  // Debian and Ubuntu patch pip's vendored certifi so where() returns the OS
+  // bundle (DEBIAN_CA_CERTS_PATH); that pip never reads its cacert.pem, so
+  // only the path it reads is reported, not the file (swamp-club #4336).
   s.push(
-    `while IFS= read -r f; do [ -n "$f" ] || continue; case "$f" in */pip/_vendor/certifi/cacert.pem) emudhra_store pip "" "$f";; *) v=$(ls -d "$(dirname "$(dirname "$f")")"/certifi-*.dist-info 2>/dev/null | head -1 | sed 's/.*certifi-\\(.*\\)\\.dist-info/\\1/'); emudhra_store certifi "$v" "$f";; esac; done <<EMUDHRA_LIST\n$emudhra_list\nEMUDHRA_LIST`,
+    `while IFS= read -r f; do [ -n "$f" ] || continue; case "$f" in */pip/_vendor/certifi/cacert.pem) c="$(dirname "$f")/core.py"; p=$(sed -n "s/^DEBIAN_CA_CERTS_PATH = ['\\"]\\([/][^'\\"|]*\\)['\\"].*/\\1/p" "$c" 2>/dev/null | head -1); if [ -n "$p" ] && grep -q '^ *return DEBIAN_CA_CERTS_PATH' "$c" 2>/dev/null; then echo "pip-os|-|$p|$f"; else emudhra_store pip "" "$f"; fi;; *) v=$(ls -d "$(dirname "$(dirname "$f")")"/certifi-*.dist-info 2>/dev/null | head -1 | sed 's/.*certifi-\\(.*\\)\\.dist-info/\\1/'); emudhra_store certifi "$v" "$f";; esac; done <<EMUDHRA_LIST\n$emudhra_list\nEMUDHRA_LIST`,
   );
   // macOS: the system LibreSSL bundle and Homebrew's, which curl, git and
   // Homebrew's own tools read instead of the keychain.
@@ -734,6 +737,7 @@ export type StoreKind =
   | "java-blocked"
   | "certifi"
   | "pip"
+  | "pip-os"
   | "os-bundle"
   | "bundle";
 
@@ -742,7 +746,10 @@ export type ProbeStore = {
   kind: StoreKind;
   /** Upper-case SHA-256, or "" when the target had no hashing tool. */
   sha256: string;
-  /** certifi: its version; java: the blocked.certs hash, or "". */
+  /**
+   * certifi: its version; java: the blocked.certs hash; pip-os: the OS bundle
+   * the patched pip reads instead; or "".
+   */
   extra: string;
   path: string;
 };
@@ -833,6 +840,7 @@ export function parseProbe(text: string): ProbeData {
     "java-blocked",
     "certifi",
     "pip",
+    "pip-os",
     "os-bundle",
     "bundle",
   ]);
@@ -1139,6 +1147,8 @@ export type StoreFinding = {
   /** Why it could not be judged. */
   reason: string;
   match: StoreMatch | undefined;
+  /** pip-os: the OS bundle this pip reads instead of the file at path. */
+  readsOsBundle?: string;
 };
 
 /**
@@ -1168,6 +1178,18 @@ export async function analyzeStores(
       path: s.path,
       version: kind === "certifi" ? s.extra : "",
     };
+    if (kind === "pip-os") {
+      // Judged by the OS store it reads, not by the file it ships.
+      out.push({
+        ...base,
+        readable: true,
+        incomplete: false,
+        reason: "",
+        match: undefined,
+        readsOsBundle: s.extra,
+      });
+      continue;
+    }
     const bytes = blobText(s.sha256);
     if (!bytes) {
       out.push({
@@ -1241,10 +1263,14 @@ function minVersionStatus(version: string, fixed: string): ComponentStatus {
   return compareDottedVersions(version, fixed) >= 0 ? "fixed" : "exposed";
 }
 
-/** Every non-OS component the probe found, with a status. */
+/**
+ * Every non-OS component the probe found, with a status. osStore is the OS
+ * store's TLS verdict, which a pip patched to read that store follows.
+ */
 export function components(
   probe: ProbeData,
   stores: StoreFinding[] = [],
+  osStore: Verdict = "unknown",
 ): Component[] {
   const out: Component[] = [];
   for (const r of probe.runtimes) {
@@ -1280,6 +1306,23 @@ export function components(
   }
   for (const f of stores) {
     if (f.kind === "os-bundle") continue;
+    if (f.kind === "pip-os") {
+      out.push({
+        kind: "bundle",
+        name: "pip vendored certifi",
+        path: f.path,
+        version: "",
+        fixedIn: undefined,
+        status: osStore === "trusted"
+          ? "exposed"
+          : osStore === "not-trusted"
+          ? "fixed"
+          : "unknown",
+        note:
+          `this pip is patched to read the OS store (${f.readsOsBundle}), not this file, so it follows the OS store's verdict`,
+      });
+      continue;
+    }
     const status = storeStatus(f);
     const what = f.match ? describeMatch(f.match) : "";
     const note = !f.readable || (f.incomplete && status !== "exposed")
@@ -1549,7 +1592,7 @@ export function assessHost(
   const installed = probe.packages["ca-certificates"] ??
     probe.packages["ca-certificates-bundle"];
   const fixedIn = fixedCaCertificates(probe.os);
-  const comps = components(probe, stores);
+  const comps = components(probe, stores, tls.verdict);
   const live = liveResults(probe);
   const unreadable: string[] = [];
   // macOS and Windows judge the OS store with their own verifiers.

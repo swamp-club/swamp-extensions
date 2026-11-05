@@ -139,10 +139,13 @@ swamp behavior run tailworm-fleet scanFleet \
 ```
 
 `ubuntu@10.0.1.10` logs in as `ubuntu`; a plain entry like `10.0.1.12` uses the
-model's `sshUser`. Every host uses the model's `sshKey`. Data and logs are
-still named by the host alone, and the report's suggested commands keep each
-host's user. Listing one host with two different users is an error, and so
-is a host named `fleet`: the fleet summary is logged under that name.
+model's `sshUser`. Every host uses the model's `sshKey`. Each host's status is
+still named by the host alone and its log `<host>-log`, and the report's
+suggested commands keep each host's user. Listing one host with two different
+users is an error, and so is a host named `fleet`: the fleet summary is logged
+under that name. A list holding both `a` and `a-log` is refused too, since
+`a`'s log would share `a-log`'s status name. Earlier versions logged under the
+status name; a scan deletes such a leftover log before it writes the status.
 
 SSH runs non-interactively (`BatchMode=yes`) on port 22 and accepts new host
 keys on first connection.
@@ -227,7 +230,8 @@ caller runs the probe and the model grades its output:
    busybox).
 2. Run `command` (or `script`) on the host as root through your transport.
 3. Pass its stdout to `grade` with the host's name. It writes the same status,
-   log and report as `scan`, named by `target`.
+   log and report as `scan`: the status named by `target`, the log
+   `<target>-log`.
 
 ```bash
 swamp behavior run tailworm probeScript
@@ -317,8 +321,8 @@ Quote the expression: the `": "` inside the map is YAML syntax otherwise.
 - A host whose output cannot be graded is an `ERROR` row, as with `grade`; the
   others are still graded.
 - The `fleet` log is the one `scanFleet` writes too, so it holds whichever
-  ran last. A target named `fleet` is rejected, since its own log would
-  overwrite the summary.
+  ran last. A target named `fleet` is rejected, since its status would share
+  the summary log's name.
 
 ### Mitigate
 

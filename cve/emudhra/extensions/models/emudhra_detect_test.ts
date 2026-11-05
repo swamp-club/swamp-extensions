@@ -16,6 +16,7 @@
 import {
   assert,
   assertEquals,
+  assertFalse,
   assertMatch,
   assertRejects,
   assertStringIncludes,
@@ -2197,4 +2198,149 @@ Deno.test("parseHosts: refuses an unsafe user or host, and one host with two use
   assertThrows(() => parseHosts("h,a@h", "root"), Error, "both root@h and a@h");
   // The model's own user given explicitly is the same login: one host.
   assertEquals(parseHosts("h,root@h", "root"), [{ host: "h" }]);
+});
+
+// --- pip patched to read the OS store (swamp-club #4336) --------------------
+
+/**
+ * pip/_vendor/certifi/core.py as python3-pip 25.1.1+dfsg-1ubuntu2 ships it,
+ * cut to the lines that matter: Debian's patch defines DEBIAN_CA_CERTS_PATH
+ * and ends the module with a where() that returns it. Debian's 26.2.2+dfsg-1
+ * carries the same patch.
+ */
+const UBUNTU_PIP_CORE_PY = `"""
+certifi.py
+~~~~~~~~~~
+
+This module returns the installation location of cacert.pem or its contents.
+"""
+import sys
+import atexit
+
+def exit_cacert_ctx() -> None:
+    _CACERT_CTX.__exit__(None, None, None)  # type: ignore[union-attr]
+
+DEBIAN_CA_CERTS_PATH = '/etc/ssl/certs/ca-certificates.crt'
+
+if sys.version_info >= (3, 11):
+
+    from importlib.resources import as_file, files
+
+    _CACERT_CTX = None
+    _CACERT_PATH = None
+
+    def where() -> str:
+        global _CACERT_CTX
+        global _CACERT_PATH
+        if _CACERT_PATH is None:
+            _CACERT_CTX = as_file(files("pip._vendor.certifi").joinpath("cacert.pem"))
+            _CACERT_PATH = str(_CACERT_CTX.__enter__())
+            atexit.register(exit_cacert_ctx)
+
+        return _CACERT_PATH
+
+
+# Debian: Use system CA certs:
+def where() -> str:
+    return DEBIAN_CA_CERTS_PATH
+
+
+def contents() -> str:
+    with open(where(), "r", encoding="ascii") as data:
+        return data.read()
+`;
+
+/** The same module as pip ships it upstream: where() returns cacert.pem. */
+const UPSTREAM_PIP_CORE_PY = UBUNTU_PIP_CORE_PY
+  .replace("DEBIAN_CA_CERTS_PATH = '/etc/ssl/certs/ca-certificates.crt'\n", "")
+  .replace(/\n# Debian: Use system CA certs:[\s\S]*$/, "\n");
+
+const UBUNTU_PIP_CACERT =
+  "/usr/lib/python3/dist-packages/pip/_vendor/certifi/cacert.pem";
+
+Deno.test("probe script reads the OS bundle a Debian-patched pip uses, and stores an unpatched pip's file", async () => {
+  const script = buildProbeScript({ searchPaths: [], liveCheck: false });
+  // The loop and its here-document: the loop line, $emudhra_list, the end.
+  const lines = script.split("\n");
+  const at = lines.findIndex((l) =>
+    l.startsWith("while IFS= read -r f;") && l.includes("*/pip/_vendor/")
+  );
+  assert(at >= 0, "no certifi loop in the probe");
+  const loop = lines.slice(at, at + 3).join("\n");
+  const dir = await Deno.makeTempDir({ prefix: "emudhra-pip-" });
+  try {
+    const files: string[] = [];
+    for (
+      const [name, core] of [
+        ["patched", UBUNTU_PIP_CORE_PY],
+        ["upstream", UPSTREAM_PIP_CORE_PY],
+      ]
+    ) {
+      const certifi = `${dir}/${name}/pip/_vendor/certifi`;
+      await Deno.mkdir(certifi, { recursive: true });
+      await Deno.writeTextFile(`${certifi}/core.py`, core);
+      await Deno.writeTextFile(`${certifi}/cacert.pem`, "# bundled\n");
+      files.push(`${certifi}/cacert.pem`);
+    }
+    // emudhra_store is stubbed: only the branch the loop takes matters here.
+    const sh = [
+      'emudhra_store() { echo "store|$1|$2|$3"; }',
+      `emudhra_list='${files.join("\n")}'`,
+      loop,
+    ].join("\n");
+    const out = await new Deno.Command("sh", {
+      args: ["-c", sh],
+      stdout: "piped",
+      stderr: "piped",
+    }).output();
+    assertEquals(new TextDecoder().decode(out.stderr), "");
+    assertEquals(new TextDecoder().decode(out.stdout).trim().split("\n"), [
+      `pip-os|-|/etc/ssl/certs/ca-certificates.crt|${files[0]}`,
+      `store|pip||${files[1]}`,
+    ]);
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
+});
+
+Deno.test("a Debian-patched pip on a fixed host is fixed, not a High (#4336)", async () => {
+  const s = await assess(probeText({
+    os: ["ID=ubuntu", "VERSION_ID=26.04"],
+    packages: ["ca-certificates 20260816ubuntu0.26.04.1"],
+    anchor: [],
+    verify: {
+      "emsign-tls": "error 20",
+      "aaa-tls": "error 20",
+      "aaa-cs": "error 20",
+    },
+    stores: [
+      `pip-os|-|/etc/ssl/certs/ca-certificates.crt|${UBUNTU_PIP_CACERT}`,
+    ],
+  }));
+  assertEquals(s.osStore.verdict, "not-trusted");
+  const pip = s.components.filter((c) => c.name === "pip vendored certifi");
+  assertEquals(pip.length, 1);
+  assertEquals(pip[0].path, UBUNTU_PIP_CACERT);
+  assertEquals(pip[0].status, "fixed");
+  assertStringIncludes(
+    pip[0].note,
+    "patched to read the OS store (/etc/ssl/certs/ca-certificates.crt)",
+  );
+  assertEquals(s.riskLevel, "none");
+  assertEquals(s.unreadable, []);
+});
+
+Deno.test("a Debian-patched pip on an exposed host follows the OS store", async () => {
+  const s = await assess(probeText({
+    stores: [
+      `pip-os|-|/etc/ssl/certs/ca-certificates.crt|${UBUNTU_PIP_CACERT}`,
+    ],
+  }));
+  assertEquals(s.osStore.verdict, "trusted");
+  const pip = s.components.find((c) => c.name === "pip vendored certifi");
+  assertEquals(pip?.status, "exposed");
+  assertEquals(pip?.fixedIn, undefined);
+  assertFalse(
+    s.recommendations.some((r) => r.startsWith("Upgrade pip vendored certifi")),
+  );
 });

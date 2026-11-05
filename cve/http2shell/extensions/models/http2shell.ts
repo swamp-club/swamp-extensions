@@ -48,12 +48,32 @@ import {
 type MethodContext = {
   globalArgs: z.infer<typeof GlobalArgsSchema>;
   logger: Logger;
-  createFileWriter: (fileSpec: string, label: string) => FileWriter;
+  createFileWriter: (
+    fileSpec: string,
+    label: string,
+    overrides?: { tags?: Record<string, string> },
+  ) => FileWriter;
   writeResource: (
     specName: string,
     instanceName: string,
     data: unknown,
   ) => Promise<unknown>;
+  modelType?: string;
+  modelId?: string;
+  dataRepository?: {
+    findByName: (
+      type: string,
+      modelId: string,
+      name: string,
+      version?: number,
+    ) => Promise<StoredData | null>;
+    delete: (
+      type: string,
+      modelId: string,
+      name: string,
+      version?: number,
+    ) => Promise<void>;
+  };
 };
 
 const GlobalArgsSchema = z.object({
@@ -171,6 +191,103 @@ function withUser(status: Status, sshUser: string | undefined): Status {
 /** A host label as a data instance name: no path separators or "..". */
 export function instanceName(label: string): string {
   return label.replace(/[\/\\]/g, "_").replace(/\.\./g, "_");
+}
+
+/**
+ * Data name of a target's log. It differs from the status name, since swamp
+ * refuses one name written as a file and a resource in one run.
+ */
+export function logName(label: string): string {
+  return `${instanceName(label)}-log`;
+}
+
+/**
+ * Refuses hosts where one host's log would share its name with another host's
+ * status (a and a-log): swamp refuses one name written as a file and a
+ * resource in one run.
+ */
+export function logStatusClash(hosts: string[]): string | null {
+  const statuses = new Map(hosts.map((h) => [instanceName(h), h]));
+  for (const host of hosts) {
+    const other = statuses.get(logName(host));
+    if (other !== undefined) {
+      return `${host}'s log and ${other}'s status would both be stored as ${
+        logName(host)
+      }; give one of them another name`;
+    }
+  }
+  return null;
+}
+
+/** One version of a data artifact, as the data repository describes it. */
+type StoredData = {
+  version?: number;
+  tags?: Record<string, string>;
+  metadata?: { tags?: Record<string, string> };
+};
+
+/** Tag every log carries since swamp-club #4383, naming its target. */
+const LOG_FOR_TAG = "logFor";
+
+/** Opens a target's log, <name>-log, tagged with the target it belongs to. */
+function logWriter(context: MethodContext, label: string): FileWriter {
+  return context.createFileWriter("log", logName(label), {
+    tags: { [LOG_FOR_TAG]: instanceName(label) },
+  });
+}
+
+/**
+ * Writes a target's status. Versions before swamp-club #4383 wrote the
+ * target's log under the status name, and swamp refuses a name once written
+ * as a file, so such a log is deleted first. Only a log without the logFor
+ * tag is deleted: a tagged log is another target's current one, and is never
+ * removed. The cleanup is best effort; the write reports anything it leaves.
+ */
+async function writeStatus(
+  context: MethodContext,
+  name: string,
+  status: unknown,
+): Promise<unknown> {
+  const repo = context.dataRepository;
+  if (repo && context.modelType && context.modelId) {
+    const type = context.modelType;
+    const id = context.modelId;
+    try {
+      const latest = await repo.findByName(type, id, name);
+      for (let v = latest?.version ?? 0; v >= 1; v--) {
+        const d = v === latest?.version
+          ? latest
+          : await repo.findByName(type, id, name, v);
+        const tags = d?.tags ?? d?.metadata?.tags;
+        if (
+          tags?.type === "file" && tags.specName === "log" &&
+          tags[LOG_FOR_TAG] === undefined
+        ) {
+          await repo.delete(type, id, name, v);
+        }
+      }
+    } catch (err) {
+      context.logger.info(
+        `Could not clear an old log stored as ${name}: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+  }
+  return await context.writeResource("status", name, status);
+}
+
+/** Data name of the scanFleet summary log. */
+export const FLEET_LOG = "fleet";
+
+/**
+ * Refuses a fleet host whose status would share the fleet summary log's name:
+ * swamp refuses one name written as a file and a resource in one run.
+ */
+export function fleetLogClash(host: string): string | null {
+  return instanceName(host) === FLEET_LOG
+    ? `${host} would write its status under the fleet summary log's name (${FLEET_LOG}); give the host another name`
+    : null;
 }
 
 /** Runs fn over items, at most `limit` at a time, keeping the order. */
@@ -358,7 +475,7 @@ export const model = {
         const g = context.globalArgs;
         const logger = context.logger;
         const t = await openTarget(g, logger);
-        const log = context.createFileWriter("log", instanceName(t.label));
+        const log = logWriter(context, t.label);
         await log.writeLine(
           `[${
             new Date().toISOString()
@@ -378,8 +495,8 @@ export const model = {
             },
           );
           await writeScanLog(log, status);
-          const handle = await context.writeResource(
-            "status",
+          const handle = await writeStatus(
+            context,
             instanceName(t.label),
             status,
           );
@@ -421,7 +538,13 @@ export const model = {
         const entries = hostList(args.hosts, g.sshUser);
         const hosts = entries.map((e) => e.host);
         const searchPaths = splitList(g.searchPaths);
-        const summaryLog = context.createFileWriter("log", "fleet");
+        for (const host of hosts) {
+          const clash = fleetLogClash(host);
+          if (clash !== null) throw new Error(clash);
+        }
+        const nameClash = logStatusClash(hosts);
+        if (nameClash !== null) throw new Error(nameClash);
+        const summaryLog = context.createFileWriter("log", FLEET_LOG);
         await summaryLog.writeLine(
           `[${
             new Date().toISOString()
@@ -433,7 +556,7 @@ export const model = {
           args.concurrency,
           async (entry) => {
             const host = entry.host;
-            const hostLog = context.createFileWriter("log", instanceName(host));
+            const hostLog = logWriter(context, host);
             try {
               // Written first so finalize() cannot mask a scan error.
               await hostLog.writeLine(
@@ -472,11 +595,7 @@ export const model = {
           if (status.error) errors++;
           else if (status.vulnerable) affected++;
           handles.push(
-            await context.writeResource(
-              "status",
-              instanceName(hosts[i]),
-              status,
-            ),
+            await writeStatus(context, instanceName(hosts[i]), status),
           );
           await summaryLog.writeLine(
             `${
@@ -553,8 +672,10 @@ export const model = {
           targets = [{ label: t.label, transport: t.transport }];
         }
 
+        const nameClash = logStatusClash(targets.map((t) => t.label));
+        if (nameClash !== null) throw new Error(nameClash);
         const settled = await mapLimit(targets, 10, async (t) => {
-          const log = context.createFileWriter("log", instanceName(t.label));
+          const log = logWriter(context, t.label);
           try {
             await log.writeLine(
               `[${
@@ -618,11 +739,7 @@ export const model = {
             targets[i].sshUser,
           );
           handles.push(
-            await context.writeResource(
-              "status",
-              instanceName(targets[i].label),
-              status,
-            ),
+            await writeStatus(context, instanceName(targets[i].label), status),
           );
         }
         return { dataHandles: handles };
