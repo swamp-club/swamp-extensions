@@ -1,0 +1,59 @@
+manifestVersion: 1
+name: "@swamp/cve/sshole"
+version: "2026.11.05.1"
+license: "AGPL-3.0-or-later"
+description: |
+  Reports whether a machine, container or image is vulnerable to
+  **"*sshole"**, the OpenSSH musl libc password-authentication bypass fixed in
+  **OpenSSH 10.6p2** (2026-11-05). No CVE was assigned at disclosure.
+
+  On OpenSSH built against **musl libc** (Alpine, OpenWrt, buildroot, yocto),
+  when password authentication is handled **without PAM** and is enabled, any
+  account whose `/etc/shadow` field is exactly `*` — key-only users, LDAP
+  users, a locked root, Alpine's default cloud user — accepts **any password of
+  257 to 1024 characters**. musl's `crypt()` returns `"*"` for a password over
+  256 bytes, which equals the stored `"*"`, so the comparison succeeds. glibc
+  hosts, and hosts that authenticate through PAM, are not affected.
+
+  ## Method
+
+  - `scan` runs a read-only probe on the local machine, a running Docker
+    container (`dockerContainer`), or a container started from an image
+    (`dockerImage`) and reports a verdict: `vulnerable`, `not-vulnerable`, or
+    `unknown`. It never logs in over SSH and never changes the target.
+
+  ## What it reports
+
+  The verdict, plus the facts behind it: libc, OpenSSH version and package
+  release, effective `UsePAM` and whether sshd links PAM, effective
+  `PasswordAuthentication`, and every `*` account with its uid and shell. A
+  risk level (`critical`, `high`, `medium`, `low`, `none`, `unknown`), the
+  reasons, what was not checked, and the fix. Enumerating `*` accounts needs
+  root; without it a musl, non-PAM, password-auth target is `unknown`, never
+  `not-vulnerable`.
+
+repository: "https://github.com/swamp-club/swamp-extensions"
+
+models:
+  - sshole.ts
+
+reports:
+  - sshole_report.ts
+
+additionalFiles:
+  - README.md
+  - LICENSE.txt
+
+platforms:
+  - darwin-aarch64
+  - darwin-x86_64
+  - linux-aarch64
+  - linux-x86_64
+
+labels:
+  - security
+  - vulnerability
+  - openssh
+  - ssh
+  - musl
+  - alpine
