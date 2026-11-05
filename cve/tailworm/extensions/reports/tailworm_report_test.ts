@@ -18,14 +18,19 @@ import {
 
 function status(
   target: string,
-  opts: { lines?: string[]; prefs?: unknown; serve?: unknown } = {},
+  opts: {
+    lines?: string[];
+    prefs?: unknown;
+    serve?: unknown;
+    version?: string;
+  } = {},
 ): Status {
   const text = [
     `HOSTNAME|${target}`,
     "UID|0",
     "KERNEL|Linux",
     "TOOL|tailscale|/usr/bin/tailscale",
-    "TSVERSION|1.104.2",
+    `TSVERSION|${opts.version ?? "1.104.2"}`,
     "@@ prefs",
     JSON.stringify(opts.prefs ?? { RunSSH: false }),
     "@@ serve",
@@ -51,6 +56,7 @@ const OPTS: MitigationOptions = {
   headscaleMemoryMax: "2G",
   disableTailscaleSsh: false,
   disableAppConnector: false,
+  disableSshForwarding: false,
 };
 
 function makeContext(
@@ -113,7 +119,11 @@ Deno.test("scan report tabulates hosts and suggests mitigate for exposed ones", 
     out.markdown,
     "swamp behavior run tw mitigate --input hosts=10.0.0.1\n",
   );
-  assertStringIncludes(out.markdown, "No fixed Tailscale release");
+  assertStringIncludes(
+    out.markdown,
+    "Tailscale 1.104.4 (TS-2026-014 to 017) fixes findings 1, 2, 3, 5, 7, 8, 11; findings 4, 9, 10 have no fix.",
+  );
+  assertFalse(out.markdown.includes("No fixed Tailscale release"));
   const json = out.json as { target: string; exposures: string[] }[];
   assertEquals(json[0].exposures.sort(), [
     "serve-localapi-forward",
@@ -228,7 +238,7 @@ Deno.test("needs-privilege points at the sudoers example", async () => {
 
 Deno.test("fleet recommendations leave out a clean host's no-action line", async () => {
   const exposed = status("10.0.0.1", { prefs: { RunSSH: true } });
-  const clean = status("10.0.0.2");
+  const clean = status("10.0.0.2", { version: "1.104.4" });
   assert(
     clean.recommendations.includes(
       "No action required for the Tailworm findings.",
@@ -749,4 +759,55 @@ Deno.test("reachability: an unscanned SSH principal is shown once (#3923)", asyn
   });
   const md = (await report.execute(makeContext("scan", [nas]))).markdown;
   assertStringIncludes(md, "- nas ← 100.64.0.1, user:admin@");
+});
+
+const PLANNED_STEP = {
+  phase: "ssh" as const,
+  command: "/usr/bin/tailscale set --ssh=false",
+  privileged: true,
+  purpose: "",
+  status: "planned" as const,
+  exitCode: null,
+  output: "",
+};
+
+Deno.test("records from before per-finding fixes still render", async () => {
+  // Written by 2026.11.05.1: no fixed release, no per-finding lists, and
+  // mitigate options without disableSshForwarding. The stored JSON lacks
+  // the new keys; the type has them, so cast.
+  const base = status("10.0.0.1", { prefs: { RunSSH: true } });
+  const oldScan = {
+    ...base,
+    advisory: {
+      name: base.advisory.name,
+      url: base.advisory.url,
+      published: base.advisory.published,
+      fixedVersion: null,
+    } as Status["advisory"],
+  };
+  const scanned = await report.execute(makeContext("scanFleet", [oldScan]));
+  assertStringIncludes(
+    scanned.markdown,
+    "No fixed Tailscale release had been published when this was scanned.",
+  );
+  const { disableSshForwarding: _, ...oldOpts } = OPTS;
+  const old = withMitigation(oldScan, {
+    options: {
+      ...oldOpts,
+      disableTailscaleSsh: true,
+    } as NonNullable<Status["mitigation"]>["options"],
+    steps: [PLANNED_STEP],
+  });
+  const out = await report.execute(makeContext("mitigate", [old]));
+  assertFalse(out.markdown.includes("disableSshForwarding"));
+  assertStringIncludes(out.markdown, "--input disableTailscaleSsh=true\n");
+});
+
+Deno.test("mitigate repeats disableSshForwarding in the apply command", async () => {
+  const s = withMitigation(status("10.0.0.1", { prefs: { RunSSH: true } }), {
+    options: { ...OPTS, disableSshForwarding: true },
+    steps: [PLANNED_STEP],
+  });
+  const out = await report.execute(makeContext("mitigate", [s]));
+  assertStringIncludes(out.markdown, "--input disableSshForwarding=true\n");
 });

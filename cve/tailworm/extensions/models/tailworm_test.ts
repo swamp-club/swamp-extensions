@@ -16,6 +16,7 @@ import {
   defenseReads,
   defensesScript,
   failedMitigation,
+  goBoolTrue,
   gradeOutput,
   HEADSCALE_DROP_IN,
   hostList,
@@ -48,11 +49,13 @@ import {
   ROOTPROC_SH,
   type RunResult,
   scanTarget,
+  serveCapabilityMounts,
   serveForwards,
   serveUnixProxies,
   serveWebProxies,
   shown,
   shQuote,
+  SSH_FORWARDING_DROP_IN,
   type Status,
   summarizeSshPolicy,
 } from "./tailworm.ts";
@@ -135,6 +138,7 @@ const DEFAULT_OPTS: MitigationOptions = {
   headscaleMemoryMax: "2G",
   disableTailscaleSsh: false,
   disableAppConnector: false,
+  disableSshForwarding: false,
 };
 
 function scan(text: string, opts: { fixedVersion?: string } = {}) {
@@ -359,11 +363,29 @@ Deno.test("no Tailscale or headscale is risk none", () => {
 });
 
 Deno.test("Tailscale with no affected feature is low risk", () => {
-  const { status } = scan(probe({}));
+  const { status } = scan(
+    probe({}).replace("TSVERSION|1.104.2", "TSVERSION|1.104.4"),
+  );
   assertEquals(status.riskLevel, "low");
   assertFalse(status.vulnerable);
   assertEquals(ids(status), []);
   assertStringIncludes(status.recommendations.join(" "), "No action required");
+});
+
+Deno.test("a build without the Tailworm fix is told to upgrade even when nothing is exposed", () => {
+  const { status } = scan(probe({}));
+  assertEquals(status.riskLevel, "low");
+  assertEquals(ids(status), []);
+  assertEquals(status.tailscale.missingBulletins, [
+    "TS-2026-014",
+    "TS-2026-015",
+    "TS-2026-016",
+    "TS-2026-017",
+  ]);
+  const recs = status.recommendations.join(" ");
+  assertStringIncludes(recs, "Upgrade Tailscale to 1.104.4 or later");
+  assertFalse(recs.includes("No action required"));
+  assertFalse(recs.includes("No fixed Tailscale release"));
 });
 
 Deno.test("SSH on the SaaS control plane is high, on headscale critical", () => {
@@ -451,25 +473,104 @@ Deno.test("old builds list the published bulletins they miss", () => {
   assertEquals(old.riskLevel, "critical");
   assertEquals(old.tailscale.missingBulletins[0], "TS-2026-004");
   assert(old.tailscale.missingBulletins.includes("TS-2026-013"));
+  assert(old.tailscale.missingBulletins.includes("TS-2026-017"));
+  // The Tailworm bulletins are graded by the code checks, not counted here.
+  const older = old.exposures.find((e) => e.id === "older-bulletins")!;
+  assertFalse(older.findings.some((f) => f >= "TS-2026-014"));
 
   const recent =
     scan(probe({}).replace("TSVERSION|1.104.2", "TSVERSION|1.102.4"))
       .status;
-  assertEquals(recent.tailscale.missingBulletins, ["TS-2026-013"]);
+  assertEquals(recent.tailscale.missingBulletins, [
+    "TS-2026-013",
+    "TS-2026-014",
+    "TS-2026-015",
+    "TS-2026-016",
+    "TS-2026-017",
+  ]);
+  assertEquals(
+    recent.exposures.find((e) => e.id === "older-bulletins")?.findings,
+    ["TS-2026-013"],
+  );
+  const recs = recent.recommendations.join(" ");
+  assertStringIncludes(recs, "this build also misses TS-2026-013.");
 });
 
-Deno.test("fixedVersion clears the code findings but not configuration", () => {
-  const text = probe({
-    prefs: { RunSSH: true },
-    serve: LOCALAPI_SERVE,
-    lines: ["TSENV|systemd|TS_SERVE_ALLOW_ALL_INTERFACES=1"],
-  }).replace("TSVERSION|1.104.2", "TSVERSION|1.104.4");
-  const before = scan(text).status;
-  assert(ids(before).includes("ssh-forwarding"));
-  const after = scan(text, { fixedVersion: "1.104.4" }).status;
-  assert(after.tailscale.patched);
-  assertEquals(ids(after), ["serve-all-interfaces"]);
-  assertEquals(after.advisory.fixedVersion, "1.104.4");
+const EVERY_FINDING = {
+  prefs: { RunSSH: true, AppConnector: { Advertise: true } },
+  serve: {
+    ...LOCALAPI_SERVE,
+    AllowFunnel: { "node.example.ts.net:443": true },
+  },
+  lines: ["TSENV|systemd|TS_SERVE_ALLOW_ALL_INTERFACES=1"],
+};
+
+Deno.test("1.104.4 clears only the findings Tailscale fixed (swamp-club#4456)", () => {
+  const text = probe(EVERY_FINDING).replace(
+    "TSVERSION|1.104.2",
+    "TSVERSION|1.104.4",
+  );
+  // With and without the argument: the issue's repro set fixedVersion=1.104.4.
+  for (const opts of [{}, { fixedVersion: "1.104.4" }]) {
+    const s = scan(text, opts).status;
+    assert(s.tailscale.patched);
+    assertEquals(ids(s), ["app-connector", "funnel", "serve-all-interfaces"]);
+    assertEquals(s.riskLevel, "high");
+    assertEquals(s.tailscale.unfixedFindings, ["4", "9", "10"]);
+    assertEquals(s.advisory.fixedVersion, "1.104.4");
+    const recs = s.recommendations.join(" ");
+    assertStringIncludes(
+      recs,
+      "No Tailscale release fixes findings 4 (app connector) and 9 (funnel)",
+    );
+    assertFalse(recs.includes("Upgrade Tailscale to"));
+    assertFalse(recs.includes("No fixed Tailscale release yet"));
+  }
+});
+
+Deno.test("1.104.2 is graded for every finding", () => {
+  const s = scan(probe(EVERY_FINDING)).status;
+  assertFalse(s.tailscale.patched);
+  assertEquals(ids(s), [
+    "ssh-forwarding",
+    "serve-localapi-forward",
+    "app-connector",
+    "funnel",
+    "serve-all-interfaces",
+  ]);
+  assertEquals(s.tailscale.unfixedFindings, [
+    "1",
+    "2",
+    "3",
+    "5",
+    "7",
+    "8",
+    "11",
+    "4",
+    "9",
+    "10",
+  ]);
+  assertStringIncludes(
+    s.recommendations.join(" "),
+    "Upgrade Tailscale to 1.104.4 or later: it fixes findings 1-3, 5, 7, 8 and 11",
+  );
+});
+
+Deno.test("fixedVersion can move the fix later, never earlier", () => {
+  const text = probe(EVERY_FINDING);
+  // A lower value does not mark 1.104.2 fixed.
+  const low = scan(text, { fixedVersion: "1.104.2" }).status;
+  assertFalse(low.tailscale.patched);
+  assert(ids(low).includes("ssh-forwarding"));
+  assertEquals(low.advisory.fixedVersion, "1.104.4");
+  // A higher one (a re-issued fix) keeps 1.104.4 flagged.
+  const high = scan(
+    text.replace("TSVERSION|1.104.2", "TSVERSION|1.104.4"),
+    { fixedVersion: "1.106.0" },
+  ).status;
+  assertFalse(high.tailscale.patched);
+  assert(ids(high).includes("ssh-forwarding"));
+  assertEquals(high.advisory.fixedVersion, "1.106.0");
 });
 
 Deno.test("headscale exposure depends on listen address and limits", () => {
@@ -1217,7 +1318,13 @@ Deno.test("the daemon's version wins over a newer CLI", () => {
   const { status } = scan(text);
   assertEquals(status.tailscale.version, "1.102.4");
   assertEquals(status.tailscale.cliVersion, "1.104.2");
-  assertEquals(status.tailscale.missingBulletins, ["TS-2026-013"]);
+  assertEquals(status.tailscale.missingBulletins, [
+    "TS-2026-013",
+    "TS-2026-014",
+    "TS-2026-015",
+    "TS-2026-016",
+    "TS-2026-017",
+  ]);
   assertStringIncludes(status.recommendations.join(" "), "restart tailscaled");
 });
 
@@ -4163,4 +4270,280 @@ Deno.test("another target's current log under a status name is never deleted (#4
     "Duplicate data instance name 'web-log'",
   );
   assertEquals(stored["web-log"], [current]);
+});
+
+// --- Per-finding fixes: finding 11 and TS_SSH_DISABLE_FORWARDING ----------
+
+function capsServe(handlers: Record<string, unknown>, https = true) {
+  return {
+    TCP: { "443": https ? { HTTPS: true } : { HTTP: true } },
+    Web: { "ts-01.example.ts.net:443": { Handlers: handlers } },
+  };
+}
+
+Deno.test("finding 11: HTTPS proxy mounts with different app capabilities", () => {
+  const differ = capsServe({
+    "/": {
+      Proxy: "http://127.0.0.1:3000",
+      AcceptAppCaps: ["example.com/cap/a"],
+    },
+    "/b": {
+      Proxy: "http://127.0.0.1:3001",
+      AcceptAppCaps: ["example.com/cap/b"],
+    },
+  });
+  assertEquals(serveCapabilityMounts(differ), [{
+    site: "ts-01.example.ts.net:443",
+    service: null,
+    mounts: ["/", "/b"],
+  }]);
+  // A mount that forwards none can receive the other mount's header.
+  const oneWithout = capsServe({
+    "/": {
+      Proxy: "http://127.0.0.1:3000",
+      AcceptAppCaps: ["example.com/cap/a"],
+    },
+    "/b": { Proxy: "http://127.0.0.1:3001" },
+  });
+  assertEquals(serveCapabilityMounts(oneWithout).length, 1);
+  // Not affected: the same caps, a single proxy, no caps at all, an HTTP
+  // port, or other handlers that never send the header.
+  const same = capsServe({
+    "/": { Proxy: "http://127.0.0.1:3000", AcceptAppCaps: ["x/a", "x/b"] },
+    "/b": { Proxy: "http://127.0.0.1:3001", AcceptAppCaps: ["x/b", "x/a"] },
+  });
+  const single = capsServe({
+    "/": { Proxy: "http://127.0.0.1:3000", AcceptAppCaps: ["x/a"] },
+    "/files": { Path: "/srv/files" },
+    "/hi": { Text: "hi" },
+  });
+  const none = capsServe({
+    "/": { Proxy: "http://127.0.0.1:3000" },
+    "/b": { Proxy: "http://127.0.0.1:3001" },
+  });
+  const http = capsServe({
+    "/": { Proxy: "http://127.0.0.1:3000", AcceptAppCaps: ["x/a"] },
+    "/b": { Proxy: "http://127.0.0.1:3001" },
+  }, false);
+  for (const serve of [same, single, none, http]) {
+    assertEquals(serveCapabilityMounts(serve), []);
+  }
+  // Services and foreground sessions are covered too.
+  const svc = { Services: { "svc:web": differ } };
+  assertEquals(serveCapabilityMounts(svc)[0].service, "svc:web");
+  const fg = { Foreground: { "abc": differ } };
+  assertEquals(serveCapabilityMounts(fg).length, 1);
+});
+
+Deno.test("finding 11 is graded below 1.104.4 and cleared at it", () => {
+  const serve = capsServe({
+    "/": { Proxy: "http://127.0.0.1:3000", AcceptAppCaps: ["x/a"] },
+    "/b": { Proxy: "http://127.0.0.1:3001" },
+  });
+  const old = scan(probe({ serve })).status;
+  assertEquals(ids(old), ["serve-http2-capabilities"]);
+  assertEquals(old.exposures[0].severity, "medium");
+  assertEquals(old.exposures[0].findings, ["11"]);
+  assertStringIncludes(
+    old.recommendations.join(" "),
+    "do not authorize on Tailscale-App-Capabilities",
+  );
+  const fixed = scan(
+    probe({ serve }).replace("TSVERSION|1.104.2", "TSVERSION|1.104.4"),
+  ).status;
+  assertEquals(ids(fixed), []);
+});
+
+Deno.test("goBoolTrue matches Go's strconv.ParseBool", () => {
+  for (const v of ["1", "t", "T", "TRUE", "true", "True"]) {
+    assert(goBoolTrue(v));
+  }
+  for (const v of ["yes", "on", "0", "false", "", "2"]) {
+    assertFalse(goBoolTrue(v));
+  }
+  assertFalse(goBoolTrue(undefined));
+});
+
+const SSH_ON = { prefs: { RunSSH: true } };
+
+Deno.test("TS_SSH_DISABLE_FORWARDING in the running daemon blocks findings 1-3", () => {
+  const s = scan(probe({
+    ...SSH_ON,
+    lines: ["TSENVREAD|1", "TSENV|process|TS_SSH_DISABLE_FORWARDING=1"],
+  })).status;
+  assertEquals(s.tailscale.sshForwardingKnob, "running");
+  const e = s.exposures.find((e) => e.id === "ssh-forwarding")!;
+  assertEquals(e.findings, ["5"]);
+  assertEquals(e.severity, "medium");
+  assertStringIncludes(e.detail, "refuses all SSH forwarding");
+  assertFalse(
+    s.recommendations.join(" ").includes("set TS_SSH_DISABLE_FORWARDING=1"),
+  );
+});
+
+Deno.test("TS_SSH_DISABLE_FORWARDING configured but not running waits on a restart", () => {
+  const s = scan(probe({
+    ...SSH_ON,
+    lines: ["TSENVREAD|1", "TSENV|systemd|TS_SSH_DISABLE_FORWARDING=1"],
+  })).status;
+  assertEquals(s.tailscale.sshForwardingKnob, "pending-restart");
+  const e = s.exposures.find((e) => e.id === "ssh-forwarding")!;
+  assertEquals(e.findings, ["1", "2", "3", "5"]);
+  assertStringIncludes(e.detail, "restart tailscaled");
+  assertStringIncludes(
+    s.recommendations.join(" "),
+    "the running tailscaled started without it",
+  );
+});
+
+Deno.test("TS_SSH_DISABLE_FORWARDING without the daemon's environment is unconfirmed", () => {
+  const s = scan(probe({
+    ...SSH_ON,
+    lines: ["TSENV|file|TS_SSH_DISABLE_FORWARDING=true"],
+  })).status;
+  assertEquals(s.tailscale.sshForwardingKnob, "unconfirmed");
+  // Not proven in the running daemon: unknown fails closed.
+  const e = s.exposures.find((e) => e.id === "ssh-forwarding")!;
+  assertEquals(e.findings, ["1", "2", "3", "5"]);
+  assertEquals(e.severity, "high");
+  assertStringIncludes(e.detail, "scan as root to confirm it applies");
+  // mitigate still offers the workaround.
+  const { facts, status } = scan(probe({
+    ...SSH_ON,
+    lines: ["TSENV|file|TS_SSH_DISABLE_FORWARDING=true"],
+  }));
+  assert(
+    planMitigation(status, facts, FWD).steps.some((s) =>
+      s.phase === "forwarding"
+    ),
+  );
+});
+
+Deno.test("TS_SSH_DISABLE_FORWARDING=yes is not honoured by tailscaled", () => {
+  for (const v of ["yes", "on"]) {
+    const s = scan(probe({
+      ...SSH_ON,
+      lines: ["TSENVREAD|1", `TSENV|process|TS_SSH_DISABLE_FORWARDING=${v}`],
+    })).status;
+    assertEquals(s.tailscale.sshForwardingKnob, "off");
+    const e = s.exposures.find((e) => e.id === "ssh-forwarding")!;
+    assertEquals(e.findings, ["1", "2", "3", "5"]);
+    assertStringIncludes(
+      s.recommendations.join(" "),
+      "set TS_SSH_DISABLE_FORWARDING=1 in tailscaled's service environment",
+    );
+  }
+});
+
+Deno.test("the probe reads TS_SSH_DISABLE_FORWARDING and marks a read environ", () => {
+  assertStringIncludes(PROBE_SCRIPT, "TS_SSH_DISABLE_FORWARDING");
+  assertStringIncludes(PROBE_SCRIPT, 'echo "TSENVREAD|1"');
+});
+
+const FWD = { ...DEFAULT_OPTS, disableSshForwarding: true };
+
+Deno.test("disableSshForwarding writes a drop-in and restarts tailscaled last", () => {
+  const { facts, status } = scan(probe(SSH_ON));
+  const { steps } = planMitigation(status, facts, FWD);
+  const fwd = steps.filter((s) => s.phase === "forwarding");
+  assertEquals(fwd.map((s) => s.argv.join(" ")), [
+    "mkdir -p /etc/systemd/system/tailscaled.service.d",
+    `tee /etc/systemd/system/tailscaled.service.d/${SSH_FORWARDING_DROP_IN}`,
+    "systemctl daemon-reload",
+    "systemctl restart tailscaled.service",
+  ]);
+  assertStringIncludes(
+    fwd[1].content!,
+    "Environment=TS_SSH_DISABLE_FORWARDING=1",
+  );
+  assertEquals(
+    steps[steps.length - 1].argv.join(" "),
+    "systemctl restart tailscaled.service",
+  );
+  // Off by default.
+  const off = planMitigation(status, facts, DEFAULT_OPTS);
+  assertFalse(off.steps.some((s) => s.phase === "forwarding"));
+});
+
+Deno.test("disableSshForwarding is skipped where it does not apply", () => {
+  const plan = (text: string, opts = FWD) => {
+    const { facts, status } = scan(text);
+    return planMitigation(status, facts, opts);
+  };
+  const has = (p: ReturnType<typeof plan>) =>
+    p.steps.some((s) => s.phase === "forwarding");
+  // Already running with it, on 1.104.4, or SSH off.
+  assertFalse(has(plan(probe({
+    ...SSH_ON,
+    lines: ["TSENVREAD|1", "TSENV|process|TS_SSH_DISABLE_FORWARDING=1"],
+  }))));
+  assertFalse(has(plan(
+    probe(SSH_ON).replace("TSVERSION|1.104.2", "TSVERSION|1.104.4"),
+  )));
+  assertFalse(has(plan(probe({}))));
+  // Turning SSH off makes it moot.
+  const both = plan(probe(SSH_ON), { ...FWD, disableTailscaleSsh: true });
+  assertFalse(has(both));
+  assertStringIncludes(
+    both.notes.join(" "),
+    "TS_SSH_DISABLE_FORWARDING was not set",
+  );
+  // Not its own systemd unit: a note instead.
+  const shared = plan(
+    probe(SSH_ON).replace(
+      "CGROUP|/system.slice/tailscaled.service",
+      "CGROUP|/user.slice/session-1.scope",
+    ),
+  );
+  assertFalse(has(shared));
+  assertStringIncludes(shared.notes.join(" "), "own systemd unit");
+});
+
+Deno.test("mitigate keeps the earlier scan when tailscaled does not answer after the restart", async () => {
+  const before = probe(SSH_ON);
+  const down = before.replace(
+    JSON.stringify({ RunSSH: true }, null, 2),
+    "",
+  );
+  let polls = 0;
+  const { run } = fakeRunner([before, down], (cmd) => {
+    if (cmd.startsWith("tailscale status --json")) {
+      polls++;
+      return { stdout: "", stderr: "", exitCode: 1 };
+    }
+    return { stdout: "", stderr: "", exitCode: 0 };
+  });
+  const { status, mitigation } = await mitigateTarget(run, "h", {
+    ...FWD,
+    dryRun: false,
+    inContainer: false,
+    restartWait: { tries: 3, intervalMs: 1 },
+  }, memLog());
+  assertEquals(polls, 3);
+  assertEquals(mitigation.outcome, "applied");
+  assert(ids(status).includes("ssh-forwarding"));
+  assertStringIncludes(mitigation.notes.join(" "), "tailscaled did not answer");
+});
+
+Deno.test("mitigate notes a connection dropped by the tailscaled restart", async () => {
+  const before = probe(SSH_ON);
+  const after = probe({
+    ...SSH_ON,
+    lines: ["TSENVREAD|1", "TSENV|process|TS_SSH_DISABLE_FORWARDING=1"],
+  });
+  const { run } = fakeRunner([before, after], (cmd) => ({
+    stdout: "",
+    stderr: "",
+    exitCode: cmd.includes("systemctl restart") ? 255 : 0,
+  }));
+  const { status, mitigation } = await mitigateTarget(run, "h", {
+    ...FWD,
+    dryRun: false,
+    inContainer: false,
+    restartWait: { tries: 2, intervalMs: 1 },
+  }, memLog());
+  assertEquals(mitigation.outcome, "partial");
+  assertStringIncludes(mitigation.notes.join(" "), "The connection dropped");
+  // The daemon answered the rescan: its status is used.
+  assertEquals(status.tailscale.sshForwardingKnob, "running");
 });

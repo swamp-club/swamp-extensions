@@ -5,32 +5,37 @@ Tailscale v1.104.2 and headscale v0.29.5 published at
 [tailworm.com](https://tailworm.com) on **2026-10-24** by Erica Windisch
 (Cyberdione Labs).
 
-The findings were reproduced in a lab, not seen in the wild. When this
-extension was written, no CVE or Tailscale security bulletin had been issued
-and no fixed release existed. The extension checks for the exposures the
-report describes and applies the report's interim operator mitigations.
+The findings were reproduced in a lab, not seen in the wild. On 2026-10-26
+Tailscale published bulletins
+[TS-2026-014 to 017](https://tailscale.com/security-bulletins), and
+Tailscale **1.104.4** fixes findings 1–3, 5, 7, 8 and 11. Findings 4, 9 and
+10 have no fixed release. The extension checks each finding against its own
+fix, so a host on 1.104.4 is still flagged for an app connector or funnel. It
+also applies the report's interim operator mitigations and Tailscale's
+`TS_SSH_DISABLE_FORWARDING` workaround.
 
-| # | Component | What breaks | Severity (report) |
-| --- | --- | --- | --- |
-| 1–3 | Tailscale SSH | `ssh -L`/`-R` unix-socket forwarding runs as root in `tailscaled`. A rename race defeats the `{home, /tmp, /run/user}` allowlist, so an admitted device reaches `docker.sock`, `/run/systemd/private` or `tailscaled.sock` as root, or deletes and chmods root files | High |
-| 4 | conn25 app connectors | The client picks the egress destination with no validation or ACL check, including cloud metadata and every Kubernetes service | High |
-| 5 | Tailscale SSH (gliderssh) | One session grows root `tailscaled`'s memory without bound | High |
-| 6 | headscale | Unauthenticated memory exhaustion; 1024 tiny registrations evict pending approvals | Medium-High |
-| 7 | `tailscale serve` | `serve --tcp <port> unix:/run/tailscale/tailscaled.sock` gives remote peers read/write localapi access (node takeover) | High |
-| 8 | `tailscale serve` | The unix-proxy guard runs at config time only, so a later symlink swap gets a root dial of any socket | Medium |
-| 9 | Funnel | The funnel node attribute is enforced only by the CLI | Medium |
-| 10 | `TS_SERVE_ALLOW_ALL_INTERFACES` | Serve listeners are not bound to the tunnel interface | Config note |
-| 11 | serve over HTTP/2 | A shared context leaks capability headers between mounts | Medium |
+| # | Component | What breaks | Severity (report) | Fixed in |
+| --- | --- | --- | --- | --- |
+| 1–3 | Tailscale SSH | `ssh -L`/`-R` unix-socket forwarding runs as root in `tailscaled`. A rename race defeats the `{home, /tmp, /run/user}` allowlist, so an admitted device reaches `docker.sock`, `/run/systemd/private` or `tailscaled.sock` as root, or deletes and chmods root files | High | 1.104.4 (TS-2026-014) |
+| 4 | conn25 app connectors | The client picks the egress destination with no validation or ACL check, including cloud metadata and every Kubernetes service | High | Not fixed (partial fix on Tailscale's main branch, unreleased) |
+| 5 | Tailscale SSH (gliderssh) | One session grows root `tailscaled`'s memory without bound | High | 1.104.4 (TS-2026-015) |
+| 6 | headscale | Unauthenticated memory exhaustion; 1024 tiny registrations evict pending approvals | Medium-High | Graded on headscale's own limits and exposure |
+| 7 | `tailscale serve` | `serve --tcp <port> unix:/run/tailscale/tailscaled.sock` gives remote peers read/write localapi access (node takeover) | High | 1.104.4 (TS-2026-016) |
+| 8 | `tailscale serve` | The unix-proxy guard runs at config time only, so a later symlink swap gets a root dial of any socket | Medium | 1.104.4 (TS-2026-016) |
+| 9 | Funnel | The funnel node attribute is enforced only by the CLI | Medium | Not fixed |
+| 10 | `TS_SERVE_ALLOW_ALL_INTERFACES` | Serve listeners are not bound to the tunnel interface | Config note | Not fixed (a documented setting) |
+| 11 | serve over HTTP/2 | A shared context leaks capability headers between mounts | Medium | 1.104.4 (TS-2026-017) |
 
 The report's "worm" is a lab measurement: with policy-granted Tailscale SSH,
 findings 1–3 spread automatically to every device the policy permits, in
 under a second per hop. Per-pair SSH grants were the only control that
 stopped it.
 
-Hosts on Tailscale builds older than 1.104.2 are also checked against the
-2026 bulletins they still miss (TS-2026-004 to 011 and 013). TS-2026-004 and
-005 are earlier fixes for the same unix-socket class that findings 3, 7 and
-8 bypass.
+Every host is also checked against the 2026 bulletins its build misses
+(TS-2026-004 to 011 and 013 to 017). TS-2026-004 and 005 are earlier fixes
+for the same unix-socket class that findings 3, 7 and 8 bypass. TS-2026-014
+to 017 are graded through the checks below, which see whether the node uses
+the affected feature; a build without them is always told to upgrade.
 
 ## Installation
 
@@ -45,7 +50,7 @@ nothing else.
 
 | Check | How | Finding |
 | --- | --- | --- |
-| Tailscale version | The running daemon's version from `tailscale status --json` (the CLI's when the daemon does not answer), compared with `fixedVersion` and the 2026 bulletins | all |
+| Tailscale version | The running daemon's version from `tailscale status --json` (the CLI's when the daemon does not answer), compared with each finding's fixed release and the 2026 bulletins | all |
 | Tailscale SSH enabled | `RunSSH` in `tailscale debug prefs` | 1–3, 5 |
 | The SSH rules this node enforces | The `SSHPolicy` of `tailscale debug netmap`: how many devices are admitted, whether root is allowed, and whether forwarding is granted. Only that key is read; peers, keys and packet filters stay on the host (the packet filter is read only with `includeReachability`). **Needs root or the operator user** | 1–3, 5 |
 | Self-hosted control (headscale) | `ControlURL` is not Tailscale's | 1–3 |
@@ -54,6 +59,8 @@ nothing else.
 | Other unix serve targets | The same config: TCP forwards and HTTP proxies to other `unix:` paths | 8 |
 | App connector, conn25 | `AppConnector.Advertise` in prefs; conn25 capabilities or environment | 4 |
 | Funnel | `AllowFunnel` in the serve config | 9 |
+| HTTPS mounts with different app capabilities | Two or more proxy handlers on one HTTPS port whose `AcceptAppCaps` differ (a mount with none counts). Only proxies send `Tailscale-App-Capabilities` | 11 |
+| `TS_SSH_DISABLE_FORWARDING` | Tailscale's workaround for findings 1–3, from the same places as below. Only the running daemon's environment proves it applies, because `tailscaled` reads it at start; a value only in the unit or defaults file is reported as waiting for a restart, and without root (no `/proc/<pid>/environ`) as unconfirmed. Only a value in the running daemon lowers the grade. Values are read as Go does: `1`, `t`, `true` count, `yes` and `on` do not | 1–3 |
 | `TS_SERVE_ALLOW_ALL_INTERFACES` | `tailscaled`'s process environment, its systemd unit, and `/etc/default` | 10 |
 | Node key expiry | `KeyExpiry` missing from `Self` while logged in | containment |
 | headscale | Version, `listen_addr` from the config, the unit's `MemoryMax` and `Restart` | 6 |
@@ -77,13 +84,16 @@ When the scan can read the node's SSH rules:
 | Forwarding denied on every rule | medium: finding 5 only |
 | Forwarding granted, or check-mode rules, which decide it after the check | high |
 | The same, plus root logins, any source, or a self-hosted control server | critical |
+| Any of the above with `TS_SSH_DISABLE_FORWARDING` in the running `tailscaled` | medium: finding 5 only. Configured but not proven in the running daemon (no restart yet, or a scan without root) keeps the grade above, with a note |
+| Tailscale 1.104.4 or later | not flagged |
 
 headscale 0.29.5 grants local and remote forwarding on every accepted SSH
 session, whatever the policy says. This was confirmed against a real
 headscale: a policy granting only `autogroup:nonroot` arrived on the node with
 `allowLocalPortForwarding` and `allowRemotePortForwarding` set. Without root,
 the rules cannot be read, and the grade stays high (critical on a self-hosted
-control server).
+control server). `TS_SSH_DISABLE_FORWARDING` is read by `tailscaled` itself,
+so it blocks forwarding under headscale too.
 
 ### Forensic signatures (Linux)
 
@@ -107,7 +117,7 @@ check needs root (`ss -xlp`). On macOS the signatures are not checked.
 | `grade` | Grade probe output collected through another exec channel (KubeVirt guest agent, `kubectl exec`) |
 | `gradeFleet` | Grade many hosts' probe output in one call, into one fleet report |
 | `probeScript` | Store the probe script, compressed, and as one `sh` command line, for another transport to run |
-| `mitigate` | Scan, then apply the interim mitigations on exposed hosts. `dryRun` defaults to `true` |
+| `mitigate` | Scan, then apply the interim mitigations on exposed hosts, and optionally Tailscale's `TS_SSH_DISABLE_FORWARDING` workaround. `dryRun` defaults to `true` |
 
 ## Usage
 
@@ -348,12 +358,16 @@ changed.
 | Audit socket operations (findings 1–3) | `tee /etc/audit/rules.d/tailworm.rules`, then `augenrules --load` (or `auditctl -R`) | SSH exposure, auditd installed. Rules are scoped to the `tailscaled` binary; search with `ausearch -k tailworm` |
 | Cap headscale (finding 6) | drop-in `/etc/systemd/system/headscale.service.d/50-tailworm.conf` (`MemoryMax`, `Restart=always`), `systemctl daemon-reload`, `systemctl set-property --runtime headscale.service MemoryMax=…` | `headscale.service` is loaded without a memory limit or with `Restart` not `always` |
 | Turn Tailscale SSH off | `tailscale set --ssh=false` | Only with `disableTailscaleSsh=true`. Planned last, because it drops sessions over Tailscale SSH, including one swamp connects over |
-| Stop advertising the app connector | `tailscale set --advertise-connector=false` | Only with `disableAppConnector=true` |
+| Stop advertising the app connector | `tailscale set --advertise-connector=false` | Only with `disableAppConnector=true`, on any version: finding 4 has no fix |
+| Disable Tailscale SSH forwarding (findings 1–3) | drop-in `/etc/systemd/system/<tailscaled unit>.d/51-tailworm-ssh-forwarding.conf` (`Environment=TS_SSH_DISABLE_FORWARDING=1`), `systemctl daemon-reload`, `systemctl restart <tailscaled unit>` | Only with `disableSshForwarding=true`, when forwarding is graded open on a build below 1.104.4 and `tailscaled` runs in its own systemd unit (a note otherwise). The restart drops every tailnet connection, including one swamp connects over, so it runs last; a connection that drops then is noted. Skipped, with a note, when `disableTailscaleSsh` turns SSH off. Remove the drop-in after upgrading if forwarding is needed |
 
 Each step's exit code and output are recorded. A failed step stops the rest
 of its phase, because those steps build on it (each serve forward is
 independent), and the outcome is `partial`. Every host is rescanned after
-applying, and that rescan is what gets stored.
+applying, and that rescan is what gets stored. After a `tailscaled` restart,
+mitigate waits up to 30 seconds for the daemon to answer before rescanning; if
+it still does not, the scan from before mitigation is kept with a note, so a
+host is never graded clean on a daemon that did not answer.
 
 DNS is not filtered: the forward chain lets TCP and UDP port 53 through, and
 the cgroup rule blocks only TCP and exempts port 53, so cloud resolvers on
@@ -419,7 +433,9 @@ ops ALL=(root) NOPASSWD: /usr/bin/tee /etc/tailworm-egress.nft, \
 Some commands depend on the host, so take them from its dry run: `tailscale
 serve --tcp=<port> off` for each forward to the localapi, `tailscale serve
 --https=<port> --set-path=<mount> off` for each HTTP proxy to it, the headscale steps,
-and the opt-in `tailscale set` steps. sudoers needs `=` escaped inside
+the opt-in `tailscale set` steps, and the opt-in forwarding steps
+(`tee` of the `51-tailworm-ssh-forwarding.conf` drop-in and `systemctl
+restart` of the `tailscaled` unit). sudoers needs `=` escaped inside
 arguments, for example `/usr/bin/tailscale serve --tcp\=8443 off` and
 `/usr/bin/systemctl set-property --runtime headscale.service MemoryMax\=2G`.
 
@@ -447,7 +463,7 @@ missing privileges.
 | `sshKey` | — | Path to the SSH private key |
 | `dockerContainer` | — | Container name or ID to scan (overrides `targetHost`) |
 | `dockerImage` | — | Image to start, scan and remove |
-| `fixedVersion` | — | First Tailscale release that fixes Tailworm, once one ships (e.g. `1.104.4`). Hosts at or above it are not flagged for the code findings |
+| `fixedVersion` | `1.104.4` | A later Tailscale release to require for findings 1–3, 5, 7, 8 and 11, if Tailscale re-issues the fix. A value below 1.104.4 is ignored. Findings 4, 9 and 10 are graded on every version |
 
 ### Method inputs
 
@@ -470,6 +486,7 @@ missing privileges.
 | `mitigate` | `headscaleMemoryMax` | `2G` | `MemoryMax` for `headscale.service` |
 | `mitigate` | `disableTailscaleSsh` | `false` | Turn Tailscale SSH off |
 | `mitigate` | `disableAppConnector` | `false` | Stop advertising the node as an app connector |
+| `mitigate` | `disableSshForwarding` | `false` | Set `TS_SSH_DISABLE_FORWARDING=1` for `tailscaled` and restart it |
 
 ## Reports
 
@@ -489,25 +506,21 @@ missing privileges.
 
 The report's commands name the behavior that ran, so they work as printed.
 
-## When Tailscale ships a fix
+## Upgrading to the fixed release
 
-Re-scan with the fixed release as `fixedVersion`:
-
-```bash
-swamp behavior create @swamp/cve/tailworm tailworm-fleet \
-  --global-arg fixedVersion=<fixed release> ...
-```
-
-Hosts at or above it are no longer flagged for the code findings. The
-configuration findings (`TS_SERVE_ALLOW_ALL_INTERFACES`, node key expiry,
-headscale exposure) still are. Once a version of this extension carries the
-fixed release by default, pull it and drop the argument.
+Upgrade Tailscale to 1.104.4 or later and re-scan. Hosts on it are no longer
+flagged for findings 1–3, 5, 7, 8 and 11. They are still flagged for an app
+connector or conn25 (finding 4) and funnel (finding 9), which have no fix,
+and for the configuration findings (`TS_SERVE_ALLOW_ALL_INTERFACES`, node key
+expiry, headscale exposure): keep those mitigations in place. Until a host
+can be upgraded, `mitigate` with `disableSshForwarding=true` applies
+Tailscale's workaround for findings 1–3.
 
 ## Limits
 
-- The findings are one researcher's, reproduced in a lab and not confirmed by
-  Tailscale. Risk levels follow the report and may change when Tailscale
-  publishes its own assessment.
+- The findings are one researcher's, reproduced in a lab. Tailscale's
+  bulletins confirm findings 1–3, 5, 7, 8 and 11 but give no severity, so
+  risk levels follow the report.
 - The SSH rules are this node's view: they show who can reach this node, not
   the whole policy. Scan every SSH-enabled node to cover the tailnet.
 - Reachability is the compiled policy as each node received it, not a live

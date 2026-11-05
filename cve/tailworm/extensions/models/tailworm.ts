@@ -72,7 +72,7 @@ type MethodContext = {
 
 // --- Advisory data -----------------------------------------------------------
 
-/** The Tailworm report: no CVEs or vendor bulletin had been issued for it. */
+/** The Tailworm report, and the Tailscale bulletins that answered it. */
 export const ADVISORY = {
   name: "Tailworm",
   url: "https://tailworm.com",
@@ -83,18 +83,35 @@ export const ADVISORY = {
 };
 
 /**
- * First Tailscale release that fixes the Tailworm findings. None had shipped
- * when this was written; set it here (or with the fixedVersion global
- * argument) once Tailscale publishes one.
+ * The Tailscale release that fixes the Tailworm findings Tailscale fixed:
+ * TS-2026-014 to 017, published 2026-10-26, cover findings 1-3, 5, 7, 8 and
+ * 11. Each code exposure is graded against its own finding, so a host at or
+ * above this release is still flagged for the findings that stay open.
  */
-export const FIXED_TAILSCALE_VERSION: string | null = null;
+export const TAILWORM_FIX = {
+  version: "1.104.4",
+  findings: ["1", "2", "3", "5", "7", "8", "11"],
+};
 
-/** Earlier 2026 Tailscale bulletins a client build can still be missing. */
+/**
+ * Tailscale findings no release fixes. Finding 4 (conn25) is partly fixed on
+ * Tailscale's main branch, unreleased; 9 (funnel) is open; 10 is a documented
+ * knob. Finding 6 is headscale's, graded on its own.
+ */
+export const UNFIXED_FINDINGS = ["4", "9", "10"];
+
+/**
+ * 2026 Tailscale bulletins a client build can still be missing. The Tailworm
+ * ones (tailworm: true) are graded through the code exposures, which see
+ * whether the node uses the feature, so they do not count toward the
+ * older-bulletins exposure.
+ */
 export const BULLETINS: {
   id: string;
   fixed: string;
   severity: "critical" | "high" | "medium";
   title: string;
+  tailworm?: boolean;
 }[] = [
   {
     id: "TS-2026-004",
@@ -150,7 +167,59 @@ export const BULLETINS: {
     severity: "medium",
     title: "Leaked private keys for eMudhra TLS intermediate certificates",
   },
+  {
+    id: "TS-2026-014",
+    fixed: "1.104.4",
+    severity: "critical",
+    title:
+      "Tailscale SSH unix socket forwarding could grant peers access to root-only sockets",
+    tailworm: true,
+  },
+  {
+    id: "TS-2026-015",
+    fixed: "1.104.4",
+    severity: "high",
+    title: "Memory exhaustion in Tailscale SSH session handling",
+    tailworm: true,
+  },
+  {
+    id: "TS-2026-016",
+    fixed: "1.104.4",
+    severity: "critical",
+    title:
+      "tailscale serve unix backends could reach privileged sockets, including the tailscaled local API socket",
+    tailworm: true,
+  },
+  {
+    id: "TS-2026-017",
+    fixed: "1.104.4",
+    severity: "medium",
+    title:
+      "HTTP/2 shared serve context could send the wrong Tailscale-App-Capabilities values across mounts",
+    tailworm: true,
+  },
 ];
+
+/**
+ * The release that fixes a Tailworm finding Tailscale fixed: the later of
+ * TAILWORM_FIX and the fixedVersion argument, so the argument can only move
+ * the fix later (a re-issued release), never mark a vulnerable build fixed.
+ */
+export function tailwormFixVersion(fixedVersion?: string): string {
+  return fixedVersion &&
+      compareVersions(fixedVersion, TAILWORM_FIX.version) > 0
+    ? fixedVersion
+    : TAILWORM_FIX.version;
+}
+
+/**
+ * Go's strconv.ParseBool true values: tailscaled reads its boolean knobs
+ * through envknob, so "yes" or "on" leave the knob off.
+ */
+export function goBoolTrue(v: string | undefined): boolean {
+  return v !== undefined &&
+    ["1", "t", "T", "TRUE", "true", "True"].includes(v.trim());
+}
 
 /** Where mitigate writes its files on the target. */
 export const NFT_FILE = "/etc/tailworm-egress.nft";
@@ -177,6 +246,20 @@ export function tailscaledDropIn(nft: string, withCgroup: boolean): string {
     "[Service]",
     `ExecStartPost=-${nft} -f ${NFT_FILE}`,
     ...(withCgroup ? [`ExecStartPost=-${nft} -f ${NFT_CGROUP_FILE}`] : []),
+  ].join("\n") + "\n";
+}
+
+/** mitigate's drop-in for tailscaled that sets TS_SSH_DISABLE_FORWARDING. */
+export const SSH_FORWARDING_DROP_IN = "51-tailworm-ssh-forwarding.conf";
+
+export function sshForwardingDropIn(): string {
+  return [
+    "# Written by @swamp/cve/tailworm: Tailscale's workaround for findings",
+    "# 1-3 (TS-2026-014). tailscaled refuses all Tailscale SSH forwarding.",
+    "# Remove after upgrading to Tailscale 1.104.4 or later if forwarding is",
+    "# needed.",
+    "[Service]",
+    "Environment=TS_SSH_DISABLE_FORWARDING=1",
   ].join("\n") + "\n";
 }
 
@@ -220,7 +303,7 @@ const GlobalArgsSchema = z.object({
     .regex(/^\d+\.\d+\.\d+$/)
     .optional()
     .describe(
-      "First Tailscale release that fixes Tailworm, once Tailscale publishes one (e.g. 1.104.4). Hosts at or above it are not flagged for the code findings.",
+      "A later Tailscale release to require for the findings Tailscale fixed (1-3, 5, 7, 8, 11), if it re-issues the fix. The built-in 1.104.4 is used when this is lower or unset. Findings 4, 9 and 10 have no fix and are graded on every version.",
     ),
 });
 
@@ -357,6 +440,8 @@ const MitigationOptionsSchema = z.object({
   headscaleMemoryMax: z.string(),
   disableTailscaleSsh: z.boolean(),
   disableAppConnector: z.boolean(),
+  // Absent from statuses written before 2026.11.05.2.
+  disableSshForwarding: z.boolean().default(false),
 });
 
 const MitigationSchema = z.object({
@@ -377,6 +462,7 @@ const MitigationSchema = z.object({
     phase: z.enum([
       "serve",
       "ssh",
+      "forwarding",
       "connector",
       "egress",
       "audit",
@@ -410,6 +496,10 @@ const StatusSchema = z.object({
     url: z.string(),
     published: z.string(),
     fixedVersion: z.string().nullable(),
+    // The findings fixedVersion covers; absent before 2026.11.05.2.
+    fixedFindings: z.array(z.string()).default([]),
+    // Tailscale findings no release fixes; absent before 2026.11.05.2.
+    unfixedFindings: z.array(z.string()).default([]),
   }),
   tailscale: z.object({
     installed: z.boolean(),
@@ -426,6 +516,16 @@ const StatusSchema = z.object({
     conn25: z.boolean(),
     funnel: z.boolean(),
     serveAllInterfaces: z.boolean(),
+    // TS_SSH_DISABLE_FORWARDING=1, Tailscale's workaround for findings 1-3:
+    // "running" in the daemon's environment; "pending-restart" configured
+    // but not in the running daemon; "unconfirmed" configured, and the
+    // daemon's environment could not be read. Absent before 2026.11.05.2.
+    sshForwardingKnob: z
+      .enum(["off", "running", "pending-restart", "unconfirmed"])
+      .default("off"),
+    // Findings this node's Tailscale version leaves open; absent before
+    // 2026.11.05.2.
+    unfixedFindings: z.array(z.string()).default([]),
     keyExpiry: z.string().nullable(),
     keyExpiryDisabled: z.boolean(),
     tcpForwards: z.array(ForwardSchema),
@@ -565,7 +665,7 @@ exec 2>/dev/null
 # A non-root login on Debian has no sbin in PATH, where nft, auditctl and
 # tailscaled live.
 PATH="$PATH:/usr/local/sbin:/usr/sbin:/sbin"; export PATH
-names='(TS_SERVE_ALLOW_ALL_INTERFACES|TS_[A-Z0-9_]*CONN25[A-Z0-9_]*)'
+names='(TS_SERVE_ALLOW_ALL_INTERFACES|TS_SSH_DISABLE_FORWARDING|TS_[A-Z0-9_]*CONN25[A-Z0-9_]*)'
 ${ROOTPROC_SH}
 echo "PROBE|${PROBE_FORMAT}"
 echo "HOSTNAME|$(hostname || cat /etc/hostname)"
@@ -632,7 +732,7 @@ if [ -n "$pid" ]; then
   echo "TSDPID|$pid"
   sed -n 's/^0::/CGROUP|/p' "/proc/$pid/cgroup"
   e=$(readlink "/proc/$pid/exe") && echo "TSDEXE|$e"
-  if [ -r "/proc/$pid/environ" ]; then tr '\\0' '\\n' < "/proc/$pid/environ" | grep -E "^$names=" | sed 's/^/TSENV|process|/'; fi
+  if [ -r "/proc/$pid/environ" ]; then echo "TSENVREAD|1"; tr '\\0' '\\n' < "/proc/$pid/environ" | grep -E "^$names=" | sed 's/^/TSENV|process|/'; fi
 fi
 if command -v systemctl >/dev/null; then
   systemctl show tailscaled.service -p Environment --value | tr ' ' '\\n' | grep -E "^$names=" | sed 's/^/TSENV|systemd|/'
@@ -712,6 +812,10 @@ export type ProbeFacts = {
   /** The --socket each tailscaled instance was started with. */
   tailscaledSockets: string[];
   env: Record<string, string>;
+  /** The same variables, by where they were read. */
+  envBySource: Record<"process" | "systemd" | "file", Record<string, string>>;
+  /** The root tailscaled's /proc environ was read (TSENVREAD). */
+  envProcessRead: boolean;
   tunInterfaces: string[];
   tsSockets: { path: string; mode: string; uid: string }[];
   rootSockets: { path: string; mode: string }[];
@@ -804,6 +908,8 @@ export function parseProbe(text: string): ProbeFacts {
     tailscaledExe: null,
     tailscaledSockets: [],
     env: {},
+    envBySource: { process: {}, systemd: {}, file: {} },
+    envProcessRead: false,
     tunInterfaces: [],
     tsSockets: [],
     rootSockets: [],
@@ -899,8 +1005,15 @@ export function parseProbe(text: string): ProbeFacts {
         const eq = kv.indexOf("=");
         if (eq > 0) {
           const key = kv.slice(0, eq);
+          const value = kv.slice(eq + 1).replace(/^["']|["']$/g, "");
           if (fields[0] === "process" || !(key in facts.env)) {
-            facts.env[key] = kv.slice(eq + 1).replace(/^["']|["']$/g, "");
+            facts.env[key] = value;
+          }
+          const src = fields[0];
+          if (src === "process" || src === "systemd" || src === "file") {
+            if (!(key in facts.envBySource[src])) {
+              facts.envBySource[src][key] = value;
+            }
           }
         }
         break;
@@ -928,6 +1041,9 @@ export function parseProbe(text: string): ProbeFacts {
         break;
       case "SSCHECKED":
         facts.listenersChecked = true;
+        break;
+      case "TSENVREAD":
+        facts.envProcessRead = true;
         break;
       case "TSLISTEN": {
         const p = listenerPath(rest);
@@ -1116,6 +1232,55 @@ export function serveWebProxies(
 /** Every web handler that proxies to a unix socket ("unix:/path"). */
 export function serveUnixProxies(serve: Obj | null): string[] {
   return [...new Set(serveWebProxies(serve).map((p) => p.target))];
+}
+
+/**
+ * Serve sites where finding 11 (TS-2026-017) applies: an HTTPS port with two
+ * or more proxy mounts that forward different app capabilities. Tailscale
+ * adds Tailscale-App-Capabilities only when it proxies, and a shared HTTP/2
+ * context could send one mount's value to another, including to a mount
+ * that forwards none. Returned as "host:port" with the mounts.
+ */
+export function serveCapabilityMounts(
+  serve: Obj | null,
+): { site: string; service: string | null; mounts: string[] }[] {
+  const out: { site: string; service: string | null; mounts: string[] }[] = [];
+  const fromWeb = (conf: Obj, service: string | null) => {
+    for (const [hostPort, site] of Object.entries(obj(conf.Web))) {
+      const port = hostPort.match(/:(\d+)$/)?.[1];
+      if (!port || obj(obj(conf.TCP)[port]).HTTPS !== true) continue;
+      const proxies = Object.entries(obj(obj(site).Handlers)).filter((
+        [, h],
+      ) => typeof obj(h).Proxy === "string" && obj(h).Proxy !== "");
+      const caps = proxies.map(([, h]) => {
+        const c = obj(h).AcceptAppCaps;
+        return Array.isArray(c)
+          ? [...new Set(c.filter((x) => typeof x === "string"))].sort()
+            .join("\n")
+          : "";
+      });
+      if (
+        proxies.length >= 2 && caps.some((c) => c !== "") &&
+        new Set(caps).size > 1
+      ) {
+        out.push({
+          site: hostPort,
+          service,
+          mounts: proxies.map(([m]) => m),
+        });
+      }
+    }
+  };
+  if (!serve) return out;
+  const fromConf = (conf: Obj) => {
+    fromWeb(conf, null);
+    for (const [name, svc] of Object.entries(obj(conf.Services))) {
+      fromWeb(obj(svc), name);
+    }
+  };
+  fromConf(serve);
+  for (const fg of Object.values(obj(serve.Foreground))) fromConf(obj(fg));
+  return out;
 }
 
 function funnelEnabled(serve: Obj | null): boolean {
@@ -1417,6 +1582,28 @@ function maxRisk(levels: RiskLevelT[]): RiskLevelT {
   );
 }
 
+export type SshForwardingKnob =
+  | "off"
+  | "running"
+  | "pending-restart"
+  | "unconfirmed";
+
+/**
+ * Where TS_SSH_DISABLE_FORWARDING stands. tailscaled reads it once, at
+ * start, so only the running daemon's environment proves it applies; a value
+ * in the unit or defaults file it did not start with waits on a restart.
+ */
+export function forwardingKnob(facts: ProbeFacts): SshForwardingKnob {
+  const key = "TS_SSH_DISABLE_FORWARDING";
+  const configured = goBoolTrue(facts.envBySource.systemd[key]) ||
+    goBoolTrue(facts.envBySource.file[key]);
+  if (facts.envProcessRead) {
+    if (goBoolTrue(facts.envBySource.process[key])) return "running";
+    return configured ? "pending-restart" : "off";
+  }
+  return configured ? "unconfirmed" : "off";
+}
+
 /**
  * The Tailscale SSH exposure, graded by the rules this node enforces when
  * they could be read. Findings 1-3 need forwarding; finding 5 needs only a
@@ -1426,6 +1613,7 @@ function sshExposure(
   p: SshPolicy,
   controlURL: string | null,
   netmapOk: boolean,
+  knob: SshForwardingKnob = "off",
 ): Exposure {
   const selfHosted = controlURL !== null && !SAAS_CONTROL.test(controlURL);
   const base = {
@@ -1434,6 +1622,39 @@ function sshExposure(
     title:
       "Tailscale SSH runs unix-socket forwarding as root (ssh -L/-R, TOCTOU race, session memory growth)",
   };
+  const admitsNobody = p.readable && p.acceptRules + p.checkRules === 0;
+  if (!admitsNobody && knob === "running") {
+    // tailscaled refuses every -L and -R forward, TCP and unix, whatever
+    // the policy or control server grants.
+    return {
+      ...base,
+      findings: ["5"],
+      severity: "medium",
+      detail:
+        "TS_SSH_DISABLE_FORWARDING is set in the running tailscaled, which refuses all SSH forwarding: findings 1-3 are blocked. Any admitted session can still grow tailscaled's memory (finding 5) until Tailscale 1.104.4.",
+    };
+  }
+  // Configured but not proven in the running daemon: unknown fails closed,
+  // so the policy grade stands.
+  const note = knob === "pending-restart"
+    ? " TS_SSH_DISABLE_FORWARDING is configured but the running tailscaled did not start with it: restart tailscaled."
+    : knob === "unconfirmed"
+    ? " TS_SSH_DISABLE_FORWARDING is configured for tailscaled, but its running environment could not be read: scan as root to confirm it applies."
+    : "";
+  const withPending = (e: Exposure): Exposure =>
+    note ? { ...e, detail: e.detail + note } : e;
+  return withPending(
+    sshExposureByPolicy(p, base, selfHosted, controlURL, netmapOk),
+  );
+}
+
+function sshExposureByPolicy(
+  p: SshPolicy,
+  base: { id: string; findings: string[]; title: string },
+  selfHosted: boolean,
+  controlURL: string | null,
+  netmapOk: boolean,
+): Exposure {
   if (!p.readable) {
     // Unknown fails closed. Only an explicit "SSHPolicy": null means no
     // rules: a netmap that answered but yielded no parseable block (a format
@@ -1493,7 +1714,7 @@ export function analyze(
 ): Status {
   const prefs = facts.prefs ?? {};
   const self = obj(facts.status?.Self);
-  const fixedVersion = opts.fixedVersion ?? FIXED_TAILSCALE_VERSION;
+  const fixedVersion = tailwormFixVersion(opts.fixedVersion);
   const tsInstalled = facts.tsVersion !== null || !!facts.tools["tailscaled"];
   // The daemon is what runs; a package upgrade can leave the CLI ahead of it.
   const cliVersion = parseVersion(facts.tsVersion)
@@ -1505,8 +1726,12 @@ export function analyze(
     : null;
   const version = daemonVersion ?? cliVersion;
   const sshPolicy = summarizeSshPolicy(facts.sshPolicy);
-  const patched = !!(version && fixedVersion &&
-    compareVersions(version, fixedVersion) >= 0);
+  // At or above the release that fixes the findings Tailscale fixed. The
+  // others (UNFIXED_FINDINGS) are graded on every version.
+  const patched = !!(version && compareVersions(version, fixedVersion) >= 0);
+  const unfixedFindings = tsInstalled
+    ? [...(patched ? [] : TAILWORM_FIX.findings), ...UNFIXED_FINDINGS]
+    : [];
   const controlURL = typeof prefs.ControlURL === "string" && prefs.ControlURL
     ? prefs.ControlURL
     : null;
@@ -1518,6 +1743,8 @@ export function analyze(
     Object.keys(facts.env).some((k) => /CONN25/.test(k));
   const funnel = funnelEnabled(facts.serve);
   const serveAllInterfaces = truthy(facts.env.TS_SERVE_ALLOW_ALL_INTERFACES);
+  const sshForwardingKnob = forwardingKnob(facts);
+  const capabilityMounts = serveCapabilityMounts(facts.serve);
   const running = facts.status?.BackendState === "Running";
   const keyExpiry = typeof self.KeyExpiry === "string" ? self.KeyExpiry : null;
   const keyExpiryDisabled = running && keyExpiry === null;
@@ -1566,6 +1793,8 @@ export function analyze(
   const missingBulletins = version
     ? BULLETINS.filter((b) => compareVersions(version, b.fixed) < 0)
     : [];
+  // The Tailworm bulletins are graded through the code exposures below.
+  const olderBulletins = missingBulletins.filter((b) => !b.tailworm);
 
   const hsLoaded = facts.hsUnit.LoadState === "loaded";
   const hsInstalled = facts.hsVersion !== null || hsLoaded;
@@ -1575,9 +1804,12 @@ export function analyze(
   const publicListen = listenAddr !== null && isPublicListen(listenAddr);
 
   const exposures: Exposure[] = [];
+  // Findings 1-3, 5, 7, 8 and 11: fixed in TAILWORM_FIX.version.
   if (tsInstalled && !patched) {
     if (sshEnabled) {
-      exposures.push(sshExposure(sshPolicy, controlURL, facts.netmapOk));
+      exposures.push(
+        sshExposure(sshPolicy, controlURL, facts.netmapOk, sshForwardingKnob),
+      );
     }
     for (const f of tcpForwards.filter((f) => f.localapi)) {
       exposures.push({
@@ -1628,6 +1860,22 @@ export function analyze(
         }`,
       });
     }
+    for (const c of capabilityMounts) {
+      exposures.push({
+        id: "serve-http2-capabilities",
+        findings: ["11"],
+        severity: "medium",
+        title:
+          "serve proxy mounts forward different app capabilities over one HTTPS port",
+        detail: `${c.site}${c.service ? ` (${c.service})` : ""} proxies ${
+          c.mounts.join(", ")
+        } with different AcceptAppCaps. Over a shared HTTP/2 connection a backend can receive another mount's Tailscale-App-Capabilities header (TS-2026-017).`,
+      });
+    }
+  }
+  // Findings 4 and 9: no Tailscale release fixes them, so every version is
+  // graded.
+  if (tsInstalled) {
     if (appConnector || conn25) {
       exposures.push({
         id: "app-connector",
@@ -1672,14 +1920,14 @@ export function analyze(
         "A copied state file keeps working until the device is deleted at the control plane. Reimaging the host does not revoke stolen keys.",
     });
   }
-  if (missingBulletins.length > 0) {
+  if (olderBulletins.length > 0) {
     exposures.push({
       id: "older-bulletins",
-      findings: missingBulletins.map((b) => b.id),
-      severity: maxRisk(missingBulletins.map((b) => b.severity)) as SeverityT,
+      findings: olderBulletins.map((b) => b.id),
+      severity: maxRisk(olderBulletins.map((b) => b.severity)) as SeverityT,
       title:
-        `Tailscale ${version} also misses ${missingBulletins.length} published fix(es)`,
-      detail: missingBulletins.map((b) =>
+        `Tailscale ${version} also misses ${olderBulletins.length} published fix(es)`,
+      detail: olderBulletins.map((b) =>
         `${b.id} (fixed in ${b.fixed}): ${b.title}`
       ).join("; "),
     });
@@ -1815,6 +2063,8 @@ export function analyze(
       url: ADVISORY.url,
       published: ADVISORY.published,
       fixedVersion,
+      fixedFindings: TAILWORM_FIX.findings,
+      unfixedFindings: UNFIXED_FINDINGS,
     },
     tailscale: {
       installed: tsInstalled,
@@ -1830,6 +2080,8 @@ export function analyze(
       conn25,
       funnel,
       serveAllInterfaces,
+      sshForwardingKnob,
+      unfixedFindings,
       keyExpiry,
       keyExpiryDisabled,
       tcpForwards,
@@ -1952,11 +2204,21 @@ function buildRecommendations(s: Status): string[] {
     recs.push(
       "Rewrite Tailscale SSH rules as per-pair grants (one source device to one destination); remove identity-wide and tag-wide accept rules; never allow root or passwordless-sudo target accounts. Per-pair grants were the only control that stopped the worm in the report.",
     );
+    const sshForwardingOpen = s.exposures.some((e) =>
+      e.id === "ssh-forwarding" && e.findings.includes("1")
+    );
     recs.push(
       s.tailscale.selfHostedControl
-        ? "headscale cannot disable SSH forwarding: treat every SSH grant to this node as root-equivalent, or turn Tailscale SSH off here (tailscale set --ssh=false; mitigate with disableTailscaleSsh=true) and use OpenSSH."
+        ? "headscale cannot deny SSH forwarding in its policy: treat every SSH grant to this node as root-equivalent until it runs Tailscale 1.104.4, or turn Tailscale SSH off here (tailscale set --ssh=false; mitigate with disableTailscaleSsh=true) and use OpenSSH."
         : "In the tailnet policy, deny port forwarding on SSH rules that do not need it. Check mode does not limit forwarding. If this node does not need Tailscale SSH: tailscale set --ssh=false (mitigate with disableTailscaleSsh=true).",
     );
+    if (sshForwardingOpen) {
+      recs.push(
+        s.tailscale.sshForwardingKnob === "pending-restart"
+          ? "TS_SSH_DISABLE_FORWARDING is configured, but the running tailscaled started without it: restart tailscaled."
+          : "Until this node runs 1.104.4: set TS_SSH_DISABLE_FORWARDING=1 in tailscaled's service environment and restart it, which refuses all Tailscale SSH forwarding without turning SSH off. It works with any control server, headscale included (mitigate with disableSshForwarding=true).",
+      );
+    }
   }
   if (has("serve-unix-forward")) {
     recs.push(
@@ -1988,15 +2250,46 @@ function buildRecommendations(s: Status): string[] {
       "Confirm funnel is intended on this node; do not trust funnel X-Forwarded-For for authorization.",
     );
   }
+  if (has("serve-http2-capabilities")) {
+    recs.push(
+      "Until this node runs 1.104.4, do not authorize on Tailscale-App-Capabilities in backends that share an HTTPS port with mounts forwarding other capabilities, or give each such backend its own port.",
+    );
+  }
+  const noFix = [
+    has("app-connector") && "4 (app connector)",
+    has("funnel") && "9 (funnel)",
+  ].filter(Boolean);
+  if (noFix.length > 0) {
+    recs.push(
+      `No Tailscale release fixes finding${noFix.length > 1 ? "s" : ""} ${
+        noFix.join(" and ")
+      }: keep the mitigations above in place after upgrading.`,
+    );
+  }
   if (has("key-expiry-disabled")) {
     recs.push(
       "Enable node-key expiry for this device, and TPM/Secure Enclave-bound state where the hardware allows.",
     );
   }
+  const fixedHere = s.exposures.some((e) =>
+    e.findings.some((f) => TAILWORM_FIX.findings.includes(f))
+  );
+  const tailwormMissed = s.tailscale.missingBulletins.filter((id) =>
+    BULLETINS.some((b) => b.id === id && b.tailworm)
+  );
+  if (fixedHere || tailwormMissed.length > 0) {
+    recs.push(
+      `Upgrade Tailscale to ${
+        s.advisory.fixedVersion ?? TAILWORM_FIX.version
+      } or later: it fixes findings 1-3, 5, 7, 8 and 11 (TS-2026-014 to 017).`,
+    );
+  }
   if (has("older-bulletins")) {
     recs.push(
       `Upgrade Tailscale: this build also misses ${
-        s.tailscale.missingBulletins.join(", ")
+        s.tailscale.missingBulletins.filter((id) =>
+          !tailwormMissed.includes(id)
+        ).join(", ")
       }.`,
     );
   }
@@ -2020,13 +2313,9 @@ function buildRecommendations(s: Status): string[] {
     );
   }
   if (
-    s.tailscale.installed && !s.tailscale.patched && s.exposures.length > 0
+    (s.riskLevel === "low" || s.riskLevel === "none") &&
+    !fixedHere && tailwormMissed.length === 0
   ) {
-    recs.push(
-      "No fixed Tailscale release yet: watch https://tailscale.com/security-bulletins and re-scan with the fixedVersion global argument when it ships.",
-    );
-  }
-  if (s.riskLevel === "low" || s.riskLevel === "none") {
     recs.push("No action required for the Tailworm findings.");
   }
   return recs;
@@ -2609,7 +2898,9 @@ function errorStatus(
       name: ADVISORY.name,
       url: ADVISORY.url,
       published: ADVISORY.published,
-      fixedVersion: FIXED_TAILSCALE_VERSION,
+      fixedVersion: TAILWORM_FIX.version,
+      fixedFindings: TAILWORM_FIX.findings,
+      unfixedFindings: UNFIXED_FINDINGS,
     },
     tailscale: {
       installed: false,
@@ -2625,6 +2916,8 @@ function errorStatus(
       conn25: false,
       funnel: false,
       serveAllInterfaces: false,
+      sshForwardingKnob: "off",
+      unfixedFindings: [],
       keyExpiry: null,
       keyExpiryDisabled: false,
       tcpForwards: [],
@@ -2838,11 +3131,19 @@ export function optionsOf(o: MitigationOptions): MitigationOptions {
     headscaleMemoryMax: o.headscaleMemoryMax,
     disableTailscaleSsh: o.disableTailscaleSsh,
     disableAppConnector: o.disableAppConnector,
+    disableSshForwarding: o.disableSshForwarding,
   };
 }
 
 export type MitigationStep = {
-  phase: "serve" | "ssh" | "connector" | "egress" | "audit" | "headscale";
+  phase:
+    | "serve"
+    | "ssh"
+    | "forwarding"
+    | "connector"
+    | "egress"
+    | "audit"
+    | "headscale";
   argv: string[];
   privileged: boolean;
   purpose: string;
@@ -3259,7 +3560,8 @@ export function planMitigation(
       );
     }
   }
-  if (opts.disableAppConnector && ts.appConnector && !ts.patched) {
+  // Finding 4 has no fixed release: the option applies on every version.
+  if (opts.disableAppConnector && ts.appConnector) {
     steps.push({
       phase: "connector",
       argv: ["tailscale", "set", "--advertise-connector=false"],
@@ -3267,9 +3569,67 @@ export function planMitigation(
       purpose: "Stop advertising this node as an app connector",
     });
   }
+  // Tailscale's workaround for findings 1-3: tailscaled refuses all SSH
+  // forwarding with TS_SSH_DISABLE_FORWARDING=1 in its environment. It is
+  // read at start, so tailscaled restarts, which drops every tailnet
+  // connection, swamp's included: these steps come last.
+  const forwardingOpen = status.exposures.some((e) =>
+    e.id === "ssh-forwarding" && e.severity !== "low" &&
+    e.findings.includes("1")
+  );
+  const sshOff = opts.disableTailscaleSsh && ts.sshEnabled && !ts.patched;
+  if (opts.disableSshForwarding && forwardingOpen && !sshOff) {
+    const unit = ownServiceUnit(facts.cgroup)
+      ? facts.cgroup!.split("/").pop()!
+      : "";
+    if (status.inContainer) {
+      notes.push(
+        "Container target: set TS_SSH_DISABLE_FORWARDING=1 in the container's environment and restart it.",
+      );
+    } else if (!linux || !unit || !facts.tools["systemctl"]) {
+      notes.push(
+        "Set TS_SSH_DISABLE_FORWARDING=1 in tailscaled's service environment and restart tailscaled: mitigate only does this for tailscaled in its own systemd unit.",
+      );
+    } else {
+      const dir = `/etc/systemd/system/${unit}.d`;
+      steps.push(
+        {
+          phase: "forwarding",
+          argv: ["mkdir", "-p", dir],
+          privileged: true,
+          purpose: `Create the ${unit} drop-in directory`,
+        },
+        {
+          phase: "forwarding",
+          argv: ["tee", `${dir}/${SSH_FORWARDING_DROP_IN}`],
+          privileged: true,
+          purpose:
+            "Set TS_SSH_DISABLE_FORWARDING=1 for tailscaled (refuses all Tailscale SSH forwarding)",
+          content: sshForwardingDropIn(),
+        },
+        {
+          phase: "forwarding",
+          argv: ["systemctl", "daemon-reload"],
+          privileged: true,
+          purpose: "Reload systemd units",
+        },
+        {
+          phase: "forwarding",
+          argv: ["systemctl", "restart", unit],
+          privileged: true,
+          purpose:
+            `Restart ${unit} so it reads the variable (drops every tailnet connection, including one swamp uses)`,
+        },
+      );
+    }
+  } else if (opts.disableSshForwarding && forwardingOpen && sshOff) {
+    notes.push(
+      "disableTailscaleSsh turns Tailscale SSH off, so TS_SSH_DISABLE_FORWARDING was not set.",
+    );
+  }
   // Last of all: turning Tailscale SSH off drops a session swamp may be
   // using, and every step after it would fail.
-  if (opts.disableTailscaleSsh && ts.sshEnabled && !ts.patched) {
+  if (sshOff) {
     steps.push({
       phase: "ssh",
       argv: ["tailscale", "set", "--ssh=false"],
@@ -3471,6 +3831,8 @@ export async function mitigateTarget(
     dryRun: boolean;
     inContainer: boolean;
     fixedVersion?: string;
+    /** How long to wait for tailscaled after mitigate restarts it. */
+    restartWait?: { tries: number; intervalMs: number };
   },
   log: FileWriter,
 ): Promise<HostMitigation> {
@@ -3583,6 +3945,36 @@ export async function mitigateTarget(
   }
   base.outcome = failed ? "partial" : "applied";
 
+  // Steps that cut the connection swamp may be using: an ssh transport over
+  // the tailnet exits 255 when it drops.
+  for (let i = 0; i < steps.length; i++) {
+    const cuts = steps[i].phase === "ssh" ||
+      (steps[i].argv[0] === "systemctl" && steps[i].argv[1] === "restart" &&
+        steps[i].phase === "forwarding");
+    if (cuts && record[i].status === "failed" && record[i].exitCode === 255) {
+      base.notes.push(
+        `The connection dropped during "${
+          record[i].command
+        }": expected when swamp reaches the host over the tailnet. The change may still have applied; re-scan to confirm.`,
+      );
+    }
+  }
+  // After a tailscaled restart, wait for the daemon before the rescan: one
+  // that does not answer reads as SSH off and nothing served.
+  const restarted = steps.some((s, i) =>
+    s.phase === "forwarding" && s.argv[1] === "restart" &&
+    record[i].status !== "skipped"
+  );
+  if (restarted) {
+    const wait = opts.restartWait ?? { tries: 15, intervalMs: 2000 };
+    for (let i = 0; i < wait.tries; i++) {
+      const r = await run("tailscale status --json >/dev/null 2>&1", 10_000)
+        .catch(() => ({ exitCode: 1, stdout: "", stderr: "" }));
+      if (r.exitCode === 0) break;
+      await new Promise((res) => setTimeout(res, wait.intervalMs));
+    }
+  }
+
   let final: { status: Status; facts: ProbeFacts } | null = null;
   try {
     final = await scanTarget(run, target, scanOpts);
@@ -3594,6 +3986,19 @@ export async function mitigateTarget(
     );
   }
   if (!final) {
+    return { status: { ...first.status, mitigation: base }, mitigation: base };
+  }
+  if (
+    restarted && final.status.tailscale.installed &&
+    !final.status.tailscale.daemonReachable
+  ) {
+    // Never grade a host clean on a daemon that did not answer.
+    base.notes.push(
+      "tailscaled did not answer after the restart, so the exposures from before mitigation are kept: re-scan to confirm.",
+    );
+    await log.writeLine(
+      `\ntailscaled did not answer after the restart; keeping the scan from before mitigation.\n`,
+    );
     return { status: { ...first.status, mitigation: base }, mitigation: base };
   }
   await log.writeLine(`\nRescan after mitigation:\n`);
@@ -4062,6 +4467,12 @@ export const model = {
           .default(false)
           .describe(
             "Stop advertising the node as an app connector (tailscale set --advertise-connector=false)",
+          ),
+        disableSshForwarding: z
+          .boolean()
+          .default(false)
+          .describe(
+            "Set TS_SSH_DISABLE_FORWARDING=1 for tailscaled (a systemd drop-in) and restart it: Tailscale's workaround for findings 1-3 before 1.104.4. The restart drops every tailnet connection, including one swamp connects over.",
           ),
       }),
       execute: async (

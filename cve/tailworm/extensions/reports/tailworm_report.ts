@@ -63,6 +63,8 @@ type MitigationOptions = {
   headscaleMemoryMax: string;
   disableTailscaleSsh: boolean;
   disableAppConnector: boolean;
+  /** Absent from records written before 2026.11.05.2. */
+  disableSshForwarding?: boolean;
 };
 
 type ReachRule = {
@@ -95,7 +97,13 @@ type Status = {
   vulnerable: boolean;
   summary: string;
   error: string | null;
-  advisory: { url: string; fixedVersion: string | null };
+  advisory: {
+    url: string;
+    fixedVersion: string | null;
+    /** Absent from statuses written before 2026.11.05.2. */
+    fixedFindings?: string[];
+    unfixedFindings?: string[];
+  };
   tailscale: {
     installed: boolean;
     version: string | null;
@@ -148,6 +156,7 @@ const DEFAULTS: MitigationOptions = {
   headscaleMemoryMax: "2G",
   disableTailscaleSsh: false,
   disableAppConnector: false,
+  disableSshForwarding: false,
 };
 
 /** The model's recommendation for a host with nothing to do. */
@@ -625,13 +634,11 @@ function scanReport(results: Status[], name: string) {
     }
   }
 
-  const fixed = results.find((r) => !r.error)?.advisory.fixedVersion;
+  const advisory = results.find((r) => !r.error)?.advisory;
   md += `\nSource: ${
     results[0].advisory.url
   } (lab-reproduced findings against Tailscale 1.104.2 and headscale 0.29.5). ${
-    fixed
-      ? `Fixed Tailscale release: ${fixed}.`
-      : "No fixed Tailscale release had been published."
+    fixedLine(advisory)
   }\n`;
 
   return {
@@ -654,12 +661,33 @@ function scanReport(results: Status[], name: string) {
   };
 }
 
+/**
+ * What the fix release covers. Statuses written before 2026.11.05.2 carry
+ * only fixedVersion: null then, or one value the caller set for every
+ * finding.
+ */
+function fixedLine(advisory: Status["advisory"] | undefined): string {
+  if (!advisory?.fixedVersion) {
+    return "No fixed Tailscale release had been published when this was scanned.";
+  }
+  const fixed = advisory.fixedFindings ?? [];
+  const open = advisory.unfixedFindings ?? [];
+  if (fixed.length === 0) {
+    return `Fixed Tailscale release: ${advisory.fixedVersion}.`;
+  }
+  return `Tailscale ${advisory.fixedVersion} (TS-2026-014 to 017) fixes findings ${
+    fixed.join(", ")
+  }${open.length > 0 ? `; findings ${open.join(", ")} have no fix` : ""}.`;
+}
+
 /** The --input flags that repeat a run's non-default options. */
 function optionFlags(o: MitigationOptions | undefined): string {
   if (!o) return "";
   let flags = "";
   for (const key of Object.keys(DEFAULTS) as (keyof MitigationOptions)[]) {
-    if (o[key] !== DEFAULTS[key]) flags += ` --input ${key}=${o[key]}`;
+    if (o[key] !== undefined && o[key] !== DEFAULTS[key]) {
+      flags += ` --input ${key}=${o[key]}`;
+    }
   }
   return flags;
 }
