@@ -40,3 +40,65 @@ export async function atomicWriteTextFile(
     throw error;
   }
 }
+
+/**
+ * Streams a body to a file atomically: a reader or an abort sees the earlier
+ * file or the complete new one, never part of either. The temp file sits beside
+ * the target under a name of its own for each call, so concurrent writers do not
+ * collide, and on a failure it is removed.
+ *
+ * `beforeRename` runs after the whole body is on disk. When it returns false the
+ * download is discarded and the target left alone. Returns whether the target
+ * was replaced.
+ */
+export async function atomicWriteStream(
+  path: string,
+  body: ReadableStream<Uint8Array>,
+  beforeRename?: () => Promise<boolean>,
+): Promise<boolean> {
+  const tmpPath = join(dirname(path), `.${crypto.randomUUID()}.tmp`);
+  let file: Deno.FsFile;
+  try {
+    file = await Deno.open(tmpPath, { write: true, createNew: true });
+  } catch (error) {
+    // Nothing will read the body, so release its connection.
+    await body.cancel().catch(() => {});
+    throw error;
+  }
+  try {
+    try {
+      await body.pipeTo(file.writable);
+    } catch (error) {
+      try {
+        file.close();
+      } catch { /* already closed by pipeTo */ }
+      throw error;
+    }
+    if (beforeRename && !(await beforeRename())) {
+      await Deno.remove(tmpPath);
+      return false;
+    }
+    await copyModeOf(path, tmpPath);
+    await Deno.rename(tmpPath, path);
+    return true;
+  } catch (error) {
+    try {
+      await Deno.remove(tmpPath);
+    } catch {
+      // Already renamed or removed.
+    }
+    throw error;
+  }
+}
+
+/** Gives `to` the mode of `from`. Windows reports no mode, so it is skipped. */
+async function copyModeOf(from: string, to: string): Promise<void> {
+  let mode: number | null;
+  try {
+    mode = (await Deno.stat(from)).mode;
+  } catch (error) {
+    if (error instanceof Deno.errors.NotFound) return;
+    throw error;
+  }
+  if (mode !== null) await Deno.chmod(to, mode & 0o7777);
+}

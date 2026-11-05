@@ -50,7 +50,7 @@ import {
   DATASTORE_FORMAT_MARKER_KEY,
   DatastoreFormatGate,
 } from "./s3_format_guard.ts";
-import { atomicWriteTextFile } from "./atomic_write.ts";
+import { atomicWriteStream, atomicWriteTextFile } from "./atomic_write.ts";
 import {
   cacheRelativeKey,
   isWithinDir,
@@ -117,6 +117,75 @@ interface OwnMtimeRecord {
   mtime: string;
   size: number;
   sha256?: string;
+  /**
+   * For run records: hashes this copy held before `sha256`, oldest first. A
+   * remote showing one of them is behind this copy (swamp-club#4411).
+   */
+  held?: string[];
+}
+
+/** Most earlier hashes one run record's own record keeps. */
+const OWN_HISTORY_LIMIT = 32;
+
+/** The own mtime record's entries, dropping any it cannot trust. */
+function parseOwnMtimes(parsed: unknown): Map<string, OwnMtimeRecord> {
+  const records = new Map<string, OwnMtimeRecord>();
+  const file = parsed as { version?: unknown; files?: unknown } | null;
+  if (file?.version !== 1 || !file.files) return records;
+  for (const [rel, r] of Object.entries(file.files)) {
+    const rec = r as OwnMtimeRecord;
+    if (typeof rec?.mtime !== "string" || typeof rec.size !== "number") {
+      continue;
+    }
+    if (
+      rec.held !== undefined &&
+      !(Array.isArray(rec.held) &&
+        rec.held.every((h) => typeof h === "string"))
+    ) {
+      delete rec.held;
+    }
+    records.set(rel, rec);
+  }
+  return records;
+}
+
+/** The file's stat, or null when it is not there. */
+async function statOrNull(path: string): Promise<Deno.FileInfo | null> {
+  try {
+    return await Deno.stat(path);
+  } catch (err) {
+    if (err instanceof Deno.errors.NotFound) return null;
+    throw err;
+  }
+}
+
+/** A run record's cache-relative prefix. */
+const RUN_RECORD_PREFIX = "workflow-runs/";
+
+/** Another process's view of this cache, read for one pull. */
+interface PullGuardState {
+  marks: ReadonlySet<string>;
+  own: ReadonlyMap<string, OwnMtimeRecord>;
+}
+
+/** The hashes a run record has held once it holds `sha256`. */
+function heldAfter(
+  prior: OwnMtimeRecord | undefined,
+  sha256: string | undefined,
+): string[] {
+  const held = [...(prior?.held ?? [])];
+  if (prior?.sha256 && !held.includes(prior.sha256)) held.push(prior.sha256);
+  return held.filter((h) => h !== sha256).slice(-OWN_HISTORY_LIMIT);
+}
+
+/** Whether two stats, either possibly of no file, show the same file. */
+function sameLocalFile(
+  a: Deno.FileInfo | null,
+  b: Deno.FileInfo | null,
+): boolean {
+  if (a === null || b === null) return a === b;
+  return a.size === b.size && a.mtime?.getTime() === b.mtime?.getTime() &&
+    (a.ino === null || b.ino === null || a.ino === b.ino);
 }
 
 /**
@@ -2556,17 +2625,11 @@ export class S3CacheSyncService implements DatastoreSyncService {
   }
 
   private async readOwnMtimes(): Promise<Map<string, OwnMtimeRecord>> {
-    const records = new Map<string, OwnMtimeRecord>();
+    let records = new Map<string, OwnMtimeRecord>();
     try {
-      const parsed = JSON.parse(await Deno.readTextFile(this.ownMtimesPath));
-      if (parsed?.version === 1 && parsed.files) {
-        for (const [rel, r] of Object.entries(parsed.files)) {
-          const rec = r as OwnMtimeRecord;
-          if (typeof rec?.mtime === "string" && typeof rec.size === "number") {
-            records.set(rel, rec);
-          }
-        }
-      }
+      records = parseOwnMtimes(
+        JSON.parse(await Deno.readTextFile(this.ownMtimesPath)),
+      );
     } catch (err) {
       // Missing — seed it (swamp-club#3550). Corrupt/unreadable — start
       // empty and never seed, so foreign mtimes are never re-trusted.
@@ -2662,12 +2725,92 @@ export class S3CacheSyncService implements DatastoreSyncService {
   ): Promise<void> {
     if (!stat.mtime) return;
     const records = await this.loadOwnMtimes();
+    const held = rel.startsWith(RUN_RECORD_PREFIX)
+      ? heldAfter(records.get(rel), sha256)
+      : [];
     records.set(rel, {
       mtime: stat.mtime.toISOString(),
       size: stat.size,
       sha256,
+      ...(held.length > 0 ? { held } : {}),
     });
     this.ownMtimesDirty = true;
+  }
+
+  /** The local and remote copies match, so nothing earlier is needed. */
+  private async clearOwnHistory(rel: string): Promise<void> {
+    const rec = (await this.loadOwnMtimes()).get(rel);
+    if (!rec?.held) return;
+    delete rec.held;
+    this.ownMtimesDirty = true;
+  }
+
+  /**
+   * Whether an unscoped pull must keep this run record rather than put the
+   * bucket's copy over it (swamp-club#4411). The file is kept when a writer has
+   * marked it, or when this copy has already held the remote's content and has
+   * moved on from it: a pull cannot be bringing anything newer. Only a mark on
+   * the file itself counts: core marks a directory when it removes a run, which
+   * says nothing about the records beside it. Remote content
+   * this copy never held is another clone's, so it replaces the file. That is
+   * why the sidecar's bulk flag is no signal here: under it a stale copy of a
+   * peer's record would be kept, and the next push would send it back over the
+   * peer's newer one. Clocks and sizes prove nothing either way.
+   *
+   * Resolves to why the file is kept: "changed" holds local writes nothing has
+   * marked, "behind" is a copy this cache already pushed that the bucket has not
+   * caught up to, and "marked" is a writer's mark.
+   */
+  private async runRecordKeep(
+    rel: string,
+    stat: Deno.FileInfo,
+    current: () => Promise<PullGuardState>,
+  ): Promise<"no" | "marked" | "behind" | "changed"> {
+    if (!rel.startsWith(RUN_RECORD_PREFIX) || !stat.isFile) return "no";
+    const { marks, own } = await current();
+    const local = this.localRelPath(rel);
+    if (this.dirtyPaths.has(local) || marks.has(local)) return "marked";
+    const sha256 = this.index?.entries[rel]?.sha256;
+    if (!sha256) return "no";
+    const mine = (await this.loadOwnMtimes()).get(rel);
+    let keep = false;
+    let changed = true;
+    for (const rec of [mine, own.get(rel)]) {
+      if (!rec) continue;
+      const differs = rec.size !== stat.size ||
+        rec.mtime !== stat.mtime?.toISOString();
+      if (!rec.held?.includes(sha256) && !(rec.sha256 === sha256 && differs)) {
+        continue;
+      }
+      keep = true;
+      if (!differs) changed = false;
+    }
+    if (!keep) return "no";
+    return changed ? "changed" : "behind";
+  }
+
+  /**
+   * What another process on this cache has written since this service loaded:
+   * the writer of a live run usually is one. Read only, and never merged into
+   * this service's own state. An unreadable file counts as nothing recorded.
+   */
+  private async readPullGuardState(): Promise<PullGuardState> {
+    let marks = new Set<string>();
+    let own = new Map<string, OwnMtimeRecord>();
+    try {
+      const sidecar = JSON.parse(await Deno.readTextFile(this.syncStatePath));
+      if (Array.isArray(sidecar?.dirtyPaths)) {
+        marks = new Set(
+          sidecar.dirtyPaths.filter((p: unknown) => typeof p === "string"),
+        );
+      }
+    } catch { /* nothing recorded */ }
+    try {
+      own = parseOwnMtimes(
+        JSON.parse(await Deno.readTextFile(this.ownMtimesPath)),
+      );
+    } catch { /* nothing recorded */ }
+    return { marks, own };
   }
 
   private async forgetOwnMtime(rel: string): Promise<void> {
@@ -3501,11 +3644,18 @@ export class S3CacheSyncService implements DatastoreSyncService {
     }
   }
 
-  /** Fetches a single file from S3 to the local cache. */
+  /**
+   * Fetches a single file from S3 to the local cache, through a temp file
+   * and a rename, so a reader or an abort never sees part of it. With `expected`
+   * (the target's stat before the download, null for no file), a target that
+   * has since changed wins and the download is discarded. Resolves to whether
+   * the target was replaced.
+   */
   async pullFile(
     relativePath: string,
     signal?: AbortSignal,
-  ): Promise<void> {
+    expected?: Deno.FileInfo | null,
+  ): Promise<boolean> {
     return await getTracer().startActiveSpan(
       "s3-datastore pullFile",
       async (span) => {
@@ -3519,22 +3669,32 @@ export class S3CacheSyncService implements DatastoreSyncService {
           await ensureDir(dirname(localPath));
           const streamToDisk = async (key: string) => {
             const { body } = await this.s3.getObjectStream(key, signal);
-            const file = await Deno.open(localPath, {
-              write: true,
-              create: true,
-              truncate: true,
-            });
             try {
-              await body.pipeTo(file.writable);
+              return await atomicWriteStream(
+                localPath,
+                body,
+                expected === undefined
+                  ? undefined
+                  : async () =>
+                    sameLocalFile(expected, await statOrNull(localPath)),
+              );
             } catch (err) {
-              try {
-                file.close();
-              } catch { /* already closed by pipeTo */ }
+              // Callers read the name "NotFound" as a missing remote object and
+              // drop its index entry. A local failure must not look like one.
+              if (err instanceof Deno.errors.NotFound) {
+                throw new Error(
+                  `Could not write ${localPath}: ${err.message}`,
+                  {
+                    cause: err,
+                  },
+                );
+              }
               throw err;
             }
           };
+          let replaced: boolean;
           try {
-            await retryWithBackoff(
+            replaced = await retryWithBackoff(
               () => streamToDisk(this.dataKey(relativePath)),
               { signal },
             );
@@ -3543,7 +3703,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
               this.namespace && err instanceof Error &&
               (err.name === "NotFound" || err.name === "NoSuchKey")
             ) {
-              await retryWithBackoff(
+              replaced = await retryWithBackoff(
                 () => streamToDisk(relativePath),
                 { signal },
               );
@@ -3551,15 +3711,20 @@ export class S3CacheSyncService implements DatastoreSyncService {
               throw err;
             }
           }
+          if (!replaced) return false;
           try {
             await this.recordOwnMtime(
               relativePath,
               await Deno.stat(localPath),
               this.index?.entries[relativePath]?.sha256,
             );
+            // The file is the bucket's copy now, which may be older than what
+            // this cache held. Earlier hashes no longer say what is behind it.
+            await this.clearOwnHistory(relativePath);
           } catch {
             // Non-fatal: an unrecorded file is hashed next time.
           }
+          return true;
         } catch (err) {
           span.setStatus({
             code: SpanStatusCode.ERROR,
@@ -3862,6 +4027,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
                     }
                     await this.recordOwnMtime(rel, stat, localHash);
                   }
+                  await this.clearOwnHistory(rel);
                   if (stat.mtime) {
                     verifiedMtimes.set(rel, stat.mtime.toISOString());
                   }
@@ -3886,16 +4052,51 @@ export class S3CacheSyncService implements DatastoreSyncService {
           await Promise.all([...lazyDirsToCreate].map((d) => ensureDir(d)));
           tracePhase("pullChanged.walk", walkStart, `toPull=${toPull.length}`);
 
+          // A write after this stat wins over the download. A poll already skips
+          // what is marked. The keep rule covers only run records, so a model
+          // lock still replaces its own data files (swamp-club#4411).
+          const expectedStats = new Map<string, Deno.FileInfo | null>();
+          const keptLocal: string[] = [];
+          const toDownload: string[] = [];
+          const mayKeep = !scoped;
+          let guard: Promise<PullGuardState> | undefined;
+          const guardState = () => guard ??= this.readPullGuardState();
+          for (const rel of toPull) {
+            const stat = await statOrNull(
+              assertSafePath(this.cachePath, this.localRelPath(rel)),
+            ).catch(() => undefined);
+            if (stat !== undefined) expectedStats.set(rel, stat);
+            const keep = mayKeep && stat
+              ? await this.runRecordKeep(rel, stat, guardState)
+              : "no";
+            if (keep === "no") {
+              toDownload.push(rel);
+              continue;
+            }
+            keptLocal.push(rel);
+            // Unmarked writes must reach the next push even if their writer is
+            // gone. Only those: later pulls read a mark as a writer's, and on a
+            // file with nothing to send it would hold back a peer's update.
+            if (keep === "changed") {
+              await this.markDirty({ relPath: this.localRelPath(rel) });
+            }
+          }
+
           // Download concurrently in batches
           const downloadStart = Date.now();
           let pulled = 0;
           const failures: Array<{ file: string; error: unknown }> = [];
-          for (let i = 0; i < toPull.length; i += this.pullConcurrency) {
+          for (let i = 0; i < toDownload.length; i += this.pullConcurrency) {
             throwIfAborted(signal);
-            const batch = toPull.slice(i, i + this.pullConcurrency);
+            const batch = toDownload.slice(i, i + this.pullConcurrency);
             const results = await Promise.allSettled(
               batch.map(async (rel) => {
-                await this.pullFile(rel, signal);
+                const replaced = await this.pullFile(
+                  rel,
+                  signal,
+                  expectedStats.get(rel),
+                );
+                if (!replaced) return false;
                 try {
                   const localPath = join(
                     this.cachePath,
@@ -3910,12 +4111,14 @@ export class S3CacheSyncService implements DatastoreSyncService {
                 } catch {
                   // Non-fatal: mtime recording is best-effort
                 }
+                return true;
               }),
             );
             for (let j = 0; j < results.length; j++) {
               const result = results[j];
               if (result.status === "fulfilled") {
-                pulled++;
+                if (result.value) pulled++;
+                else keptLocal.push(batch[j]);
               } else {
                 const err = result.reason;
                 if (
@@ -3933,6 +4136,20 @@ export class S3CacheSyncService implements DatastoreSyncService {
             }
           }
           tracePhase("pullChanged.download", downloadStart, `pulled=${pulled}`);
+
+          if (keptLocal.length > 0) {
+            const shown = keptLocal.slice(0, 5).join(", ");
+            console.warn(
+              `[s3-sync] Kept ${keptLocal.length} local file(s) instead of the ` +
+                `bucket's copy: ${shown}${
+                  keptLocal.length > 5 ? ", ..." : ""
+                }. ` +
+                "To use the bucket's copy, delete the local file and pull again.",
+            );
+          }
+          // A kept file is not in step with this remote, so the next pull must
+          // look at it again rather than take the fast path.
+          const armsFastPath = !scoped && keptLocal.length === 0;
 
           if (failures.length > 0) {
             throw new Error(formatBatchFailure("pull", failures));
@@ -4006,7 +4223,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
                   indexETag = putResult?.etag ?? indexETag;
                 }
               }
-              if (!scoped) {
+              if (armsFastPath) {
                 await this.markSynced(indexETag, "pull");
               }
             } catch {
@@ -4035,7 +4252,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
               await this.mergeIntoLastSynced({ removals: pull404Rels });
               this.indexMutated = false;
 
-              if (!scoped) {
+              if (armsFastPath) {
                 // Keeps localDirty: see the clean-pull branch below.
                 const sidecar = this.buildV2State();
                 if (committed.upToDate) {
@@ -4049,7 +4266,7 @@ export class S3CacheSyncService implements DatastoreSyncService {
               // cleanup only costs repeated 404s on the next boot —
               // the same behavior as before this fix.
             }
-          } else if (v2CommitSeq !== null && !scoped) {
+          } else if (v2CommitSeq !== null && armsFastPath) {
             // Shard-first path, clean pull (no 404 cleanup, no monolithic
             // index ETag). Record commitSeq in the sidecar so the fast
             // path can arm on the next pull (swamp-club #1931).

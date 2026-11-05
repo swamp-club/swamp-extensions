@@ -14665,9 +14665,10 @@ Deno.test("swamp-club#2998: GCS pull aborted between batches keeps the shards it
 
     const from = mock.gets.length;
     await new GcsCacheSyncService(mock, cachePath).pullChanged();
+    // Shards are read concurrently: which ones matters here, not their order.
     assertEquals(
-      shardGets2998(mock, from),
-      keys.slice(10).map((k) => `_index/${k}.json`),
+      shardGets2998(mock, from).sort(),
+      keys.slice(10).map((k) => `_index/${k}.json`).sort(),
     );
   } finally {
     await Deno.remove(cachePath, { recursive: true });
@@ -14763,4 +14764,838 @@ Deno.test("swamp-club#2998: GCS push never uploads the local shard cache", async
   } finally {
     await Deno.remove(cachePath, { recursive: true });
   }
+});
+
+// swamp-club#4411: a pull writes a temp file and renames it over the target,
+// and an unscoped pull does not put an older copy over a run record.
+
+const RUN_4411 = "workflow-runs/wf/workflow-run-x.yaml";
+
+/** A body that sends 100 bytes, then waits for `gate` before finishing. */
+function stalledBody4411(
+  content: Uint8Array,
+  gate: Promise<void>,
+  onStall: () => void,
+  failWith?: Error,
+): ReadableStream<Uint8Array> {
+  let step = 0;
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      if (step++ === 0) {
+        controller.enqueue(content.slice(0, 100));
+        return;
+      }
+      onStall();
+      await gate;
+      if (failWith) {
+        controller.error(failWith);
+        return;
+      }
+      controller.enqueue(content.slice(100));
+      controller.close();
+    },
+  });
+}
+
+/** Makes the mock's next download of `keySuffix` stall; `release` ends it. */
+function stallDownload4411(
+  mock: ReturnType<typeof createMockGcsClient>,
+  keySuffix: string,
+  failWith?: Error,
+): { stalled: Promise<void>; release: () => void } {
+  let release!: () => void;
+  const gate = new Promise<void>((r) => release = r);
+  let onStall!: () => void;
+  const stalled = new Promise<void>((r) => onStall = r);
+  const original = mock.getObjectStream.bind(mock);
+  let used = false;
+  (mock as unknown as Record<string, unknown>).getObjectStream = async (
+    key: string,
+    signal?: AbortSignal,
+  ) => {
+    const result = await original(key, signal);
+    if (used || !key.endsWith(keySuffix)) return result;
+    used = true;
+    const content = new Uint8Array(
+      await new Response(result.body).arrayBuffer(),
+    );
+    return {
+      ...result,
+      body: stalledBody4411(content, gate, onStall, failWith),
+    };
+  };
+  return { stalled, release };
+}
+
+async function dirNames4411(dir: string): Promise<string[]> {
+  const names: string[] = [];
+  for await (const entry of Deno.readDir(dir)) names.push(entry.name);
+  return names.sort();
+}
+
+async function withDirs4411(
+  count: number,
+  fn: (...dirs: string[]) => Promise<void>,
+): Promise<void> {
+  const dirs: string[] = [];
+  for (let i = 0; i < count; i++) {
+    dirs.push(await Deno.makeTempDir({ prefix: "sync-4411-" }));
+  }
+  try {
+    await fn(...dirs);
+  } finally {
+    for (const dir of dirs) await Deno.remove(dir, { recursive: true });
+  }
+}
+
+/** Captures console.warn while `fn` runs. */
+async function captureWarnings4411(fn: () => Promise<void>): Promise<string[]> {
+  const original = console.warn;
+  const lines: string[] = [];
+  console.warn = (...args: unknown[]) => {
+    lines.push(args.join(" "));
+  };
+  try {
+    await fn();
+  } finally {
+    console.warn = original;
+  }
+  return lines;
+}
+
+/** A peer's unrelated push, which takes every cache off the fast path. */
+async function peerPush4411(
+  mock: ReturnType<typeof createMockGcsClient>,
+): Promise<void> {
+  const peer = await Deno.makeTempDir({ prefix: "sync-4411-peer-" });
+  try {
+    const rel = `workflow-runs/peer/workflow-run-${crypto.randomUUID()}.yaml`;
+    await seedFile(peer, rel, "status: running\n");
+    const service = new GcsCacheSyncService(mock, peer);
+    await service.pullChanged();
+    await service.markDirty({ relPath: rel });
+    await service.pushChanged();
+  } finally {
+    await Deno.remove(peer, { recursive: true });
+  }
+}
+
+const bytes4411 = (size: number, fill: string) => fill.repeat(size);
+
+for (
+  const [name, failure] of [
+    [
+      "an aborted download",
+      Object.assign(new Error("aborted"), { name: "AbortError" }),
+    ],
+    // The stream's failure is not one the client ever classified.
+    ["a malformed stream error", new TypeError("socket hang up: <html>")],
+  ] as const
+) {
+  Deno.test(`swamp-club#4411: ${name} leaves the file byte-identical and no temp file`, async () => {
+    await withDirs4411(1, async (cache) => {
+      const mock = createMockGcsClient();
+      mock.storage.set(
+        "data/run.yaml",
+        new TextEncoder().encode(bytes4411(1000, "R")),
+      );
+      await seedFile(cache, "data/run.yaml", bytes4411(5000, "L"));
+      const { stalled, release } = stallDownload4411(
+        mock,
+        "data/run.yaml",
+        failure,
+      );
+      const service = new GcsCacheSyncService(mock, cache);
+      const pull = service.pullFile("data/run.yaml");
+      await stalled;
+      release();
+      let rejected = false;
+      try {
+        await pull;
+      } catch {
+        rejected = true;
+      }
+      assert(rejected, "the pull reports the failure");
+      assertEquals(
+        await Deno.readTextFile(join(cache, "data/run.yaml")),
+        bytes4411(5000, "L"),
+      );
+      assertEquals(await dirNames4411(join(cache, "data")), ["run.yaml"]);
+    });
+  });
+}
+
+Deno.test("swamp-club#4411: a failed download creates nothing when no file was there", async () => {
+  await withDirs4411(1, async (cache) => {
+    const mock = createMockGcsClient();
+    mock.storage.set(
+      "data/run.yaml",
+      new TextEncoder().encode(bytes4411(1000, "R")),
+    );
+    const { stalled, release } = stallDownload4411(
+      mock,
+      "data/run.yaml",
+      Object.assign(new Error("aborted"), { name: "AbortError" }),
+    );
+    const pull = new GcsCacheSyncService(mock, cache).pullFile("data/run.yaml");
+    await stalled;
+    release();
+    await pull.catch(() => {});
+    assertEquals(await dirNames4411(join(cache, "data")), []);
+  });
+});
+
+Deno.test("swamp-club#4411: a reader during a pull sees only the whole old or whole new file", async () => {
+  await withDirs4411(1, async (cache) => {
+    const mock = createMockGcsClient();
+    const remote = bytes4411(200_000, "R");
+    const local = bytes4411(300_000, "L");
+    mock.storage.set("data/run.yaml", new TextEncoder().encode(remote));
+    await seedFile(cache, "data/run.yaml", local);
+    const { stalled, release } = stallDownload4411(mock, "data/run.yaml");
+    const path = join(cache, "data/run.yaml");
+    const seen = new Set<string>();
+    let done = false;
+    const reader = (async () => {
+      while (!done) {
+        const text = await Deno.readTextFile(path);
+        seen.add(text === local ? "old" : text === remote ? "new" : "torn");
+      }
+    })();
+    const pull = new GcsCacheSyncService(mock, cache).pullFile("data/run.yaml");
+    await stalled;
+    assertEquals(await Deno.readTextFile(path), local);
+    release();
+    await pull;
+    done = true;
+    await reader;
+    assertEquals(await Deno.readTextFile(path), remote);
+    assert(!seen.has("torn"), `reader saw ${[...seen]}`);
+    assertEquals(await dirNames4411(join(cache, "data")), ["run.yaml"]);
+  });
+});
+
+Deno.test({
+  name: "swamp-club#4411: a pull keeps the target's mode bits",
+  ignore: Deno.build.os === "windows",
+  fn: async () => {
+    await withDirs4411(1, async (cache) => {
+      const mock = createMockGcsClient();
+      mock.storage.set("data/run.yaml", new TextEncoder().encode("remote"));
+      await seedFile(cache, "data/run.yaml", "local-copy");
+      const path = join(cache, "data/run.yaml");
+      await Deno.chmod(path, 0o640);
+      await new GcsCacheSyncService(mock, cache).pullFile("data/run.yaml");
+      assertEquals(await Deno.readTextFile(path), "remote");
+      assertEquals((await Deno.stat(path)).mode! & 0o777, 0o640);
+    });
+  },
+});
+
+Deno.test("swamp-club#4411: a push during a pull does not upload or index the temp file", async () => {
+  await withDirs4411(1, async (cache) => {
+    const mock = createMockGcsClient();
+    mock.storage.set(
+      "data/@t/foo/a/out/1/raw",
+      new TextEncoder().encode(bytes4411(1000, "R")),
+    );
+    await seedFile(cache, "data/@t/foo/a/out/1/raw", bytes4411(5000, "L"));
+    await seedFile(cache, "data/@t/foo/a/out/2/raw", "other");
+    const { stalled, release } = stallDownload4411(
+      mock,
+      "data/@t/foo/a/out/1/raw",
+    );
+    const pull = new GcsCacheSyncService(mock, cache).pullFile(
+      "data/@t/foo/a/out/1/raw",
+    );
+    await stalled;
+    const temps = (await dirNames4411(join(cache, "data/@t/foo/a/out/1")))
+      .filter((n) => n.endsWith(".tmp"));
+    assertEquals(temps.length, 1, "the temp file sits beside the target");
+
+    const pusher = new GcsCacheSyncService(mock, cache);
+    await pusher.markDirty();
+    await pusher.pushChanged();
+    release();
+    await pull;
+
+    assert(mock.storage.has("data/@t/foo/a/out/2/raw"), "the push did run");
+    for (const [key, body] of mock.storage) {
+      assert(!key.endsWith(".tmp"), `uploaded ${key}`);
+      assert(
+        !new TextDecoder().decode(body).includes(temps[0]),
+        `${key} names the temp file`,
+      );
+    }
+  });
+});
+
+Deno.test("swamp-club#4411: a local write landing mid-download wins and is not counted", async () => {
+  await withDirs4411(2, async (a, b) => {
+    const mock = createMockGcsClient();
+    const A = new GcsCacheSyncService(mock, a);
+    await seedFile(a, "data/@t/foo/a/out/1/raw", bytes4411(1000, "1"));
+    await A.markDirty({ relPath: "data/@t/foo/a/out/1/raw" });
+    await A.pushChanged();
+    const B = new GcsCacheSyncService(mock, b);
+    await B.pullChanged();
+    await seedFile(a, "data/@t/foo/a/out/1/raw", bytes4411(2000, "2"));
+    await A.markDirty({ relPath: "data/@t/foo/a/out/1/raw" });
+    await A.pushChanged();
+
+    const { stalled, release } = stallDownload4411(
+      mock,
+      "data/@t/foo/a/out/1/raw",
+    );
+    const reader = new GcsCacheSyncService(mock, b);
+    const pull = reader.pullChanged();
+    await stalled;
+    const path = join(b, "data/@t/foo/a/out/1/raw");
+    await Deno.writeTextFile(`${path}.new`, bytes4411(7000, "N"));
+    await Deno.rename(`${path}.new`, path);
+    release();
+    assertEquals(await pull, 0);
+    assertEquals(await Deno.readTextFile(path), bytes4411(7000, "N"));
+    assertEquals(
+      (await dirNames4411(join(b, "data/@t/foo/a/out/1"))).filter((n) =>
+        n.endsWith(".tmp")
+      ),
+      [],
+    );
+    const own = JSON.parse(
+      await Deno.readTextFile(join(b, ".datastore-local-mtimes.json")),
+    );
+    assert(
+      own.files["data/@t/foo/a/out/1/raw"]?.size !== 7000,
+      "no record of the write",
+    );
+  });
+});
+
+Deno.test("swamp-club#4411: an unscoped pull keeps a run record whose remote this copy already held", async () => {
+  await withDirs4411(1, async (a) => {
+    const mock = createMockGcsClient();
+    const A = new GcsCacheSyncService(mock, a);
+    await seedFile(a, RUN_4411, "status: running\n");
+    await A.markDirty({ relPath: RUN_4411 });
+    await A.pushChanged();
+    const lagging = new Map(mock.storage);
+    const NEW = `status: running\n${bytes4411(5000, "s")}\n`;
+    await seedFile(a, RUN_4411, NEW);
+    await A.markDirty({ relPath: RUN_4411 });
+    await A.pushChanged();
+    // The bucket still shows the earlier push: its index commit is pending.
+    mock.storage.clear();
+    for (const [k, v] of lagging) mock.storage.set(k, v);
+
+    const warnings = await captureWarnings4411(async () => {
+      assertEquals(await new GcsCacheSyncService(mock, a).pullChanged(), 0);
+    });
+    assertEquals(await Deno.readTextFile(join(a, RUN_4411)), NEW);
+    const kept = warnings.filter((w) => w.includes("Kept 1 local"));
+    assertEquals(kept.length, 1, warnings.join("\n"));
+    assert(kept[0].includes(RUN_4411));
+    assert(kept[0].includes("delete the local file"));
+  });
+});
+
+Deno.test("swamp-club#4411: a run record changed past its last recorded copy is kept", async () => {
+  await withDirs4411(1, async (a) => {
+    const mock = createMockGcsClient();
+    const A = new GcsCacheSyncService(mock, a);
+    await seedFile(a, RUN_4411, "status: running\n");
+    await A.markDirty({ relPath: RUN_4411 });
+    await A.pushChanged();
+    const NEW = `status: running\n${bytes4411(5000, "s")}\n`;
+    await seedFile(a, RUN_4411, NEW);
+    await peerPush4411(mock);
+    const warnings = await captureWarnings4411(async () => {
+      await new GcsCacheSyncService(mock, a).pullChanged();
+    });
+    assertEquals(await Deno.readTextFile(join(a, RUN_4411)), NEW);
+    assertEquals(
+      warnings.filter((w) => w.includes("Kept 1 local")).length,
+      1,
+      warnings.join("\n"),
+    );
+
+    // Nothing marked this write, and the next push still sends it.
+    await new GcsCacheSyncService(mock, a).pushChanged();
+    const c = await Deno.makeTempDir({ prefix: "sync-4411-" });
+    try {
+      await new GcsCacheSyncService(mock, c).pullChanged();
+      assertEquals(await Deno.readTextFile(join(c, RUN_4411)), NEW);
+    } finally {
+      await Deno.remove(c, { recursive: true });
+    }
+  });
+});
+
+Deno.test("swamp-club#4411: a run record marked live or only in the sidecar is kept, and the next push sends it", async () => {
+  await withDirs4411(2, async (a, b) => {
+    const mock = createMockGcsClient();
+    const A = new GcsCacheSyncService(mock, a);
+    await seedFile(a, RUN_4411, "status: one\n");
+    await A.markDirty({ relPath: RUN_4411 });
+    await A.pushChanged();
+    const B = new GcsCacheSyncService(mock, b);
+    await B.pullChanged();
+    await seedFile(a, RUN_4411, "status: peer-update\n");
+    await A.markDirty({ relPath: RUN_4411 });
+    await A.pushChanged();
+
+    // B's writer holds a mark, and a second service reads it from the sidecar.
+    await B.markDirty({ relPath: RUN_4411 });
+    await seedFile(b, RUN_4411, "status: local-write\n");
+    const warnings = await captureWarnings4411(async () => {
+      assertEquals(await new GcsCacheSyncService(mock, b).pullChanged(), 0);
+      assertEquals(
+        await Deno.readTextFile(join(b, RUN_4411)),
+        "status: local-write\n",
+      );
+      assertEquals(await B.pullChanged(), 0);
+    });
+    assertEquals(
+      warnings.filter((w) => w.includes("Kept 1 local")).length,
+      2,
+      warnings.join("\n"),
+    );
+    assertEquals(
+      await Deno.readTextFile(join(b, RUN_4411)),
+      "status: local-write\n",
+    );
+
+    await B.pushChanged();
+    const c = await Deno.makeTempDir({ prefix: "sync-4411-" });
+    try {
+      await new GcsCacheSyncService(mock, c).pullChanged();
+      assertEquals(
+        await Deno.readTextFile(join(c, RUN_4411)),
+        "status: local-write\n",
+      );
+    } finally {
+      await Deno.remove(c, { recursive: true });
+    }
+  });
+});
+
+Deno.test("swamp-club#4411: a peer's newer record replaces an older pulled copy under the bulk flag, and the push does not undo it", async () => {
+  await withDirs4411(3, async (a, b, c) => {
+    const mock = createMockGcsClient();
+    const A = new GcsCacheSyncService(mock, a);
+    const OLD = "status: running\n";
+    const NEW = "status: succeeded\nsteps: all of them finished\n";
+    await seedFile(a, RUN_4411, OLD);
+    await A.markDirty({ relPath: RUN_4411 });
+    await A.pushChanged();
+    const B = new GcsCacheSyncService(mock, b);
+    await B.pullChanged();
+    await seedFile(a, RUN_4411, NEW);
+    await A.markDirty({ relPath: RUN_4411 });
+    await A.pushChanged();
+
+    await B.markDirty();
+    await B.pullChanged();
+    assertEquals(await Deno.readTextFile(join(b, RUN_4411)), NEW);
+    await B.pushChanged();
+    await new GcsCacheSyncService(mock, c).pullChanged();
+    assertEquals(await Deno.readTextFile(join(c, RUN_4411)), NEW);
+  });
+});
+
+Deno.test("swamp-club#4411: a marked file outside workflow-runs is still replaced by an unscoped pull", async () => {
+  await withDirs4411(2, async (a, b) => {
+    const mock = createMockGcsClient();
+    const A = new GcsCacheSyncService(mock, a);
+    await seedFile(a, "data/@t/foo/a/out/1/raw", "one\n");
+    await A.markDirty({ relPath: "data/@t/foo/a/out/1/raw" });
+    await A.pushChanged();
+    const B = new GcsCacheSyncService(mock, b);
+    await B.pullChanged();
+    await seedFile(a, "data/@t/foo/a/out/1/raw", "peer-update\n");
+    await A.markDirty({ relPath: "data/@t/foo/a/out/1/raw" });
+    await A.pushChanged();
+    await seedFile(b, "data/@t/foo/a/out/1/raw", "local\n");
+    await B.markDirty({ relPath: "data/@t/foo/a/out/1/raw" });
+    assertEquals(await B.pullChanged(), 1);
+    assertEquals(
+      await Deno.readTextFile(join(b, "data/@t/foo/a/out/1/raw")),
+      "peer-update\n",
+    );
+  });
+});
+
+Deno.test("swamp-club#4411: a kept file does not arm the fast path, so the next pull looks again", async () => {
+  await withDirs4411(1, async (a) => {
+    const mock = createMockGcsClient();
+    const A = new GcsCacheSyncService(mock, a);
+    await seedFile(a, RUN_4411, "status: running\n");
+    await A.markDirty({ relPath: RUN_4411 });
+    await A.pushChanged();
+    await seedFile(a, RUN_4411, `status: running\n${bytes4411(500, "s")}\n`);
+    await peerPush4411(mock);
+    const reader = new GcsCacheSyncService(mock, a);
+    const warnings = await captureWarnings4411(async () => {
+      await reader.pullChanged();
+      await reader.pullChanged();
+    });
+    assertEquals(warnings.filter((w) => w.includes("Kept 1 local")).length, 2);
+  });
+});
+
+Deno.test("swamp-club#4411: history is capped, stored under version 1, and a malformed field is ignored", async () => {
+  await withDirs4411(1, async (a) => {
+    const mock = createMockGcsClient();
+    const A = new GcsCacheSyncService(mock, a);
+    for (let i = 0; i < 40; i++) {
+      await seedFile(a, RUN_4411, `status: ${i}\n`);
+      await A.markDirty({ relPath: RUN_4411 });
+      await A.pushChanged();
+    }
+    const ownPath = join(a, ".datastore-local-mtimes.json");
+    const own = JSON.parse(await Deno.readTextFile(ownPath));
+    assertEquals(own.version, 1);
+    assert(own.files[RUN_4411].sha256, "the version 1 fields stay");
+    assert(own.files[RUN_4411].held.length <= 32);
+
+    own.files[RUN_4411].held = "not-a-list";
+    await Deno.writeTextFile(ownPath, JSON.stringify(own));
+    await seedFile(a, RUN_4411, "status: changed-again\n");
+    const fresh = new GcsCacheSyncService(mock, a);
+    await captureWarnings4411(async () => {
+      await fresh.pullChanged();
+    });
+    await fresh.markDirty({ relPath: RUN_4411 });
+    await fresh.pushChanged();
+    const after = JSON.parse(await Deno.readTextFile(ownPath)).files[RUN_4411];
+    assert(after.sha256, "the record still loads and updates");
+    assert(
+      after.held === undefined ||
+        (Array.isArray(after.held) &&
+          after.held.every((h: unknown) => typeof h === "string")),
+      "the malformed history is gone",
+    );
+  });
+});
+
+Deno.test("swamp-club#4411: data files record no history", async () => {
+  await withDirs4411(1, async (a) => {
+    const mock = createMockGcsClient();
+    const A = new GcsCacheSyncService(mock, a);
+    for (const text of ["one\n", "two\n"]) {
+      await seedFile(a, "data/@t/foo/a/out/1/raw", text);
+      await A.markDirty({ relPath: "data/@t/foo/a/out/1/raw" });
+      await A.pushChanged();
+    }
+    const own = JSON.parse(
+      await Deno.readTextFile(join(a, ".datastore-local-mtimes.json")),
+    );
+    assertEquals(own.files["data/@t/foo/a/out/1/raw"].held, undefined);
+  });
+});
+
+/**
+ * A local HTTP server that promises `size` bytes and sends only `sent` of them
+ * on each request before cutting the connection, until `cuts` runs out.
+ */
+function startCuttingServer4411(
+  body: Uint8Array,
+  cuts: number,
+  sent = 100,
+): { endpoint: string; requests: () => number; close: () => void } {
+  const listener = Deno.listen({ hostname: "127.0.0.1", port: 0 });
+  let requests = 0;
+  (async () => {
+    try {
+      for await (const conn of listener) {
+        const buf = new Uint8Array(64 * 1024);
+        const n = await conn.read(buf).catch(() => null);
+        const request = new TextDecoder().decode(buf.subarray(0, n ?? 0));
+        // The format guard's probes are not the download under test.
+        if (
+          request.includes("datastore-format") ||
+          !request.includes("alt=media")
+        ) {
+          await conn.write(
+            new TextEncoder().encode(
+              "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n" +
+                "Connection: close\r\n\r\n",
+            ),
+          ).catch(() => 0);
+          conn.close();
+          continue;
+        }
+        requests++;
+        const cut = requests <= cuts;
+        const head = "HTTP/1.1 200 OK\r\n" +
+          `Content-Length: ${body.length}\r\n` +
+          "Content-Type: application/octet-stream\r\n" +
+          'ETag: "4411"\r\nX-Goog-Generation: 1\r\nConnection: close\r\n\r\n';
+        try {
+          await conn.write(new TextEncoder().encode(head));
+          const out = cut ? body.subarray(0, sent) : body;
+          for (let at = 0; at < out.length;) {
+            at += await conn.write(out.subarray(at));
+          }
+        } catch { /* the client went away */ }
+        conn.close();
+      }
+    } catch { /* the listener was closed */ }
+  })();
+  const { port } = listener.addr as Deno.NetAddr;
+  return {
+    endpoint: `http://127.0.0.1:${port}`,
+    requests: () => requests,
+    close: () => listener.close(),
+  };
+}
+
+Deno.test({
+  name:
+    "swamp-club#4411: through the real GcsClient, a connection cut mid-body leaves the file byte-identical and no temp file",
+  // fetch keeps its connection pool open past the test.
+  sanitizeResources: false,
+  fn: async () => {
+    await withDirs4411(1, async (cache) => {
+      const remote = new TextEncoder().encode(bytes4411(200_000, "R"));
+      const server = startCuttingServer4411(remote, Number.MAX_SAFE_INTEGER);
+      try {
+        const gcs = new GcsClient({
+          bucket: "test-bucket",
+          apiEndpoint: server.endpoint,
+        });
+        await seedFile(cache, "data/run.yaml", bytes4411(5000, "L"));
+        const service = new GcsCacheSyncService(gcs, cache);
+        await assertRejects(() => service.pullFile("data/run.yaml"));
+        assert(server.requests() >= 1, "the client reached the server");
+        assertEquals(
+          await Deno.readTextFile(join(cache, "data/run.yaml")),
+          bytes4411(5000, "L"),
+        );
+        assertEquals(await dirNames4411(join(cache, "data")), ["run.yaml"]);
+      } finally {
+        server.close();
+      }
+    });
+  },
+});
+
+Deno.test({
+  name:
+    "swamp-club#4411: through the real GcsClient, the pull after a cut download ends with the whole file",
+  // fetch keeps its connection pool open past the test.
+  sanitizeResources: false,
+  fn: async () => {
+    await withDirs4411(1, async (cache) => {
+      const remote = new TextEncoder().encode(bytes4411(200_000, "R"));
+      const server = startCuttingServer4411(remote, 1);
+      try {
+        const gcs = new GcsClient({
+          bucket: "test-bucket",
+          apiEndpoint: server.endpoint,
+        });
+        await seedFile(cache, "data/run.yaml", bytes4411(5000, "L"));
+        const service = new GcsCacheSyncService(gcs, cache);
+        // The cut may be retried within this call, or surface here.
+        await service.pullFile("data/run.yaml").catch(() => false);
+        assertEquals(await service.pullFile("data/run.yaml"), true);
+        assert(server.requests() >= 2, "the first download was cut");
+        assertEquals(
+          await Deno.readTextFile(join(cache, "data/run.yaml")),
+          bytes4411(200_000, "R"),
+        );
+        assertEquals(await dirNames4411(join(cache, "data")), ["run.yaml"]);
+      } finally {
+        server.close();
+      }
+    });
+  },
+});
+
+Deno.test("swamp-club#4411: a mark on the run's directory does not keep a peer's newer record", async () => {
+  await withDirs4411(3, async (a, b, c) => {
+    const mock = createMockGcsClient();
+    const A = new GcsCacheSyncService(mock, a);
+    const NEW = "status: succeeded\nsteps: all of them finished\n";
+    await seedFile(a, RUN_4411, "status: running\n");
+    await A.markDirty({ relPath: RUN_4411 });
+    await A.pushChanged();
+    const B = new GcsCacheSyncService(mock, b);
+    await B.pullChanged();
+    await seedFile(a, RUN_4411, NEW);
+    await A.markDirty({ relPath: RUN_4411 });
+    await A.pushChanged();
+
+    await B.markDirty({ relPath: "workflow-runs/wf" });
+    await B.pullChanged();
+    assertEquals(await Deno.readTextFile(join(b, RUN_4411)), NEW);
+    await B.pushChanged();
+    await new GcsCacheSyncService(mock, c).pullChanged();
+    assertEquals(await Deno.readTextFile(join(c, RUN_4411)), NEW);
+  });
+});
+
+Deno.test({
+  name:
+    "swamp-club#4411: a local NotFound while writing is not mistaken for a missing remote object",
+  // Windows refuses to remove a directory holding an open file.
+  ignore: Deno.build.os === "windows",
+  fn: async () => {
+    await withDirs4411(1, async (cache) => {
+      const mock = createMockGcsClient();
+      mock.storage.set(
+        "data/x/run.yaml",
+        new TextEncoder().encode(bytes4411(1000, "R")),
+      );
+      const { stalled, release } = stallDownload4411(mock, "data/x/run.yaml");
+      const pull = new GcsCacheSyncService(mock, cache).pullFile(
+        "data/x/run.yaml",
+      );
+      await stalled;
+      await Deno.remove(join(cache, "data/x"), { recursive: true });
+      release();
+      let failure: unknown;
+      await pull.catch((err) => failure = err);
+      assert(failure instanceof Error, "the pull reports the failure");
+      assert(!(failure instanceof NotFoundError));
+    });
+  },
+});
+
+Deno.test("swamp-club#4411: a marked run record is kept over a legacy entry with no hash", async () => {
+  await withDirs4411(1, async (cache) => {
+    const mock = createMockGcsClient();
+    mock.storage.set(RUN_4411, new TextEncoder().encode("older"));
+    mock.storage.set(
+      ".datastore-index.json",
+      encodeIndex({
+        [RUN_4411]: {
+          key: RUN_4411,
+          size: 5,
+          lastModified: new Date().toISOString(),
+        },
+      }),
+    );
+    await seedFile(cache, RUN_4411, "status: local-write\n");
+    const service = new GcsCacheSyncService(mock, cache);
+    await service.markDirty({ relPath: RUN_4411 });
+    await captureWarnings4411(async () => {
+      await service.pullChanged();
+    });
+    assertEquals(
+      await Deno.readTextFile(join(cache, RUN_4411)),
+      "status: local-write\n",
+    );
+  });
+});
+
+Deno.test("swamp-club#4411: keeping a copy the bucket lags behind leaves no mark, so a peer's later update still arrives", async () => {
+  await withDirs4411(3, async (a, b, c) => {
+    const mock = createMockGcsClient();
+    const A = new GcsCacheSyncService(mock, a);
+    await seedFile(a, RUN_4411, "status: one\n");
+    await A.markDirty({ relPath: RUN_4411 });
+    await A.pushChanged();
+    const lagging = new Map(mock.storage);
+    await seedFile(a, RUN_4411, "status: two, which is longer\n");
+    await A.markDirty({ relPath: RUN_4411 });
+    await A.pushChanged();
+    const caughtUp = new Map(mock.storage);
+
+    // The bucket still shows the earlier push, so the pull keeps this copy.
+    mock.storage.clear();
+    for (const [k, v] of lagging) mock.storage.set(k, v);
+    const warnings = await captureWarnings4411(async () => {
+      await new GcsCacheSyncService(mock, a).pullChanged();
+    });
+    assertEquals(
+      warnings.filter((w) => w.includes("Kept 1 local")).length,
+      1,
+      warnings.join("\n"),
+    );
+    const sidecar = JSON.parse(
+      await Deno.readTextFile(join(a, ".datastore-sync-state.json")),
+    );
+    assert(!(sidecar.dirtyPaths ?? []).includes(RUN_4411), "no mark was added");
+
+    // The bucket catches up, and a peer takes the record further.
+    mock.storage.clear();
+    for (const [k, v] of caughtUp) mock.storage.set(k, v);
+    const peer = new GcsCacheSyncService(mock, b);
+    await peer.pullChanged();
+    const PEER = "status: three, from a peer\n";
+    await seedFile(b, RUN_4411, PEER);
+    await peer.markDirty({ relPath: RUN_4411 });
+    await peer.pushChanged();
+
+    const again = new GcsCacheSyncService(mock, a);
+    await again.pullChanged();
+    assertEquals(await Deno.readTextFile(join(a, RUN_4411)), PEER);
+    await again.pushChanged();
+    await new GcsCacheSyncService(mock, c).pullChanged();
+    assertEquals(await Deno.readTextFile(join(c, RUN_4411)), PEER);
+  });
+});
+
+Deno.test("swamp-club#4411: after the warning's delete and pull, the bucket catching up replaces the file and the push sends nothing older", async () => {
+  await withDirs4411(2, async (a, c) => {
+    const mock = createMockGcsClient();
+    const A = new GcsCacheSyncService(mock, a);
+    const ONE = "status: one\n";
+    const TWO = "status: two, which is longer\n";
+    await seedFile(a, RUN_4411, ONE);
+    await A.markDirty({ relPath: RUN_4411 });
+    await A.pushChanged();
+    const lagging = new Map(mock.storage);
+    await seedFile(a, RUN_4411, TWO);
+    await A.markDirty({ relPath: RUN_4411 });
+    await A.pushChanged();
+    const caughtUp = new Map(mock.storage);
+
+    mock.storage.clear();
+    for (const [k, v] of lagging) mock.storage.set(k, v);
+    await captureWarnings4411(async () => {
+      await new GcsCacheSyncService(mock, a).pullChanged();
+    });
+    assertEquals(await Deno.readTextFile(join(a, RUN_4411)), TWO);
+
+    // What the warning says to do.
+    await Deno.remove(join(a, RUN_4411));
+    await new GcsCacheSyncService(mock, a).pullChanged();
+    assertEquals(await Deno.readTextFile(join(a, RUN_4411)), ONE);
+
+    // Through putObject, so each object's generation moves as a real write's does.
+    for (const [k, v] of caughtUp) await mock.putObject(k, v);
+    const later = new GcsCacheSyncService(mock, a);
+    const warnings = await captureWarnings4411(async () => {
+      await later.pullChanged();
+    });
+    assertEquals(warnings.filter((w) => w.includes("Kept ")), []);
+    assertEquals(await Deno.readTextFile(join(a, RUN_4411)), TWO);
+    await later.markDirty();
+    await later.pushChanged();
+    await new GcsCacheSyncService(mock, c).pullChanged();
+    assertEquals(await Deno.readTextFile(join(c, RUN_4411)), TWO);
+  });
+});
+
+Deno.test("swamp-club#4411: a model-lock pull that falls back to the whole index keeps a marked run record", async () => {
+  await withDirs4411(1, async (a) => {
+    const mock = createMockGcsClient();
+    const A = new GcsCacheSyncService(mock, a);
+    await seedFile(a, RUN_4411, "status: one\n");
+    await A.markDirty({ relPath: RUN_4411 });
+    await A.pushChanged();
+    const NEW = "status: unpushed local write\n";
+    await seedFile(a, RUN_4411, NEW);
+    await A.markDirty({ relPath: RUN_4411 });
+    await peerPush4411(mock);
+    // This model has never been written, so it has no shard to read.
+    await captureWarnings4411(async () => {
+      await new GcsCacheSyncService(mock, a).pullChanged({
+        context: { models: [{ modelType: "@t/never", modelId: "written" }] },
+      });
+    });
+    assertEquals(await Deno.readTextFile(join(a, RUN_4411)), NEW);
+  });
 });

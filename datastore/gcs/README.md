@@ -360,6 +360,17 @@ The cache sync service maintains a local cache directory and syncs with GCS:
   `atomicWriteFile`) MUST call `DatastoreSyncService.markDirty()` so the
   fast-path short-circuit knows to run a full walk on the next `pushChanged`.
   Without `markDirty`, the external write is silently skipped on the next sync.
+  A pull writes through a temp file beside the target and renames it over, so a
+  reader or an abort sees the earlier file or the complete new one, and a local
+  write that lands during a download wins over it. An unscoped or model-scoped
+  pull also keeps a local run record (`workflow-runs/`) that a writer has
+  marked, or whose bucket copy this cache already held before its latest write,
+  because that copy cannot be newer. It prints one warning per pull naming the
+  files, and they are not counted as pulled. The next push sends any writes not
+  yet in the bucket. To use the bucket's copy, delete the local file and pull
+  again. A bucket copy this cache never held, such as another clone's update,
+  still replaces the local record, and model-scoped pulls replace data files as
+  before.
   A pull never marks the cache clean. An unscoped pull, and a model-scoped pull
   for that model's own files, still replace a changed file with the bucket's
   copy when they differ, but the cache stays marked dirty until a push succeeds,
