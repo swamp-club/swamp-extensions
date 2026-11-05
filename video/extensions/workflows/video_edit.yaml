@@ -30,6 +30,10 @@ inputs:
       type: string
       description: A @swamp/video/media instance with render settings (optional)
       default: ""
+    bedMode:
+      type: string
+      description: "Where the bed plays: waits or full (empty uses the media instance's setting)"
+      default: ""
     retakeMarkers:
       type: array
       items:
@@ -61,10 +65,21 @@ jobs:
           expr: >-
             inputs.cards != "simple" || inputs.title != ""
           message: "cards mode simple needs a title: pass --input title=..., or --input cards=none"
+      - name: check-bed
+        description: Fail before the slow steps on an unknown bedMode, or a full-length bed with no settings to come from
+        task:
+          type: assert
+          expr: >-
+            (inputs.bedMode == "" || inputs.bedMode == "waits" || inputs.bedMode == "full") &&
+            (inputs.bedMode != "full" || inputs.media != "")
+          message: "bedMode is waits or full, and full needs a media instance with a bed: pass --input media=..."
       - name: transcribe
         description: Verbatim word-timed transcript (fillers kept)
         dependsOn:
           - step: check-inputs
+            condition:
+              type: succeeded
+          - step: check-bed
             condition:
               type: succeeded
         task:
@@ -78,6 +93,9 @@ jobs:
         description: Idle stretches, on-screen text, credentials, storyboard
         dependsOn:
           - step: check-inputs
+            condition:
+              type: succeeded
+          - step: check-bed
             condition:
               type: succeeded
         task:
@@ -125,6 +143,7 @@ jobs:
             screen: video-screen
             pixelate: ${{ inputs.pixelate }}
             media: ${{ inputs.media }}
+            bedMode: ${{ inputs.bedMode }}
             burn: ${{ inputs.burn }}
             cards:
               mode: ${{ inputs.cards }}

@@ -182,6 +182,8 @@ export async function resolveCards(
   input: CardsInput,
   take: Take,
   draw: () => Promise<string>,
+  /** A joined video's first take: its cards serve the whole video. */
+  firstTake?: Take,
 ): Promise<Cards> {
   switch (input.mode) {
     case "none":
@@ -196,8 +198,16 @@ export async function resolveCards(
     case "brand":
     case "custom": {
       if (input.from) {
-        const data = await readTakeData(ctx, input.from, "cards", take) ??
-          await readLatest(ctx, input.from, "cards");
+        const named = await readTakeData(ctx, input.from, "cards", take) ??
+          (firstTake &&
+            await readTakeData(ctx, input.from, "cards", firstTake));
+        const data = named ?? await readLatest(ctx, input.from, "cards");
+        if (data && !named && firstTake) {
+          ctx.logger.warn(
+            `no cards on ${input.from} for ${take.name} or ${firstTake.name}: ` +
+              `using the ones it wrote last, which may be another video's`,
+          );
+        }
         if (!data) {
           throw new Error(
             input.mode === "brand"

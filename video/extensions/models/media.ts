@@ -16,7 +16,8 @@
 /**
  * `@swamp/video/media`: a person's render settings, kept in their repo as an
  * instance: output size, encoder and quality, intro music and the quiet bed
- * under fast-forwards. render reads the latest `settings` record.
+ * under fast-forwards or the whole video, and how takes meet when joined.
+ * render reads the latest `settings` record.
  *
  * @module
  */
@@ -37,18 +38,32 @@ export const MediaSettingsSchema = z.object({
   ),
   vaapiDevice: z.string().default("/dev/dri/renderD128"),
   music: z.string().optional().describe("Intro music under the title card"),
-  bed: z.string().optional().describe("Quiet music under fast-forwarded waits"),
-  bedMinSeconds: z.number().min(0).default(0).describe(
-    "Output seconds a fast-forward needs before the bed plays; shorter ones stay silent",
+  bed: z.string().optional().describe(
+    "Quiet music under fast-forwarded waits, or the whole video (bedMode)",
   ),
-  bedFadeSeconds: z.number().positive().default(0.4).describe(
-    "Seconds the bed fades in and out",
+  bedMode: z.enum(["waits", "full"]).default("waits").describe(
+    "Where the bed plays: under fast-forwards (waits) or the whole video (full)",
+  ),
+  bedLevel: z.number().max(0).default(-12).describe(
+    "full: dB on the bed normalized to -16 LUFS; -12 sits about 14 LU under the voice",
+  ),
+  bedDuck: z.boolean().default(false).describe(
+    "full: push the bed down while the voice is talking",
+  ),
+  bedMinSeconds: z.number().min(0).default(0).describe(
+    "waits: output seconds a fast-forward needs before the bed plays; shorter ones stay silent",
+  ),
+  bedFadeSeconds: z.number().positive().optional().describe(
+    "Seconds the bed fades in and out (default: 0.4 for waits, 1.5 for full)",
   ),
   bedMergeSeconds: z.number().min(0).default(0).describe(
-    "Fast-forwards closer than this (output seconds) share one bed; 0 never merges",
+    "waits: fast-forwards closer than this (output seconds) share one bed; 0 never merges",
   ),
   coldOpenTransition: z.enum(["cut", "fade"]).default("cut").describe(
     "How a cold open's hook gives way to the intro card: a hard cut, or a crossfade",
+  ),
+  takeTransition: z.enum(["cut", "fade"]).default("cut").describe(
+    "How joined takes meet: a hard cut, or a crossfade",
   ),
   loudness: z.number().default(-14).describe(
     "Integrated loudness target, LUFS",
@@ -65,7 +80,7 @@ export type MediaSettings = z.infer<typeof MediaSettingsSchema>;
 
 export const model = {
   type: "@swamp/video/media",
-  version: "2026.10.30.1",
+  version: "2026.11.05.1",
   globalArguments: MediaSettingsSchema,
   upgrades: [
     {
@@ -78,6 +93,12 @@ export const model = {
       toVersion: "2026.10.30.1",
       description:
         "Add coldOpenTransition (cut by default; only takes with a cold open use it)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
+      description:
+        "Add bedMode, bedLevel, bedDuck and takeTransition (defaults keep the old render)",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

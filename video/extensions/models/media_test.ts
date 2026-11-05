@@ -43,15 +43,17 @@ Deno.test("media: a font name the filter graph can't quote is rejected", () => {
   );
 });
 
-Deno.test("media: the bed defaults to every fast-forward with 0.4s fades", async () => {
+Deno.test("media: the bed defaults to every fast-forward; its fade is left to the mode", async () => {
   const swamp = new FakeSwamp();
   await media.methods.show.execute({}, swamp.context("media", {}));
   const s = swamp.latest("media", "settings")!;
-  assertEquals([s.bedMinSeconds, s.bedFadeSeconds, s.bedMergeSeconds], [
+  assertEquals([s.bedMode, s.bedMinSeconds, s.bedMergeSeconds], [
+    "waits",
     0,
-    0.4,
     0,
   ]);
+  // Unset, so render can pick 0.4s for waits and 1.5s for a full-length bed.
+  assertEquals(s.bedFadeSeconds, undefined);
 });
 
 Deno.test("media: a zero fade or a negative bed length is rejected", () => {
@@ -72,5 +74,27 @@ Deno.test("media: a cold open cuts to the title by default; fade or cut only", a
   assertEquals([ok("fade"), ok("cut"), ok("wipe")], [true, true, false]);
   // Settings saved before cold opens upgrade unchanged.
   const old = { encoder: "vaapi", bedMinSeconds: 2 };
+  assertEquals(media.upgrades.at(-1)!.upgradeAttributes(old), old);
+});
+
+Deno.test("media: a full bed and joined takes are opt-in", async () => {
+  const swamp = new FakeSwamp();
+  await media.methods.show.execute({}, swamp.context("media", {}));
+  const s = swamp.latest("media", "settings")!;
+  assertEquals(
+    [s.bedMode, s.bedLevel, s.bedDuck, s.takeTransition],
+    ["waits", -12, false, "cut"],
+  );
+  const ok = (v: Record<string, unknown>) =>
+    media.globalArguments.safeParse(v).success;
+  assertEquals(ok({ bedMode: "always" }), false);
+  assertEquals(ok({ bedLevel: 3 }), false);
+  assertEquals(ok({ takeTransition: "wipe" }), false);
+  assertEquals(
+    ok({ bedMode: "full", bedLevel: -18, takeTransition: "fade" }),
+    true,
+  );
+  // Settings saved earlier upgrade unchanged.
+  const old = { encoder: "vaapi", bedFadeSeconds: 1 };
   assertEquals(media.upgrades.at(-1)!.upgradeAttributes(old), old);
 });

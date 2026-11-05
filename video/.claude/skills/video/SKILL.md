@@ -89,10 +89,11 @@ switches a wait between fast-forward and normal speed, and bracing a wait
 real time. Braces must not nest (the import says which line is wrong).
 
 A cold open plays the opening words (the hook) before the title card and its
-music; the bed never plays under it. In edit.txt it is a `[cold-open]` token
-after the hook's last word: move it to move the hook, delete it for none. A
-first cut can open cold with video-edit's `coldOpenUntil` (the words ending the
-hook, or a time). The hook needs an intro card (any cards mode but `none`);
+music; a fast-forward bed never plays under it (a `bedMode: full` bed does,
+unless intro music is playing). In edit.txt it is a `[cold-open]` token after
+the hook's last word: move it to move the hook, delete it for none. A first cut
+can open cold with video-edit's `coldOpenUntil` (the words ending the hook, or a
+time). The hook needs an intro card (any cards mode but `none`);
 `coldOpenTransition: fade` on the media instance crossfades into the card
 instead of cutting.
 
@@ -108,6 +109,29 @@ ones", "softer fades" or "keep the music going between them" are the media
 instance's `bedMinSeconds`, `bedFadeSeconds` and `bedMergeSeconds` (README,
 Tuning the bed); change them there, run its `show`, then video-recut with
 `--input media=<instance>`.
+
+"Quiet music under the whole thing" is `--input bedMode=full` on video-edit or
+video-recut, with a media instance that has `bed` set. "Louder" or "quieter" is
+its `bedLevel` (dB, default -12), and "duck it under my voice" is `bedDuck`.
+
+## Joining takes
+
+A second take goes into the first by naming both on video-recut:
+
+```bash
+swamp workflow run @swamp/video/video-edit \
+  --input recordingPath=<new take> --input cards=none
+swamp workflow run @swamp/video/video-recut \
+  --input 'takes=["<first>","<new take>"]' --input cards=none
+```
+
+Run video-edit on the new take only: on a take already edited it rebuilds the
+edit list and transcribes it again. Each take keeps its own edit.txt, and chat
+edits name that take's `recordingPath`. Rerun video-recut with the same `takes`
+afterwards. The joined files are `<first>.joined.*` unless `output` says
+otherwise. For a crossfade, set `takeTransition: fade` on the media instance.
+Only the first take can open cold. video-describe doesn't cover a joined video
+yet.
 
 ## Describing it
 

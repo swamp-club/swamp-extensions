@@ -18,7 +18,8 @@
  * video: `<recording>.polished.mp4` (soft captions, plus `.polished.srt`),
  * `<recording>.captioned.mp4` (burned captions) and a 1280x720 thumbnail,
  * next to the recording. A take with a cold open plays its hook before the
- * intro card.
+ * intro card. Given `takes`, it joins several edited takes into one video with
+ * one set of those files, named after `output`.
  *
  * @module
  */
@@ -36,6 +37,7 @@ import { coldOpenAt, type Item, type Span } from "./_lib/edit_list.ts";
 import { run } from "./_lib/exec.ts";
 import {
   buildGraph,
+  checkJoin,
   checkOpening,
   type Encoder,
   encoderArgs,
@@ -45,10 +47,18 @@ import {
   opening,
   parseLoudness,
   type RenderPlan,
+  takeTimeline,
+  usableLoudness,
 } from "./_lib/graph.ts";
-import { ensureWorkDir, probe, takeOf } from "./_lib/media.ts";
+import {
+  ensureWorkDir,
+  type MediaInfo,
+  probe,
+  type Take,
+  takeOf,
+} from "./_lib/media.ts";
 import type { Redaction } from "./_lib/screen.ts";
-import { buildSrt } from "./_lib/srt.ts";
+import { joinSrt } from "./_lib/srt.ts";
 import { MediaSettingsSchema } from "./media.ts";
 import { ScreenSchema } from "./screen.ts";
 
@@ -85,9 +95,17 @@ const CardsArgs = z.object({
 });
 
 const RenderArgs = z.object({
-  recordingPath: z.string(),
+  recordingPath: z.string().default("").describe(
+    "The recording to render; or pass takes to join several",
+  ),
+  takes: z.array(z.string()).default([]).describe(
+    "Two or more recordings to join into one video, in order",
+  ),
+  output: z.string().default("").describe(
+    "takes: path of the joined files without their suffix (default: the first take's, plus .joined)",
+  ),
   edit: z.string().default("edit").describe(
-    "The @swamp/video/edit instance holding this take's edit list",
+    "The @swamp/video/edit instance holding each take's edit list",
   ),
   screen: z.string().optional().describe(
     "A @swamp/video/screen instance; its credential boxes are pixelated",
@@ -98,7 +116,10 @@ const RenderArgs = z.object({
   ),
   cards: CardsArgs.default({ mode: "simple" }),
   music: z.string().optional().describe("Intro music (overrides media)"),
-  bed: z.string().optional().describe("Fast-forward bed (overrides media)"),
+  bed: z.string().optional().describe("Bed music (overrides media)"),
+  bedMode: z.enum(["", "waits", "full"]).default("").describe(
+    "Where the bed plays: waits or full (overrides media; empty uses media)",
+  ),
   burn: z.boolean().default(true).describe("Also write a burned-caption video"),
   voiceCleanup: z.boolean().default(false).describe(
     "Highpass, denoise and compress the voice before normalizing",
@@ -108,6 +129,78 @@ const RenderArgs = z.object({
 
 function optionalPath(ctx: VideoContext, path?: string): string | undefined {
   return path ? resolvePath(ctx, path) : undefined;
+}
+
+/** The takes to render, and the take the finished files are named after. */
+function renderTargets(
+  ctx: VideoContext,
+  args: { recordingPath: string; takes: string[]; output: string },
+): { takes: Take[]; out: Take } {
+  if (args.recordingPath && args.takes.length) {
+    throw new Error("pass recordingPath or takes, not both");
+  }
+  if (!args.takes.length) {
+    if (!args.recordingPath) throw new Error("pass recordingPath or takes");
+    if (args.output) {
+      throw new Error("output names a joined video: it needs takes");
+    }
+    const take = takeOf(resolvePath(ctx, args.recordingPath));
+    return { takes: [take], out: take };
+  }
+  if (args.takes.length < 2) {
+    throw new Error(
+      "takes joins two or more recordings: pass one as recordingPath",
+    );
+  }
+  const takes = args.takes.map((path) => takeOf(resolvePath(ctx, path)));
+  const stem = args.output
+    ? resolvePath(ctx, args.output).replace(/\.mp4$/i, "")
+    : `${takes[0].stem}.joined`;
+  // takeOf reads the last dot as an extension, and a stem can hold one: this
+  // one's is ours, so "demo.joined" stays itself rather than becoming "demo".
+  const out = takeOf(`${stem}.mp4`);
+  const clash = takes.find((t) => t.stem === out.stem || t.name === out.name);
+  if (clash) {
+    throw new Error(
+      `the joined video would overwrite ${clash.name}'s own render: ` +
+        `pass a different output`,
+    );
+  }
+  return { takes, out };
+}
+
+interface EditListData {
+  items: Item[];
+  spans: Span[];
+  fps: number;
+  speechTrack: number;
+  coldOpenUntil?: number;
+}
+
+/** A take's credential boxes; a take with no analysis is refused, not skipped. */
+async function readRedactions(
+  ctx: VideoContext,
+  instance: string,
+  take: Take,
+): Promise<Redaction[]> {
+  const screen = await readTakeData(ctx, instance, "screen", take);
+  if (!screen) {
+    throw new Error(
+      `no screen analysis for ${take.name} on ${instance}: run its analyze ` +
+        `method, or pass pixelate=false to render without hiding credentials`,
+    );
+  }
+  const parsed = ScreenSchema.shape.redactions.safeParse(screen.redactions);
+  if (!parsed.success) {
+    throw new Error(
+      `the screen analysis for ${take.name} on ${instance} has ` +
+        `malformed redactions: ` +
+        parsed.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`)
+          .join("; ") +
+        `; run its analyze method again`,
+    );
+  }
+  return parsed.data;
 }
 
 export const VideoSchema = z.object({
@@ -121,6 +214,13 @@ export const VideoSchema = z.object({
   introSeconds: z.number(),
   /** Seconds of cold open before the intro card, when there is one. */
   hookSeconds: z.number().optional(),
+  /** A joined video's takes and where each starts in it, intro included. */
+  takes: z.array(z.object({
+    recording: z.string(),
+    take: z.string(),
+    startSeconds: z.number(),
+    seconds: z.number(),
+  })).optional(),
   cardsMode: z.string(),
   encoder: z.string(),
   redactions: z.number(),
@@ -129,13 +229,19 @@ export const VideoSchema = z.object({
 
 export const model = {
   type: "@swamp/video/render",
-  version: "2026.10.30.1",
+  version: "2026.11.05.1",
   globalArguments: GlobalArgs,
   upgrades: [
     {
       toVersion: "2026.10.30.1",
       description:
         "Render a take's cold open ahead of the intro card (no change without one)",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.05.1",
+      description:
+        "Join several takes, and play the bed under the whole video (no change without them)",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -154,62 +260,81 @@ export const model = {
       arguments: RenderArgs,
       execute: async (args: z.infer<typeof RenderArgs>, ctx: VideoContext) => {
         const g = GlobalArgs.parse(ctx.globalArgs);
-        const take = takeOf(resolvePath(ctx, args.recordingPath));
-        await ensureWorkDir(take);
-        const list = await requireTakeData(
-          ctx,
-          args.edit,
-          "editList",
-          take,
-          "run the edit instance's build (or import) method first",
-        ) as {
-          items: Item[];
-          spans: Span[];
-          fps: number;
-          speechTrack: number;
-          coldOpenUntil?: number;
-        };
+        const { takes, out } = renderTargets(ctx, args);
+        const joined = takes.length > 1;
+        await ensureWorkDir(out);
         const media = MediaSettingsSchema.parse(
           args.media ? await readLatest(ctx, args.media, "settings") ?? {} : {},
         );
-        const info = await probe(g.ffprobe, take.recording, ctx.signal);
-        const width = media.width ?? info.width;
-        const height = media.height ?? info.height;
-
-        let redactions: Redaction[] = [];
+        const bedMode = args.bedMode || media.bedMode;
+        const bed = optionalPath(ctx, args.bed ?? media.bed);
+        if (bedMode === "full" && !bed) {
+          throw new Error(
+            "bedMode full plays a bed under the whole video, and none is set: " +
+              "set bed on the media instance and run its show method",
+          );
+        }
+        if (bedMode !== "full" && media.bedDuck) {
+          ctx.logger.warn(
+            "bedDuck only applies with bedMode full: ignoring it",
+          );
+        }
         if (!args.screen && args.pixelate) {
           ctx.logger.warn(
             "no screen instance given: nothing is pixelated (pass screen, or pixelate=false to silence this)",
           );
         }
-        if (args.screen && args.pixelate) {
-          const screen = await readTakeData(
-            ctx,
-            args.screen,
-            "screen",
-            take,
+
+        // Each take's own edit list, size and credentials.
+        const lists: EditListData[] = [];
+        const infos: MediaInfo[] = [];
+        const redactions: Redaction[][] = [];
+        for (const take of takes) {
+          lists.push(
+            await requireTakeData(
+              ctx,
+              args.edit,
+              "editList",
+              take,
+              "run the edit instance's build (or import) method first",
+            ) as unknown as EditListData,
           );
-          if (!screen) {
-            throw new Error(
-              `no screen analysis for ${take.name} on ${args.screen}: run its analyze ` +
-                `method, or pass pixelate=false to render without hiding credentials`,
-            );
-          }
-          const parsed = ScreenSchema.shape.redactions.safeParse(
-            screen.redactions,
+          infos.push(await probe(g.ffprobe, take.recording, ctx.signal));
+          redactions.push(
+            args.screen && args.pixelate
+              ? await readRedactions(ctx, args.screen, take)
+              : [],
           );
-          if (!parsed.success) {
-            throw new Error(
-              `the screen analysis for ${take.name} on ${args.screen} has ` +
-                `malformed redactions: ` +
-                parsed.error.issues.map((i) =>
-                  `${i.path.join(".")}: ${i.message}`
-                ).join("; ") +
-                `; run its analyze method again`,
-            );
-          }
-          redactions = parsed.data;
         }
+        const [list] = lists;
+        const width = media.width ?? infos[0].width;
+        const height = media.height ?? infos[0].height;
+        takes.forEach((take, k) => {
+          if (k === 0) return;
+          if (lists[k].fps !== list.fps) {
+            ctx.logger.warn(
+              `${take.name} runs at ${
+                lists[k].fps
+              } fps: converting it to the first take's ${list.fps}`,
+            );
+          }
+          if (
+            !media.width && !media.height &&
+            (infos[k].width !== infos[0].width ||
+              infos[k].height !== infos[0].height)
+          ) {
+            ctx.logger.warn(
+              `${take.name} is ${infos[k].width}x${
+                infos[k].height
+              }: fitting it into the first take's ${width}x${height}`,
+            );
+          }
+          if (lists[k].coldOpenUntil !== undefined) {
+            ctx.logger.warn(
+              `${take.name} has a cold open, but only the first take can: ignoring it`,
+            );
+          }
+        });
 
         const cardsInput = {
           ...args.cards,
@@ -234,16 +359,17 @@ export const model = {
         const cards = await resolveCards(
           ctx,
           cardsInput,
-          take,
+          out,
           () =>
             drawTitleCard(
               g.chromium,
-              take,
+              out,
               args.cards,
               width,
               height,
               ctx.signal,
             ),
+          joined ? takes[0] : undefined,
         );
         let hook = 0;
         if (list.coldOpenUntil !== undefined) {
@@ -263,41 +389,25 @@ export const model = {
         checkOpening(cards, hook, media.coldOpenTransition);
         const open = opening(cards, hook, media.coldOpenTransition);
 
-        // Burned captions go on the take before the intro; the soft ones
-        // are shifted past it (from the hook's end, with a cold open).
-        await Deno.writeTextFile(
-          `${take.workDir}/captions.srt`,
-          buildSrt(
-            structuredClone(list.items),
-            list.spans,
-            list.fps,
-            0,
-            open.hook,
-          ),
-        );
-        const srt = `${take.stem}.polished.srt`;
-        await Deno.writeTextFile(
-          srt,
-          buildSrt(
-            structuredClone(list.items),
-            list.spans,
-            list.fps,
-            open.shift,
-            open.hook,
-          ),
-        );
-
-        const plan: RenderPlan = {
+        const sources = takes.map((take, k) => ({
           recording: take.recording,
-          speechTrack: list.speechTrack,
-          fps: list.fps,
+          speechTrack: lists[k].speechTrack,
+          fps: lists[k].fps,
+          spans: lists[k].spans,
+          redactions: redactions[k],
+        }));
+        const plan: RenderPlan = {
+          ...sources[0],
+          moreTakes: joined ? sources.slice(1) : undefined,
+          takeTransition: media.takeTransition,
           width,
           height,
-          spans: list.spans,
-          redactions,
           cards,
           music: optionalPath(ctx, args.music ?? media.music),
-          bed: optionalPath(ctx, args.bed ?? media.bed),
+          bed,
+          bedMode,
+          bedLevel: media.bedLevel,
+          bedDuck: media.bedDuck,
           bedMin: media.bedMinSeconds,
           bedFade: media.bedFadeSeconds,
           bedMerge: media.bedMergeSeconds,
@@ -309,25 +419,55 @@ export const model = {
           captions: "captions.srt",
           font: media.font,
         };
+        checkJoin(plan);
+        const timeline = takeTimeline(plan);
+
+        // Burned captions go on the take before the intro; the soft ones
+        // are shifted past it (from the hook's end, with a cold open).
+        const captioned = takes.map((_, k) => ({
+          items: structuredClone(lists[k].items),
+          spans: lists[k].spans,
+          fps: lists[k].fps,
+          start: timeline.starts[k],
+        }));
+        await Deno.writeTextFile(
+          `${out.workDir}/captions.srt`,
+          joinSrt(captioned, 0, open.hook),
+        );
+        const srt = `${out.stem}.polished.srt`;
+        await Deno.writeTextFile(
+          srt,
+          joinSrt(captioned, open.shift, open.hook),
+        );
+
         if (args.twoPassLoudness) {
           ctx.logger.info("measuring loudness");
-          // Its own file per render, so two renders of one take can't swap
-          // scripts; it goes once measured.
-          const script = await Deno.makeTempFile({
-            dir: take.workDir,
-            prefix: "measure-",
-            suffix: ".txt",
-          });
-          try {
-            await Deno.writeTextFile(script, measureFilter(plan));
-            const measured = await run({
-              bin: g.ffmpeg,
-              args: measureArgs(plan, script),
-              signal: ctx.signal,
+          // Each take on its own, so every one lands on the target.
+          for (const source of [plan, ...(plan.moreTakes ?? [])]) {
+            // Its own file per render, so two renders of one take can't swap
+            // scripts; it goes once measured.
+            const script = await Deno.makeTempFile({
+              dir: out.workDir,
+              prefix: "measure-",
+              suffix: ".txt",
             });
-            plan.measured = parseLoudness(measured.stderr);
-          } finally {
-            await Deno.remove(script).catch(() => {});
+            try {
+              await Deno.writeTextFile(script, measureFilter(plan, source));
+              const measured = await run({
+                bin: g.ffmpeg,
+                args: measureArgs(source, script),
+                signal: ctx.signal,
+              });
+              const loudness = parseLoudness(measured.stderr);
+              if (usableLoudness(loudness)) source.measured = loudness;
+              else {
+                ctx.logger.warn(
+                  `${source.recording} measures as silent: normalizing it without a measurement`,
+                );
+              }
+            } finally {
+              await Deno.remove(script).catch(() => {});
+            }
           }
         }
 
@@ -344,10 +484,10 @@ export const model = {
             videoBurned = "vup2";
           }
         }
-        await Deno.writeTextFile(`${take.workDir}/graph.txt`, graph);
+        await Deno.writeTextFile(`${out.workDir}/graph.txt`, graph);
         const srtInput = built.inputs.filter((a) => a === "-i").length;
-        const polished = `${take.stem}.polished.mp4`;
-        const captioned = `${take.stem}.captioned.mp4`;
+        const polished = `${out.stem}.polished.mp4`;
+        const burned = `${out.stem}.captioned.mp4`;
         const cmd = [
           "-hide_banner",
           "-loglevel",
@@ -380,24 +520,26 @@ export const model = {
             "-map",
             `[${built.audioBurned}]`,
             ...enc.args,
-            captioned,
+            burned,
           );
         }
         ctx.logger.info(
-          `rendering ${take.name} (${encoder}, ${
-            cards.intro ? "intro" : "no intro"
-          }${open.hook ? `, ${open.hook.toFixed(1)}s cold open` : ""}, ` +
-            `${redactions.length} pixelated)`,
+          `rendering ${out.name} (${
+            joined ? `${takes.length} takes, ` : ""
+          }${encoder}, ${cards.intro ? "intro" : "no intro"}${
+            open.hook ? `, ${open.hook.toFixed(1)}s cold open` : ""
+          }, ` +
+            `${redactions.flat().length} pixelated)`,
         );
         await run({
           bin: g.ffmpeg,
           args: cmd,
-          cwd: take.workDir,
+          cwd: out.workDir,
           signal: ctx.signal,
         });
 
         // 1280x720: YouTube's custom-thumbnail size, also fine elsewhere.
-        const thumbnail = `${take.stem}.thumbnail.jpg`;
+        const thumbnail = `${out.stem}.thumbnail.jpg`;
         const still = cards.intro &&
           /\.(png|jpe?g|webp)$/i.test(cards.intro.path);
         await run({
@@ -422,19 +564,31 @@ export const model = {
           signal: ctx.signal,
         });
 
-        const handle = await ctx.writeResource("video", take.name, {
-          recording: take.recording,
-          take: take.name,
+        const handle = await ctx.writeResource("video", out.name, {
+          recording: out.recording,
+          take: out.name,
           polished,
-          captioned: args.burn ? captioned : undefined,
+          captioned: args.burn ? burned : undefined,
           srt,
           thumbnail,
           durationSeconds: built.duration,
           introSeconds: open.shift,
           hookSeconds: open.hook || undefined,
+          takes: joined
+            ? takes.map((take, k) => ({
+              recording: take.recording,
+              take: take.name,
+              // The intro comes first, unless a cold open's hook plays ahead
+              // of it: then the first take starts at 0.
+              startSeconds: k === 0 && open.hook
+                ? 0
+                : timeline.starts[k] + open.shift,
+              seconds: timeline.seconds[k],
+            }))
+            : undefined,
           cardsMode: args.cards.mode,
           encoder,
-          redactions: redactions.length,
+          redactions: redactions.flat().length,
           renderedAt: new Date().toISOString(),
         });
         ctx.logger.info(`wrote ${polished}`);

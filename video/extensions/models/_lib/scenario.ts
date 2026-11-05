@@ -205,6 +205,9 @@ export async function analyzed(env: Env) {
 export function renderArgs(env: Env, extra: Record<string, unknown> = {}) {
   return {
     recordingPath: env.rec,
+    takes: [],
+    output: "",
+    bedMode: "" as const,
     edit: "edit",
     pixelate: true,
     cards: { mode: "simple" as const, title: "A demo" },

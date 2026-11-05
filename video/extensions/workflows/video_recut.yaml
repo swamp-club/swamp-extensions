@@ -1,11 +1,27 @@
 id: 47892e33-4a0e-4b25-9c99-e8d2e0638488
 name: "@swamp/video/video-recut"
-description: "Re-render a take after editing: read edit.txt (hand edits, or chat edits already written there) back into the edit list, then render again. Transcript and screen analysis are reused."
+description: "Re-render a take after editing: read edit.txt (hand edits, or chat edits already written there) back into the edit list, then render again. Transcript and screen analysis are reused. Pass takes to join several edited recordings into one video."
 version: 1
 inputs:
   properties:
     recordingPath:
       type: string
+      description: The recording to re-render; or pass takes
+      default: ""
+    takes:
+      type: array
+      items:
+        type: string
+      description: Two or more recordings, each already through video-edit, to join into one video in this order
+      default: []
+    output:
+      type: string
+      description: "takes: path of the joined files without their suffix (default: the first take's, plus .joined)"
+      default: ""
+    bedMode:
+      type: string
+      description: "Where the bed plays: waits or full (empty uses the media instance's setting)"
+      default: ""
     editFile:
       type: string
       description: "edit.txt to read (default: <recording>.video/edit.txt)"
@@ -34,8 +50,6 @@ inputs:
     burn:
       type: boolean
       default: true
-  required:
-    - recordingPath
 jobs:
   - name: recut
     description: Import edit.txt, render
@@ -47,18 +61,44 @@ jobs:
           expr: >-
             inputs.cards != "simple" || inputs.title != ""
           message: "cards mode simple needs a title: pass --input title=..., or --input cards=none"
+      - name: check-takes
+        description: One recording, or two or more takes; a single editFile can't serve several takes
+        task:
+          type: assert
+          expr: >-
+            (inputs.recordingPath != "" && size(inputs.takes) == 0) ||
+            (inputs.recordingPath == "" && size(inputs.takes) >= 2 && inputs.editFile == "")
+          message: "pass recordingPath, or takes with two or more recordings, not both; editFile only works with recordingPath"
+      - name: check-bed
+        description: Fail before rendering on an unknown bedMode, or a full-length bed with no settings to come from
+        task:
+          type: assert
+          expr: >-
+            (inputs.bedMode == "" || inputs.bedMode == "waits" || inputs.bedMode == "full") &&
+            (inputs.bedMode != "full" || inputs.media != "")
+          message: "bedMode is waits or full, and full needs a media instance with a bed: pass --input media=..."
       - name: import
         dependsOn:
           - step: check-inputs
             condition:
               type: succeeded
+          - step: check-takes
+            condition:
+              type: succeeded
+          - step: check-bed
+            condition:
+              type: succeeded
+        forEach:
+          item: rec
+          in: "${{ size(inputs.takes) > 0 ? inputs.takes : [inputs.recordingPath] }}"
+        concurrency: 1
         task:
           type: behavior
           behaviorType: "@swamp/video/edit"
           behaviorName: video-edit
           methodName: import
           inputs:
-            recordingPath: ${{ inputs.recordingPath }}
+            recordingPath: ${{ self.rec }}
             path: ${{ inputs.editFile }}
       - name: render
         dependsOn:
@@ -72,6 +112,9 @@ jobs:
           methodName: render
           inputs:
             recordingPath: ${{ inputs.recordingPath }}
+            takes: ${{ inputs.takes }}
+            output: ${{ inputs.output }}
+            bedMode: ${{ inputs.bedMode }}
             edit: video-edit
             screen: video-screen
             pixelate: ${{ inputs.pixelate }}

@@ -1,6 +1,6 @@
 manifestVersion: 1
 name: "@swamp/video"
-version: "2026.11.02.2"
+version: "2026.11.05.1"
 license: "AGPL-3.0-or-later"
 visibility: private
 description: |
@@ -11,7 +11,8 @@ description: |
   by quoting what was said, or by hand in edit.txt; then render with a title
   card, music, soft and burned captions, credentials pixelated, loudness
   normalized and a thumbnail. A take can open cold: its first words play
-  before the title card and music.
+  before the title card and music. Several takes can be joined into one
+  video, and the music bed can run under the whole of it.
 
   ## Behaviors
 
@@ -29,7 +30,7 @@ description: |
   ## Workflows
 
   `@swamp/video/video-edit` (first cut of any recording),
-  `@swamp/video/video-recut` (re-render after edits) and
+  `@swamp/video/video-recut` (re-render after edits, or join takes) and
   `@swamp/video/video-describe`.
 
   Needs ffmpeg, ffprobe, tesseract, chromium (simple title cards), and uv

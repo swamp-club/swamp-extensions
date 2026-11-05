@@ -44,8 +44,10 @@ From a verbatim transcript (fillers kept, so they can be cut):
   Slack, Google keys, JWTs, long high-entropy strings, `token=`/`password:`
   values) for as long as they show.
 
-Render then adds the cards, intro music and a quiet bed under fast-forwards,
-normalizes loudness to -14 LUFS (two passes), and writes the files above.
+Render then adds the cards, intro music and a quiet bed under fast-forwards (or
+under [the whole video](#tuning-the-bed)), normalizes the voice to -14 LUFS (two
+passes), and writes the files above. It can also
+[join several takes](#joining-takes) into one video.
 
 ## Requirements
 
@@ -79,7 +81,7 @@ silence, which would break fast-forward detection. It remains available with
 | Workflow                       | Does                                                        |
 | ------------------------------ | ----------------------------------------------------------- |
 | `@swamp/video/video-edit`      | transcribe and watch the screen (in parallel), build, render |
-| `@swamp/video/video-recut`     | read `edit.txt` back, render again                           |
+| `@swamp/video/video-recut`     | read `edit.txt` back, render again; `takes` joins several    |
 | `@swamp/video/video-describe`  | YouTube title, description and chapters                      |
 
 They use fixed instances (`video-transcript`, `video-screen`, `video-edit`,
@@ -87,8 +89,12 @@ They use fixed instances (`video-transcript`, `video-screen`, `video-edit`,
 named after the recording, so many takes share them.
 
 `video-edit` inputs: `recordingPath`, `title`, `subtitle`, `kicker`, `cards`
-(`simple` | `none` | `custom` | `brand`), `cardsFrom`, `media`,
+(`simple` | `none` | `custom` | `brand`), `cardsFrom`, `media`, `bedMode`,
 `retakeMarkers`, `coldOpenUntil`, `pixelate`, `burn`.
+
+`video-recut` inputs: `recordingPath` or `takes`, `output`, `editFile` (with
+`recordingPath` only), `title`, `subtitle`, `kicker`, `cards`, `cardsFrom`,
+`media`, `bedMode`, `pixelate`, `burn`.
 
 ## Changing the cut
 
@@ -175,6 +181,41 @@ with `cold-open --input clear=true` or by deleting the marker.
 - The video's first frame is the presenter, not the card; the thumbnail is
   still made as before.
 
+## Joining takes
+
+Forgot something? Record a second take, give it a first cut, then render the
+takes as one video:
+
+```bash
+swamp workflow run @swamp/video/video-edit \
+  --input recordingPath=demo-2.mkv --input cards=none
+swamp workflow run @swamp/video/video-recut \
+  --input 'takes=["demo-1.mkv","demo-2.mkv"]' --input cards=none
+```
+
+Run `video-edit` only on the new take: re-running it on an edited one rebuilds
+its edit list and transcribes it again. `video-recut` reads each take's
+`edit.txt` back, so hand edits and chat edits to any take carry through, and
+each take stays editable on its own.
+
+The result is one `demo-1.joined.polished.mp4`, with its `.captioned.mp4`,
+`.polished.srt`, thumbnail and `video-render` data; each take's own render is
+left alone. `output` picks another path (without the suffix).
+
+- Each take keeps its own edit list, pixelation and loudness measurement, so
+  the voices match. With `pixelate` on, every take needs its screen analysis.
+- Cards, music and the bed go around the whole video, once. Only the first take
+  can open cold; a cold open on a later take is ignored with a warning. With a
+  crossfade between takes, the hook has to end before the crossfade starts.
+- `brand` or `custom` cards from an instance use the joined name's cards, else
+  the first take's, else (with a warning) the ones it wrote last.
+- Takes meet at a hard cut. `takeTransition: fade` on the media instance
+  crossfades them instead (0.7s), which shortens the video by that much per join.
+- The output takes the first take's frame rate and size (or the media instance's
+  size). A take that differs is converted, with a warning.
+- `video-describe` doesn't cover a joined video yet: it maps chapters through
+  one recording's edit list.
+
 ## Cards
 
 Render takes a `cards` object; every source produces the same contract:
@@ -224,13 +265,15 @@ swamp model method run media show
 Pass `--input media=media` to video-edit and video-recut, and `--input presenter=presenter` to video-describe.
 Media settings: `width`/`height` (default: the recording's), `encoder`
 (`libx264`, `vaapi`, `qsv`, `nvenc`), `quality`, `vaapiDevice`, `music`, `bed`,
-`bedMinSeconds`, `bedFadeSeconds`, `bedMergeSeconds`, `coldOpenTransition`
-(`cut` | `fade`), `loudness` (LUFS), `font`.
+`bedMode` (`waits` | `full`), `bedLevel`, `bedDuck`, `bedMinSeconds`,
+`bedFadeSeconds`, `bedMergeSeconds`, `coldOpenTransition` (`cut` | `fade`),
+`takeTransition` (`cut` | `fade`), `loudness` (LUFS), `font`.
 
 ### Tuning the bed
 
 The bed plays under every fast-forward by default, fading in and out over 0.4s.
-Three media settings change that, all in seconds of the finished video:
+Three media settings change that (`bedFadeSeconds` is also used in full mode),
+all in seconds of the finished video:
 
 | Setting           | Default | Effect                                                         |
 | ----------------- | ------- | -------------------------------------------------------------- |
@@ -241,6 +284,30 @@ Three media settings change that, all in seconds of the finished video:
 Only the bed changes: the cut, clock and badge stay as they are. Set them with
 `swamp model edit media`, then run `swamp model method run media show` and
 video-recut with `--input media=media`.
+
+For informal demos, `bedMode: full` plays the bed under the whole video instead
+(or pass `--input bedMode=full` to video-edit or video-recut, which needs a
+media instance with `bed` set):
+
+| Setting          | Default | Effect                                                  |
+| ---------------- | ------- | ------------------------------------------------------- |
+| `bedLevel`       | `-12`   | dB on the bed after it is normalized to -16 LUFS        |
+| `bedFadeSeconds` | `1.5`   | how long it fades in at the start and out at the end    |
+| `bedDuck`        | `false` | push the bed down while the voice is talking            |
+
+- `bedLevel` `-12` sits about 14 LU under the voice. Being relative to the
+  normalized bed, it comes out the same whatever the track's own loudness.
+- The voice is normalized before the bed is mixed in, so the voice stays on
+  `loudness`.
+- The bed runs from the first frame to the last, including a cold open's hook
+  and the outro. With intro `music` playing, it comes in as that music starts to
+  fade, so the two don't compete, which also keeps it out of the hook.
+- `bedMinSeconds` and `bedMergeSeconds` don't apply; the bed stays at one level
+  under fast-forwards.
+- Settings written by an older `show` hold a 0.4s `bedFadeSeconds`. Run the
+  instance's `show` again to pick up the 1.5s default.
+- The media instance is shared, so `bedMode: full` on it applies to any render
+  that uses it, `@swamp/video/brand` ones included.
 
 ## Behaviors
 

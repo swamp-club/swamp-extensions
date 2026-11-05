@@ -30,21 +30,18 @@ export function srtTime(t: number): string {
   }:${pad(Math.floor(ms / 1000) % 60)},${pad(ms % 1000, 3)}`;
 }
 
-/**
- * SRT text for the kept words, shifted by `shift` seconds (an intro card).
- * With a cold open, `hookAt` is where the hook ends (take seconds): cues
- * break there, the hook's stay put and end by it, and only later ones shift.
- */
-export function buildSrt(
+type Cue = [number, number, string][];
+
+/** One take's kept words as short cues, in its own output time. */
+function takeCues(
   items: Item[],
   spans: Span[],
   fps: number,
-  shift = 0.0,
-  hookAt = 0.0,
-): string {
+  hookAt: number,
+): Cue[] {
   const remap = remapper(spans, fps);
-  const cues: [number, number, string][][] = [];
-  let cur: [number, number, string][] = [];
+  const cues: Cue[] = [];
+  let cur: Cue = [];
   let sentenceStart = true;
   for (const it of items) {
     if (it.kind !== "word" || !it.keep || !it.text) continue;
@@ -66,6 +63,39 @@ export function buildSrt(
     cur.push([s, e, text]);
   }
   if (cur.length) cues.push(cur);
+  return cues;
+}
+
+/** One take's part in a joined video's captions. */
+export interface CaptionedTake {
+  items: Item[];
+  spans: Span[];
+  fps: number;
+  /** Where the take starts in the joined video, before any intro. */
+  start: number;
+}
+
+/**
+ * SRT text for takes joined into one video, numbered straight through, shifted
+ * by `shift` seconds (an intro card). With a cold open, `hookAt` is where the
+ * hook ends in the first take: cues break there, the hook's stay put and end
+ * by it, and only later ones shift.
+ */
+export function joinSrt(
+  takes: CaptionedTake[],
+  shift = 0.0,
+  hookAt = 0.0,
+): string {
+  const cues = takes.flatMap((take, k) =>
+    takeCues(take.items, take.spans, take.fps, k === 0 ? hookAt : 0)
+      .map((cue) =>
+        cue.map(([s, e, w]): Cue[number] => [
+          s + take.start,
+          e + take.start,
+          w,
+        ])
+      )
+  ).sort((a, b) => a[0][0] - b[0][0]); // a crossfade can overlap neighbours
   const place = (t: number) => t < hookAt ? t : t + shift;
   const out = cues.map((cue, n) => {
     const start = place(cue[0][0]);
@@ -78,4 +108,18 @@ export function buildSrt(
       cue.map(([, , w]) => w).join(" ") + "\n";
   });
   return out.join("\n");
+}
+
+/**
+ * SRT text for one take's kept words, shifted by `shift` seconds (an intro
+ * card). With a cold open, `hookAt` is where the hook ends (take seconds).
+ */
+export function buildSrt(
+  items: Item[],
+  spans: Span[],
+  fps: number,
+  shift = 0.0,
+  hookAt = 0.0,
+): string {
+  return joinSrt([{ items, spans, fps, start: 0 }], shift, hookAt);
 }
