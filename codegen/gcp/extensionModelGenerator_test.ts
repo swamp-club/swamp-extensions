@@ -1629,3 +1629,43 @@ async function assertGenerated(
   assertEquals(findBareSpecifiers(source), []);
   await assertSnapshot(t, source);
 }
+
+Deno.test("generateGcpExtensionModel - enrichment filesExport emits a files block", () => {
+  const resource = makeResource({
+    resourcePath: ["files"],
+    methodConfigs: {
+      get: makeMethodConfig({ id: "drive.files.get" }),
+    },
+  });
+  const source = {
+    imports: [],
+    body:
+      `const contentFiles = { content: { description: "x", contentType: "application/octet-stream", lifetime: "infinite", garbageCollection: 5 } };\nconst extraMethods = {};`,
+  };
+  const withFiles = generateGcpExtensionModel(makeInput({
+    resource,
+    enrichment: {
+      source,
+      methodsExport: "extraMethods",
+      filesExport: "contentFiles",
+    },
+  }));
+  assertStringIncludes(withFiles, "  files: {\n    ...contentFiles,\n  },");
+  assert(
+    withFiles.indexOf("  files: {") < withFiles.indexOf("  methods: {"),
+    "files block should precede methods",
+  );
+  assertStringIncludes(withFiles, "    ...extraMethods,");
+
+  const withoutFiles = generateGcpExtensionModel(makeInput({
+    resource,
+    enrichment: { source, methodsExport: "extraMethods" },
+  }));
+  assert(
+    !withoutFiles.includes("  files: {"),
+    "no files block when the enrichment declares no filesExport",
+  );
+
+  const noEnrichment = generateGcpExtensionModel(makeInput({ resource }));
+  assert(!noEnrichment.includes("  files: {"), "no files block by default");
+});

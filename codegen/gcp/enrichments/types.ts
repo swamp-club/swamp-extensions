@@ -7,6 +7,12 @@ export interface GcpEnrichment {
   sourceFile: string;
   /** Name of the exported object containing additional method definitions */
   methodsExport: string;
+  /**
+   * Optional name of an exported object of swamp file specs (binary or
+   * streamed outputs). When set, the generated model gets a top-level
+   * `files: { ...<filesExport> }` block.
+   */
+  filesExport?: string;
 }
 
 export interface ParsedEnrichmentSource {

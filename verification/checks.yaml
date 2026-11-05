@@ -235,6 +235,9 @@ groups:
         triggers: *generated
       - dir: model/gcp/compute
         triggers: *generated
+      # Carries the drive.files media enrichment (upload, download_content).
+      - dir: model/gcp/drive
+        triggers: *generated
       - dir: model/cloudflare/r2
         triggers: *generated
       - dir: model/cloudflare/load-balancing

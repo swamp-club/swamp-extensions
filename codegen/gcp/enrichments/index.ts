@@ -6,6 +6,7 @@ import { enrichment as cloudassetAssets } from "./cloudasset-assets.ts";
 import { enrichment as cloudidentityGroupsMemberships } from "./cloudidentity-groups-memberships.ts";
 import { enrichment as cloudresourcemanagerOrganizations } from "./cloudresourcemanager-organizations.ts";
 import { enrichment as cloudresourcemanagerProjects } from "./cloudresourcemanager-projects.ts";
+import { enrichment as driveFiles } from "./drive-files.ts";
 import { enrichment as loggingSinks } from "./logging-sinks.ts";
 import { enrichment as orgpolicyPolicies } from "./orgpolicy-policies.ts";
 import { enrichment as recommenderRecommendations } from "./recommender-recommendations.ts";
@@ -23,6 +24,7 @@ const ENRICHMENTS: GcpEnrichment[] = [
   cloudidentityGroupsMemberships,
   cloudresourcemanagerOrganizations,
   cloudresourcemanagerProjects,
+  driveFiles,
   loggingSinks,
   orgpolicyPolicies,
   recommenderRecommendations,

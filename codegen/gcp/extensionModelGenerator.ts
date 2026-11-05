@@ -53,6 +53,8 @@ export interface GcpExtensionModelInput {
   enrichment?: {
     source: ParsedEnrichmentSource;
     methodsExport: string;
+    /** Optional name of an exported object of file specs to spread into `files` */
+    filesExport?: string;
   };
 }
 
@@ -474,6 +476,13 @@ export function generateGcpExtensionModel(
   lines.push(`      garbageCollection: 10,`);
   lines.push(`    },`);
   lines.push(`  },`);
+  // Enrichment file specs — only emitted when an enrichment declares them, so
+  // models without one keep byte-identical output.
+  if (input.enrichment?.filesExport) {
+    lines.push(`  files: {`);
+    lines.push(`    ...${input.enrichment.filesExport},`);
+    lines.push(`  },`);
+  }
   lines.push(`  methods: {`);
 
   // --- create method ---

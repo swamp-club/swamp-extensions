@@ -829,6 +829,7 @@ export async function generateGcpModels(options: {
           ? {
             source: await parseEnrichmentSource(rawEnrichment.sourceFile),
             methodsExport: rawEnrichment.methodsExport,
+            filesExport: rawEnrichment.filesExport,
           }
           : undefined;
 
