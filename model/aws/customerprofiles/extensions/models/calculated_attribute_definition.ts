@@ -43,6 +43,44 @@ const AttributeItemSchema = z.object({
     .describe("The name of an attribute defined in a profile object type."),
 });
 
+const FilterAttributeDimensionSchema = z.object({
+  DimensionType: z.enum([
+    "INCLUSIVE",
+    "EXCLUSIVE",
+    "CONTAINS",
+    "BEGINS_WITH",
+    "ENDS_WITH",
+    "BEFORE",
+    "AFTER",
+    "BETWEEN",
+    "NOT_BETWEEN",
+    "ON",
+    "GREATER_THAN",
+    "LESS_THAN",
+    "GREATER_THAN_OR_EQUAL",
+    "LESS_THAN_OR_EQUAL",
+    "EQUAL",
+  ]).describe("The action to filter with."),
+  Values: z.array(z.string().min(1).max(255)).describe(
+    "The values to apply the DimensionType on.",
+  ),
+});
+
+const FilterDimensionSchema = z.object({
+  Attributes: z.record(z.string(), FilterAttributeDimensionSchema).describe(
+    "Is the attribute within the FilterDimension map",
+  ),
+});
+
+const FilterGroupSchema = z.object({
+  Type: z.enum(["ALL", "ANY", "NONE"]).describe(
+    "The type of logical relationship between the dimensions of the Filter group.",
+  ),
+  Dimensions: z.array(FilterDimensionSchema).describe(
+    "Object that holds the attributes to filter on.",
+  ),
+});
+
 const ValueRangeSchema = z.object({
   Start: z.number().int().min(-2147483648).max(2147483647).describe(
     "The starting point for this range. Positive numbers indicate how many days in the past data should be included, and negative numbers indicate how many days in the future.",
@@ -53,10 +91,10 @@ const ValueRangeSchema = z.object({
 });
 
 const RangeSchema = z.object({
-  Value: z.number().int().min(1).max(2147483647).describe(
+  Value: z.number().int().min(0).max(2147483647).describe(
     "The amount of time of the specified unit.",
   ).optional(),
-  Unit: z.enum(["DAYS"]).describe("The unit of time."),
+  Unit: z.enum(["DAYS"]).describe("The unit of time.").optional(),
   ValueRange: ValueRangeSchema.describe(
     "A structure specifying the endpoints of the relative time period over which data is included in the aggregation.",
   ).optional(),
@@ -120,6 +158,16 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Mathematical expression and a list of attribute items specified in that expression.",
   ),
+  Filter: z.object({
+    Include: z.enum(["ALL", "ANY", "NONE"]).describe(
+      "Define whether to include or exclude objects for Calculated Attributed calculation that fit the filter groups criteria.",
+    ),
+    Groups: z.array(FilterGroupSchema).describe(
+      "Holds the list of Filter groups within the Filter definition.",
+    ),
+  }).describe(
+    "Defines how to filter the objects coming in for calculated attributes.",
+  ).optional(),
   Conditions: z.object({
     Range: RangeSchema.describe(
       "The relative time period over which data is included in the aggregation.",
@@ -170,6 +218,10 @@ const StateSchema = z.object({
     Attributes: z.array(AttributeItemSchema),
     Expression: z.string(),
   }).optional(),
+  Filter: z.object({
+    Include: z.string(),
+    Groups: z.array(FilterGroupSchema),
+  }).optional(),
   Conditions: z.object({
     Range: RangeSchema,
     ObjectCount: z.number(),
@@ -215,6 +267,16 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe(
     "Mathematical expression and a list of attribute items specified in that expression.",
+  ).optional(),
+  Filter: z.object({
+    Include: z.enum(["ALL", "ANY", "NONE"]).describe(
+      "Define whether to include or exclude objects for Calculated Attributed calculation that fit the filter groups criteria.",
+    ).optional(),
+    Groups: z.array(FilterGroupSchema).describe(
+      "Holds the list of Filter groups within the Filter definition.",
+    ).optional(),
+  }).describe(
+    "Defines how to filter the objects coming in for calculated attributes.",
   ).optional(),
   Conditions: z.object({
     Range: RangeSchema.describe(
@@ -276,7 +338,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CustomerProfiles CalculatedAttributeDefinition. Registered at `@swamp/aws/customerprofiles/calculated-attribute-definition`. */
 export const model = {
   type: "@swamp/aws/customerprofiles/calculated-attribute-definition",
-  version: "2026.11.05.1",
+  version: "2026.11.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -346,6 +408,11 @@ export const model = {
     {
       toVersion: "2026.11.05.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.06.1",
+      description: "Added: Filter",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -467,6 +534,7 @@ export const model = {
             "CalculatedAttributeName",
             "Statistic",
             "AttributeDetails",
+            "Filter",
             "UseHistoricalData",
             "Conditions/Range/TimestampSource",
             "Conditions/Range/TimestampFormat",

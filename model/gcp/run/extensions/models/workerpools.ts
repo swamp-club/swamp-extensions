@@ -254,6 +254,36 @@ const GlobalArgsSchema = z.object({
       baseImageUri: z.string().describe(
         "Base image for this container. Only supported for services. If set, it indicates that the service is enrolled into automatic base image update.",
       ).optional(),
+      buildConfig: z.object({
+        buildpacksBuild: z.object({
+          buildBaseImageUri: z.unknown().describe(
+            "Optional. Specify base image other than the default.",
+          ).optional(),
+          cacheImageUri: z.unknown().describe("Optional. Cache image URI.")
+            .optional(),
+          environmentVariables: z.unknown().describe(
+            "Optional. Environment variables for the build.",
+          ).optional(),
+        }).describe("Optional. Builds the source using Buildpacks.").optional(),
+        dockerBuild: z.object({}).describe(
+          "Optional. Builds the source using Docker.",
+        ).optional(),
+        imageRepositoryUri: z.string().describe(
+          "Required. Artifact Registry URI to store the built image.",
+        ).optional(),
+        serviceAccount: z.string().describe(
+          "Optional. The service account to use for the build. Its resource name in the format `projects/{project}/serviceAccounts/{email}`.",
+        ).optional(),
+        tags: z.array(z.unknown()).describe(
+          "Optional. Tags to add to the build.",
+        ).optional(),
+        workerConfiguration: z.object({
+          cloudBuildWorkerConfiguration: z.unknown().describe(
+            "Optional. Cloud Build worker configuration.",
+          ).optional(),
+        }).describe("Optional. Configuration for the worker.").optional(),
+      }).describe("Optional. The build configuration for the container image.")
+        .optional(),
       buildInfo: z.object({
         functionTarget: z.string().describe(
           "Output only. Entry point of the function when the image is a Cloud Run function.",
@@ -567,6 +597,13 @@ const GlobalArgsSchema = z.object({
           "Limit on the storage usable by this EmptyDir volume. The size limit is also applicable for memory medium. The maximum usage on memory medium EmptyDir would be the minimum value between the SizeLimit specified here and the sum of memory limits of all containers. The default is nil which means that the limit is undefined. More info: https://cloud.google.com/run/docs/configuring/in-memory-volumes#configure-volume. Info in Kubernetes: https://kubernetes.io/docs/concepts/storage/volumes/#emptydir",
         ).optional(),
       }).describe("Ephemeral storage used as a shared volume.").optional(),
+      filestore: z.object({
+        volume: z.string().describe(
+          "Required. The resource name of the Filestore volume. Format: `projects/{project}/locations/{location}/volumePools/{volume_pool}/volumes/{volume}`",
+        ).optional(),
+      }).describe(
+        "Optional. Represents a volume backed by a Filestore instance.",
+      ).optional(),
       gcs: z.object({
         bucket: z.string().describe("Cloud Storage Bucket name.").optional(),
         mountOptions: z.array(z.unknown()).describe(
@@ -704,6 +741,20 @@ const StateSchema = z.object({
     containers: z.array(z.object({
       args: z.array(z.string()),
       baseImageUri: z.string(),
+      buildConfig: z.object({
+        buildpacksBuild: z.object({
+          buildBaseImageUri: z.unknown(),
+          cacheImageUri: z.unknown(),
+          environmentVariables: z.unknown(),
+        }),
+        dockerBuild: z.object({}),
+        imageRepositoryUri: z.string(),
+        serviceAccount: z.string(),
+        tags: z.array(z.unknown()),
+        workerConfiguration: z.object({
+          cloudBuildWorkerConfiguration: z.unknown(),
+        }),
+      }),
       buildInfo: z.object({
         functionTarget: z.string(),
         sourceLocation: z.string(),
@@ -829,6 +880,9 @@ const StateSchema = z.object({
       emptyDir: z.object({
         medium: z.string(),
         sizeLimit: z.string(),
+      }),
+      filestore: z.object({
+        volume: z.string(),
       }),
       gcs: z.object({
         bucket: z.string(),
@@ -961,6 +1015,36 @@ const InputsSchema = z.object({
       baseImageUri: z.string().describe(
         "Base image for this container. Only supported for services. If set, it indicates that the service is enrolled into automatic base image update.",
       ).optional(),
+      buildConfig: z.object({
+        buildpacksBuild: z.object({
+          buildBaseImageUri: z.unknown().describe(
+            "Optional. Specify base image other than the default.",
+          ).optional(),
+          cacheImageUri: z.unknown().describe("Optional. Cache image URI.")
+            .optional(),
+          environmentVariables: z.unknown().describe(
+            "Optional. Environment variables for the build.",
+          ).optional(),
+        }).describe("Optional. Builds the source using Buildpacks.").optional(),
+        dockerBuild: z.object({}).describe(
+          "Optional. Builds the source using Docker.",
+        ).optional(),
+        imageRepositoryUri: z.string().describe(
+          "Required. Artifact Registry URI to store the built image.",
+        ).optional(),
+        serviceAccount: z.string().describe(
+          "Optional. The service account to use for the build. Its resource name in the format `projects/{project}/serviceAccounts/{email}`.",
+        ).optional(),
+        tags: z.array(z.unknown()).describe(
+          "Optional. Tags to add to the build.",
+        ).optional(),
+        workerConfiguration: z.object({
+          cloudBuildWorkerConfiguration: z.unknown().describe(
+            "Optional. Cloud Build worker configuration.",
+          ).optional(),
+        }).describe("Optional. Configuration for the worker.").optional(),
+      }).describe("Optional. The build configuration for the container image.")
+        .optional(),
       buildInfo: z.object({
         functionTarget: z.string().describe(
           "Output only. Entry point of the function when the image is a Cloud Run function.",
@@ -1274,6 +1358,13 @@ const InputsSchema = z.object({
           "Limit on the storage usable by this EmptyDir volume. The size limit is also applicable for memory medium. The maximum usage on memory medium EmptyDir would be the minimum value between the SizeLimit specified here and the sum of memory limits of all containers. The default is nil which means that the limit is undefined. More info: https://cloud.google.com/run/docs/configuring/in-memory-volumes#configure-volume. Info in Kubernetes: https://kubernetes.io/docs/concepts/storage/volumes/#emptydir",
         ).optional(),
       }).describe("Ephemeral storage used as a shared volume.").optional(),
+      filestore: z.object({
+        volume: z.string().describe(
+          "Required. The resource name of the Filestore volume. Format: `projects/{project}/locations/{location}/volumePools/{volume_pool}/volumes/{volume}`",
+        ).optional(),
+      }).describe(
+        "Optional. Represents a volume backed by a Filestore instance.",
+      ).optional(),
       gcs: z.object({
         bucket: z.string().describe("Cloud Storage Bucket name.").optional(),
         mountOptions: z.array(z.unknown()).describe(
@@ -1380,7 +1471,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin WorkerPools. Registered at `@swamp/gcp/run/workerpools`. */
 export const model = {
   type: "@swamp/gcp/run/workerpools",
-  version: "2026.10.30.1",
+  version: "2026.11.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1674,6 +1765,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

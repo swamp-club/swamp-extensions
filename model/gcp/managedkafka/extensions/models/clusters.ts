@@ -213,7 +213,7 @@ const GlobalArgsSchema = z.object({
     "Required. Configuration properties for a Kafka cluster deployed to Google Cloud Platform.",
   ).optional(),
   kafkaVersion: z.string().describe(
-    "Optional. The Apache Kafka version of the cluster (for example, `3.7.x`, `4.3.x`). If not specified during cluster creation, defaults to `3.7.x`.",
+    "Optional. The Apache Kafka version of the cluster. Specifically, this value is the finalized metadata version. If not specified during cluster creation, defaults to `3.7.x`. Supported values: `3.7.x`.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. Labels as key value pairs.",
@@ -372,7 +372,7 @@ const InputsSchema = z.object({
     "Required. Configuration properties for a Kafka cluster deployed to Google Cloud Platform.",
   ).optional(),
   kafkaVersion: z.string().describe(
-    "Optional. The Apache Kafka version of the cluster (for example, `3.7.x`, `4.3.x`). If not specified during cluster creation, defaults to `3.7.x`.",
+    "Optional. The Apache Kafka version of the cluster. Specifically, this value is the finalized metadata version. If not specified during cluster creation, defaults to `3.7.x`. Supported values: `3.7.x`.",
   ).optional(),
   labels: z.record(z.string(), z.string()).describe(
     "Optional. Labels as key value pairs.",
@@ -450,7 +450,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Managed Service for Apache Kafka Clusters. Registered at `@swamp/gcp/managedkafka/clusters`. */
 export const model = {
   type: "@swamp/gcp/managedkafka/clusters",
-  version: "2026.10.23.1",
+  version: "2026.11.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -604,6 +604,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

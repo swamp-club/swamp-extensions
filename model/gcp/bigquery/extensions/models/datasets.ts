@@ -320,6 +320,9 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Optional. Reference to a read-only external dataset defined in data catalogs outside of BigQuery. Filled out when the dataset type is EXTERNAL.",
   ).optional(),
+  failoverReservationId: z.string().describe(
+    "Optional. The failover reservation associated with the dataset in the regionless format. Example:.. To learn about about failover reservations see: https://docs.cloud.google.com/bigquery/docs/managed-disaster-recovery#overview",
+  ).optional(),
   friendlyName: z.string().describe(
     "Optional. A descriptive name for the dataset.",
   ).optional(),
@@ -348,6 +351,48 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   maxTimeTravelHours: z.string().describe(
     "Optional. Defines the time travel window in hours. The value can be from 48 to 168 hours (2 to 7 days). The default value is 168 hours if this is not set.",
+  ).optional(),
+  replicas: z.array(z.object({
+    backfillCompletionTime: z.string().describe(
+      "Output only. The time when the backfill was completed and replica is ready to use.",
+    ).optional(),
+    creationTime: z.string().describe(
+      "Output only. The timestamp when the replica was created. For any dataset's first replica, this should be set to the dataset's creation_time.",
+    ).optional(),
+    failoverReservationUri: z.string().describe(
+      'Output only. Failover reservation ID for the replica\'s region if this replica is used for DR. Fully-qualified format, e.g. "projects/some-project/locations/US/reservations/some-reservation" The location portion of the format is upper case if "US" or "EU", otherwise a lower case cloud region like "asia-northeast1".',
+    ).optional(),
+    id: z.string().describe(
+      "Required. The user-visible string identifier for this dataset replica. This is generally named after the region.",
+    ).optional(),
+    location: z.string().describe(
+      'Required. The logical bigquery region where this replica is located. This is upper case if "US" or "EU", otherwise a lower case cloud region like "asia-northeast1".',
+    ).optional(),
+    primaryAssignmentCompletionTime: z.string().describe(
+      "Output only. After a new primary assignment is made, this is the time that the dataset's data has been fully replicated to the replica, and after which the system will use current reads in the new primary replica.",
+    ).optional(),
+    primaryAssignmentTime: z.string().describe(
+      "Output only. The time at which the replica was assigned primary. Only one replica will have this field populated at any point.",
+    ).optional(),
+    replicaOptions: z.object({
+      defaultKmsKeyName: z.string().describe(
+        "Optional. Default KMS encryption key name.",
+      ).optional(),
+    }).describe(
+      "Optional. Contains modify options on the replica such as set a kms key on the replica.",
+    ).optional(),
+    replicaState: z.enum([
+      "REPLICA_STATE_UNSPECIFIED",
+      "PRIMARY",
+      "SECONDARY",
+      "ASSIGNED_PRIMARY",
+      "PREVIOUSLY_ASSIGNED_PRIMARY",
+      "BACKFILLING",
+    ]).describe(
+      "Output only. Gives an explicit indicator of the replica primary state.",
+    ).optional(),
+  })).describe(
+    "Optional. The list of replicas in a cross region replicated or disaster recovery dataset.",
   ).optional(),
   resourceTags: z.record(z.string(), z.string()).describe(
     'Optional. The [tags](https://cloud.google.com/bigquery/docs/tags) attached to this dataset. Tag keys are globally unique. Tag key is expected to be in the namespaced format, for example "123456789012/environment" where 123456789012 is the ID of the parent organization or project resource for this tag key. Tag value is expected to be the short name, for example "Production". See [Tag definitions](https://cloud.google.com/iam/docs/tags-access-control#definitions) for more details.',
@@ -421,6 +466,7 @@ const StateSchema = z.object({
     connection: z.string(),
     externalSource: z.string(),
   }).optional(),
+  failoverReservationId: z.string().optional(),
   friendlyName: z.string().optional(),
   id: z.string().optional(),
   isCaseInsensitive: z.boolean().optional(),
@@ -438,6 +484,19 @@ const StateSchema = z.object({
   }).optional(),
   location: z.string().optional(),
   maxTimeTravelHours: z.string().optional(),
+  replicas: z.array(z.object({
+    backfillCompletionTime: z.string(),
+    creationTime: z.string(),
+    failoverReservationUri: z.string(),
+    id: z.string(),
+    location: z.string(),
+    primaryAssignmentCompletionTime: z.string(),
+    primaryAssignmentTime: z.string(),
+    replicaOptions: z.object({
+      defaultKmsKeyName: z.string(),
+    }),
+    replicaState: z.string(),
+  })).optional(),
   resourceTags: z.record(z.string(), z.unknown()).optional(),
   restrictions: z.object({
     type: z.string(),
@@ -598,6 +657,9 @@ const InputsSchema = z.object({
   }).describe(
     "Optional. Reference to a read-only external dataset defined in data catalogs outside of BigQuery. Filled out when the dataset type is EXTERNAL.",
   ).optional(),
+  failoverReservationId: z.string().describe(
+    "Optional. The failover reservation associated with the dataset in the regionless format. Example:.. To learn about about failover reservations see: https://docs.cloud.google.com/bigquery/docs/managed-disaster-recovery#overview",
+  ).optional(),
   friendlyName: z.string().describe(
     "Optional. A descriptive name for the dataset.",
   ).optional(),
@@ -626,6 +688,48 @@ const InputsSchema = z.object({
   ).optional(),
   maxTimeTravelHours: z.string().describe(
     "Optional. Defines the time travel window in hours. The value can be from 48 to 168 hours (2 to 7 days). The default value is 168 hours if this is not set.",
+  ).optional(),
+  replicas: z.array(z.object({
+    backfillCompletionTime: z.string().describe(
+      "Output only. The time when the backfill was completed and replica is ready to use.",
+    ).optional(),
+    creationTime: z.string().describe(
+      "Output only. The timestamp when the replica was created. For any dataset's first replica, this should be set to the dataset's creation_time.",
+    ).optional(),
+    failoverReservationUri: z.string().describe(
+      'Output only. Failover reservation ID for the replica\'s region if this replica is used for DR. Fully-qualified format, e.g. "projects/some-project/locations/US/reservations/some-reservation" The location portion of the format is upper case if "US" or "EU", otherwise a lower case cloud region like "asia-northeast1".',
+    ).optional(),
+    id: z.string().describe(
+      "Required. The user-visible string identifier for this dataset replica. This is generally named after the region.",
+    ).optional(),
+    location: z.string().describe(
+      'Required. The logical bigquery region where this replica is located. This is upper case if "US" or "EU", otherwise a lower case cloud region like "asia-northeast1".',
+    ).optional(),
+    primaryAssignmentCompletionTime: z.string().describe(
+      "Output only. After a new primary assignment is made, this is the time that the dataset's data has been fully replicated to the replica, and after which the system will use current reads in the new primary replica.",
+    ).optional(),
+    primaryAssignmentTime: z.string().describe(
+      "Output only. The time at which the replica was assigned primary. Only one replica will have this field populated at any point.",
+    ).optional(),
+    replicaOptions: z.object({
+      defaultKmsKeyName: z.string().describe(
+        "Optional. Default KMS encryption key name.",
+      ).optional(),
+    }).describe(
+      "Optional. Contains modify options on the replica such as set a kms key on the replica.",
+    ).optional(),
+    replicaState: z.enum([
+      "REPLICA_STATE_UNSPECIFIED",
+      "PRIMARY",
+      "SECONDARY",
+      "ASSIGNED_PRIMARY",
+      "PREVIOUSLY_ASSIGNED_PRIMARY",
+      "BACKFILLING",
+    ]).describe(
+      "Output only. Gives an explicit indicator of the replica primary state.",
+    ).optional(),
+  })).describe(
+    "Optional. The list of replicas in a cross region replicated or disaster recovery dataset.",
   ).optional(),
   resourceTags: z.record(z.string(), z.string()).describe(
     'Optional. The [tags](https://cloud.google.com/bigquery/docs/tags) attached to this dataset. Tag keys are globally unique. Tag key is expected to be in the namespaced format, for example "123456789012/environment" where 123456789012 is the ID of the parent organization or project resource for this tag key. Tag value is expected to be the short name, for example "Production". See [Tag definitions](https://cloud.google.com/iam/docs/tags-access-control#definitions) for more details.',
@@ -670,7 +774,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Datasets. Registered at `@swamp/gcp/bigquery/datasets`. */
 export const model = {
   type: "@swamp/gcp/bigquery/datasets",
-  version: "2026.10.23.1",
+  version: "2026.11.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -834,6 +938,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.06.1",
+      description: "Added: failoverReservationId, replicas",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -888,6 +997,9 @@ export const model = {
         if (g["externalDatasetReference"] !== undefined) {
           body["externalDatasetReference"] = g["externalDatasetReference"];
         }
+        if (g["failoverReservationId"] !== undefined) {
+          body["failoverReservationId"] = g["failoverReservationId"];
+        }
         if (g["friendlyName"] !== undefined) {
           body["friendlyName"] = g["friendlyName"];
         }
@@ -902,6 +1014,7 @@ export const model = {
         if (g["maxTimeTravelHours"] !== undefined) {
           body["maxTimeTravelHours"] = g["maxTimeTravelHours"];
         }
+        if (g["replicas"] !== undefined) body["replicas"] = g["replicas"];
         if (g["resourceTags"] !== undefined) {
           body["resourceTags"] = g["resourceTags"];
         }
@@ -1035,6 +1148,9 @@ export const model = {
         if (g["externalDatasetReference"] !== undefined) {
           body["externalDatasetReference"] = g["externalDatasetReference"];
         }
+        if (g["failoverReservationId"] !== undefined) {
+          body["failoverReservationId"] = g["failoverReservationId"];
+        }
         if (g["friendlyName"] !== undefined) {
           body["friendlyName"] = g["friendlyName"];
         }
@@ -1046,6 +1162,7 @@ export const model = {
         if (g["maxTimeTravelHours"] !== undefined) {
           body["maxTimeTravelHours"] = g["maxTimeTravelHours"];
         }
+        if (g["replicas"] !== undefined) body["replicas"] = g["replicas"];
         if (g["resourceTags"] !== undefined) {
           body["resourceTags"] = g["resourceTags"];
         }
@@ -1067,11 +1184,13 @@ export const model = {
           "defaultTableExpirationMs",
           "description",
           "externalCatalogDatasetOptions",
+          "failoverReservationId",
           "friendlyName",
           "isCaseInsensitive",
           "labels",
           "location",
           "maxTimeTravelHours",
+          "replicas",
           "resourceTags",
           "storageBillingModel",
         ].filter((k) => body[k] === undefined);

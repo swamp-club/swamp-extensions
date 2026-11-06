@@ -236,6 +236,24 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   objectsConfig: z.object({
     sourceObjectsConfig: z.object({
+      excludedObjectConfigs: z.array(z.object({
+        objectIdentifier: z.object({
+          database: z.unknown().describe(
+            "Optional. The database name. This will be required only if the object uses a database name as part of its unique identifier.",
+          ).optional(),
+          schema: z.unknown().describe(
+            "Optional. The schema name. This will be required only if the object uses a schema name as part of its unique identifier.",
+          ).optional(),
+          table: z.unknown().describe(
+            "Optional. The table name. This will be required only if the object is a level below database or schema.",
+          ).optional(),
+          type: z.unknown().describe(
+            "Required. The type of the migration job object.",
+          ).optional(),
+        }).describe("Optional. The object identifier.").optional(),
+      })).describe(
+        "Optional. The list of the objects to be excluded from the migration. Exclusion takes precedence over inclusion in `object_configs`.",
+      ).optional(),
       objectConfigs: z.array(z.object({
         objectIdentifier: z.object({
           database: z.unknown().describe(
@@ -251,8 +269,9 @@ const GlobalArgsSchema = z.object({
             "Required. The type of the migration job object.",
           ).optional(),
         }).describe("Optional. The object identifier.").optional(),
-      })).describe("Optional. The list of the objects to be migrated.")
-        .optional(),
+      })).describe(
+        "Optional. The list of the objects to be included in the migration.",
+      ).optional(),
       objectsSelectionType: z.enum([
         "OBJECTS_SELECTION_TYPE_UNSPECIFIED",
         "ALL_OBJECTS",
@@ -528,6 +547,14 @@ const StateSchema = z.object({
   name: z.string(),
   objectsConfig: z.object({
     sourceObjectsConfig: z.object({
+      excludedObjectConfigs: z.array(z.object({
+        objectIdentifier: z.object({
+          database: z.unknown(),
+          schema: z.unknown(),
+          table: z.unknown(),
+          type: z.unknown(),
+        }),
+      })),
       objectConfigs: z.array(z.object({
         objectIdentifier: z.object({
           database: z.unknown(),
@@ -703,6 +730,24 @@ const InputsSchema = z.object({
   ).optional(),
   objectsConfig: z.object({
     sourceObjectsConfig: z.object({
+      excludedObjectConfigs: z.array(z.object({
+        objectIdentifier: z.object({
+          database: z.unknown().describe(
+            "Optional. The database name. This will be required only if the object uses a database name as part of its unique identifier.",
+          ).optional(),
+          schema: z.unknown().describe(
+            "Optional. The schema name. This will be required only if the object uses a schema name as part of its unique identifier.",
+          ).optional(),
+          table: z.unknown().describe(
+            "Optional. The table name. This will be required only if the object is a level below database or schema.",
+          ).optional(),
+          type: z.unknown().describe(
+            "Required. The type of the migration job object.",
+          ).optional(),
+        }).describe("Optional. The object identifier.").optional(),
+      })).describe(
+        "Optional. The list of the objects to be excluded from the migration. Exclusion takes precedence over inclusion in `object_configs`.",
+      ).optional(),
       objectConfigs: z.array(z.object({
         objectIdentifier: z.object({
           database: z.unknown().describe(
@@ -718,8 +763,9 @@ const InputsSchema = z.object({
             "Required. The type of the migration job object.",
           ).optional(),
         }).describe("Optional. The object identifier.").optional(),
-      })).describe("Optional. The list of the objects to be migrated.")
-        .optional(),
+      })).describe(
+        "Optional. The list of the objects to be included in the migration.",
+      ).optional(),
       objectsSelectionType: z.enum([
         "OBJECTS_SELECTION_TYPE_UNSPECIFIED",
         "ALL_OBJECTS",
@@ -985,7 +1031,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Database Migration MigrationJobs. Registered at `@swamp/gcp/datamigration/migrationjobs`. */
 export const model = {
   type: "@swamp/gcp/datamigration/migrationjobs",
-  version: "2026.10.23.1",
+  version: "2026.11.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1215,6 +1261,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

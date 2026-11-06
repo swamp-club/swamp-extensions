@@ -319,7 +319,7 @@ const RateLimitHeaderSchema = z.object({
 });
 
 const RateLimitLabelNamespaceSchema = z.object({
-  Namespace: z.string().regex(new RegExp("^[0-9A-Za-z_:-]{1,1024}$")).describe(
+  Namespace: z.string().regex(new RegExp("^[0-9A-Za-z_:.-]{1,1024}$")).describe(
     "The namespace to use for aggregation.",
   ),
 });
@@ -420,7 +420,7 @@ const NotStatementSchema = z.object({
 
 const LabelMatchStatementSchema = z.object({
   Scope: z.enum(["LABEL", "NAMESPACE"]),
-  Key: z.string().regex(new RegExp("^[0-9A-Za-z_:-]{1,1024}$")),
+  Key: z.string().regex(new RegExp("^[0-9A-Za-z_:.-]{1,1024}$")),
 });
 
 const RegexMatchStatementSchema = z.object({
@@ -534,7 +534,7 @@ const RuleActionSchema = z.object({
 });
 
 const LabelSchema = z.object({
-  Name: z.string().regex(new RegExp("^[0-9A-Za-z_:-]{1,1024}$")).describe(
+  Name: z.string().regex(new RegExp("^[0-9A-Za-z_:.-]{1,1024}$")).describe(
     "Name of the Label.",
   ),
 });
@@ -592,7 +592,7 @@ const CustomResponseBodySchema = z.object({
 });
 
 const LabelSummarySchema = z.object({
-  Name: z.string().regex(new RegExp("^[0-9A-Za-z_:-]{1,1024}$")).describe(
+  Name: z.string().regex(new RegExp("^[0-9A-Za-z_:.-]{1,1024}$")).describe(
     "Name of the Label.",
   ).optional(),
 });
@@ -762,7 +762,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for WAFv2 RuleGroup. Registered at `@swamp/aws/wafv2/rule-group`. */
 export const model = {
   type: "@swamp/aws/wafv2/rule-group",
-  version: "2026.10.25.1",
+  version: "2026.11.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -832,6 +832,11 @@ export const model = {
     {
       toVersion: "2026.10.25.1",
       description: "Added: Name",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.06.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

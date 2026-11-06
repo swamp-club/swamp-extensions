@@ -349,7 +349,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Database Migration ConversionWorkspaces. Registered at `@swamp/gcp/datamigration/conversionworkspaces`. */
 export const model = {
   type: "@swamp/gcp/datamigration/conversionworkspaces",
-  version: "2026.10.23.1",
+  version: "2026.11.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -506,6 +506,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1437,6 +1442,7 @@ export const model = {
       arguments: z.object({
         autoCommit: z.any().optional(),
         destinationConnectionProfile: z.any().optional(),
+        gcsSource: z.any().optional(),
         sourceConnectionProfile: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
@@ -1459,6 +1465,9 @@ export const model = {
         if (args["destinationConnectionProfile"] !== undefined) {
           body["destinationConnectionProfile"] =
             args["destinationConnectionProfile"];
+        }
+        if (args["gcsSource"] !== undefined) {
+          body["gcsSource"] = args["gcsSource"];
         }
         if (args["sourceConnectionProfile"] !== undefined) {
           body["sourceConnectionProfile"] = args["sourceConnectionProfile"];

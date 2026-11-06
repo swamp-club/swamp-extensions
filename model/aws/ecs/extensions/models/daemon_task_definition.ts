@@ -38,6 +38,10 @@ import {
 } from "./_lib/aws.ts";
 import type { AwsCredentials } from "./_lib/aws.ts";
 
+const LogDriverVolumeConfigurationSchema = z.object({
+  Driver: z.string(),
+});
+
 const HostVolumePropertiesSchema = z.object({
   SourcePath: z.string().describe(
     "When the host parameter is used, specify a sourcePath to declare the path on the host container instance that's presented to the container. If this parameter is empty, then the Docker daemon has assigned a host path for you. If the host parameter contains a sourcePath file location, then the data volume persists at the specified location on the host container instance until you delete it manually. If the sourcePath value doesn't exist on the host container instance, the Docker daemon creates it. If the location does exist, the contents of the source path folder are exported. If you're using the Fargate launch type, the sourcePath parameter is not supported.",
@@ -45,6 +49,7 @@ const HostVolumePropertiesSchema = z.object({
 });
 
 const VolumeSchema = z.object({
+  LogDriverVolumeConfiguration: LogDriverVolumeConfigurationSchema.optional(),
   Host: HostVolumePropertiesSchema.describe(
     "This parameter is specified when you use bind mount host volumes. The contents of the host parameter determine whether your bind mount host volume persists on the host container instance and where it's stored. If the host parameter is empty, then the Docker daemon assigns a host path for your data volume. However, the data isn't guaranteed to persist after the containers that are associated with it stop running. Windows containers can mount whole directories on the same drive as $env:ProgramData. Windows containers can't mount directories on a different drive, and mount point can't be across drives. For example, you can mount C:\\my\\path:C:\\my\\path and D:\\:D:\\, but not D:\\my\\path:C:\\my\\path or D:\\:C:\\my\\path.",
   ).optional(),
@@ -427,7 +432,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECS DaemonTaskDefinition. Registered at `@swamp/aws/ecs/daemon-task-definition`. */
 export const model = {
   type: "@swamp/aws/ecs/daemon-task-definition",
-  version: "2026.10.23.1",
+  version: "2026.11.06.1",
   upgrades: [
     {
       toVersion: "2026.04.03.2",
@@ -501,6 +506,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -384,6 +384,9 @@ const GlobalArgsSchema = z.object({
           emptyDir: z.unknown().describe(
             "Ephemeral storage used as a shared volume.",
           ).optional(),
+          filestore: z.unknown().describe(
+            "Represents a volume backed by a Filestore instance.",
+          ).optional(),
           name: z.unknown().describe(
             "Volume's name. In Cloud Run Fully Managed, the name 'cloudsql' is reserved.",
           ).optional(),
@@ -586,6 +589,7 @@ const StateSchema = z.object({
           configMap: z.unknown(),
           csi: z.unknown(),
           emptyDir: z.unknown(),
+          filestore: z.unknown(),
           name: z.unknown(),
           nfs: z.unknown(),
           secret: z.unknown(),
@@ -857,6 +861,9 @@ const InputsSchema = z.object({
           emptyDir: z.unknown().describe(
             "Ephemeral storage used as a shared volume.",
           ).optional(),
+          filestore: z.unknown().describe(
+            "Represents a volume backed by a Filestore instance.",
+          ).optional(),
           name: z.unknown().describe(
             "Volume's name. In Cloud Run Fully Managed, the name 'cloudsql' is reserved.",
           ).optional(),
@@ -995,7 +1002,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Namespaces.Services. Registered at `@swamp/gcp/run/namespaces-services`. */
 export const model = {
   type: "@swamp/gcp/run/namespaces-services",
-  version: "2026.10.30.1",
+  version: "2026.11.06.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -1044,6 +1051,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

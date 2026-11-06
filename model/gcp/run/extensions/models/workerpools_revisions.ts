@@ -155,9 +155,35 @@ const StateSchema = z.object({
     state: z.string(),
     type: z.string(),
   })).optional(),
+  containerStatuses: z.array(z.object({
+    buildStatus: z.object({
+      cloudBuildLogUrl: z.string(),
+      message: z.string(),
+      status: z.string(),
+    }),
+    imageDigest: z.string(),
+    name: z.string(),
+  })).optional(),
   containers: z.array(z.object({
     args: z.array(z.string()),
     baseImageUri: z.string(),
+    buildConfig: z.object({
+      buildpacksBuild: z.object({
+        buildBaseImageUri: z.string(),
+        cacheImageUri: z.string(),
+        environmentVariables: z.record(z.string(), z.unknown()),
+      }),
+      dockerBuild: z.object({}),
+      imageRepositoryUri: z.string(),
+      serviceAccount: z.string(),
+      tags: z.array(z.string()),
+      workerConfiguration: z.object({
+        cloudBuildWorkerConfiguration: z.object({
+          machineType: z.unknown(),
+          workerPool: z.unknown(),
+        }),
+      }),
+    }),
     buildInfo: z.object({
       functionTarget: z.string(),
       sourceLocation: z.string(),
@@ -321,6 +347,9 @@ const StateSchema = z.object({
       medium: z.string(),
       sizeLimit: z.string(),
     }),
+    filestore: z.object({
+      volume: z.string(),
+    }),
     gcs: z.object({
       bucket: z.string(),
       mountOptions: z.array(z.string()),
@@ -402,7 +431,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin WorkerPools.Revisions. Registered at `@swamp/gcp/run/workerpools-revisions`. */
 export const model = {
   type: "@swamp/gcp/run/workerpools-revisions",
-  version: "2026.10.30.1",
+  version: "2026.11.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -576,6 +605,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

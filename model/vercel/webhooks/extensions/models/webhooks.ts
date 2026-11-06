@@ -125,6 +125,7 @@ const GlobalArgsSchema = z.object({
       "marketplace.invoice.refunded",
       "ai-gateway.balance-depleted",
       "ai-gateway.auto-reload.limit-reached",
+      "ai-gateway.budget.updated",
       "observability.anomaly",
       "observability.anomaly-error",
       "observability.usage-anomaly",
@@ -267,6 +268,7 @@ const InputsSchema = z.object({
       "marketplace.invoice.refunded",
       "ai-gateway.balance-depleted",
       "ai-gateway.auto-reload.limit-reached",
+      "ai-gateway.budget.updated",
       "observability.anomaly",
       "observability.anomaly-error",
       "observability.usage-anomaly",
@@ -305,7 +307,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Webhooks. Registered at `@swamp/vercel/webhooks/webhooks`. */
 export const model = {
   type: "@swamp/vercel/webhooks/webhooks",
-  version: "2026.10.23.1",
+  version: "2026.11.06.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -369,6 +371,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

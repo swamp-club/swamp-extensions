@@ -57,6 +57,10 @@ const GET_CONFIG = {
 
 const _defaultOAuthScopes: string[] = [
   "https://www.googleapis.com/auth/chrome.management.appdetails.readonly",
+  "https://www.googleapis.com/auth/chrome.management.browsers",
+  "https://www.googleapis.com/auth/chrome.management.browsers.readonly",
+  "https://www.googleapis.com/auth/chrome.management.enrollmenttokens",
+  "https://www.googleapis.com/auth/chrome.management.enrollmenttokens.readonly",
   "https://www.googleapis.com/auth/chrome.management.profiles",
   "https://www.googleapis.com/auth/chrome.management.profiles.readonly",
   "https://www.googleapis.com/auth/chrome.management.reports.readonly",
@@ -175,7 +179,7 @@ function _buildGcpCredentials(
 export const model = {
   type:
     "@swamp/gcp/chromemanagement/customers-certificateprovisioningprocesses",
-  version: "2026.10.23.1",
+  version: "2026.11.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -294,6 +298,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

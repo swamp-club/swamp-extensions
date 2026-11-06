@@ -217,6 +217,18 @@ const GlobalArgsSchema = z.object({
     includeImportRanges: z.array(z.string()).describe(
       "Optional. Hub routes fully encompassed by include import ranges are included during import from hub.",
     ).optional(),
+    proposedExcludeExportRanges: z.array(z.string()).describe(
+      "Output only. The proposed exclude export IP ranges waiting for hub administrator's approval.",
+    ).optional(),
+    proposedExcludeImportRanges: z.array(z.string()).describe(
+      "Output only. The proposed exclude import IP ranges waiting for hub administrator's approval.",
+    ).optional(),
+    proposedIncludeExportRanges: z.array(z.string()).describe(
+      "Output only. The proposed include export IP ranges waiting for hub administrator's approval.",
+    ).optional(),
+    proposedIncludeImportRanges: z.array(z.string()).describe(
+      "Output only. The proposed include import IP ranges waiting for hub administrator's approval.",
+    ).optional(),
     siteToSiteDataTransfer: z.boolean().describe(
       "A value that controls whether site-to-site data transfer is enabled for these resources. Data transfer is available only in [supported locations](https://cloud.google.com/network-connectivity/docs/network-connectivity-center/concepts/locations).",
     ).optional(),
@@ -275,6 +287,18 @@ const GlobalArgsSchema = z.object({
       ).optional(),
       virtualMachine: z.string().describe("The URI of the VM.").optional(),
     })).describe("The list of router appliance instances.").optional(),
+    proposedExcludeExportRanges: z.array(z.string()).describe(
+      "Output only. The proposed exclude export IP ranges waiting for hub administrator's approval.",
+    ).optional(),
+    proposedExcludeImportRanges: z.array(z.string()).describe(
+      "Output only. The proposed exclude import IP ranges waiting for hub administrator's approval.",
+    ).optional(),
+    proposedIncludeExportRanges: z.array(z.string()).describe(
+      "Output only. The proposed include export IP ranges waiting for hub administrator's approval.",
+    ).optional(),
+    proposedIncludeImportRanges: z.array(z.string()).describe(
+      "Output only. The proposed include import IP ranges waiting for hub administrator's approval.",
+    ).optional(),
     siteToSiteDataTransfer: z.boolean().describe(
       "A value that controls whether site-to-site data transfer is enabled for these resources. Data transfer is available only in [supported locations](https://cloud.google.com/network-connectivity/docs/network-connectivity-center/concepts/locations).",
     ).optional(),
@@ -316,6 +340,18 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     includeImportRanges: z.array(z.string()).describe(
       "Optional. Hub routes fully encompassed by include import ranges are included during import from hub.",
+    ).optional(),
+    proposedExcludeExportRanges: z.array(z.string()).describe(
+      "Output only. The proposed exclude export IP ranges waiting for hub administrator's approval.",
+    ).optional(),
+    proposedExcludeImportRanges: z.array(z.string()).describe(
+      "Output only. The proposed exclude import IP ranges waiting for hub administrator's approval.",
+    ).optional(),
+    proposedIncludeExportRanges: z.array(z.string()).describe(
+      "Output only. The proposed include export IP ranges waiting for hub administrator's approval.",
+    ).optional(),
+    proposedIncludeImportRanges: z.array(z.string()).describe(
+      "Output only. The proposed include import IP ranges waiting for hub administrator's approval.",
     ).optional(),
     siteToSiteDataTransfer: z.boolean().describe(
       "A value that controls whether site-to-site data transfer is enabled for these resources. Data transfer is available only in [supported locations](https://cloud.google.com/network-connectivity/docs/network-connectivity-center/concepts/locations).",
@@ -362,6 +398,10 @@ const StateSchema = z.object({
     excludeImportRanges: z.array(z.string()),
     includeExportRanges: z.array(z.string()),
     includeImportRanges: z.array(z.string()),
+    proposedExcludeExportRanges: z.array(z.string()),
+    proposedExcludeImportRanges: z.array(z.string()),
+    proposedIncludeExportRanges: z.array(z.string()),
+    proposedIncludeImportRanges: z.array(z.string()),
     siteToSiteDataTransfer: z.boolean(),
     uris: z.array(z.string()),
     vpcNetwork: z.string(),
@@ -385,6 +425,10 @@ const StateSchema = z.object({
       ipAddress: z.string(),
       virtualMachine: z.string(),
     })),
+    proposedExcludeExportRanges: z.array(z.string()),
+    proposedExcludeImportRanges: z.array(z.string()),
+    proposedIncludeExportRanges: z.array(z.string()),
+    proposedIncludeImportRanges: z.array(z.string()),
     siteToSiteDataTransfer: z.boolean(),
     vpcNetwork: z.string(),
   }).optional(),
@@ -401,6 +445,10 @@ const StateSchema = z.object({
     excludeImportRanges: z.array(z.string()),
     includeExportRanges: z.array(z.string()),
     includeImportRanges: z.array(z.string()),
+    proposedExcludeExportRanges: z.array(z.string()),
+    proposedExcludeImportRanges: z.array(z.string()),
+    proposedIncludeExportRanges: z.array(z.string()),
+    proposedIncludeImportRanges: z.array(z.string()),
     siteToSiteDataTransfer: z.boolean(),
     uris: z.array(z.string()),
     vpcNetwork: z.string(),
@@ -474,6 +522,18 @@ const InputsSchema = z.object({
     includeImportRanges: z.array(z.string()).describe(
       "Optional. Hub routes fully encompassed by include import ranges are included during import from hub.",
     ).optional(),
+    proposedExcludeExportRanges: z.array(z.string()).describe(
+      "Output only. The proposed exclude export IP ranges waiting for hub administrator's approval.",
+    ).optional(),
+    proposedExcludeImportRanges: z.array(z.string()).describe(
+      "Output only. The proposed exclude import IP ranges waiting for hub administrator's approval.",
+    ).optional(),
+    proposedIncludeExportRanges: z.array(z.string()).describe(
+      "Output only. The proposed include export IP ranges waiting for hub administrator's approval.",
+    ).optional(),
+    proposedIncludeImportRanges: z.array(z.string()).describe(
+      "Output only. The proposed include import IP ranges waiting for hub administrator's approval.",
+    ).optional(),
     siteToSiteDataTransfer: z.boolean().describe(
       "A value that controls whether site-to-site data transfer is enabled for these resources. Data transfer is available only in [supported locations](https://cloud.google.com/network-connectivity/docs/network-connectivity-center/concepts/locations).",
     ).optional(),
@@ -532,6 +592,18 @@ const InputsSchema = z.object({
       ).optional(),
       virtualMachine: z.string().describe("The URI of the VM.").optional(),
     })).describe("The list of router appliance instances.").optional(),
+    proposedExcludeExportRanges: z.array(z.string()).describe(
+      "Output only. The proposed exclude export IP ranges waiting for hub administrator's approval.",
+    ).optional(),
+    proposedExcludeImportRanges: z.array(z.string()).describe(
+      "Output only. The proposed exclude import IP ranges waiting for hub administrator's approval.",
+    ).optional(),
+    proposedIncludeExportRanges: z.array(z.string()).describe(
+      "Output only. The proposed include export IP ranges waiting for hub administrator's approval.",
+    ).optional(),
+    proposedIncludeImportRanges: z.array(z.string()).describe(
+      "Output only. The proposed include import IP ranges waiting for hub administrator's approval.",
+    ).optional(),
     siteToSiteDataTransfer: z.boolean().describe(
       "A value that controls whether site-to-site data transfer is enabled for these resources. Data transfer is available only in [supported locations](https://cloud.google.com/network-connectivity/docs/network-connectivity-center/concepts/locations).",
     ).optional(),
@@ -573,6 +645,18 @@ const InputsSchema = z.object({
     ).optional(),
     includeImportRanges: z.array(z.string()).describe(
       "Optional. Hub routes fully encompassed by include import ranges are included during import from hub.",
+    ).optional(),
+    proposedExcludeExportRanges: z.array(z.string()).describe(
+      "Output only. The proposed exclude export IP ranges waiting for hub administrator's approval.",
+    ).optional(),
+    proposedExcludeImportRanges: z.array(z.string()).describe(
+      "Output only. The proposed exclude import IP ranges waiting for hub administrator's approval.",
+    ).optional(),
+    proposedIncludeExportRanges: z.array(z.string()).describe(
+      "Output only. The proposed include export IP ranges waiting for hub administrator's approval.",
+    ).optional(),
+    proposedIncludeImportRanges: z.array(z.string()).describe(
+      "Output only. The proposed include import IP ranges waiting for hub administrator's approval.",
     ).optional(),
     siteToSiteDataTransfer: z.boolean().describe(
       "A value that controls whether site-to-site data transfer is enabled for these resources. Data transfer is available only in [supported locations](https://cloud.google.com/network-connectivity/docs/network-connectivity-center/concepts/locations).",
@@ -624,7 +708,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Network Connectivity Spokes. Registered at `@swamp/gcp/networkconnectivity/spokes`. */
 export const model = {
   type: "@swamp/gcp/networkconnectivity/spokes",
-  version: "2026.11.05.1",
+  version: "2026.11.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -840,6 +924,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

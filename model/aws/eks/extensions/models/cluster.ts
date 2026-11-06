@@ -65,7 +65,9 @@ const GatewayApiSchema = z.object({
 });
 
 const ElasticLoadBalancingSchema = z.object({
-  Enabled: z.boolean().describe("Todo: add description").optional(),
+  Enabled: z.boolean().describe(
+    "Indicates if the load balancing capability is enabled on your EKS Auto Mode cluster. If the load balancing capability is enabled, EKS Auto Mode will create and delete load balancers in your AWS account.",
+  ).optional(),
   GatewayApi: GatewayApiSchema.describe(
     "The Gateway API configuration for the cluster.",
   ).optional(),
@@ -115,7 +117,9 @@ const RemotePodNetworkSchema = z.object({
 });
 
 const BlockStorageSchema = z.object({
-  Enabled: z.boolean().describe("Todo: add description").optional(),
+  Enabled: z.boolean().describe(
+    "Indicates if the block storage capability is enabled on your EKS Auto Mode cluster. If the block storage capability is enabled, EKS Auto Mode will create and delete EBS volumes in your AWS account.",
+  ).optional(),
 });
 
 const TagSchema = z.object({
@@ -192,7 +196,7 @@ const GlobalArgsSchema = z.object({
       "Ipv4 or Ipv6. You can only specify ipv6 for 1.21 and later clusters that use version 1.10.1 or later of the Amazon VPC CNI add-on",
     ).optional(),
     ElasticLoadBalancing: ElasticLoadBalancingSchema.describe(
-      "Todo: add description",
+      "Request to enable or disable the load balancing capability on your EKS Auto Mode cluster.",
     ).optional(),
   }).describe("The Kubernetes network configuration for the cluster.")
     .optional(),
@@ -276,14 +280,25 @@ const GlobalArgsSchema = z.object({
     "Configuration fields for specifying on-premises node and pod CIDRs that are external to the VPC passed during cluster creation.",
   ).optional(),
   ComputeConfig: z.object({
-    Enabled: z.boolean().describe("Todo: add description").optional(),
-    NodeRoleArn: z.string().describe("Todo: add description").optional(),
-    NodePools: z.array(z.string()).describe("Todo: add description").optional(),
-  }).describe("Todo: add description").optional(),
+    Enabled: z.boolean().describe(
+      "Request to enable or disable the compute capability on your EKS Auto Mode cluster. If the compute capability is enabled, EKS Auto Mode will create and delete EC2 Managed Instances in your AWS account.",
+    ).optional(),
+    NodeRoleArn: z.string().describe(
+      "The ARN of the IAM Role EKS will assign to EC2 Managed Instances in your EKS Auto Mode cluster. This value cannot be changed after the compute capability of EKS Auto Mode is enabled.",
+    ).optional(),
+    NodePools: z.array(z.string()).describe(
+      "Configuration for node pools that defines the compute resources for your EKS Auto Mode cluster. Valid values are general-purpose and system.",
+    ).optional(),
+  }).describe(
+    "Indicates the current configuration of the compute capability on your EKS Auto Mode cluster. For example, if the capability is enabled or disabled. If the compute capability is enabled, EKS Auto Mode will create and delete EC2 Managed Instances in your AWS account.",
+  ).optional(),
   StorageConfig: z.object({
-    BlockStorage: BlockStorageSchema.describe("Todo: add description")
-      .optional(),
-  }).describe("Todo: add description").optional(),
+    BlockStorage: BlockStorageSchema.describe(
+      "Request to configure EBS Block Storage settings for your EKS Auto Mode cluster.",
+    ).optional(),
+  }).describe(
+    "Request to update the configuration of the storage capability of your EKS Auto Mode cluster. For example, enable the capability.",
+  ).optional(),
   RoleArn: z.string().describe(
     "The Amazon Resource Name (ARN) of the IAM role that provides permissions for the Kubernetes control plane to make calls to AWS API operations on your behalf.",
   ),
@@ -464,7 +479,7 @@ const InputsSchema = z.object({
       "Ipv4 or Ipv6. You can only specify ipv6 for 1.21 and later clusters that use version 1.10.1 or later of the Amazon VPC CNI add-on",
     ).optional(),
     ElasticLoadBalancing: ElasticLoadBalancingSchema.describe(
-      "Todo: add description",
+      "Request to enable or disable the load balancing capability on your EKS Auto Mode cluster.",
     ).optional(),
   }).describe("The Kubernetes network configuration for the cluster.")
     .optional(),
@@ -548,14 +563,25 @@ const InputsSchema = z.object({
     "Configuration fields for specifying on-premises node and pod CIDRs that are external to the VPC passed during cluster creation.",
   ).optional(),
   ComputeConfig: z.object({
-    Enabled: z.boolean().describe("Todo: add description").optional(),
-    NodeRoleArn: z.string().describe("Todo: add description").optional(),
-    NodePools: z.array(z.string()).describe("Todo: add description").optional(),
-  }).describe("Todo: add description").optional(),
+    Enabled: z.boolean().describe(
+      "Request to enable or disable the compute capability on your EKS Auto Mode cluster. If the compute capability is enabled, EKS Auto Mode will create and delete EC2 Managed Instances in your AWS account.",
+    ).optional(),
+    NodeRoleArn: z.string().describe(
+      "The ARN of the IAM Role EKS will assign to EC2 Managed Instances in your EKS Auto Mode cluster. This value cannot be changed after the compute capability of EKS Auto Mode is enabled.",
+    ).optional(),
+    NodePools: z.array(z.string()).describe(
+      "Configuration for node pools that defines the compute resources for your EKS Auto Mode cluster. Valid values are general-purpose and system.",
+    ).optional(),
+  }).describe(
+    "Indicates the current configuration of the compute capability on your EKS Auto Mode cluster. For example, if the capability is enabled or disabled. If the compute capability is enabled, EKS Auto Mode will create and delete EC2 Managed Instances in your AWS account.",
+  ).optional(),
   StorageConfig: z.object({
-    BlockStorage: BlockStorageSchema.describe("Todo: add description")
-      .optional(),
-  }).describe("Todo: add description").optional(),
+    BlockStorage: BlockStorageSchema.describe(
+      "Request to configure EBS Block Storage settings for your EKS Auto Mode cluster.",
+    ).optional(),
+  }).describe(
+    "Request to update the configuration of the storage capability of your EKS Auto Mode cluster. For example, enable the capability.",
+  ).optional(),
   RoleArn: z.string().describe(
     "The Amazon Resource Name (ARN) of the IAM role that provides permissions for the Kubernetes control plane to make calls to AWS API operations on your behalf.",
   ).optional(),
@@ -649,7 +675,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EKS Cluster. Registered at `@swamp/aws/eks/cluster`. */
 export const model = {
   type: "@swamp/aws/eks/cluster",
-  version: "2026.10.29.1",
+  version: "2026.11.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -754,6 +780,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.29.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -201,7 +201,7 @@ const GlobalArgsSchema = z.object({
       "NOCAPTCHA",
       "UNSOLVABLE_CHALLENGE",
     ]).describe(
-      "Optional. For challenge-based keys only (CHECKBOX, INVISIBLE), all challenge requests for this site return nocaptcha if NOCAPTCHA, or an unsolvable challenge if CHALLENGE.",
+      "Optional. For challenge-based keys only (`CHECKBOX`, `INVISIBLE`), all challenge requests for this site do not show a challenge if `NOCAPTCHA`, or show an unsolvable challenge if `UNSOLVABLE_CHALLENGE`.",
     ).optional(),
     testingScore: z.number().describe(
       "Optional. All assessments for this Key return this score. Must be between 0 (likely not legitimate) and 1 (likely legitimate) inclusive.",
@@ -386,7 +386,7 @@ const InputsSchema = z.object({
       "NOCAPTCHA",
       "UNSOLVABLE_CHALLENGE",
     ]).describe(
-      "Optional. For challenge-based keys only (CHECKBOX, INVISIBLE), all challenge requests for this site return nocaptcha if NOCAPTCHA, or an unsolvable challenge if CHALLENGE.",
+      "Optional. For challenge-based keys only (`CHECKBOX`, `INVISIBLE`), all challenge requests for this site do not show a challenge if `NOCAPTCHA`, or show an unsolvable challenge if `UNSOLVABLE_CHALLENGE`.",
     ).optional(),
     testingScore: z.number().describe(
       "Optional. All assessments for this Key return this score. Must be between 0 (likely not legitimate) and 1 (likely legitimate) inclusive.",
@@ -494,7 +494,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud reCAPTCHA Enterprise Keys. Registered at `@swamp/gcp/recaptchaenterprise/keys`. */
 export const model = {
   type: "@swamp/gcp/recaptchaenterprise/keys",
-  version: "2026.10.23.1",
+  version: "2026.11.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -648,6 +648,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

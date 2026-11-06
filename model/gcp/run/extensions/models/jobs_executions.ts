@@ -179,6 +179,20 @@ const StateSchema = z.object({
     containers: z.array(z.object({
       args: z.array(z.string()),
       baseImageUri: z.string(),
+      buildConfig: z.object({
+        buildpacksBuild: z.object({
+          buildBaseImageUri: z.unknown(),
+          cacheImageUri: z.unknown(),
+          environmentVariables: z.unknown(),
+        }),
+        dockerBuild: z.object({}),
+        imageRepositoryUri: z.string(),
+        serviceAccount: z.string(),
+        tags: z.array(z.unknown()),
+        workerConfiguration: z.object({
+          cloudBuildWorkerConfiguration: z.unknown(),
+        }),
+      }),
       buildInfo: z.object({
         functionTarget: z.string(),
         sourceLocation: z.string(),
@@ -301,6 +315,9 @@ const StateSchema = z.object({
         medium: z.string(),
         sizeLimit: z.string(),
       }),
+      filestore: z.object({
+        volume: z.string(),
+      }),
       gcs: z.object({
         bucket: z.string(),
         mountOptions: z.array(z.unknown()),
@@ -381,7 +398,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Jobs.Executions. Registered at `@swamp/gcp/run/jobs-executions`. */
 export const model = {
   type: "@swamp/gcp/run/jobs-executions",
-  version: "2026.10.30.1",
+  version: "2026.11.06.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -545,6 +562,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

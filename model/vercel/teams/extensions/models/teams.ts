@@ -46,7 +46,7 @@ const GlobalArgsSchema = z.object({
     "The hash value of an uploaded image, or `null` to clear the avatar.",
   ).optional(),
   description: z.string().max(140).describe(
-    "A short text that describes the team.",
+    "A short text that describes the team. Set to an empty string to clear the description. Omit to keep the current description.",
   ).optional(),
   emailDomain: z.string().optional(),
   name: z.string().max(256).describe(
@@ -643,7 +643,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Teams. Registered at `@swamp/vercel/teams/teams`. */
 export const model = {
   type: "@swamp/vercel/teams/teams",
-  version: "2026.11.03.1",
+  version: "2026.11.06.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -777,6 +777,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

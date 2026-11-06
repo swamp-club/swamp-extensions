@@ -550,6 +550,12 @@ const GlobalArgsSchema = z.object({
           "Limit on the storage usable by this EmptyDir volume. The size limit is also applicable for memory medium. The maximum usage on memory medium EmptyDir would be the minimum value between the SizeLimit specified here and the sum of memory limits of all containers. The default is nil which means that the limit is undefined. More info: https://cloud.google.com/run/docs/configuring/in-memory-volumes#configure-volume. Info in Kubernetes: https://kubernetes.io/docs/concepts/storage/volumes/#emptydir",
         ).optional(),
       }).describe("Ephemeral storage used as a shared volume.").optional(),
+      filestore: z.object({
+        volume: z.string().describe(
+          "Required. The resource name of the Filestore volume. Format: `projects/{project}/locations/{location}/volumePools/{volume_pool}/volumes/{volume}`",
+        ).optional(),
+      }).describe("Represents a volume backed by a Filestore instance.")
+        .optional(),
       name: z.string().describe(
         "Volume's name. In Cloud Run Fully Managed, the name 'cloudsql' is reserved.",
       ).optional(),
@@ -763,6 +769,9 @@ const StateSchema = z.object({
       emptyDir: z.object({
         medium: z.string(),
         sizeLimit: z.string(),
+      }),
+      filestore: z.object({
+        volume: z.string(),
       }),
       name: z.string(),
       nfs: z.object({
@@ -1188,6 +1197,12 @@ const InputsSchema = z.object({
           "Limit on the storage usable by this EmptyDir volume. The size limit is also applicable for memory medium. The maximum usage on memory medium EmptyDir would be the minimum value between the SizeLimit specified here and the sum of memory limits of all containers. The default is nil which means that the limit is undefined. More info: https://cloud.google.com/run/docs/configuring/in-memory-volumes#configure-volume. Info in Kubernetes: https://kubernetes.io/docs/concepts/storage/volumes/#emptydir",
         ).optional(),
       }).describe("Ephemeral storage used as a shared volume.").optional(),
+      filestore: z.object({
+        volume: z.string().describe(
+          "Required. The resource name of the Filestore volume. Format: `projects/{project}/locations/{location}/volumePools/{volume_pool}/volumes/{volume}`",
+        ).optional(),
+      }).describe("Represents a volume backed by a Filestore instance.")
+        .optional(),
       name: z.string().describe(
         "Volume's name. In Cloud Run Fully Managed, the name 'cloudsql' is reserved.",
       ).optional(),
@@ -1256,7 +1271,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Run Admin Namespaces.Instances. Registered at `@swamp/gcp/run/namespaces-instances`. */
 export const model = {
   type: "@swamp/gcp/run/namespaces-instances",
-  version: "2026.10.30.1",
+  version: "2026.11.06.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -1310,6 +1325,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

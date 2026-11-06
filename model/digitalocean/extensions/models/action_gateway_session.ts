@@ -79,6 +79,9 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
+  endpoint_id: z.string().optional(),
+  endpoint_version_id: z.string().optional(),
+  version_number: z.number().optional(),
   sessionUrn: z.string(),
   name: z.string().optional(),
   actorId: z.string().optional(),
@@ -155,7 +158,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for DigitalOcean action gateway session. Registered at `@swamp/digitalocean/action-gateway-session`. */
 export const model = {
   type: "@swamp/digitalocean/action-gateway-session",
-  version: "2026.10.30.1",
+  version: "2026.11.06.1",
   upgrades: [
     {
       toVersion: "2026.10.01.1",
@@ -187,6 +190,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.06.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
