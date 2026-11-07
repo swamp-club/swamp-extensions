@@ -339,6 +339,9 @@ const GlobalArgsSchema = z.object({
         "SKIPPED",
         "CANCELLED",
       ]).describe("State of the answer generation.").optional(),
+      toolDisplayNames: z.record(z.string(), z.string()).describe(
+        "Output only. Maps a tool name (for example, `Internal-KB-Search` or `custom_mcp__agent__Internal-KB-Search`) to its human-readable display title (for example, `@Internal-KB Search`), populated from MCP tool `title` or `annotations.title` metadata so user-facing surfaces can display the tool title instead of the raw function declaration identifier. Empty when no tool display titles are present.",
+      ).optional(),
     }).describe(
       "Output only. In ConversationalSearchService.GetSession API, if GetSessionRequest.include_answer_details is set to true, this field will be populated when getting assistant session.",
     ).optional(),
@@ -438,6 +441,7 @@ const StateSchema = z.object({
         groundedContent: z.unknown(),
       })),
       state: z.string(),
+      toolDisplayNames: z.record(z.string(), z.unknown()),
     }),
     live: z.boolean(),
     query: z.object({
@@ -632,6 +636,9 @@ const InputsSchema = z.object({
         "SKIPPED",
         "CANCELLED",
       ]).describe("State of the answer generation.").optional(),
+      toolDisplayNames: z.record(z.string(), z.string()).describe(
+        "Output only. Maps a tool name (for example, `Internal-KB-Search` or `custom_mcp__agent__Internal-KB-Search`) to its human-readable display title (for example, `@Internal-KB Search`), populated from MCP tool `title` or `annotations.title` metadata so user-facing surfaces can display the tool title instead of the raw function declaration identifier. Empty when no tool display titles are present.",
+      ).optional(),
     }).describe(
       "Output only. In ConversationalSearchService.GetSession API, if GetSessionRequest.include_answer_details is set to true, this field will be populated when getting assistant session.",
     ).optional(),
@@ -688,7 +695,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine Collections.Engines.Sessions. Registered at `@swamp/gcp/discoveryengine/collections-engines-sessions`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-engines-sessions",
-  version: "2026.10.23.2",
+  version: "2026.11.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -867,6 +874,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -61,7 +61,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   FileSystemId: z.string().min(11).max(21).regex(
     new RegExp("^(fs-[0-9a-f]{8,})$"),
-  ).describe("The ID of the file system to back up."),
+  ).describe("The ID of the file system to back up.").optional(),
   Tags: z.array(TagSchema).describe(
     "The tags to apply to the backup at backup creation.",
   ).optional(),
@@ -112,7 +112,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for FSx Backup. Registered at `@swamp/aws/fsx/backup`. */
 export const model = {
   type: "@swamp/aws/fsx/backup",
-  version: "2026.10.23.1",
+  version: "2026.11.07.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -121,6 +121,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

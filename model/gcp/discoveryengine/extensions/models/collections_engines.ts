@@ -226,7 +226,16 @@ const GlobalArgsSchema = z.object({
       "FEATURE_STATE_OFF",
     ]),
   ).describe(
-    "Optional. Feature config for the engine to opt in or opt out of features. Supported keys: * `*`: all features, if it's present, all other feature state settings are ignored. * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `speech-to-text` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `canvas-app-builder` * `skills` * `skill-sharing` * `skill-sharing-without-admin-approval` * `disable-projects` * `sobi` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence` * `workflow-agents` * `in-app-notifications` * `code-extraction` * `remote-vm` * `license-tier-badge`",
+    "Optional. Feature config for the engine to opt in or opt out of features. Supported keys: * `*`: all features, if it's present, all other feature state settings are ignored. * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `speech-to-text` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `music-generation` * `speech-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `canvas-app-builder` * `skills` * `skill-sharing` * `skill-sharing-without-admin-approval` * `disable-projects` * `sobi` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence` * `workflow-agents` * `in-app-notifications` * `code-extraction` * `remote-vm` * `license-tier-badge` * `agent-marketplace` * `agent-scheduling` * `preview-agents`",
+  ).optional(),
+  globalFeatureToggleState: z.enum([
+    "GLOBAL_FEATURE_TOGGLE_STATE_UNSPECIFIED",
+    "DELAYED",
+    "SCHEDULED",
+    "GENERAL",
+    "EARLY",
+  ]).describe(
+    "Optional. Controls the global feature toggle state for the engine.",
   ).optional(),
   industryVertical: z.enum([
     "INDUSTRY_VERTICAL_UNSPECIFIED",
@@ -441,9 +450,12 @@ const StateSchema = z.object({
   connectorTenantInfo: z.record(z.string(), z.unknown()).optional(),
   createTime: z.string().optional(),
   dataStoreIds: z.array(z.string()).optional(),
+  delayedGlobalFeatureToggleStateAllowed: z.boolean().optional(),
   disableAnalytics: z.boolean().optional(),
   displayName: z.string().optional(),
+  effectiveFeatures: z.record(z.string(), z.unknown()).optional(),
   features: z.record(z.string(), z.unknown()).optional(),
+  globalFeatureToggleState: z.string().optional(),
   industryVertical: z.string().optional(),
   knowledgeGraphConfig: z.object({
     cloudKnowledgeGraphTypes: z.array(z.string()),
@@ -575,7 +587,16 @@ const InputsSchema = z.object({
       "FEATURE_STATE_OFF",
     ]),
   ).describe(
-    "Optional. Feature config for the engine to opt in or opt out of features. Supported keys: * `*`: all features, if it's present, all other feature state settings are ignored. * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `speech-to-text` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `canvas-app-builder` * `skills` * `skill-sharing` * `skill-sharing-without-admin-approval` * `disable-projects` * `sobi` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence` * `workflow-agents` * `in-app-notifications` * `code-extraction` * `remote-vm` * `license-tier-badge`",
+    "Optional. Feature config for the engine to opt in or opt out of features. Supported keys: * `*`: all features, if it's present, all other feature state settings are ignored. * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `speech-to-text` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `music-generation` * `speech-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `canvas-app-builder` * `skills` * `skill-sharing` * `skill-sharing-without-admin-approval` * `disable-projects` * `sobi` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence` * `workflow-agents` * `in-app-notifications` * `code-extraction` * `remote-vm` * `license-tier-badge` * `agent-marketplace` * `agent-scheduling` * `preview-agents`",
+  ).optional(),
+  globalFeatureToggleState: z.enum([
+    "GLOBAL_FEATURE_TOGGLE_STATE_UNSPECIFIED",
+    "DELAYED",
+    "SCHEDULED",
+    "GENERAL",
+    "EARLY",
+  ]).describe(
+    "Optional. Controls the global feature toggle state for the engine.",
   ).optional(),
   industryVertical: z.enum([
     "INDUSTRY_VERTICAL_UNSPECIFIED",
@@ -776,7 +797,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine Collections.Engines. Registered at `@swamp/gcp/discoveryengine/collections-engines`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-engines",
-  version: "2026.10.23.2",
+  version: "2026.11.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1080,6 +1101,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.07.1",
+      description: "Added: globalFeatureToggleState",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1132,6 +1158,9 @@ export const model = {
           body["displayName"] = g["displayName"];
         }
         if (g["features"] !== undefined) body["features"] = g["features"];
+        if (g["globalFeatureToggleState"] !== undefined) {
+          body["globalFeatureToggleState"] = g["globalFeatureToggleState"];
+        }
         if (g["industryVertical"] !== undefined) {
           body["industryVertical"] = g["industryVertical"];
         }
@@ -1301,6 +1330,9 @@ export const model = {
           body["displayName"] = g["displayName"];
         }
         if (g["features"] !== undefined) body["features"] = g["features"];
+        if (g["globalFeatureToggleState"] !== undefined) {
+          body["globalFeatureToggleState"] = g["globalFeatureToggleState"];
+        }
         if (g["industryVertical"] !== undefined) {
           body["industryVertical"] = g["industryVertical"];
         }

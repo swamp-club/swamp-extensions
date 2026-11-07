@@ -81,9 +81,6 @@ const LIST_CONFIG = {
     "publishersId",
   ],
   "parameters": {
-    "ids": {
-      "location": "query",
-    },
     "limit": {
       "location": "query",
     },
@@ -189,7 +186,14 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Publishers.Files. Registered at `@swamp/gcp/aiplatform/publishers-files`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/publishers-files",
-  version: "2026.10.29.1",
+  version: "2026.11.07.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.07.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -331,9 +335,6 @@ export const model = {
     list: {
       description: "List files resources",
       arguments: z.object({
-        ids: z.string().describe(
-          "Optional. Batch fetch: return only these files, up to 100 IDs after de-duplication. Mutually exclusive with both `page` and `limit`. Serialised as a repeated `ids` query parameter, one occurrence per ID.",
-        ).optional(),
         limit: z.number().describe(
           "Optional. The number of files to return per page. Defaults to 20 if unset, maximum 1000. Mutually exclusive with `ids`.",
         ).optional(),
@@ -355,7 +356,6 @@ export const model = {
         if (g["publishersId"] !== undefined) {
           params["publishersId"] = String(g["publishersId"]);
         }
-        if (args["ids"] !== undefined) params["ids"] = String(args["ids"]);
         if (args["limit"] !== undefined) {
           params["limit"] = String(args["limit"]);
         }

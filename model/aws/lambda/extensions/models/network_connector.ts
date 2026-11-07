@@ -39,7 +39,6 @@ import {
 import type { AwsCredentials } from "./_lib/aws.ts";
 
 const VpcEgressConfigurationSchema = z.object({
-  ElasticIpConfiguration: z.unknown().optional(),
   AssociatedComputeResourceTypes: z.array(z.enum(["MicroVm", "WebFunction"]))
     .describe(
       "The types of Lambda compute resources that can use this connector. Supported values are MicroVm and WebFunction.",
@@ -93,7 +92,7 @@ const GlobalArgsSchema = z.object({
       "^arn:(aws[a-zA-Z-]*)?:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$",
     ),
   ).describe(
-    "The ARN of the IAM role that Lambda assumes to manage elastic network interfaces in your VPC. This role must have permissions for ec2:CreateNetworkInterface and related describe operations. If ElasticIpConfiguration Type is ServiceManaged, this role must also have permissions for ec2:AllocateAddress and ec2:AssociateAddress.",
+    "The ARN of the IAM role that Lambda assumes to manage elastic network interfaces in your VPC. This role must have permissions for ec2:CreateNetworkInterface and related describe operations.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
     "A list of tags to apply to the network connector. Use tags to categorize network connectors for cost allocation, access control, or operational management.",
@@ -140,7 +139,7 @@ const InputsSchema = z.object({
       "^arn:(aws[a-zA-Z-]*)?:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$",
     ),
   ).describe(
-    "The ARN of the IAM role that Lambda assumes to manage elastic network interfaces in your VPC. This role must have permissions for ec2:CreateNetworkInterface and related describe operations. If ElasticIpConfiguration Type is ServiceManaged, this role must also have permissions for ec2:AllocateAddress and ec2:AssociateAddress.",
+    "The ARN of the IAM role that Lambda assumes to manage elastic network interfaces in your VPC. This role must have permissions for ec2:CreateNetworkInterface and related describe operations.",
   ).optional(),
   Tags: z.array(TagSchema).describe(
     "A list of tags to apply to the network connector. Use tags to categorize network connectors for cost allocation, access control, or operational management.",
@@ -173,7 +172,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda NetworkConnector. Registered at `@swamp/aws/lambda/network-connector`. */
 export const model = {
   type: "@swamp/aws/lambda/network-connector",
-  version: "2026.10.23.2",
+  version: "2026.11.07.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -202,6 +201,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

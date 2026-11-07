@@ -2314,7 +2314,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Application Integration Integrations.Versions. Registered at `@swamp/gcp/integrations/integrations-versions`. */
 export const model = {
   type: "@swamp/gcp/integrations/integrations-versions",
-  version: "2026.10.23.1",
+  version: "2026.11.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2404,6 +2404,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -2954,6 +2959,7 @@ export const model = {
       description: "publish",
       arguments: z.object({
         configParameters: z.any().optional(),
+        validateOnly: z.any().optional(),
       }),
       execute: async (args: Record<string, unknown>, context: any) => {
         const g = context.globalArgs;
@@ -2971,6 +2977,9 @@ export const model = {
         const body: Record<string, unknown> = {};
         if (args["configParameters"] !== undefined) {
           body["configParameters"] = args["configParameters"];
+        }
+        if (args["validateOnly"] !== undefined) {
+          body["validateOnly"] = args["validateOnly"];
         }
         const result = await createResource(
           baseUrl,

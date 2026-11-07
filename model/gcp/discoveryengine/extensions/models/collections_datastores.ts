@@ -365,7 +365,7 @@ const GlobalArgsSchema = z.object({
         'Optional. The type of the application. E.g., "jira", "box", etc.',
       ).optional(),
       instanceName: z.string().describe(
-        'Optional. The instance name identifying the 3P app, e.g., "vaissptbots-my". This is different from the instance_uri which is the full URL of the 3P app e.g., "https://vaissptbots-my.sharepoint.com".',
+        'Optional. The instance name identifying the 3P app, e.g., "-my". This is different from the instance_uri which is the full URL of the 3P app e.g., "https://-my.sharepoint.com".',
       ).optional(),
     }).describe(
       "Third Party OAuth config. If set, this DataStore is connected to a third party application.",
@@ -811,7 +811,7 @@ const InputsSchema = z.object({
         'Optional. The type of the application. E.g., "jira", "box", etc.',
       ).optional(),
       instanceName: z.string().describe(
-        'Optional. The instance name identifying the 3P app, e.g., "vaissptbots-my". This is different from the instance_uri which is the full URL of the 3P app e.g., "https://vaissptbots-my.sharepoint.com".',
+        'Optional. The instance name identifying the 3P app, e.g., "-my". This is different from the instance_uri which is the full URL of the 3P app e.g., "https://-my.sharepoint.com".',
       ).optional(),
     }).describe(
       "Third Party OAuth config. If set, this DataStore is connected to a third party application.",
@@ -960,7 +960,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine Collections.DataStores. Registered at `@swamp/gcp/discoveryengine/collections-datastores`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-datastores",
-  version: "2026.10.23.1",
+  version: "2026.11.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1216,6 +1216,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

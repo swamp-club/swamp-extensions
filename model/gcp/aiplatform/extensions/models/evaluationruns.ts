@@ -216,6 +216,9 @@ const GlobalArgsSchema = z.object({
           mode: z.enum(["MODE_UNSPECIFIED", "VERBATIM", "SMART"]).describe(
             "Optional. Configures transcription mode. Supported values: `VERBATIM`, `SMART`. If unspecified, defaults to `VERBATIM` transcription. In `SMART` mode, the model performs disfluency removal (eliminating filler words, repetitions, and false starts), light grammatical cleanup, automatic formatting (paragraphs, bullet points, numbered lists), and minor user edits (inline self-corrections). Timestamps and diarization are incompatible with mode `SMART`.",
           ).optional(),
+          sourceText: z.string().describe(
+            "Optional. The source text to be edited or rewritten via voice instructions. When provided in `SMART` mode, the model evaluates the audio input against this text and emits the complete replacement text in the candidate response rather than appending to it.",
+          ).optional(),
           wordTimestamp: z.boolean().describe(
             "Optional. Configures word-level timestamp generation.",
           ).optional(),
@@ -841,6 +844,13 @@ const GlobalArgsSchema = z.object({
         agentEngine: z.string().describe(
           "Optional. The resource name of the Agent Engine. Format: projects/{project}/locations/{location}/reasoningEngines/{reasoning_engine} For example: projects/123/locations/us-central1/reasoningEngines/456",
         ).optional(),
+        dataAgentConfig: z.object({
+          dataAgent: z.string().describe(
+            "Required. The resource name of the Gemini Data Analytics data agent. Format: `projects/{project}/locations/{location}/dataAgents/{data_agent}`. For example: `projects/123/locations/us-central1/dataAgents/my-agent`.",
+          ).optional(),
+        }).describe(
+          "Optional. Config for scraping a Gemini Data Analytics data agent. The scraping service runs the agent via the DataChatService Chat API and returns the resulting trajectory for evaluation.",
+        ).optional(),
         geminiAgentConfig: z.object({
           geminiAgent: z.string().describe(
             "Required. The resource name of the Gemini Agent. Format: `projects/{project}/locations/{location}/agents/{agent}`. For example: `projects/123/locations/us-central1/agents/my-agent`.",
@@ -1002,6 +1012,9 @@ const GlobalArgsSchema = z.object({
           ).optional(),
           mode: z.enum(["MODE_UNSPECIFIED", "VERBATIM", "SMART"]).describe(
             "Optional. Configures transcription mode. Supported values: `VERBATIM`, `SMART`. If unspecified, defaults to `VERBATIM` transcription. In `SMART` mode, the model performs disfluency removal (eliminating filler words, repetitions, and false starts), light grammatical cleanup, automatic formatting (paragraphs, bullet points, numbered lists), and minor user edits (inline self-corrections). Timestamps and diarization are incompatible with mode `SMART`.",
+          ).optional(),
+          sourceText: z.string().describe(
+            "Optional. The source text to be edited or rewritten via voice instructions. When provided in `SMART` mode, the model evaluates the audio input against this text and emits the complete replacement text in the candidate response rather than appending to it.",
           ).optional(),
           wordTimestamp: z.boolean().describe(
             "Optional. Configures word-level timestamp generation.",
@@ -1286,6 +1299,9 @@ const GlobalArgsSchema = z.object({
   name: z.string().describe(
     "Identifier. The resource name of the EvaluationRun. This is a unique identifier. Format: `projects/{project}/locations/{location}/evaluationRuns/{evaluation_run}`",
   ).optional(),
+  serviceAccount: z.string().describe(
+    "Optional. The service account to run the evaluation run as. If set, the run uses this service account to access Google Cloud resources. Access is limited to the IAM permissions that you grant to the service account. Must be provided if an inference config sets `harbor_run_config`, `data_agent_config`. If no inference config requires this field, setting it returns an error. The caller must have the `iam.serviceAccounts.actAs` permission on this service account, and the project's [Vertex AI Service Agent](https://cloud.google.com/vertex-ai/docs/general/access-control#service-agents) must have the `roles/iam.serviceAccountTokenCreator` role on it.",
+  ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
   ).optional(),
@@ -1333,6 +1349,7 @@ const StateSchema = z.object({
             languageCodes: z.unknown(),
           }),
           mode: z.string(),
+          sourceText: z.string(),
           wordTimestamp: z.boolean(),
         }),
         candidateCount: z.number(),
@@ -1590,6 +1607,7 @@ const StateSchema = z.object({
   labels: z.record(z.string(), z.unknown()).optional(),
   metadata: z.string().optional(),
   name: z.string(),
+  serviceAccount: z.string().optional(),
   state: z.string().optional(),
 }).passthrough();
 
@@ -1679,6 +1697,9 @@ const InputsSchema = z.object({
           ).optional(),
           mode: z.enum(["MODE_UNSPECIFIED", "VERBATIM", "SMART"]).describe(
             "Optional. Configures transcription mode. Supported values: `VERBATIM`, `SMART`. If unspecified, defaults to `VERBATIM` transcription. In `SMART` mode, the model performs disfluency removal (eliminating filler words, repetitions, and false starts), light grammatical cleanup, automatic formatting (paragraphs, bullet points, numbered lists), and minor user edits (inline self-corrections). Timestamps and diarization are incompatible with mode `SMART`.",
+          ).optional(),
+          sourceText: z.string().describe(
+            "Optional. The source text to be edited or rewritten via voice instructions. When provided in `SMART` mode, the model evaluates the audio input against this text and emits the complete replacement text in the candidate response rather than appending to it.",
           ).optional(),
           wordTimestamp: z.boolean().describe(
             "Optional. Configures word-level timestamp generation.",
@@ -2305,6 +2326,13 @@ const InputsSchema = z.object({
         agentEngine: z.string().describe(
           "Optional. The resource name of the Agent Engine. Format: projects/{project}/locations/{location}/reasoningEngines/{reasoning_engine} For example: projects/123/locations/us-central1/reasoningEngines/456",
         ).optional(),
+        dataAgentConfig: z.object({
+          dataAgent: z.string().describe(
+            "Required. The resource name of the Gemini Data Analytics data agent. Format: `projects/{project}/locations/{location}/dataAgents/{data_agent}`. For example: `projects/123/locations/us-central1/dataAgents/my-agent`.",
+          ).optional(),
+        }).describe(
+          "Optional. Config for scraping a Gemini Data Analytics data agent. The scraping service runs the agent via the DataChatService Chat API and returns the resulting trajectory for evaluation.",
+        ).optional(),
         geminiAgentConfig: z.object({
           geminiAgent: z.string().describe(
             "Required. The resource name of the Gemini Agent. Format: `projects/{project}/locations/{location}/agents/{agent}`. For example: `projects/123/locations/us-central1/agents/my-agent`.",
@@ -2466,6 +2494,9 @@ const InputsSchema = z.object({
           ).optional(),
           mode: z.enum(["MODE_UNSPECIFIED", "VERBATIM", "SMART"]).describe(
             "Optional. Configures transcription mode. Supported values: `VERBATIM`, `SMART`. If unspecified, defaults to `VERBATIM` transcription. In `SMART` mode, the model performs disfluency removal (eliminating filler words, repetitions, and false starts), light grammatical cleanup, automatic formatting (paragraphs, bullet points, numbered lists), and minor user edits (inline self-corrections). Timestamps and diarization are incompatible with mode `SMART`.",
+          ).optional(),
+          sourceText: z.string().describe(
+            "Optional. The source text to be edited or rewritten via voice instructions. When provided in `SMART` mode, the model evaluates the audio input against this text and emits the complete replacement text in the candidate response rather than appending to it.",
           ).optional(),
           wordTimestamp: z.boolean().describe(
             "Optional. Configures word-level timestamp generation.",
@@ -2750,6 +2781,9 @@ const InputsSchema = z.object({
   name: z.string().describe(
     "Identifier. The resource name of the EvaluationRun. This is a unique identifier. Format: `projects/{project}/locations/{location}/evaluationRuns/{evaluation_run}`",
   ).optional(),
+  serviceAccount: z.string().describe(
+    "Optional. The service account to run the evaluation run as. If set, the run uses this service account to access Google Cloud resources. Access is limited to the IAM permissions that you grant to the service account. Must be provided if an inference config sets `harbor_run_config`, `data_agent_config`. If no inference config requires this field, setting it returns an error. The caller must have the `iam.serviceAccounts.actAs` permission on this service account, and the project's [Vertex AI Service Agent](https://cloud.google.com/vertex-ai/docs/general/access-control#service-agents) must have the `roles/iam.serviceAccountTokenCreator` role on it.",
+  ).optional(),
   location: z.string().describe(
     "The location for this resource (e.g., 'us', 'us-central1', 'europe-west1')",
   ).optional(),
@@ -2781,7 +2815,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform EvaluationRuns. Registered at `@swamp/gcp/aiplatform/evaluationruns`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/evaluationruns",
-  version: "2026.10.23.1",
+  version: "2026.11.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3035,6 +3069,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.07.1",
+      description: "Added: serviceAccount",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -3082,6 +3121,9 @@ export const model = {
         if (g["labels"] !== undefined) body["labels"] = g["labels"];
         if (g["metadata"] !== undefined) body["metadata"] = g["metadata"];
         if (g["name"] !== undefined) body["name"] = g["name"];
+        if (g["serviceAccount"] !== undefined) {
+          body["serviceAccount"] = g["serviceAccount"];
+        }
         if (g["name"] !== undefined) {
           params["name"] = buildResourceName(
             `projects/${projectId}/locations/${String(g["location"] ?? "")}`,

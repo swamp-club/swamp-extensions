@@ -164,7 +164,7 @@ const GlobalArgsSchema = z.object({
       "Output only. The current authorization state for this connector.",
     ).optional(),
     placeholder: z.string().describe(
-      "Output only. It is the batch authorization group placeholder full resource name. This is not a real data connector (not existed in DataConnector table in spanner). It's a resource name existing only in the connector_authorization in the user table. E.g. projects/{project}/locations/{location}/collections/oauth_placeholder_google_workspace/dataStores/dataConnector.",
+      "Output only. It is the batch authorization group placeholder full resource name. This is not a real data connector resource. E.g. projects/{project}/locations/{location}/collections/oauth_placeholder_google_workspace/dataStores/dataConnector.",
     ).optional(),
   })).describe(
     "Output only. The batch authorization statuses for the widget's connectors.",
@@ -229,11 +229,11 @@ const GlobalArgsSchema = z.object({
       "Output only. the identifier of the collection, used for widget service. For now it refers to collection_id, in the future we will migrate the field to encrypted collection name UUID. For synthetic placeholder entries (see message-level comment) this is a synthetic placeholder id, not a real collection_id.",
     ).optional(),
     isFirstParty: z.boolean().describe(
-      "Output only. Whether this is a first-party (Google-owned) connector, as opposed to a third-party connector. Used by the frontend to group 1P vs 3P connectors.",
+      "Output only. Whether this is a first-party (Google-owned) connector, as opposed to a third-party connector.",
     ).optional(),
     metadata: z.object({
       author: z.string().describe(
-        'Optional. The party that authored the connector, e.g. "Google" or a third-party provider name. Lets end users see who authored a connector (future: third-party-authored connectors).',
+        'Optional. The party that authored the connector, e.g. "Google" or a third-party provider name. Lets end users see who authored a connector.',
       ).optional(),
       description: z.string().describe(
         "Optional. Human-readable description of the connector, shown on the connector detail page. One connector has a single description.",
@@ -521,6 +521,41 @@ const GlobalArgsSchema = z.object({
     enableVisualContentSummary: z.boolean().describe(
       "If set to true, the widget will enable visual content summary on applicable search requests. Only used by healthcare search.",
     ).optional(),
+    featureToggleInfo: z.object({
+      featureToggles: z.array(z.object({
+        id: z.string().describe(
+          "Output only. Matches a key in the engine `features` map.",
+        ).optional(),
+        launchStage: z.enum([
+          "LAUNCH_STAGE_UNSPECIFIED",
+          "PREVIEW",
+          "GA",
+          "SCHEDULED_GA",
+          "DELAYED_GA",
+          "RETIRED",
+        ]).describe("Output only. Launch stage of the feature behind a toggle.")
+          .optional(),
+        retirementDate: z.object({
+          day: z.unknown().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.unknown().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.unknown().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Output only. The informational date the toggle is scheduled to retire, after which the feature is on for every customer. This is for display purposes only. The system does not transition feature states automatically on this date. Only when the launch stage is set to RETIRED does the feature turn on for every customer. Unset if no retirement is scheduled.",
+        ).optional(),
+        supportsAccessPolicy: z.boolean().describe(
+          "Output only. Whether the engine's `feature_policies` may restrict this feature to specific users or groups. When false, EngineService.UpdateEngine rejects a policy for this feature.",
+        ).optional(),
+      })).describe("Output only. The feature toggles known to the registry.")
+        .optional(),
+    }).describe(
+      "Output only. The resolved, server-side view of the feature toggle registry (launch stage per toggle).",
+    ).optional(),
     features: z.record(
       z.string(),
       z.enum([
@@ -529,7 +564,7 @@ const GlobalArgsSchema = z.object({
         "FEATURE_STATE_OFF",
       ]),
     ).describe(
-      "Output only. Feature config for the engine to opt in or opt out of features. Supported keys: * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `speech-to-text` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `canvas-app-builder` * `skills` * `skill-sharing` * `skill-sharing-without-admin-approval` * `disable-projects` * `sobi` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence` * `workflow-agents` * `in-app-notifications` * `code-extraction` * `remote-vm` * `license-tier-badge`",
+      "Output only. Feature config for the engine to opt in or opt out of features. Supported keys: * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `speech-to-text` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `music-generation` * `speech-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `canvas-app-builder` * `skills` * `skill-sharing` * `skill-sharing-without-admin-approval` * `disable-projects` * `sobi` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence` * `workflow-agents` * `in-app-notifications` * `code-extraction` * `remote-vm` * `license-tier-badge` * `agent-marketplace` * `agent-scheduling` * `preview-agents`",
     ).optional(),
     generativeAnswerConfig: z.object({
       disableRelatedQuestions: z.boolean().describe(
@@ -842,6 +877,18 @@ const StateSchema = z.object({
     enableSafeSearch: z.boolean(),
     enableSearchAsYouType: z.boolean(),
     enableVisualContentSummary: z.boolean(),
+    featureToggleInfo: z.object({
+      featureToggles: z.array(z.object({
+        id: z.string(),
+        launchStage: z.string(),
+        retirementDate: z.object({
+          day: z.unknown(),
+          month: z.unknown(),
+          year: z.unknown(),
+        }),
+        supportsAccessPolicy: z.boolean(),
+      })),
+    }),
     features: z.record(z.string(), z.unknown()),
     generativeAnswerConfig: z.object({
       disableRelatedQuestions: z.boolean(),
@@ -959,7 +1006,7 @@ const InputsSchema = z.object({
       "Output only. The current authorization state for this connector.",
     ).optional(),
     placeholder: z.string().describe(
-      "Output only. It is the batch authorization group placeholder full resource name. This is not a real data connector (not existed in DataConnector table in spanner). It's a resource name existing only in the connector_authorization in the user table. E.g. projects/{project}/locations/{location}/collections/oauth_placeholder_google_workspace/dataStores/dataConnector.",
+      "Output only. It is the batch authorization group placeholder full resource name. This is not a real data connector resource. E.g. projects/{project}/locations/{location}/collections/oauth_placeholder_google_workspace/dataStores/dataConnector.",
     ).optional(),
   })).describe(
     "Output only. The batch authorization statuses for the widget's connectors.",
@@ -1024,11 +1071,11 @@ const InputsSchema = z.object({
       "Output only. the identifier of the collection, used for widget service. For now it refers to collection_id, in the future we will migrate the field to encrypted collection name UUID. For synthetic placeholder entries (see message-level comment) this is a synthetic placeholder id, not a real collection_id.",
     ).optional(),
     isFirstParty: z.boolean().describe(
-      "Output only. Whether this is a first-party (Google-owned) connector, as opposed to a third-party connector. Used by the frontend to group 1P vs 3P connectors.",
+      "Output only. Whether this is a first-party (Google-owned) connector, as opposed to a third-party connector.",
     ).optional(),
     metadata: z.object({
       author: z.string().describe(
-        'Optional. The party that authored the connector, e.g. "Google" or a third-party provider name. Lets end users see who authored a connector (future: third-party-authored connectors).',
+        'Optional. The party that authored the connector, e.g. "Google" or a third-party provider name. Lets end users see who authored a connector.',
       ).optional(),
       description: z.string().describe(
         "Optional. Human-readable description of the connector, shown on the connector detail page. One connector has a single description.",
@@ -1316,6 +1363,41 @@ const InputsSchema = z.object({
     enableVisualContentSummary: z.boolean().describe(
       "If set to true, the widget will enable visual content summary on applicable search requests. Only used by healthcare search.",
     ).optional(),
+    featureToggleInfo: z.object({
+      featureToggles: z.array(z.object({
+        id: z.string().describe(
+          "Output only. Matches a key in the engine `features` map.",
+        ).optional(),
+        launchStage: z.enum([
+          "LAUNCH_STAGE_UNSPECIFIED",
+          "PREVIEW",
+          "GA",
+          "SCHEDULED_GA",
+          "DELAYED_GA",
+          "RETIRED",
+        ]).describe("Output only. Launch stage of the feature behind a toggle.")
+          .optional(),
+        retirementDate: z.object({
+          day: z.unknown().describe(
+            "Day of a month. Must be from 1 to 31 and valid for the year and month, or 0 to specify a year by itself or a year and month where the day isn't significant.",
+          ).optional(),
+          month: z.unknown().describe(
+            "Month of a year. Must be from 1 to 12, or 0 to specify a year without a month and day.",
+          ).optional(),
+          year: z.unknown().describe(
+            "Year of the date. Must be from 1 to 9999, or 0 to specify a date without a year.",
+          ).optional(),
+        }).describe(
+          "Output only. The informational date the toggle is scheduled to retire, after which the feature is on for every customer. This is for display purposes only. The system does not transition feature states automatically on this date. Only when the launch stage is set to RETIRED does the feature turn on for every customer. Unset if no retirement is scheduled.",
+        ).optional(),
+        supportsAccessPolicy: z.boolean().describe(
+          "Output only. Whether the engine's `feature_policies` may restrict this feature to specific users or groups. When false, EngineService.UpdateEngine rejects a policy for this feature.",
+        ).optional(),
+      })).describe("Output only. The feature toggles known to the registry.")
+        .optional(),
+    }).describe(
+      "Output only. The resolved, server-side view of the feature toggle registry (launch stage per toggle).",
+    ).optional(),
     features: z.record(
       z.string(),
       z.enum([
@@ -1324,7 +1406,7 @@ const InputsSchema = z.object({
         "FEATURE_STATE_OFF",
       ]),
     ).describe(
-      "Output only. Feature config for the engine to opt in or opt out of features. Supported keys: * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `speech-to-text` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `canvas-app-builder` * `skills` * `skill-sharing` * `skill-sharing-without-admin-approval` * `disable-projects` * `sobi` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence` * `workflow-agents` * `in-app-notifications` * `code-extraction` * `remote-vm` * `license-tier-badge`",
+      "Output only. Feature config for the engine to opt in or opt out of features. Supported keys: * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `speech-to-text` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `music-generation` * `speech-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `canvas-app-builder` * `skills` * `skill-sharing` * `skill-sharing-without-admin-approval` * `disable-projects` * `sobi` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence` * `workflow-agents` * `in-app-notifications` * `code-extraction` * `remote-vm` * `license-tier-badge` * `agent-marketplace` * `agent-scheduling` * `preview-agents`",
     ).optional(),
     generativeAnswerConfig: z.object({
       disableRelatedQuestions: z.boolean().describe(
@@ -1491,7 +1573,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine DataStores.WidgetConfigs. Registered at `@swamp/gcp/discoveryengine/datastores-widgetconfigs`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/datastores-widgetconfigs",
-  version: "2026.10.23.2",
+  version: "2026.11.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1775,6 +1857,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

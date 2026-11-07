@@ -237,6 +237,9 @@ const GlobalArgsSchema = z.object({
             mode: z.unknown().describe(
               "Optional. Configures transcription mode. Supported values: `VERBATIM`, `SMART`. If unspecified, defaults to `VERBATIM` transcription. In `SMART` mode, the model performs disfluency removal (eliminating filler words, repetitions, and false starts), light grammatical cleanup, automatic formatting (paragraphs, bullet points, numbered lists), and minor user edits (inline self-corrections). Timestamps and diarization are incompatible with mode `SMART`.",
             ).optional(),
+            sourceText: z.unknown().describe(
+              "Optional. The source text to be edited or rewritten via voice instructions. When provided in `SMART` mode, the model evaluates the audio input against this text and emits the complete replacement text in the candidate response rather than appending to it.",
+            ).optional(),
             wordTimestamp: z.unknown().describe(
               "Optional. Configures word-level timestamp generation.",
             ).optional(),
@@ -712,6 +715,7 @@ const StateSchema = z.object({
             languageCodes: z.unknown(),
             languageHints: z.unknown(),
             mode: z.unknown(),
+            sourceText: z.unknown(),
             wordTimestamp: z.unknown(),
           }),
           candidateCount: z.number(),
@@ -980,6 +984,9 @@ const InputsSchema = z.object({
             ).optional(),
             mode: z.unknown().describe(
               "Optional. Configures transcription mode. Supported values: `VERBATIM`, `SMART`. If unspecified, defaults to `VERBATIM` transcription. In `SMART` mode, the model performs disfluency removal (eliminating filler words, repetitions, and false starts), light grammatical cleanup, automatic formatting (paragraphs, bullet points, numbered lists), and minor user edits (inline self-corrections). Timestamps and diarization are incompatible with mode `SMART`.",
+            ).optional(),
+            sourceText: z.unknown().describe(
+              "Optional. The source text to be edited or rewritten via voice instructions. When provided in `SMART` mode, the model evaluates the audio input against this text and emits the complete replacement text in the candidate response rather than appending to it.",
             ).optional(),
             wordTimestamp: z.unknown().describe(
               "Optional. Configures word-level timestamp generation.",
@@ -1445,7 +1452,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform EvaluationMetrics. Registered at `@swamp/gcp/aiplatform/evaluationmetrics`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/evaluationmetrics",
-  version: "2026.10.23.1",
+  version: "2026.11.07.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -1499,6 +1506,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

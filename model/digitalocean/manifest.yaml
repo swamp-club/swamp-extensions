@@ -1,7 +1,7 @@
 # Auto-generated manifest. Re-generate with the appropriate deno task.
 manifestVersion: 1
 name: "@swamp/digitalocean"
-version: "2026.11.06.1"
+version: "2026.11.07.1"
 license: "AGPL-3.0-or-later"
 description: "DigitalOcean infrastructure models"
 repository: "https://github.com/swamp-club/swamp-extensions"
@@ -10,8 +10,7 @@ labels:
   - cloud
   - infrastructure
 releaseNotes: |
-  - Added: action_gateway_endpoint
-  - Updated: action_gateway_session
+  - Updated: insight_notification_channel
 models:
   - action_gateway_connection.ts
   - action_gateway_endpoint.ts

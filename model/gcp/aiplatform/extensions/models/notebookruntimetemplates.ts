@@ -649,7 +649,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform NotebookRuntimeTemplates. Registered at `@swamp/gcp/aiplatform/notebookruntimetemplates`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/notebookruntimetemplates",
-  version: "2026.10.23.1",
+  version: "2026.11.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -877,6 +877,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1335,6 +1340,45 @@ export const model = {
           },
           params,
           {},
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    set_default: {
+      description: "set default",
+      arguments: z.object({
+        name: z.any().optional(),
+      }),
+      execute: async (args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        params["parent"] = `projects/${projectId}/locations/${
+          String(g["location"] ?? "")
+        }`;
+        const body: Record<string, unknown> = {};
+        if (args["name"] !== undefined) body["name"] = args["name"];
+        const result = await createResource(
+          baseUrl,
+          {
+            "id":
+              "aiplatform.projects.locations.notebookRuntimeTemplates.setDefault",
+            "path": "v1/{+parent}/notebookRuntimeTemplates:setDefault",
+            "httpMethod": "POST",
+            "parameterOrder": ["parent"],
+            "parameters": {
+              "parent": { "location": "path", "required": true },
+            },
+          },
+          params,
+          body,
           undefined,
           undefined,
           undefined,

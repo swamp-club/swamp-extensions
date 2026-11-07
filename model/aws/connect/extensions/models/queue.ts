@@ -85,7 +85,7 @@ const GlobalArgsSchema = z.object({
       ),
     ),
   ).describe(
-    "The quick connects available to agents who are working the queue.",
+    "The quick connects available to agents who are working the queue. To remove all quick connects from the queue, specify an empty list.",
   ).optional(),
   OutboundCallerConfig: z.object({
     OutboundCallerIdNumberArn: z.string().regex(
@@ -178,7 +178,7 @@ const InputsSchema = z.object({
       ),
     ),
   ).describe(
-    "The quick connects available to agents who are working the queue.",
+    "The quick connects available to agents who are working the queue. To remove all quick connects from the queue, specify an empty list.",
   ).optional(),
   OutboundCallerConfig: z.object({
     OutboundCallerIdNumberArn: z.string().regex(
@@ -247,7 +247,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect Queue. Registered at `@swamp/aws/connect/queue`. */
 export const model = {
   type: "@swamp/aws/connect/queue",
-  version: "2026.10.23.1",
+  version: "2026.11.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -316,6 +316,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

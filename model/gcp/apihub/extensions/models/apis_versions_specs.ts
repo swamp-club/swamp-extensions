@@ -209,8 +209,9 @@ const GlobalArgsSchema = z.object({
     "Optional. The list of user defined attributes associated with the spec. The key is the attribute name. It will be of the format: `projects/{project}/locations/{location}/attributes/{attribute}`. The value is the attribute values associated with the resource.",
   ).optional(),
   contents: z.object({
-    contents: z.string().describe("Required. The contents of the spec.")
-      .optional(),
+    contents: z.string().describe(
+      "Required. The contents of the spec. The contents should be base64 encoded while calling the OnePlatform APIs like CreateSpec, UpdateSpec and CollectApiData.",
+    ).optional(),
     mimeType: z.string().describe(
       "Required. The mime type of the content for example application/json, application/yaml, application/wsdl etc.",
     ).optional(),
@@ -522,8 +523,9 @@ const InputsSchema = z.object({
     "Optional. The list of user defined attributes associated with the spec. The key is the attribute name. It will be of the format: `projects/{project}/locations/{location}/attributes/{attribute}`. The value is the attribute values associated with the resource.",
   ).optional(),
   contents: z.object({
-    contents: z.string().describe("Required. The contents of the spec.")
-      .optional(),
+    contents: z.string().describe(
+      "Required. The contents of the spec. The contents should be base64 encoded while calling the OnePlatform APIs like CreateSpec, UpdateSpec and CollectApiData.",
+    ).optional(),
     mimeType: z.string().describe(
       "Required. The mime type of the content for example application/json, application/yaml, application/wsdl etc.",
     ).optional(),
@@ -705,7 +707,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud API hub Apis.Versions.Specs. Registered at `@swamp/gcp/apihub/apis-versions-specs`. */
 export const model = {
   type: "@swamp/gcp/apihub/apis-versions-specs",
-  version: "2026.10.23.1",
+  version: "2026.11.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -867,6 +869,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

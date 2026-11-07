@@ -155,7 +155,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Locations. Registered at `@swamp/gcp/aiplatform/locations`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/locations",
-  version: "2026.10.23.1",
+  version: "2026.11.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -329,6 +329,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -795,6 +800,7 @@ export const model = {
     evaluate_instances: {
       description: "evaluate instances",
       arguments: z.object({
+        allowCrossRegionModel: z.any().optional(),
         autoraterConfig: z.any().optional(),
         bleuInput: z.any().optional(),
         coherenceInput: z.any().optional(),
@@ -855,6 +861,9 @@ export const model = {
         params["location"] = existing["name"]?.toString() ??
           g["name"]?.toString() ?? "";
         const body: Record<string, unknown> = {};
+        if (args["allowCrossRegionModel"] !== undefined) {
+          body["allowCrossRegionModel"] = args["allowCrossRegionModel"];
+        }
         if (args["autoraterConfig"] !== undefined) {
           body["autoraterConfig"] = args["autoraterConfig"];
         }

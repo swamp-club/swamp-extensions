@@ -346,6 +346,7 @@ const GlobalArgsSchema = z.object({
     languageCode: z.string().optional(),
     model: z.string().optional(),
     phraseSets: z.array(z.string()).optional(),
+    profanityFilter: z.boolean().optional(),
     sampleRateHertz: z.number().int().optional(),
     speechModelVariant: z.enum([
       "SPEECH_MODEL_VARIANT_UNSPECIFIED",
@@ -549,6 +550,7 @@ const StateSchema = z.object({
     languageCode: z.string(),
     model: z.string(),
     phraseSets: z.array(z.string()),
+    profanityFilter: z.boolean(),
     sampleRateHertz: z.number(),
     speechModelVariant: z.string(),
     useGeminiAsr: z.boolean(),
@@ -777,6 +779,7 @@ const InputsSchema = z.object({
     languageCode: z.string().optional(),
     model: z.string().optional(),
     phraseSets: z.array(z.string()).optional(),
+    profanityFilter: z.boolean().optional(),
     sampleRateHertz: z.number().int().optional(),
     speechModelVariant: z.enum([
       "SPEECH_MODEL_VARIANT_UNSPECIFIED",
@@ -844,7 +847,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Dialogflow ConversationProfiles. Registered at `@swamp/gcp/dialogflow/conversationprofiles`. */
 export const model = {
   type: "@swamp/gcp/dialogflow/conversationprofiles",
-  version: "2026.10.30.1",
+  version: "2026.11.07.1",
   upgrades: [
     {
       toVersion: "2026.07.29.1",
@@ -888,6 +891,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.30.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

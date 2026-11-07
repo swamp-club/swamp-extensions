@@ -111,9 +111,7 @@ const ResourceSchema = z.object({
   ssl: z.object({
     bundle_method: z.string().optional(),
     certificate_authority: z.string().optional(),
-    custom_certificate: z.string().optional(),
     custom_csr_id: z.string().optional(),
-    custom_key: z.string().optional(),
     dcv_delegation_records: z.array(z.object({
       cname: z.string().optional(),
       cname_target: z.string().optional(),
@@ -204,7 +202,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Custom Hostnames. Registered at `@swamp/cloudflare/custom-hostnames/custom-hostnames`. */
 export const model = {
   type: "@swamp/cloudflare/custom-hostnames/custom-hostnames",
-  version: "2026.10.23.1",
+  version: "2026.11.07.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -258,6 +256,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

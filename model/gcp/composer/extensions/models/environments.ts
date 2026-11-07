@@ -212,6 +212,7 @@ const GlobalArgsSchema = z.object({
       "ENVIRONMENT_SIZE_MEDIUM",
       "ENVIRONMENT_SIZE_LARGE",
       "ENVIRONMENT_SIZE_EXTRA_LARGE",
+      "ENVIRONMENT_SIZE_X_EXTRA_LARGE",
     ]).describe(
       "Optional. The size of the Cloud Composer environment. This field is supported for Cloud Composer environments in versions composer-2.*.*-airflow-*.*.* and newer.",
     ).optional(),
@@ -795,6 +796,7 @@ const InputsSchema = z.object({
       "ENVIRONMENT_SIZE_MEDIUM",
       "ENVIRONMENT_SIZE_LARGE",
       "ENVIRONMENT_SIZE_EXTRA_LARGE",
+      "ENVIRONMENT_SIZE_X_EXTRA_LARGE",
     ]).describe(
       "Optional. The size of the Cloud Composer environment. This field is supported for Cloud Composer environments in versions composer-2.*.*-airflow-*.*.* and newer.",
     ).optional(),
@@ -1177,7 +1179,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Composer Environments. Registered at `@swamp/gcp/composer/environments`. */
 export const model = {
   type: "@swamp/gcp/composer/environments",
-  version: "2026.10.23.1",
+  version: "2026.11.07.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1341,6 +1343,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -1895,6 +1902,41 @@ export const model = {
         return { result };
       },
     },
+    hibernate: {
+      description: "hibernate",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["name"]),
+          );
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id": "composer.projects.locations.environments.hibernate",
+            "path": "v1/{+name}:hibernate",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          {},
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
     load_snapshot: {
       description: "load snapshot",
       arguments: z.object({
@@ -2047,6 +2089,41 @@ export const model = {
           {
             "id": "composer.projects.locations.environments.restartWebServer",
             "path": "v1/{+name}:restartWebServer",
+            "httpMethod": "POST",
+            "parameterOrder": ["name"],
+            "parameters": { "name": { "location": "path", "required": true } },
+          },
+          params,
+          {},
+          undefined,
+          undefined,
+          undefined,
+          credentials,
+        );
+        return { result };
+      },
+    },
+    resume: {
+      description: "resume",
+      arguments: z.object({}),
+      execute: async (_args: Record<string, unknown>, context: any) => {
+        const g = context.globalArgs;
+        const baseUrl = g["apiEndpoint"]?.toString() ??
+          Deno.env.get("GCP_API_ENDPOINT")?.trim() ?? BASE_URL;
+        const credentials = _buildGcpCredentials(g);
+        const projectId = await getProjectId(credentials);
+        const params: Record<string, string> = { project: projectId };
+        if (g["name"] !== undefined) {
+          params["name"] = buildResourceName(
+            `projects/${projectId}/locations/${String(g["location"] ?? "")}`,
+            String(g["name"]),
+          );
+        }
+        const result = await createResource(
+          baseUrl,
+          {
+            "id": "composer.projects.locations.environments.resume",
+            "path": "v1/{+name}:resume",
             "httpMethod": "POST",
             "parameterOrder": ["name"],
             "parameters": { "name": { "location": "path", "required": true } },

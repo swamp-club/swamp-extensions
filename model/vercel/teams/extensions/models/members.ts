@@ -74,7 +74,7 @@ const GlobalArgsSchema = z.object({
       "V0Viewer",
     ]),
   ).describe(
-    "The team permissions to set for the member. Permissions must be compatible with the team roles assigned to the member.",
+    "The team permissions to set for the member. Permissions must be available to the team and compatible with the team roles assigned to the member.",
   ).optional(),
   projects: z.array(z.object({
     projectId: z.string().max(64),
@@ -163,7 +163,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Members. Registered at `@swamp/vercel/teams/members`. */
 export const model = {
   type: "@swamp/vercel/teams/members",
-  version: "2026.10.23.1",
+  version: "2026.11.07.1",
   upgrades: [
     {
       toVersion: "2026.08.02.2",
@@ -242,6 +242,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -62,6 +62,10 @@ const GlobalArgsSchema = z.object({
         ephemeral: z.boolean().optional(),
         preauthorized: z.boolean().optional(),
         tags: z.array(z.string()).optional(),
+        nodeAttributes: z.record(
+          z.string(),
+          z.union([z.string(), z.number().int(), z.boolean()]),
+        ).optional(),
       }).optional(),
     }).optional(),
   }).describe(
@@ -105,6 +109,7 @@ const ResourceSchema = z.object({
         ephemeral: z.boolean().optional(),
         preauthorized: z.boolean().optional(),
         tags: z.array(z.string()).optional(),
+        nodeAttributes: z.record(z.string(), z.unknown()).optional(),
       }).passthrough().optional(),
     }).passthrough().optional(),
   }).passthrough().optional(),
@@ -133,6 +138,10 @@ const InputsSchema = z.object({
         ephemeral: z.boolean().optional(),
         preauthorized: z.boolean().optional(),
         tags: z.array(z.string()).optional(),
+        nodeAttributes: z.record(
+          z.string(),
+          z.union([z.string(), z.number().int(), z.boolean()]),
+        ).optional(),
       }).optional(),
     }).optional(),
   }).optional(),
@@ -142,7 +151,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for a Tailscale auth key. Registered at `@swamp/tailscale/tailnet-key`. */
 export const model = {
   type: "@swamp/tailscale/tailnet-key",
-  version: "2026.10.23.1",
+  version: "2026.11.07.1",
   upgrades: [
     {
       toVersion: "2026.10.02.2",
@@ -156,6 +165,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

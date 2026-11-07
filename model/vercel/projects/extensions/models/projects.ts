@@ -1017,6 +1017,7 @@ const ResourceSchema = z.object({
     domainRecord: z.array(z.string()).optional(),
     domainTransferIn: z.array(z.string()).optional(),
     drain: z.array(z.string()).optional(),
+    drive: z.array(z.string()).optional(),
     edgeCacheNamespace: z.array(z.string()).optional(),
     edgeConfig: z.array(z.string()).optional(),
     edgeConfigItem: z.array(z.string()).optional(),
@@ -1782,7 +1783,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Vercel Projects. Registered at `@swamp/vercel/projects/projects`. */
 export const model = {
   type: "@swamp/vercel/projects/projects",
-  version: "2026.11.04.1",
+  version: "2026.11.07.1",
   upgrades: [
     {
       toVersion: "2026.08.02.1",
@@ -2057,6 +2058,11 @@ export const model = {
     {
       toVersion: "2026.11.04.1",
       description: "Added: expiration",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],

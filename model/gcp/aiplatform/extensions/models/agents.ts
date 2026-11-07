@@ -160,6 +160,45 @@ const GlobalArgsSchema = z.object({
   apiEndpoint: z.string().describe(
     "Custom API endpoint for emulators; overrides GCP_API_ENDPOINT environment variable. Defaults to the service's production URL.",
   ).optional(),
+  agentIdentity: z.object({
+    email: z.string().describe(
+      "Optional. The email address representing the agent's principal identity. For Google Workspace agents, the email should be on a verified customer domain.",
+    ).optional(),
+    gaiaId: z.string().describe(
+      "Output only. The agent's own obfuscated Gaia id. Set only for an A2 (CoWorker) agent, which is the only kind that has a first-class Gaia account of its own. An A1 (Personal) agent has no `AgentIdentity` at all: it acts on behalf of its owner, so the identity it runs as is `Agent.owner`, and there is no separate Gaia account to name. Populated asynchronously once the agent identity is provisioned, so it may be absent from the `CreateAgent` LRO response and present on `GetAgent`/`ListAgents`.",
+    ).optional(),
+    tenant: z.object({
+      id: z.string().describe("Optional. The unique raw ID of the tenant.")
+        .optional(),
+      type: z.enum(["TYPE_UNSPECIFIED", "WORKSPACE_CUSTOMER"]).describe(
+        "Optional. The type of the tenant.",
+      ).optional(),
+    }).describe(
+      'Optional. The tenant / customer context under which this agent runs. For Google Workspace, this is the obfuscated Customer ID (e.g. "C0123abcd").',
+    ).optional(),
+  }).describe(
+    "Optional. Immutable. The identity configuration of the agent. Immutable: the agent's own identity determines the A2 (CoWorker) archetype and the minted SPIFFE, so it cannot change after creation (no A1A2 transition).",
+  ).optional(),
+  allowedTeammates: z.object({
+    teammates: z.array(z.object({
+      email: z.string().describe("Optional. Email address of the teammate.")
+        .optional(),
+      expansionMode: z.enum([
+        "EXPANSION_MODE_UNSPECIFIED",
+        "INFER",
+        "EXPANDED",
+        "NON_EXPANDED",
+      ]).describe("Optional. Expansion mode for group or space teammates.")
+        .optional(),
+      gaiaId: z.string().describe(
+        "Optional. Obfuscated Gaia id of the teammate. OBFUSCATED, never a raw Gaia id -- the same form as `Principal.id` and every other Gaia id this API surfaces, so the two are comparable. A string rather than an int64 for that reason: the obfuscated form is not a number.",
+      ).optional(),
+    })).describe(
+      "Optional. The teammates the agent is permitted to contact. At most 500. OUTPUT: always returned. An empty list means the agent has no teammates, not that the field went unread. INPUT: the complete desired set, not a delta -- teammates absent from it are removed. The backing roster is updated asynchronously and best-effort after the write returns, so it may briefly lag what `GetAgent` reports. What the agent is actually able to reach follows the roster, not this field, until the two converge.",
+    ).optional(),
+  }).describe(
+    "Optional. The identities this agent is allowed to contact outbound (for example over Gmail or Chat). Stored on the agent and always returned by `GetAgent`; see the field comments on `AllowedTeammates`.",
+  ).optional(),
   base_agent: z.string().describe(
     "Required. Immutable. The base agent for the agent. Supported values: * `antigravity-preview-05-2026` Immutable: `UpdateAgent` rejects a change, including clearing it. The kind of agent this is gets derived from this field when the agent is created and is recorded then; nothing recomputes it afterwards, so a later change would leave the agent described as one kind and behaving as another. Create a new agent instead.",
   ).optional(),
@@ -168,9 +207,21 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   description: z.string().describe("Optional. The description of the agent.")
     .optional(),
+  encryptionSpec: z.object({
+    kmsKeyName: z.string().describe(
+      "Required. Resource name of the Cloud KMS key used to protect the resource. The Cloud KMS key must be in the same region as the resource. It must have the format `projects/{project}/locations/{location}/keyRings/{key_ring}/cryptoKeys/{crypto_key}`.",
+    ).optional(),
+  }).describe(
+    "Optional. Immutable. Customer-managed encryption key spec for an Agent. If set, this agent's user data will be secured by this key; if not set, it is secured by a Google-managed key. Cannot be changed after the agent is created.",
+  ).optional(),
   id: z.string().describe(
     "Immutable. The user-specified ID for the agent. This ID becomes the final component of the agent resource name. If not provided, Vertex AI will generate a value for this ID. The ID can be up to 63 characters and must match the regular expression `[a-z]([a-z0-9-]{0,61}[a-z0-9])?`.",
   ).optional(),
+  memoryConfig: z.object({
+    disableMemory: z.boolean().describe(
+      "Optional. If true, memory is disabled for the agent as a whole: across every task it runs, the agent neither reads existing memories into the prompt nor forms new ones. Memory is on by default, and this is the setting that wins. A task may turn memory off for itself alone with `TaskSpec.scope.memory_config.disable_memory`, but cannot turn it back on while this is true; the two are OR'ed. This level wins because it is the mutable one. Turning it on has to cover the tasks that already exist, whose stored specs still say whatever they were created with, so the agent's current value is re-applied every time a session opens, including on a resume. Memories already stored are retained and stay readable by the agent's users; this governs only whether the agent can access and modify them.",
+    ).optional(),
+  }).describe("Optional. Memory settings for the agent.").optional(),
   metadata: z.record(z.string(), z.string()).describe(
     "Optional. The metadata for the agent.",
   ).optional(),
@@ -196,6 +247,30 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe("Optional. Observability settings for this agent's sessions.")
     .optional(),
+  owner: z.object({
+    id: z.string().describe(
+      "Optional. The system unique identifier of the principal.",
+    ).optional(),
+    type: z.enum(["TYPE_UNSPECIFIED", "USER"]).describe(
+      "Optional. The type of the principal.",
+    ).optional(),
+  }).describe(
+    "Optional. The human owner (principal) the agent acts on behalf of (A1 Personal). Mutable by design: ownership is meant to be reassignable (e.g. by an admin). On create an A1 (Personal) agent may omit it and the control plane defaults it to the caller; an A2 (CoWorker) agent must set it explicitly. `owner.id` must be an *obfuscated* Gaia id. A raw Gaia id is rejected with INVALID_ARGUMENT naming the rule -- both forms are strings of decimal digits, so the surface would otherwise have two indistinguishable spellings of one identity. Not yet: `UpdateAgent` currently rejects a change to this field. The control plane authorizes every agent method against the owner Gaia id it persists internally at create time, and the update path does not maintain that copy — so a field write here would move the reported owner without moving the one access control uses. The guard comes out once reassignment moves both, along with the Workspace identity provisioned under the owner.",
+  ).optional(),
+  persona: z.object({
+    avatarUrl: z.string().describe("Optional. The URL of the agent's avatar.")
+      .optional(),
+    displayName: z.string().describe("Required. The display name of the agent.")
+      .optional(),
+    personality: z.string().describe(
+      "Optional. The personality style or behavioral trait of the agent.",
+    ).optional(),
+    role: z.string().describe(
+      'Optional. The role of the agent (e.g., "Financial Analyst").',
+    ).optional(),
+  }).describe(
+    "Optional. The persona (presentation) of the agent. Mutable: presentation only, not an archetype-derivation signal.",
+  ).optional(),
   system_instruction: z.string().describe(
     "Optional. The instructions for the agent to follow. These instructions are passed to the LLM as a system instruction.",
   ).optional(),
@@ -219,13 +294,34 @@ const GlobalArgsSchema = z.object({
 });
 
 const StateSchema = z.object({
+  agentIdentity: z.object({
+    email: z.string(),
+    gaiaId: z.string(),
+    tenant: z.object({
+      id: z.string(),
+      type: z.string(),
+    }),
+  }).optional(),
   aiApplication: z.string().optional(),
+  allowedTeammates: z.object({
+    teammates: z.array(z.object({
+      email: z.string(),
+      expansionMode: z.string(),
+      gaiaId: z.string(),
+    })),
+  }).optional(),
   base_agent: z.string().optional(),
   base_environment: z.string().optional(),
   created: z.string().optional(),
   description: z.string().optional(),
   effectiveIdentity: z.string().optional(),
+  encryptionSpec: z.object({
+    kmsKeyName: z.string(),
+  }).optional(),
   id: z.string().optional(),
+  memoryConfig: z.object({
+    disableMemory: z.boolean(),
+  }).optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
   modelConfig: z.object({
     model: z.string(),
@@ -236,6 +332,24 @@ const StateSchema = z.object({
   observabilityConfig: z.object({
     observabilityEnabled: z.boolean(),
     sensitiveLoggingEnabled: z.boolean(),
+  }).optional(),
+  owner: z.object({
+    id: z.string(),
+    type: z.string(),
+  }).optional(),
+  persona: z.object({
+    avatarUrl: z.string(),
+    displayName: z.string(),
+    personality: z.string(),
+    role: z.string(),
+  }).optional(),
+  status: z.object({
+    deleteTime: z.string(),
+    state: z.string(),
+    suspensionReason: z.object({
+      reason: z.string(),
+      suspensionTime: z.string(),
+    }),
   }).optional(),
   system_instruction: z.string().optional(),
   tools: z.array(z.object({
@@ -256,6 +370,45 @@ const InputsSchema = z.object({
   scopes: z.string().optional(),
   quotaProject: z.string().optional(),
   apiEndpoint: z.string().optional(),
+  agentIdentity: z.object({
+    email: z.string().describe(
+      "Optional. The email address representing the agent's principal identity. For Google Workspace agents, the email should be on a verified customer domain.",
+    ).optional(),
+    gaiaId: z.string().describe(
+      "Output only. The agent's own obfuscated Gaia id. Set only for an A2 (CoWorker) agent, which is the only kind that has a first-class Gaia account of its own. An A1 (Personal) agent has no `AgentIdentity` at all: it acts on behalf of its owner, so the identity it runs as is `Agent.owner`, and there is no separate Gaia account to name. Populated asynchronously once the agent identity is provisioned, so it may be absent from the `CreateAgent` LRO response and present on `GetAgent`/`ListAgents`.",
+    ).optional(),
+    tenant: z.object({
+      id: z.string().describe("Optional. The unique raw ID of the tenant.")
+        .optional(),
+      type: z.enum(["TYPE_UNSPECIFIED", "WORKSPACE_CUSTOMER"]).describe(
+        "Optional. The type of the tenant.",
+      ).optional(),
+    }).describe(
+      'Optional. The tenant / customer context under which this agent runs. For Google Workspace, this is the obfuscated Customer ID (e.g. "C0123abcd").',
+    ).optional(),
+  }).describe(
+    "Optional. Immutable. The identity configuration of the agent. Immutable: the agent's own identity determines the A2 (CoWorker) archetype and the minted SPIFFE, so it cannot change after creation (no A1A2 transition).",
+  ).optional(),
+  allowedTeammates: z.object({
+    teammates: z.array(z.object({
+      email: z.string().describe("Optional. Email address of the teammate.")
+        .optional(),
+      expansionMode: z.enum([
+        "EXPANSION_MODE_UNSPECIFIED",
+        "INFER",
+        "EXPANDED",
+        "NON_EXPANDED",
+      ]).describe("Optional. Expansion mode for group or space teammates.")
+        .optional(),
+      gaiaId: z.string().describe(
+        "Optional. Obfuscated Gaia id of the teammate. OBFUSCATED, never a raw Gaia id -- the same form as `Principal.id` and every other Gaia id this API surfaces, so the two are comparable. A string rather than an int64 for that reason: the obfuscated form is not a number.",
+      ).optional(),
+    })).describe(
+      "Optional. The teammates the agent is permitted to contact. At most 500. OUTPUT: always returned. An empty list means the agent has no teammates, not that the field went unread. INPUT: the complete desired set, not a delta -- teammates absent from it are removed. The backing roster is updated asynchronously and best-effort after the write returns, so it may briefly lag what `GetAgent` reports. What the agent is actually able to reach follows the roster, not this field, until the two converge.",
+    ).optional(),
+  }).describe(
+    "Optional. The identities this agent is allowed to contact outbound (for example over Gmail or Chat). Stored on the agent and always returned by `GetAgent`; see the field comments on `AllowedTeammates`.",
+  ).optional(),
   base_agent: z.string().describe(
     "Required. Immutable. The base agent for the agent. Supported values: * `antigravity-preview-05-2026` Immutable: `UpdateAgent` rejects a change, including clearing it. The kind of agent this is gets derived from this field when the agent is created and is recorded then; nothing recomputes it afterwards, so a later change would leave the agent described as one kind and behaving as another. Create a new agent instead.",
   ).optional(),
@@ -264,9 +417,21 @@ const InputsSchema = z.object({
   ).optional(),
   description: z.string().describe("Optional. The description of the agent.")
     .optional(),
+  encryptionSpec: z.object({
+    kmsKeyName: z.string().describe(
+      "Required. Resource name of the Cloud KMS key used to protect the resource. The Cloud KMS key must be in the same region as the resource. It must have the format `projects/{project}/locations/{location}/keyRings/{key_ring}/cryptoKeys/{crypto_key}`.",
+    ).optional(),
+  }).describe(
+    "Optional. Immutable. Customer-managed encryption key spec for an Agent. If set, this agent's user data will be secured by this key; if not set, it is secured by a Google-managed key. Cannot be changed after the agent is created.",
+  ).optional(),
   id: z.string().describe(
     "Immutable. The user-specified ID for the agent. This ID becomes the final component of the agent resource name. If not provided, Vertex AI will generate a value for this ID. The ID can be up to 63 characters and must match the regular expression `[a-z]([a-z0-9-]{0,61}[a-z0-9])?`.",
   ).optional(),
+  memoryConfig: z.object({
+    disableMemory: z.boolean().describe(
+      "Optional. If true, memory is disabled for the agent as a whole: across every task it runs, the agent neither reads existing memories into the prompt nor forms new ones. Memory is on by default, and this is the setting that wins. A task may turn memory off for itself alone with `TaskSpec.scope.memory_config.disable_memory`, but cannot turn it back on while this is true; the two are OR'ed. This level wins because it is the mutable one. Turning it on has to cover the tasks that already exist, whose stored specs still say whatever they were created with, so the agent's current value is re-applied every time a session opens, including on a resume. Memories already stored are retained and stay readable by the agent's users; this governs only whether the agent can access and modify them.",
+    ).optional(),
+  }).describe("Optional. Memory settings for the agent.").optional(),
   metadata: z.record(z.string(), z.string()).describe(
     "Optional. The metadata for the agent.",
   ).optional(),
@@ -292,6 +457,30 @@ const InputsSchema = z.object({
     ).optional(),
   }).describe("Optional. Observability settings for this agent's sessions.")
     .optional(),
+  owner: z.object({
+    id: z.string().describe(
+      "Optional. The system unique identifier of the principal.",
+    ).optional(),
+    type: z.enum(["TYPE_UNSPECIFIED", "USER"]).describe(
+      "Optional. The type of the principal.",
+    ).optional(),
+  }).describe(
+    "Optional. The human owner (principal) the agent acts on behalf of (A1 Personal). Mutable by design: ownership is meant to be reassignable (e.g. by an admin). On create an A1 (Personal) agent may omit it and the control plane defaults it to the caller; an A2 (CoWorker) agent must set it explicitly. `owner.id` must be an *obfuscated* Gaia id. A raw Gaia id is rejected with INVALID_ARGUMENT naming the rule -- both forms are strings of decimal digits, so the surface would otherwise have two indistinguishable spellings of one identity. Not yet: `UpdateAgent` currently rejects a change to this field. The control plane authorizes every agent method against the owner Gaia id it persists internally at create time, and the update path does not maintain that copy — so a field write here would move the reported owner without moving the one access control uses. The guard comes out once reassignment moves both, along with the Workspace identity provisioned under the owner.",
+  ).optional(),
+  persona: z.object({
+    avatarUrl: z.string().describe("Optional. The URL of the agent's avatar.")
+      .optional(),
+    displayName: z.string().describe("Required. The display name of the agent.")
+      .optional(),
+    personality: z.string().describe(
+      "Optional. The personality style or behavioral trait of the agent.",
+    ).optional(),
+    role: z.string().describe(
+      'Optional. The role of the agent (e.g., "Financial Analyst").',
+    ).optional(),
+  }).describe(
+    "Optional. The persona (presentation) of the agent. Mutable: presentation only, not an archetype-derivation signal.",
+  ).optional(),
   system_instruction: z.string().describe(
     "Optional. The instructions for the agent to follow. These instructions are passed to the LLM as a system instruction.",
   ).optional(),
@@ -340,7 +529,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Agent Platform Agents. Registered at `@swamp/gcp/aiplatform/agents`. */
 export const model = {
   type: "@swamp/gcp/aiplatform/agents",
-  version: "2026.10.31.1",
+  version: "2026.11.07.1",
   upgrades: [
     {
       toVersion: "2026.07.21.2",
@@ -438,6 +627,12 @@ export const model = {
         return rest;
       },
     },
+    {
+      toVersion: "2026.11.07.1",
+      description:
+        "Added: agentIdentity, allowedTeammates, encryptionSpec, memoryConfig, owner, persona",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -465,6 +660,12 @@ export const model = {
           String(g["location"] ?? "")
         }`;
         const body: Record<string, unknown> = {};
+        if (g["agentIdentity"] !== undefined) {
+          body["agentIdentity"] = g["agentIdentity"];
+        }
+        if (g["allowedTeammates"] !== undefined) {
+          body["allowedTeammates"] = g["allowedTeammates"];
+        }
         if (g["base_agent"] !== undefined) body["base_agent"] = g["base_agent"];
         if (g["base_environment"] !== undefined) {
           body["base_environment"] = g["base_environment"];
@@ -472,7 +673,13 @@ export const model = {
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
         }
+        if (g["encryptionSpec"] !== undefined) {
+          body["encryptionSpec"] = g["encryptionSpec"];
+        }
         if (g["id"] !== undefined) body["id"] = g["id"];
+        if (g["memoryConfig"] !== undefined) {
+          body["memoryConfig"] = g["memoryConfig"];
+        }
         if (g["metadata"] !== undefined) body["metadata"] = g["metadata"];
         if (g["modelConfig"] !== undefined) {
           body["modelConfig"] = g["modelConfig"];
@@ -481,6 +688,8 @@ export const model = {
         if (g["observabilityConfig"] !== undefined) {
           body["observabilityConfig"] = g["observabilityConfig"];
         }
+        if (g["owner"] !== undefined) body["owner"] = g["owner"];
+        if (g["persona"] !== undefined) body["persona"] = g["persona"];
         if (g["system_instruction"] !== undefined) {
           body["system_instruction"] = g["system_instruction"];
         }
@@ -595,11 +804,17 @@ export const model = {
           );
         }
         const body: Record<string, unknown> = {};
+        if (g["allowedTeammates"] !== undefined) {
+          body["allowedTeammates"] = g["allowedTeammates"];
+        }
         if (g["base_environment"] !== undefined) {
           body["base_environment"] = g["base_environment"];
         }
         if (g["description"] !== undefined) {
           body["description"] = g["description"];
+        }
+        if (g["memoryConfig"] !== undefined) {
+          body["memoryConfig"] = g["memoryConfig"];
         }
         if (g["metadata"] !== undefined) body["metadata"] = g["metadata"];
         if (g["modelConfig"] !== undefined) {
@@ -608,6 +823,8 @@ export const model = {
         if (g["observabilityConfig"] !== undefined) {
           body["observabilityConfig"] = g["observabilityConfig"];
         }
+        if (g["owner"] !== undefined) body["owner"] = g["owner"];
+        if (g["persona"] !== undefined) body["persona"] = g["persona"];
         if (g["system_instruction"] !== undefined) {
           body["system_instruction"] = g["system_instruction"];
         }
