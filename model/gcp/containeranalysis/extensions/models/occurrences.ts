@@ -1156,9 +1156,6 @@ const GlobalArgsSchema = z.object({
           "For jars that are contained inside.war files, this filepath can indicate the path to war file combined with the path to jar file.",
         ).optional(),
         layerDetails: z.object({
-          attributes: z.unknown().describe(
-            "Attributes that apply to the layer, such as buildpacks metadata.",
-          ).optional(),
           baseImages: z.unknown().describe(
             "The base images the layer is found within.",
           ).optional(),
@@ -2487,7 +2484,6 @@ const StateSchema = z.object({
       fileLocation: z.object({
         filePath: z.string(),
         layerDetails: z.object({
-          attributes: z.unknown(),
           baseImages: z.unknown(),
           chainId: z.unknown(),
           command: z.unknown(),
@@ -3706,9 +3702,6 @@ const InputsSchema = z.object({
           "For jars that are contained inside.war files, this filepath can indicate the path to war file combined with the path to jar file.",
         ).optional(),
         layerDetails: z.object({
-          attributes: z.unknown().describe(
-            "Attributes that apply to the layer, such as buildpacks metadata.",
-          ).optional(),
           baseImages: z.unknown().describe(
             "The base images the layer is found within.",
           ).optional(),
@@ -4577,7 +4570,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Container Analysis Occurrences. Registered at `@swamp/gcp/containeranalysis/occurrences`. */
 export const model = {
   type: "@swamp/gcp/containeranalysis/occurrences",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -4826,6 +4819,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -238,7 +238,7 @@ const GlobalArgsSchema = z.object({
           'The alternative text that\'s used for accessibility. Set descriptive text that lets users know what the button does. For example, if a button opens a hyperlink, you might write: "Opens a new browser tab and navigates to the Google Chat developer documentation at https://developers.google.com/workspace/chat".',
         ).optional(),
         color: z.unknown().describe(
-          'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0, } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
+          'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0 } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
         ).optional(),
         disabled: z.unknown().describe(
           "If `true`, the button is displayed in an inactive state and doesn't respond to user actions.",
@@ -290,7 +290,7 @@ const GlobalArgsSchema = z.object({
       dialog: z.object({
         body: z.object({
           cardActions: z.array(z.unknown()).describe(
-            'The card\'s actions. Actions are added to the card\'s toolbar menu. Supports up to 10 `CardAction` items. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "card_actions": [ { "actionLabel": "Settings", "onClick": { "action": { "functionName": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "LoadIndicator.SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
+            'The card\'s actions. Actions are added to the card\'s toolbar menu. Supports up to 10 `CardAction` items. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "cardActions": [ { "actionLabel": "Settings", "onClick": { "action": { "function": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
           ).optional(),
           displayStyle: z.enum(["DISPLAY_STYLE_UNSPECIFIED", "PEEK", "REPLACE"])
             .describe(
@@ -452,7 +452,7 @@ const GlobalArgsSchema = z.object({
           "The `onClick` action for this action item.",
         ).optional(),
       })).describe(
-        'The card\'s actions. Actions are added to the card\'s toolbar menu. Supports up to 10 `CardAction` items. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "card_actions": [ { "actionLabel": "Settings", "onClick": { "action": { "functionName": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "LoadIndicator.SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
+        'The card\'s actions. Actions are added to the card\'s toolbar menu. Supports up to 10 `CardAction` items. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "cardActions": [ { "actionLabel": "Settings", "onClick": { "action": { "function": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
       ).optional(),
       displayStyle: z.enum(["DISPLAY_STYLE_UNSPECIFIED", "PEEK", "REPLACE"])
         .describe(
@@ -478,7 +478,7 @@ const GlobalArgsSchema = z.object({
             'The alternative text that\'s used for accessibility. Set descriptive text that lets users know what the button does. For example, if a button opens a hyperlink, you might write: "Opens a new browser tab and navigates to the Google Chat developer documentation at https://developers.google.com/workspace/chat".',
           ).optional(),
           color: z.unknown().describe(
-            'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0, } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
+            'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0 } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
           ).optional(),
           disabled: z.unknown().describe(
             "If `true`, the button is displayed in an inactive state and doesn't respond to user actions.",
@@ -502,7 +502,7 @@ const GlobalArgsSchema = z.object({
             'The alternative text that\'s used for accessibility. Set descriptive text that lets users know what the button does. For example, if a button opens a hyperlink, you might write: "Opens a new browser tab and navigates to the Google Chat developer documentation at https://developers.google.com/workspace/chat".',
           ).optional(),
           color: z.unknown().describe(
-            'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0, } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
+            'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0 } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
           ).optional(),
           disabled: z.unknown().describe(
             "If `true`, the button is displayed in an inactive state and doesn't respond to user actions.",
@@ -1338,7 +1338,7 @@ const InputsSchema = z.object({
           'The alternative text that\'s used for accessibility. Set descriptive text that lets users know what the button does. For example, if a button opens a hyperlink, you might write: "Opens a new browser tab and navigates to the Google Chat developer documentation at https://developers.google.com/workspace/chat".',
         ).optional(),
         color: z.unknown().describe(
-          'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0, } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
+          'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0 } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
         ).optional(),
         disabled: z.unknown().describe(
           "If `true`, the button is displayed in an inactive state and doesn't respond to user actions.",
@@ -1390,7 +1390,7 @@ const InputsSchema = z.object({
       dialog: z.object({
         body: z.object({
           cardActions: z.array(z.unknown()).describe(
-            'The card\'s actions. Actions are added to the card\'s toolbar menu. Supports up to 10 `CardAction` items. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "card_actions": [ { "actionLabel": "Settings", "onClick": { "action": { "functionName": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "LoadIndicator.SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
+            'The card\'s actions. Actions are added to the card\'s toolbar menu. Supports up to 10 `CardAction` items. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "cardActions": [ { "actionLabel": "Settings", "onClick": { "action": { "function": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
           ).optional(),
           displayStyle: z.enum(["DISPLAY_STYLE_UNSPECIFIED", "PEEK", "REPLACE"])
             .describe(
@@ -1552,7 +1552,7 @@ const InputsSchema = z.object({
           "The `onClick` action for this action item.",
         ).optional(),
       })).describe(
-        'The card\'s actions. Actions are added to the card\'s toolbar menu. Supports up to 10 `CardAction` items. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "card_actions": [ { "actionLabel": "Settings", "onClick": { "action": { "functionName": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "LoadIndicator.SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
+        'The card\'s actions. Actions are added to the card\'s toolbar menu. Supports up to 10 `CardAction` items. [Google Workspace add-ons](https://developers.google.com/workspace/add-ons): For example, the following JSON constructs a card action menu with `Settings` and `Send Feedback` options: ` "cardActions": [ { "actionLabel": "Settings", "onClick": { "action": { "function": "goToView", "parameters": [ { "key": "viewType", "value": "SETTING" } ], "loadIndicator": "SPINNER" } } }, { "actionLabel": "Send Feedback", "onClick": { "openLink": { "url": "https://example.com/feedback" } } } ] `',
       ).optional(),
       displayStyle: z.enum(["DISPLAY_STYLE_UNSPECIFIED", "PEEK", "REPLACE"])
         .describe(
@@ -1578,7 +1578,7 @@ const InputsSchema = z.object({
             'The alternative text that\'s used for accessibility. Set descriptive text that lets users know what the button does. For example, if a button opens a hyperlink, you might write: "Opens a new browser tab and navigates to the Google Chat developer documentation at https://developers.google.com/workspace/chat".',
           ).optional(),
           color: z.unknown().describe(
-            'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0, } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
+            'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0 } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
           ).optional(),
           disabled: z.unknown().describe(
             "If `true`, the button is displayed in an inactive state and doesn't respond to user actions.",
@@ -1602,7 +1602,7 @@ const InputsSchema = z.object({
             'The alternative text that\'s used for accessibility. Set descriptive text that lets users know what the button does. For example, if a button opens a hyperlink, you might write: "Opens a new browser tab and navigates to the Google Chat developer documentation at https://developers.google.com/workspace/chat".',
           ).optional(),
           color: z.unknown().describe(
-            'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0, } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
+            'Optional. The color of the button. If set, the button `type` is set to `FILLED` and the color of `text` and `icon` fields are set to a contrasting color for readability. For example, if the button color is set to blue, any text or icons in the button are set to white. To set the button color, specify a value for the `red`, `green`, and `blue` fields. The value must be a float number between 0 and 1 based on the RGB color value, where `0` (0/255) represents the absence of color and `1` (255/255) represents the maximum intensity of the color. For example, the following sets the color to red at its maximum intensity: ` "color": { "red": 1, "green": 0, "blue": 0 } ` The `alpha` field is unavailable for button color. If specified, this field is ignored.',
           ).optional(),
           disabled: z.unknown().describe(
             "If `true`, the button is displayed in an inactive state and doesn't respond to user actions.",
@@ -1979,7 +1979,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Google Chat Spaces.Messages. Registered at `@swamp/gcp/chat/spaces-messages`. */
 export const model = {
   type: "@swamp/gcp/chat/spaces-messages",
-  version: "2026.11.03.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2210,6 +2210,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.03.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

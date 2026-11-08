@@ -13,8 +13,8 @@ the live state in GCP. Available methods:
 - **delete** — remove the resource from GCP
 - **sync** — refresh all resource properties from the API
 
-Use `swamp model type describe @swamp/gcp/datacatalog/entrygroups_entries_tags`
-to see the full list of configurable properties and available methods for this
+Use `swamp model type describe @swamp/gcp/datacatalog/taxonomies_policytags` to
+see the full list of configurable properties and available methods for this
 model.
 
 ## Authentication
@@ -66,17 +66,17 @@ gcloud config set project my-project
 ## Usage
 
 ```bash
-# Create a new entrygroups_entries_tags model
-swamp model create @swamp/gcp/datacatalog/entrygroups_entries_tags my-entrygroups_entries_tags
+# Create a new taxonomies_policytags model
+swamp model create @swamp/gcp/datacatalog/taxonomies_policytags my-taxonomies_policytags
 
 # Edit the model to configure its properties
-swamp model edit my-entrygroups_entries_tags
+swamp model edit my-taxonomies_policytags
 
 # Create the resource in GCP
-swamp model method run my-entrygroups_entries_tags create
+swamp model method run my-taxonomies_policytags create
 
 # Sync current state from GCP
-swamp model method run my-entrygroups_entries_tags sync
+swamp model method run my-taxonomies_policytags sync
 ```
 
 ## License

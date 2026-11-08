@@ -202,13 +202,6 @@ const GlobalArgsSchema = z.object({
     fileFormat: z.enum(["FILE_FORMAT_UNSPECIFIED", "PARQUET"]).describe(
       "Optional. The file format the table data is stored in.",
     ).optional(),
-    metadataExportMode: z.enum([
-      "METADATA_EXPORT_MODE_UNSPECIFIED",
-      "ASYNC",
-      "MANUAL",
-    ]).describe(
-      "Optional. The type of Metadata Export for BigLake Managed Tables.",
-    ).optional(),
     storageUri: z.string().describe(
       "Optional. The fully qualified location prefix of the external folder where table data is stored. The '*' wildcard character is not allowed. The URI should be in the format `gs://bucket/path_to_table/`",
     ).optional(),
@@ -981,7 +974,6 @@ const StateSchema = z.object({
   biglakeConfiguration: z.object({
     connectionId: z.string(),
     fileFormat: z.string(),
-    metadataExportMode: z.string(),
     storageUri: z.string(),
     tableFormat: z.string(),
   }).optional(),
@@ -1375,13 +1367,6 @@ const InputsSchema = z.object({
     ).optional(),
     fileFormat: z.enum(["FILE_FORMAT_UNSPECIFIED", "PARQUET"]).describe(
       "Optional. The file format the table data is stored in.",
-    ).optional(),
-    metadataExportMode: z.enum([
-      "METADATA_EXPORT_MODE_UNSPECIFIED",
-      "ASYNC",
-      "MANUAL",
-    ]).describe(
-      "Optional. The type of Metadata Export for BigLake Managed Tables.",
     ).optional(),
     storageUri: z.string().describe(
       "Optional. The fully qualified location prefix of the external folder where table data is stored. The '*' wildcard character is not allowed. The URI should be in the format `gs://bucket/path_to_table/`",
@@ -2178,7 +2163,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Tables. Registered at `@swamp/gcp/bigquery/tables`. */
 export const model = {
   type: "@swamp/gcp/bigquery/tables",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -2379,6 +2364,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

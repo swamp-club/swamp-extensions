@@ -200,6 +200,9 @@ const GlobalArgsSchema = z.object({
     grantees: z.array(z.string()).describe(
       "Optional. The list of IAM principals that have Fine Grained Access to the underlying data goverened by this data policy. Uses the [IAM V2 principal syntax](https://cloud.google.com/iam/docs/principal-identifiers#v2) Only supports principal types users, groups, serviceaccounts, cloudidentity. This field is supported in V2 Data Policy only. In case of V1 data policies (i.e. verion = 1 and policy_tag is set), this field is not populated.",
     ).optional(),
+    matchingCondition: z.string().describe(
+      "Optional. Matching condition specified as a SQL expression string. Data Governance Tag matcher functions are: `COLUMN_HAS_TAG_KEY(keyName STRING) -> BOOL` `COLUMN_MATCH_TAG(keyName STRING, valueShortName STRING) -> BOOL` For example: `COLUMN_HAS_TAG_KEY('project-id/pii') AND COLUMN_MATCH_TAG('project-id/pii', 'ssn')`",
+    ).optional(),
     name: z.string().describe(
       "Identifier. Resource name of this data policy, in the format of `projects/{project_number}/locations/{location_id}/dataPolicies/{data_policy_id}`.",
     ).optional(),
@@ -254,6 +257,9 @@ const GlobalArgsSchema = z.object({
   grantees: z.array(z.string()).describe(
     "Optional. The list of IAM principals that have Fine Grained Access to the underlying data goverened by this data policy. Uses the [IAM V2 principal syntax](https://cloud.google.com/iam/docs/principal-identifiers#v2) Only supports principal types users, groups, serviceaccounts, cloudidentity. This field is supported in V2 Data Policy only. In case of V1 data policies (i.e. verion = 1 and policy_tag is set), this field is not populated.",
   ).optional(),
+  matchingCondition: z.string().describe(
+    "Optional. Matching condition specified as a SQL expression string. Data Governance Tag matcher functions are: `COLUMN_HAS_TAG_KEY(keyName STRING) -> BOOL` `COLUMN_MATCH_TAG(keyName STRING, valueShortName STRING) -> BOOL` For example: `COLUMN_HAS_TAG_KEY('project-id/pii') AND COLUMN_MATCH_TAG('project-id/pii', 'ssn')`",
+  ).optional(),
   name: z.string().describe(
     "Identifier. Resource name of this data policy, in the format of `projects/{project_number}/locations/{location_id}/dataPolicies/{data_policy_id}`.",
   ).optional(),
@@ -284,6 +290,7 @@ const StateSchema = z.object({
   dataPolicyType: z.string().optional(),
   etag: z.string().optional(),
   grantees: z.array(z.string()).optional(),
+  matchingCondition: z.string().optional(),
   name: z.string(),
   policyTag: z.string().optional(),
   version: z.string().optional(),
@@ -341,6 +348,9 @@ const InputsSchema = z.object({
     grantees: z.array(z.string()).describe(
       "Optional. The list of IAM principals that have Fine Grained Access to the underlying data goverened by this data policy. Uses the [IAM V2 principal syntax](https://cloud.google.com/iam/docs/principal-identifiers#v2) Only supports principal types users, groups, serviceaccounts, cloudidentity. This field is supported in V2 Data Policy only. In case of V1 data policies (i.e. verion = 1 and policy_tag is set), this field is not populated.",
     ).optional(),
+    matchingCondition: z.string().describe(
+      "Optional. Matching condition specified as a SQL expression string. Data Governance Tag matcher functions are: `COLUMN_HAS_TAG_KEY(keyName STRING) -> BOOL` `COLUMN_MATCH_TAG(keyName STRING, valueShortName STRING) -> BOOL` For example: `COLUMN_HAS_TAG_KEY('project-id/pii') AND COLUMN_MATCH_TAG('project-id/pii', 'ssn')`",
+    ).optional(),
     name: z.string().describe(
       "Identifier. Resource name of this data policy, in the format of `projects/{project_number}/locations/{location_id}/dataPolicies/{data_policy_id}`.",
     ).optional(),
@@ -395,6 +405,9 @@ const InputsSchema = z.object({
   grantees: z.array(z.string()).describe(
     "Optional. The list of IAM principals that have Fine Grained Access to the underlying data goverened by this data policy. Uses the [IAM V2 principal syntax](https://cloud.google.com/iam/docs/principal-identifiers#v2) Only supports principal types users, groups, serviceaccounts, cloudidentity. This field is supported in V2 Data Policy only. In case of V1 data policies (i.e. verion = 1 and policy_tag is set), this field is not populated.",
   ).optional(),
+  matchingCondition: z.string().describe(
+    "Optional. Matching condition specified as a SQL expression string. Data Governance Tag matcher functions are: `COLUMN_HAS_TAG_KEY(keyName STRING) -> BOOL` `COLUMN_MATCH_TAG(keyName STRING, valueShortName STRING) -> BOOL` For example: `COLUMN_HAS_TAG_KEY('project-id/pii') AND COLUMN_MATCH_TAG('project-id/pii', 'ssn')`",
+  ).optional(),
   name: z.string().describe(
     "Identifier. Resource name of this data policy, in the format of `projects/{project_number}/locations/{location_id}/dataPolicies/{data_policy_id}`.",
   ).optional(),
@@ -438,7 +451,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Data Policy DataPolicies. Registered at `@swamp/gcp/bigquerydatapolicy/datapolicies`. */
 export const model = {
   type: "@swamp/gcp/bigquerydatapolicy/datapolicies",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -625,6 +638,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "Added: matchingCondition",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -785,6 +803,9 @@ export const model = {
         }
         if (g["etag"] !== undefined) body["etag"] = g["etag"];
         if (g["grantees"] !== undefined) body["grantees"] = g["grantees"];
+        if (g["matchingCondition"] !== undefined) {
+          body["matchingCondition"] = g["matchingCondition"];
+        }
         if (g["policyTag"] !== undefined) body["policyTag"] = g["policyTag"];
         if (g["version"] !== undefined) body["version"] = g["version"];
         if (g["allowMissing"] !== undefined) {

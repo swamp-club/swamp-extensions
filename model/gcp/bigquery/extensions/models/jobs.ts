@@ -1821,14 +1821,6 @@ const StateSchema = z.object({
           typeSystem: z.string(),
         }),
       }),
-      searchIndexingStats: z.object({
-        baseTable: z.object({
-          datasetId: z.string(),
-          projectId: z.string(),
-          tableId: z.string(),
-        }),
-        indexName: z.string(),
-      }),
       searchStatistics: z.object({
         indexPruningStats: z.array(z.object({
           baseTable: z.unknown(),
@@ -1888,14 +1880,6 @@ const StateSchema = z.object({
           value: z.unknown(),
         }),
       })),
-      vectorSearchIndexingStats: z.object({
-        baseTable: z.object({
-          datasetId: z.string(),
-          projectId: z.string(),
-          tableId: z.string(),
-        }),
-        indexName: z.string(),
-      }),
       vectorSearchStatistics: z.object({
         indexUnusedReasons: z.array(z.object({
           baseTable: z.unknown(),
@@ -2866,7 +2850,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud BigQuery Jobs. Registered at `@swamp/gcp/bigquery/jobs`. */
 export const model = {
   type: "@swamp/gcp/bigquery/jobs",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -3281,6 +3265,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.06.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

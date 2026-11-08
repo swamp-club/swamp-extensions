@@ -218,6 +218,58 @@ const GlobalArgsSchema = z.object({
   displayName: z.string().describe(
     "Required. The display name of the engine. Should be human readable. UTF-8 encoded string with limit of 1024 characters.",
   ).optional(),
+  featurePolicies: z.record(
+    z.string(),
+    z.object({
+      allowedMembers: z.array(z.object({
+        displayName: z.string().describe(
+          "Optional. Label shown in the console. Never used for evaluation.",
+        ).optional(),
+        id: z.string().describe(
+          "Required. Identifier evaluated at serving time. Its format depends on the project's identity provider: * Google identity (`GSUITE`): the group or user email. For groups, the server resolves the email to a group ID on write and returns the email on read. * Workforce Identity Federation (`THIRD_PARTY`), groups: the value the provider emits in `google.groups`. With SCIM this is the SCIM group ID; without SCIM and with the default Microsoft Entra mapping it is the Entra group object ID. * Workforce Identity Federation, users: the user's workforce identity subject.",
+        ).optional(),
+        type: z.enum(["TYPE_UNSPECIFIED", "USER", "GROUP"]).describe(
+          "Required. Kind of member.",
+        ).optional(),
+        verification: z.enum([
+          "VERIFICATION_UNSPECIFIED",
+          "VERIFIED",
+          "NOT_FOUND",
+          "NOT_VERIFIABLE",
+          "CHECK_FAILED",
+        ]).describe(
+          "Output only. Result of the server's directory check when the member was saved.",
+        ).optional(),
+      })).describe("Optional. Members who may use the feature.").optional(),
+      defaultAccess: z.enum(["DEFAULT_ACCESS_UNSPECIFIED", "ALLOW", "DENY"])
+        .describe("Optional. Access for users who match neither list.")
+        .optional(),
+      deniedMembers: z.array(z.object({
+        displayName: z.string().describe(
+          "Optional. Label shown in the console. Never used for evaluation.",
+        ).optional(),
+        id: z.string().describe(
+          "Required. Identifier evaluated at serving time. Its format depends on the project's identity provider: * Google identity (`GSUITE`): the group or user email. For groups, the server resolves the email to a group ID on write and returns the email on read. * Workforce Identity Federation (`THIRD_PARTY`), groups: the value the provider emits in `google.groups`. With SCIM this is the SCIM group ID; without SCIM and with the default Microsoft Entra mapping it is the Entra group object ID. * Workforce Identity Federation, users: the user's workforce identity subject.",
+        ).optional(),
+        type: z.enum(["TYPE_UNSPECIFIED", "USER", "GROUP"]).describe(
+          "Required. Kind of member.",
+        ).optional(),
+        verification: z.enum([
+          "VERIFICATION_UNSPECIFIED",
+          "VERIFIED",
+          "NOT_FOUND",
+          "NOT_VERIFIABLE",
+          "CHECK_FAILED",
+        ]).describe(
+          "Output only. Result of the server's directory check when the member was saved.",
+        ).optional(),
+      })).describe(
+        "Optional. Members who may not use the feature. Takes precedence over `allowed_members`.",
+      ).optional(),
+    }),
+  ).describe(
+    "Optional. Per-feature access policies, keyed by feature toggle name (see `features`). A feature with no entry is available to every user when it is on. Only features that support access policies are accepted.",
+  ).optional(),
   features: z.record(
     z.string(),
     z.enum([
@@ -226,7 +278,7 @@ const GlobalArgsSchema = z.object({
       "FEATURE_STATE_OFF",
     ]),
   ).describe(
-    "Optional. Feature config for the engine to opt in or opt out of features. Supported keys: * `*`: all features, if it's present, all other feature state settings are ignored. * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `speech-to-text` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `music-generation` * `speech-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `canvas-app-builder` * `skills` * `skill-sharing` * `skill-sharing-without-admin-approval` * `disable-projects` * `sobi` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence` * `workflow-agents` * `in-app-notifications` * `code-extraction` * `remote-vm` * `license-tier-badge` * `agent-marketplace` * `agent-scheduling` * `preview-agents`",
+    "Optional. Feature config for the engine to opt in or opt out of features. Supported keys: * `*`: all features, if it's present, all other feature state settings are ignored. * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `speech-to-text` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `music-generation` * `speech-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `canvas-app-builder` * `skills` * `skill-sharing` * `skill-sharing-without-admin-approval` * `skill-security-scan` * `disable-projects` * `sobi` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence` * `workflow-agents` * `in-app-notifications` * `code-extraction` * `remote-vm` * `license-tier-badge` * `canvas-app-sharing` * `agent-marketplace` * `agent-scheduling` * `preview-agents` * `plugins`",
   ).optional(),
   globalFeatureToggleState: z.enum([
     "GLOBAL_FEATURE_TOGGLE_STATE_UNSPECIFIED",
@@ -454,6 +506,7 @@ const StateSchema = z.object({
   disableAnalytics: z.boolean().optional(),
   displayName: z.string().optional(),
   effectiveFeatures: z.record(z.string(), z.unknown()).optional(),
+  featurePolicies: z.record(z.string(), z.unknown()).optional(),
   features: z.record(z.string(), z.unknown()).optional(),
   globalFeatureToggleState: z.string().optional(),
   industryVertical: z.string().optional(),
@@ -579,6 +632,58 @@ const InputsSchema = z.object({
   displayName: z.string().describe(
     "Required. The display name of the engine. Should be human readable. UTF-8 encoded string with limit of 1024 characters.",
   ).optional(),
+  featurePolicies: z.record(
+    z.string(),
+    z.object({
+      allowedMembers: z.array(z.object({
+        displayName: z.string().describe(
+          "Optional. Label shown in the console. Never used for evaluation.",
+        ).optional(),
+        id: z.string().describe(
+          "Required. Identifier evaluated at serving time. Its format depends on the project's identity provider: * Google identity (`GSUITE`): the group or user email. For groups, the server resolves the email to a group ID on write and returns the email on read. * Workforce Identity Federation (`THIRD_PARTY`), groups: the value the provider emits in `google.groups`. With SCIM this is the SCIM group ID; without SCIM and with the default Microsoft Entra mapping it is the Entra group object ID. * Workforce Identity Federation, users: the user's workforce identity subject.",
+        ).optional(),
+        type: z.enum(["TYPE_UNSPECIFIED", "USER", "GROUP"]).describe(
+          "Required. Kind of member.",
+        ).optional(),
+        verification: z.enum([
+          "VERIFICATION_UNSPECIFIED",
+          "VERIFIED",
+          "NOT_FOUND",
+          "NOT_VERIFIABLE",
+          "CHECK_FAILED",
+        ]).describe(
+          "Output only. Result of the server's directory check when the member was saved.",
+        ).optional(),
+      })).describe("Optional. Members who may use the feature.").optional(),
+      defaultAccess: z.enum(["DEFAULT_ACCESS_UNSPECIFIED", "ALLOW", "DENY"])
+        .describe("Optional. Access for users who match neither list.")
+        .optional(),
+      deniedMembers: z.array(z.object({
+        displayName: z.string().describe(
+          "Optional. Label shown in the console. Never used for evaluation.",
+        ).optional(),
+        id: z.string().describe(
+          "Required. Identifier evaluated at serving time. Its format depends on the project's identity provider: * Google identity (`GSUITE`): the group or user email. For groups, the server resolves the email to a group ID on write and returns the email on read. * Workforce Identity Federation (`THIRD_PARTY`), groups: the value the provider emits in `google.groups`. With SCIM this is the SCIM group ID; without SCIM and with the default Microsoft Entra mapping it is the Entra group object ID. * Workforce Identity Federation, users: the user's workforce identity subject.",
+        ).optional(),
+        type: z.enum(["TYPE_UNSPECIFIED", "USER", "GROUP"]).describe(
+          "Required. Kind of member.",
+        ).optional(),
+        verification: z.enum([
+          "VERIFICATION_UNSPECIFIED",
+          "VERIFIED",
+          "NOT_FOUND",
+          "NOT_VERIFIABLE",
+          "CHECK_FAILED",
+        ]).describe(
+          "Output only. Result of the server's directory check when the member was saved.",
+        ).optional(),
+      })).describe(
+        "Optional. Members who may not use the feature. Takes precedence over `allowed_members`.",
+      ).optional(),
+    }),
+  ).describe(
+    "Optional. Per-feature access policies, keyed by feature toggle name (see `features`). A feature with no entry is available to every user when it is on. Only features that support access policies are accepted.",
+  ).optional(),
   features: z.record(
     z.string(),
     z.enum([
@@ -587,7 +692,7 @@ const InputsSchema = z.object({
       "FEATURE_STATE_OFF",
     ]),
   ).describe(
-    "Optional. Feature config for the engine to opt in or opt out of features. Supported keys: * `*`: all features, if it's present, all other feature state settings are ignored. * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `speech-to-text` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `music-generation` * `speech-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `canvas-app-builder` * `skills` * `skill-sharing` * `skill-sharing-without-admin-approval` * `disable-projects` * `sobi` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence` * `workflow-agents` * `in-app-notifications` * `code-extraction` * `remote-vm` * `license-tier-badge` * `agent-marketplace` * `agent-scheduling` * `preview-agents`",
+    "Optional. Feature config for the engine to opt in or opt out of features. Supported keys: * `*`: all features, if it's present, all other feature state settings are ignored. * `agent-gallery` * `no-code-agent-builder` * `prompt-gallery` * `model-selector` * `notebook-lm` * `people-search` * `people-search-org-chart` * `bi-directional-audio` * `speech-to-text` * `feedback` * `session-sharing` * `personalization-memory` * `personalization-suggested-highlights` * `mobile-app-access` * `disable-agent-sharing` * `disable-image-generation` * `disable-video-generation` * `music-generation` * `speech-generation` * `disable-onedrive-upload` * `disable-talk-to-content` * `disable-google-drive-upload` * `disable-welcome-emails` * `disable-canvas` * `canvas-workspace` * `canvas-app-builder` * `skills` * `skill-sharing` * `skill-sharing-without-admin-approval` * `skill-security-scan` * `disable-projects` * `sobi` * `enable-end-user-sharing-with-groups` * `single-agent-orchestration` * `multi-agent-orchestration` * `cross-product-intelligence` * `workflow-agents` * `in-app-notifications` * `code-extraction` * `remote-vm` * `license-tier-badge` * `canvas-app-sharing` * `agent-marketplace` * `agent-scheduling` * `preview-agents` * `plugins`",
   ).optional(),
   globalFeatureToggleState: z.enum([
     "GLOBAL_FEATURE_TOGGLE_STATE_UNSPECIFIED",
@@ -797,7 +902,7 @@ function _buildGcpCredentials(
 /** Swamp extension model for Google Cloud Discovery Engine Collections.Engines. Registered at `@swamp/gcp/discoveryengine/collections-engines`. */
 export const model = {
   type: "@swamp/gcp/discoveryengine/collections-engines",
-  version: "2026.11.07.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1106,6 +1211,11 @@ export const model = {
       description: "Added: globalFeatureToggleState",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "Added: featurePolicies",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1156,6 +1266,9 @@ export const model = {
         }
         if (g["displayName"] !== undefined) {
           body["displayName"] = g["displayName"];
+        }
+        if (g["featurePolicies"] !== undefined) {
+          body["featurePolicies"] = g["featurePolicies"];
         }
         if (g["features"] !== undefined) body["features"] = g["features"];
         if (g["globalFeatureToggleState"] !== undefined) {
@@ -1328,6 +1441,9 @@ export const model = {
         }
         if (g["displayName"] !== undefined) {
           body["displayName"] = g["displayName"];
+        }
+        if (g["featurePolicies"] !== undefined) {
+          body["featurePolicies"] = g["featurePolicies"];
         }
         if (g["features"] !== undefined) body["features"] = g["features"];
         if (g["globalFeatureToggleState"] !== undefined) {
