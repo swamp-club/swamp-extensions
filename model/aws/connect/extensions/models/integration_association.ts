@@ -65,10 +65,10 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*$",
     ),
-  ).describe("Amazon Connect instance identifier"),
+  ).describe("Amazon Connect instance identifier").optional(),
   IntegrationArn: z.string().min(1).max(140).describe(
     "ARN of Integration being associated with the instance",
-  ),
+  ).optional(),
   IntegrationType: z.enum([
     "LEX_BOT",
     "LAMBDA_FUNCTION",
@@ -84,7 +84,7 @@ const GlobalArgsSchema = z.object({
     "EVENT",
   ]).describe(
     "Specifies the integration type to be associated with the instance",
-  ),
+  ).optional(),
   SourceType: z.enum(["SALESFORCE", "ZENDESK", "CASES"]).describe(
     "The type of the data source. This is only supported for the EVENT integration type",
   ).optional(),
@@ -179,7 +179,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect IntegrationAssociation. Registered at `@swamp/aws/connect/integration-association`. */
 export const model = {
   type: "@swamp/aws/connect/integration-association",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -252,6 +252,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -269,6 +274,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["InstanceId", "IntegrationArn", "IntegrationType"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

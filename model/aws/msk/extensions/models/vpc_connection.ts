@@ -56,18 +56,18 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Authentication: z.enum(["SASL_IAM", "SASL_SCRAM", "TLS"]).describe(
     "The type of private link authentication",
-  ),
-  ClientSubnets: z.array(
-    z.string().regex(new RegExp("^(subnet-)([a-z0-9]+)$")),
-  ),
+  ).optional(),
+  ClientSubnets: z.array(z.string().regex(new RegExp("^(subnet-)([a-z0-9]+)$")))
+    .optional(),
   TargetClusterArn: z.string().regex(
     new RegExp("^arn:[\\w-]+:kafka:[\\w-]+:\\d+:cluster.*$"),
-  ).describe("The Amazon Resource Name (ARN) of the target cluster"),
-  SecurityGroups: z.array(z.string().regex(new RegExp("^(sg-)([a-z0-9]+)$"))),
+  ).describe("The Amazon Resource Name (ARN) of the target cluster").optional(),
+  SecurityGroups: z.array(z.string().regex(new RegExp("^(sg-)([a-z0-9]+)$")))
+    .optional(),
   Tags: z.record(z.string(), z.string()).describe(
     "A key-value pair to associate with a resource.",
   ).optional(),
-  VpcId: z.string().regex(new RegExp("^(vpc-)([a-z0-9]+)$")),
+  VpcId: z.string().regex(new RegExp("^(vpc-)([a-z0-9]+)$")).optional(),
 });
 
 const StateSchema = z.object({
@@ -123,7 +123,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MSK VpcConnection. Registered at `@swamp/aws/msk/vpc-connection`. */
 export const model = {
   type: "@swamp/aws/msk/vpc-connection",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -185,6 +185,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -202,6 +207,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Authentication",
+          "ClientSubnets",
+          "SecurityGroups",
+          "TargetClusterArn",
+          "VpcId",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

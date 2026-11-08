@@ -55,7 +55,7 @@ const GlobalArgsSchema = z.object({
   Name: z.string().regex(new RegExp("^([a-z]){1}([a-z0-9_]){2,254}")),
   Reference: z.object({
     ReferenceArn: z.string().min(1).max(127).regex(new RegExp("^arn:.+$")),
-  }),
+  }).optional(),
   SseConfig: z.object({
     Type: z.enum(["KMS"]),
     KeyArn: z.string().min(20).max(2048).regex(
@@ -127,7 +127,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Omics VariantStore. Registered at `@swamp/aws/omics/variant-store`. */
 export const model = {
   type: "@swamp/aws/omics/variant-store",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -189,6 +189,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -206,6 +211,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "Reference"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

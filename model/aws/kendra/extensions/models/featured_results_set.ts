@@ -71,10 +71,10 @@ const GlobalArgsSchema = z.object({
     new RegExp("^[a-zA-Z0-9][a-zA-Z0-9-]*$"),
   ).describe(
     "The identifier of the index that you want to use for featuring results.",
-  ),
+  ).optional(),
   FeaturedResultsSetName: z.string().min(1).max(1000).regex(
     new RegExp("^[a-zA-Z0-9][ a-zA-Z0-9_-]*$"),
-  ).describe("A name for the set of featured results."),
+  ).describe("A name for the set of featured results.").optional(),
   Description: z.string().min(0).max(1000).regex(new RegExp("^\\P{C}*$"))
     .describe("A description for the set of featured results.").optional(),
   Status: z.enum(["ACTIVE", "INACTIVE"]).describe(
@@ -154,7 +154,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Kendra FeaturedResultsSet. Registered at `@swamp/aws/kendra/featured-results-set`. */
 export const model = {
   type: "@swamp/aws/kendra/featured-results-set",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -163,6 +163,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -183,6 +188,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["FeaturedResultsSetName", "IndexId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -66,13 +66,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   SubnetId: z.string().describe(
     "The identifier of the subnet the CIDR range is reserved in.",
-  ),
+  ).optional(),
   Cidr: z.string().describe(
     "The IPv4 or IPv6 CIDR range to reserve. Must lie inside the subnet's CIDR block and must not overlap an existing reservation. Supply an IPv6 range exactly as the service returns it: Amazon EC2 stores an IPv6 CIDR in RFC 5952 compressed form, and a noncanonical spelling of the same range is reported as drift because this property is create-only and read back.",
-  ),
+  ).optional(),
   ReservationType: z.enum(["prefix", "explicit"]).describe(
     "The type of reservation. A prefix reservation is used for an IPv6 prefix delegated to a network interface; an explicit reservation is used for a range that Amazon EC2 must not assign automatically.",
-  ),
+  ).optional(),
   Description: z.string().describe(
     "The description of the subnet CIDR reservation.",
   ).optional(),
@@ -136,7 +136,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 SubnetCidrReservation. Registered at `@swamp/aws/ec2/subnet-cidr-reservation`. */
 export const model = {
   type: "@swamp/aws/ec2/subnet-cidr-reservation",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -145,6 +145,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -165,6 +170,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Cidr", "ReservationType", "SubnetId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -81,7 +81,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   DatastoreTypeVersion: z.enum(["R4"]).describe(
     "The FHIR version. Only R4 version data is supported.",
-  ),
+  ).optional(),
   PreloadDataConfig: z.object({
     PreloadDataType: z.enum(["SYNTHEA"]).describe(
       "The type of preloaded data. Only Synthea preloaded data is supported.",
@@ -272,7 +272,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for HealthLake FHIRDatastore. Registered at `@swamp/aws/healthlake/fhirdatastore`. */
 export const model = {
   type: "@swamp/aws/healthlake/fhirdatastore",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -340,6 +340,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -357,6 +362,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DatastoreTypeVersion"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

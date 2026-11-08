@@ -534,16 +534,16 @@ const GlobalArgsSchema = z.object({
       ManagedKnowledgeBaseConnectorConfigurationSchema.describe(
         "Configuration for managed knowledge base connector data sources.",
       ).optional(),
-  }).describe("Specifies a raw data source location to ingest."),
+  }).describe("Specifies a raw data source location to ingest.").optional(),
   Description: z.string().min(1).max(200).describe(
     "Description of the Resource.",
   ).optional(),
   KnowledgeBaseId: z.string().regex(new RegExp("^[0-9a-zA-Z]{10}$")).describe(
     "The unique identifier of the knowledge base to which to add the data source.",
-  ),
+  ).optional(),
   Name: z.string().regex(new RegExp("^([0-9a-zA-Z][_-]?){1,100}$")).describe(
     "The name of the data source.",
-  ),
+  ).optional(),
   ServerSideEncryptionConfiguration: z.object({
     KmsKeyArn: z.string().min(1).max(2048).regex(
       new RegExp(
@@ -708,7 +708,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock DataSource. Registered at `@swamp/aws/bedrock/data-source`. */
 export const model = {
   type: "@swamp/aws/bedrock/data-source",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -790,6 +790,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -807,6 +812,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DataSourceConfiguration", "KnowledgeBaseId", "Name"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

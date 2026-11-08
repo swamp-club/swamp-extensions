@@ -65,8 +65,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   CoreNetworkId: z.string().describe(
     "ID of the CoreNetwork that the attachment will be attached to.",
-  ),
-  EdgeLocation: z.string().describe("Edge location of the attachment."),
+  ).optional(),
+  EdgeLocation: z.string().describe("Edge location of the attachment.")
+    .optional(),
   ProposedSegmentChange: z.object({
     Tags: z.array(TagSchema).describe(
       "The list of key-value tags that changed for the segment.",
@@ -95,11 +96,12 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   RoutingPolicyLabel: z.string().describe("Routing policy label").optional(),
   Tags: z.array(TagSchema).describe("Tags for the attachment.").optional(),
-  TransportAttachmentId: z.string().describe("Id of transport attachment"),
+  TransportAttachmentId: z.string().describe("Id of transport attachment")
+    .optional(),
   Options: z.object({
     Protocol: z.string().describe("Tunnel protocol for connect attachment")
       .optional(),
-  }).describe("Protocol options for connect attachment"),
+  }).describe("Protocol options for connect attachment").optional(),
 });
 
 const StateSchema = z.object({
@@ -203,7 +205,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkManager ConnectAttachment. Registered at `@swamp/aws/networkmanager/connect-attachment`. */
 export const model = {
   type: "@swamp/aws/networkmanager/connect-attachment",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -275,6 +277,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -292,6 +299,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "CoreNetworkId",
+          "EdgeLocation",
+          "Options",
+          "TransportAttachmentId",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

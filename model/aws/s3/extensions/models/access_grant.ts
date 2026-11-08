@@ -61,11 +61,11 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AccessGrantsLocationId: z.string().describe(
     "The custom S3 location to be accessed by the grantee",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).optional(),
   Permission: z.enum(["READ", "WRITE", "READWRITE"]).describe(
     "The level of access to be afforded to the grantee",
-  ),
+  ).optional(),
   ApplicationArn: z.string().describe(
     "The ARN of the application grantees will use to access the location",
   ).optional(),
@@ -78,7 +78,8 @@ const GlobalArgsSchema = z.object({
     GranteeIdentifier: z.string().describe(
       "The unique identifier of the Grantee",
     ),
-  }).describe("The principal who will be granted permission to access S3."),
+  }).describe("The principal who will be granted permission to access S3.")
+    .optional(),
   AccessGrantsLocationConfiguration: z.object({
     S3SubPrefix: z.string().describe(
       "The S3 sub prefix of a registered location in your S3 Access Grants instance",
@@ -163,7 +164,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for S3 AccessGrant. Registered at `@swamp/aws/s3/access-grant`. */
 export const model = {
   type: "@swamp/aws/s3/access-grant",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -225,6 +226,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -242,6 +248,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AccessGrantsLocationId", "Grantee", "Permission"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

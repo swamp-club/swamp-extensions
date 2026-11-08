@@ -65,12 +65,12 @@ const GlobalArgsSchema = z.object({
     new RegExp("^[a-z][a-z0-9]*(-[a-z0-9]+)*$"),
   ).describe(
     "The name of the serverless cache snapshot. Must be unique for the customer account. This value is stored as a lowercase string.",
-  ),
+  ).optional(),
   ServerlessCacheName: z.string().min(1).max(255).regex(
     new RegExp("^[a-z][a-z0-9]*(-[a-z0-9]+)*$"),
   ).describe(
     "The name of an existing serverless cache. The snapshot is created from this cache.",
-  ),
+  ).optional(),
   KmsKeyId: z.string().max(2048).describe(
     "The Amazon Resource Name (ARN) of the AWS KMS key used to encrypt the snapshot. Provide the key ARN: the resource returns the key ARN on read, so supplying a bare key ID or alias for this createOnly property may be reported as drift by CloudFormation.",
   ).optional(),
@@ -167,7 +167,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElastiCache ServerlessCacheSnapshot. Registered at `@swamp/aws/elasticache/serverless-cache-snapshot`. */
 export const model = {
   type: "@swamp/aws/elasticache/serverless-cache-snapshot",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -189,6 +189,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -206,6 +211,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ServerlessCacheName", "ServerlessCacheSnapshotName"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

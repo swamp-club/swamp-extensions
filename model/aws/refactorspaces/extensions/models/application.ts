@@ -69,14 +69,14 @@ const GlobalArgsSchema = z.object({
   }).optional(),
   EnvironmentIdentifier: z.string().min(14).max(14).regex(
     new RegExp("^env-([0-9A-Za-z]{10}$)"),
-  ),
+  ).optional(),
   Name: z.string().min(3).max(63).regex(
     new RegExp("^(?!app-)[a-zA-Z0-9]+[a-zA-Z0-9-_ ]+$"),
-  ),
-  ProxyType: z.enum(["API_GATEWAY"]),
+  ).optional(),
+  ProxyType: z.enum(["API_GATEWAY"]).optional(),
   VpcId: z.string().min(12).max(21).regex(
     new RegExp("^vpc-[-a-f0-9]{8}([-a-f0-9]{9})?$"),
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "Metadata that you can assign to help organize the frameworks that you create. Each tag is a key-value pair.",
   ).optional(),
@@ -149,7 +149,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RefactorSpaces Application. Registered at `@swamp/aws/refactorspaces/application`. */
 export const model = {
   type: "@swamp/aws/refactorspaces/application",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -216,6 +216,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -233,6 +238,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["EnvironmentIdentifier", "Name", "ProxyType", "VpcId"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

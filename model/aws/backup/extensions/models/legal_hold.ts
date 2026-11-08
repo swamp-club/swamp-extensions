@@ -54,8 +54,9 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Title: z.string().describe("The title of the legal hold."),
-  Description: z.string().describe("The description of the legal hold."),
+  Title: z.string().describe("The title of the legal hold.").optional(),
+  Description: z.string().describe("The description of the legal hold.")
+    .optional(),
   RecoveryPointSelection: z.object({
     VaultNames: z.array(z.string()).describe(
       "The names of the vaults in which the selected recovery points are contained.",
@@ -73,7 +74,7 @@ const GlobalArgsSchema = z.object({
     }).describe("A date range for filtering recovery points.").optional(),
   }).describe(
     "The criteria to assign a set of resources, such as resource types or backup vaults.",
-  ),
+  ).optional(),
   Tags: z.array(z.object({
     Key: z.string().describe("The key name of the tag."),
     Value: z.string().describe("The value for the tag."),
@@ -155,7 +156,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Backup LegalHold. Registered at `@swamp/aws/backup/legal-hold`. */
 export const model = {
   type: "@swamp/aws/backup/legal-hold",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -177,6 +178,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -194,6 +200,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Description", "RecoveryPointSelection", "Title"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -118,10 +118,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AuthenticationOptions: z.array(ClientAuthenticationRequestSchema).describe(
     "Information about the authentication method to be used to authenticate clients.",
-  ),
+  ).optional(),
   ServerCertificateArn: z.string().describe(
     "The ARN of the server certificate. For more information, see the AWS Certificate Manager User Guide.",
-  ),
+  ).optional(),
   SessionTimeoutHours: z.number().int().describe(
     "The maximum VPN session duration time in hours.",
   ).optional(),
@@ -143,7 +143,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "Information about the client connection logging options. If you enable client connection logging, data about client connections is sent to a Cloudwatch Logs log stream. The following information is logged: client connection requests, client connection results (successful and unsuccessful), reasons for unsuccessful client connection requests, client connection termination time.",
-  ),
+  ).optional(),
   SplitTunnel: z.boolean().describe(
     "Indicates whether split-tunnel is enabled on the AWS Client VPN endpoint.",
   ).optional(),
@@ -381,7 +381,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 ClientVpnEndpoint. Registered at `@swamp/aws/ec2/client-vpn-endpoint`. */
 export const model = {
   type: "@swamp/aws/ec2/client-vpn-endpoint",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -398,6 +405,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AuthenticationOptions",
+          "ConnectionLogOptions",
+          "ServerCertificateArn",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -211,21 +211,21 @@ const GlobalArgsSchema = z.object({
   Configuration: z.object({
     CustomerManaged: CustomerManagedFleetConfigurationSchema.optional(),
     ServiceManagedEc2: ServiceManagedEc2FleetConfigurationSchema.optional(),
-  }),
+  }).optional(),
   Description: z.string().min(0).max(100).optional(),
-  DisplayName: z.string().min(1).max(100),
-  FarmId: z.string().regex(new RegExp("^farm-[0-9a-f]{32}$")),
+  DisplayName: z.string().min(1).max(100).optional(),
+  FarmId: z.string().regex(new RegExp("^farm-[0-9a-f]{32}$")).optional(),
   HostConfiguration: z.object({
     ScriptBody: z.string().min(0).max(15000),
     ScriptTimeoutSeconds: z.number().int().min(300).max(3600).optional(),
   }).optional(),
-  MaxWorkerCount: z.number().int().min(0).max(2147483647),
+  MaxWorkerCount: z.number().int().min(0).max(2147483647).optional(),
   MinWorkerCount: z.number().int().min(0).max(2147483647).optional(),
   RoleArn: z.string().regex(
     new RegExp(
       "^arn:(aws[a-zA-Z-]*):iam::\\d{12}:role(/[!-.0-~]+)*/[\\w+=,.@-]+$",
     ),
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -312,7 +312,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Deadline Fleet. Registered at `@swamp/aws/deadline/fleet`. */
 export const model = {
   type: "@swamp/aws/deadline/fleet",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -394,6 +394,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -411,6 +416,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Configuration",
+          "DisplayName",
+          "FarmId",
+          "MaxWorkerCount",
+          "RoleArn",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

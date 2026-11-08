@@ -67,13 +67,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().describe(
     "The fully qualified domain name for the AWS Managed Simple AD directory.",
-  ),
+  ).optional(),
   Password: z.string().describe(
     "The password for the default administrative user named Admin.",
   ).optional(),
   ShortName: z.string().describe("The NetBIOS name for your domain.")
     .optional(),
-  Size: z.string().describe("The size of the directory."),
+  Size: z.string().describe("The size of the directory.").optional(),
   VpcSettings: z.object({
     SubnetIds: z.array(z.string()).describe(
       "The identifiers of the subnets for the directory servers. The two subnets must be in different Availability Zones. AWS Directory Service specifies a directory server and a DNS server in each of these subnets.",
@@ -81,7 +81,8 @@ const GlobalArgsSchema = z.object({
     VpcId: z.string().describe(
       "The identifier of the VPC in which to create the directory.",
     ),
-  }).describe("VPC settings of the Simple AD directory server in AWS."),
+  }).describe("VPC settings of the Simple AD directory server in AWS.")
+    .optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
@@ -157,7 +158,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DirectoryService SimpleAD. Registered at `@swamp/aws/directoryservice/simple-ad`. */
 export const model = {
   type: "@swamp/aws/directoryservice/simple-ad",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -219,6 +220,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -236,6 +242,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "Size", "VpcSettings"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

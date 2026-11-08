@@ -56,10 +56,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AnalyzerName: z.string().min(1).max(255).regex(
     new RegExp("^[A-Za-z][A-Za-z0-9_.-]*$"),
-  ).describe("The name of the analyzer for the archive rule."),
+  ).describe("The name of the analyzer for the archive rule.").optional(),
   RuleName: z.string().min(1).max(255).regex(
     new RegExp("^[A-Za-z][A-Za-z0-9_.-]*$"),
-  ).describe("The name of the archive rule."),
+  ).describe("The name of the archive rule.").optional(),
   Filter: z.record(
     z.string(),
     z.object({
@@ -70,7 +70,7 @@ const GlobalArgsSchema = z.object({
     }),
   ).describe(
     "The criteria for the archive rule. A map of filter criteria property names to their criterion values.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -128,7 +128,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AccessAnalyzer ArchiveRule. Registered at `@swamp/aws/accessanalyzer/archive-rule`. */
 export const model = {
   type: "@swamp/aws/accessanalyzer/archive-rule",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -150,6 +150,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -167,6 +172,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AnalyzerName", "Filter", "RuleName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -64,14 +64,14 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   DomainId: z.string().min(1).max(500).describe(
     "The unique identifier of the Cases domain.",
-  ),
+  ).optional(),
   TemplateId: z.string().min(1).max(500).describe(
     "A unique identifier of a template.",
-  ),
-  Title: z.string().max(4100).describe("The title of the case."),
+  ).optional(),
+  Title: z.string().max(4100).describe("The title of the case.").optional(),
   CustomerId: z.string().max(4100).describe(
     "The full customer profile ARN for the case.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe("A list of tags for the case.").optional(),
 });
 
@@ -125,7 +125,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Cases Case. Registered at `@swamp/aws/cases/case`. */
 export const model = {
   type: "@swamp/aws/cases/case",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -134,6 +134,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -154,6 +159,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["CustomerId", "DomainId", "TemplateId", "Title"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

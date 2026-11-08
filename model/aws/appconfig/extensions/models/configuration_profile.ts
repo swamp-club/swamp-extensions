@@ -74,7 +74,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   LocationUri: z.string().min(1).max(2048).describe(
     "A URI to locate the configuration. You can specify the AWS AppConfig hosted configuration store, Systems Manager (SSM) document, an SSM Parameter Store parameter, or an Amazon S3 object.",
-  ),
+  ).optional(),
   Type: z.string().regex(new RegExp("^[a-zA-Z\\.]+")).describe(
     "The type of configurations contained in the profile. When calling this API, enter one of the following values for Type: AWS.AppConfig.FeatureFlags, AWS.Freeform",
   ).optional(),
@@ -100,13 +100,13 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   ApplicationId: z.string().regex(new RegExp("[a-z0-9]{4,7}")).describe(
     "The application ID.",
-  ),
+  ).optional(),
   Tags: z.array(TagsSchema).describe(
     "Metadata to assign to the configuration profile. Tags help organize and categorize your AWS AppConfig resources. Each tag consists of a key and an optional value, both of which you define.",
   ).optional(),
   Name: z.string().min(1).max(128).describe(
     "A name for the configuration profile.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -188,7 +188,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppConfig ConfigurationProfile. Registered at `@swamp/aws/appconfig/configuration-profile`. */
 export const model = {
   type: "@swamp/aws/appconfig/configuration-profile",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -250,6 +250,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -267,6 +272,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ApplicationId", "LocationUri", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

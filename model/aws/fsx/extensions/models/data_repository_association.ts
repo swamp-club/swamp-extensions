@@ -73,13 +73,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   FileSystemId: z.string().describe(
     "The globally unique ID of the file system, assigned by Amazon FSx.",
-  ),
+  ).optional(),
   FileSystemPath: z.string().describe(
     "This path specifies where in your file system files will be exported from or imported to. This file system directory can be linked to only one Amazon S3 bucket, and no other S3 bucket can be linked to the directory.",
-  ),
+  ).optional(),
   DataRepositoryPath: z.string().describe(
     "The path to the Amazon S3 data repository that will be linked to the file system. The path can be an S3 bucket or prefix in the format s3://myBucket/myPrefix/. This path specifies where in the S3 data repository files will be imported from or exported to.",
-  ),
+  ).optional(),
   BatchImportMetaDataOnCreate: z.boolean().describe(
     "A boolean flag indicating whether an import data repository task to import metadata should run after the data repository association is created. The task runs if this flag is set to true.",
   ).optional(),
@@ -173,7 +173,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for FSx DataRepositoryAssociation. Registered at `@swamp/aws/fsx/data-repository-association`. */
 export const model = {
   type: "@swamp/aws/fsx/data-repository-association",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -182,6 +182,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -202,6 +207,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DataRepositoryPath", "FileSystemId", "FileSystemPath"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

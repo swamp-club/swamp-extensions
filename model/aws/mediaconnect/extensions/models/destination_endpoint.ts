@@ -198,7 +198,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "The configuration settings for a destination endpoint. This is a union type, so exactly one of its members is set, depending on the type of the destination endpoint.",
-  ),
+  ).optional(),
   Description: z.string().describe(
     "The description of the destination endpoint.",
   ).optional(),
@@ -287,7 +287,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaConnect DestinationEndpoint. Registered at `@swamp/aws/mediaconnect/destination-endpoint`. */
 export const model = {
   type: "@swamp/aws/mediaconnect/destination-endpoint",
-  version: "2026.10.30.1",
+  version: "2026.11.08.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -304,6 +311,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Configuration"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

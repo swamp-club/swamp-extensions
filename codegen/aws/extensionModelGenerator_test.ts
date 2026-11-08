@@ -855,3 +855,91 @@ Deno.test("enrichment sources spliced into models import only explicit or relati
   }
   assert(scanned.length > 0, "no enrichment sources found");
 });
+
+// ---------------------------------------------------------------------------
+// Create-time check for create-only required fields (swamp-club #2623)
+// ---------------------------------------------------------------------------
+
+function routeInput(createRequired?: string[]): AwsExtensionModelInput {
+  return {
+    typeName: "AWS::EC2::Route",
+    zodResult: {
+      extractedSchemas: [],
+      inputSchemaBody:
+        `  RouteTableId: z.string().optional(),\n  DestinationCidrBlock: z.string().optional(),`,
+      resourceSchemaBody:
+        `  RouteTableId: z.string(),\n  CidrBlock: z.string(),`,
+    },
+    onlyProperties: {
+      primaryIdentifier: ["RouteTableId", "CidrBlock"],
+      readOnly: ["CidrBlock"],
+      writeOnly: [],
+      createOnly: ["RouteTableId", "DestinationCidrBlock"],
+    },
+    cfSchema: {
+      typeName: "AWS::EC2::Route",
+      description: "A route",
+      primaryIdentifier: ["/properties/RouteTableId", "/properties/CidrBlock"],
+      required: ["RouteTableId"],
+      properties: {
+        RouteTableId: { type: "string" },
+        DestinationCidrBlock: { type: "string" },
+        CidrBlock: { type: "string" },
+      },
+    },
+    handlers: {
+      create: true,
+      read: true,
+      update: true,
+      delete: true,
+      list: true,
+    },
+    version: "2026.01.01.1",
+    modelType: "@swamp/aws/ec2/route",
+    domainPropertyNames: ["RouteTableId", "DestinationCidrBlock"],
+    ...(createRequired ? { createRequiredProperties: createRequired } : {}),
+  };
+}
+
+/** The emitted create method body, from `create: {` to the `get: {` method. */
+function createBody(code: string): string {
+  const start = code.indexOf("    create: {");
+  const end = code.indexOf("    get: {", start);
+  assert(start >= 0 && end > start, "create method not found");
+  return code.slice(start, end);
+}
+
+Deno.test("generateAwsExtensionModel - create checks create-required globals before any API call", () => {
+  const body = createBody(
+    generateAwsExtensionModel(routeInput(["RouteTableId", "AAA"])),
+  );
+  assertStringIncludes(
+    body,
+    `const missing = ["AAA","RouteTableId"].filter((k) => g[k] === undefined);`,
+  );
+  const throwAt = body.indexOf(
+    `throw new Error("create requires global arguments: " + missing.join(", "));`,
+  );
+  assert(throwAt >= 0, "missing-arguments throw not emitted");
+  const credsAt = body.indexOf("_buildCredentials(");
+  const createAt = body.indexOf("createResource(");
+  assert(credsAt > throwAt, "check must run before credentials are built");
+  assert(createAt > throwAt, "check must run before createResource");
+});
+
+Deno.test("generateAwsExtensionModel - no create check when create requires nothing", () => {
+  for (const required of [undefined, []]) {
+    const code = generateAwsExtensionModel(routeInput(required));
+    assertEquals(code.includes("create requires global arguments"), false);
+  }
+});
+
+Deno.test("generateAwsExtensionModel - update emits no required-arguments check", () => {
+  const code = generateAwsExtensionModel(routeInput(["RouteTableId"]));
+  const start = code.indexOf("    update: {");
+  const end = code.indexOf("    delete: {", start);
+  assertEquals(
+    code.slice(start, end).includes("requires global arguments"),
+    false,
+  );
+});

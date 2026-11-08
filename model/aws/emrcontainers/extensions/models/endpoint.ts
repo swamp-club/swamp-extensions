@@ -97,13 +97,13 @@ const GlobalArgsSchema = z.object({
   ).describe("The name of the managed endpoint.").optional(),
   VirtualClusterId: z.string().describe(
     "The ID of the virtual cluster for which the managed endpoint is created.",
-  ),
-  Type: z.string().describe("The type of the managed endpoint."),
+  ).optional(),
+  Type: z.string().describe("The type of the managed endpoint.").optional(),
   ReleaseLabel: z.string().min(1).max(64).regex(new RegExp("[A-Za-z0-9._/-]+"))
-    .describe("The Amazon EMR release label."),
+    .describe("The Amazon EMR release label.").optional(),
   ExecutionRoleArn: z.string().describe(
     "The execution role ARN for the managed endpoint.",
-  ),
+  ).optional(),
   ConfigurationOverrides: z.object({
     ApplicationConfiguration: z.array(EMREKSConfigurationSchema).optional(),
     MonitoringConfiguration: MonitoringConfigurationSchema.optional(),
@@ -204,7 +204,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EMRContainers Endpoint. Registered at `@swamp/aws/emrcontainers/endpoint`. */
 export const model = {
   type: "@swamp/aws/emrcontainers/endpoint",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -276,6 +276,11 @@ export const model = {
       description: "Added: ConfigurationOverrides",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -293,6 +298,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ExecutionRoleArn",
+          "ReleaseLabel",
+          "Type",
+          "VirtualClusterId",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

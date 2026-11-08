@@ -71,6 +71,15 @@ export interface AwsEnrichment {
   stateFields?: string;
   /** Optional list method configuration */
   listMethod?: AwsEnrichmentListMethod;
+  /**
+   * Global arguments that custom methods read from `context.globalArgs`
+   * (through the merged global + method arguments). Fields CloudFormation
+   * requires are optional in GlobalArgsSchema unless a non-create method
+   * reads them, so every custom method that reads a CloudFormation-required
+   * global must list it here to keep it required. Each name must be a
+   * writable property of the resource, or generation fails.
+   */
+  requiredGlobalArgs?: string[];
   /** Optional custom methods — standalone native-SDK-backed methods */
   customMethods?: {
     /** Absolute path to the source file containing all custom method functions */

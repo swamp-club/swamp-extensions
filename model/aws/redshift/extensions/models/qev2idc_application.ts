@@ -63,16 +63,16 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   IdcInstanceArn: z.string().describe(
     "The Amazon Resource Name (ARN) of the IAM Identity Center instance used to create the Amazon Redshift Query Editor (QEV2) managed application.",
-  ),
+  ).optional(),
   Qev2IdcApplicationName: z.string().min(1).max(63).regex(
     new RegExp("^[a-z][a-z0-9]*(-[a-z0-9]+)*$"),
   ).describe(
     "The name of the Amazon Redshift Query Editor (QEV2) application in IAM Identity Center.",
-  ),
+  ).optional(),
   IdcDisplayName: z.string().min(1).max(127).regex(new RegExp("^[\\w+=,.@-]+$"))
     .describe(
       "The display name for the Amazon Redshift Query Editor (QEV2) IAM Identity Center application. It appears in the console.",
-    ),
+    ).optional(),
   Tags: z.array(TagSchema).describe(
     "A list of tags associated with the application. Tags are key-value pairs that you can use to organize and identify your resources.",
   ).optional(),
@@ -132,7 +132,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Redshift QEV2IdcApplication. Registered at `@swamp/aws/redshift/qev2idc-application`. */
 export const model = {
   type: "@swamp/aws/redshift/qev2idc-application",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -141,6 +141,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -161,6 +166,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "IdcDisplayName",
+          "IdcInstanceArn",
+          "Qev2IdcApplicationName",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -102,16 +102,16 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Threshold: z.number().describe(
     "The value to compare against the results of the scheduled query evaluation.",
-  ),
+  ).optional(),
   ComparisonOperator: z.string().describe(
     "The arithmetic operation to use when comparing the specified threshold and the query results. Valid values are GreaterThanOrEqualToThreshold, GreaterThanThreshold, LessThanThreshold, and LessThanOrEqualToThreshold.",
-  ),
+  ).optional(),
   QueryResultsToEvaluate: z.number().int().describe(
     "The number of query results over which data is compared to the specified threshold.",
-  ),
+  ).optional(),
   QueryResultsToAlarm: z.number().int().describe(
     "The number of query results that must be breaching to trigger the alarm.",
-  ),
+  ).optional(),
   TreatMissingData: z.string().describe(
     "Sets how this alarm is to handle missing data points. Valid values are breaching, notBreaching, ignore, and missing.",
   ).optional(),
@@ -134,7 +134,8 @@ const GlobalArgsSchema = z.object({
     Tags: z.array(TagSchema).describe(
       "A list of key-value pairs to associate with the scheduled query that backs the log alarm.",
     ).optional(),
-  }).describe("The scheduled query configuration for the log alarm."),
+  }).describe("The scheduled query configuration for the log alarm.")
+    .optional(),
   WarmUpConfiguration: z.object({
     WarmUpPeriodDurationInMinutes: z.number().int().min(1).max(2880).describe(
       "The length of the warm-up period, in minutes. For this duration after you create or update the alarm, the alarm stays in INSUFFICIENT_DATA and doesn't perform alarm actions. Valid values range from 1 to 2,880 minutes (2 days). You can change this value while the alarm is still in its warm-up period. Changes have no effect after the warm-up period ends.",
@@ -302,7 +303,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudWatch LogAlarm. Registered at `@swamp/aws/cloudwatch/log-alarm`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/log-alarm",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.06.16.1",
@@ -354,6 +355,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -371,6 +377,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ComparisonOperator",
+          "QueryResultsToAlarm",
+          "QueryResultsToEvaluate",
+          "ScheduledQueryConfiguration",
+          "Threshold",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

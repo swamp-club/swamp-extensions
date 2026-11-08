@@ -63,28 +63,29 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AwsAccountId: z.string().regex(new RegExp("^\\d{12}$")).describe(
     "The AWS account in which the Amazon DataZone environment is created.",
-  ),
+  ).optional(),
   AwsAccountRegion: z.string().regex(new RegExp("^[a-z]{2}-[a-z]{4,10}-\\d$"))
-    .describe("The AWS region in which this environment profile is created."),
+    .describe("The AWS region in which this environment profile is created.")
+    .optional(),
   Description: z.string().max(2048).describe(
     "The description of this Amazon DataZone environment profile.",
   ).optional(),
   DomainIdentifier: z.string().regex(new RegExp("^dzd[-_][a-zA-Z0-9_-]{1,36}$"))
     .describe(
       "The ID of the Amazon DataZone domain in which this environment profile is created.",
-    ),
+    ).optional(),
   EnvironmentBlueprintIdentifier: z.string().regex(
     new RegExp("^[a-zA-Z0-9_-]{1,36}$"),
   ).describe(
     "The ID of the blueprint with which this environment profile is created.",
-  ),
+  ).optional(),
   Name: z.string().min(1).max(64).regex(new RegExp("^[\\w -]+$")).describe(
     "The name of this Amazon DataZone environment profile.",
-  ),
+  ).optional(),
   ProjectIdentifier: z.string().regex(new RegExp("^[a-zA-Z0-9_-]{1,36}$"))
     .describe(
       "The identifier of the project in which to create the environment profile.",
-    ),
+    ).optional(),
   UserParameters: z.array(EnvironmentParameterSchema).describe(
     "The user parameters of this Amazon DataZone environment profile.",
   ).optional(),
@@ -165,7 +166,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataZone EnvironmentProfile. Registered at `@swamp/aws/datazone/environment-profile`. */
 export const model = {
   type: "@swamp/aws/datazone/environment-profile",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -227,6 +228,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -244,6 +250,19 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AwsAccountId",
+          "AwsAccountRegion",
+          "DomainIdentifier",
+          "EnvironmentBlueprintIdentifier",
+          "Name",
+          "ProjectIdentifier",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

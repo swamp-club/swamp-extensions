@@ -231,7 +231,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "An object representing the VPC configuration to use for an Amazon EKS cluster.",
-  ),
+  ).optional(),
   OutpostConfig: z.object({
     OutpostArns: z.array(z.string()).describe(
       "The ARN of the Outpost that you want to use for your local Amazon EKS cluster on Outposts. Only a single Outpost ARN is supported.",
@@ -301,7 +301,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   RoleArn: z.string().describe(
     "The Amazon Resource Name (ARN) of the IAM role that provides permissions for the Kubernetes control plane to make calls to AWS API operations on your behalf.",
-  ),
+  ).optional(),
   Version: z.string().regex(new RegExp("1\\.\\d\\d")).describe(
     "The desired Kubernetes version for your cluster. If you don't specify a value here, the latest version available in Amazon EKS is used.",
   ).optional(),
@@ -675,7 +675,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EKS Cluster. Registered at `@swamp/aws/eks/cluster`. */
 export const model = {
   type: "@swamp/aws/eks/cluster",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -788,6 +788,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -805,6 +810,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ResourcesVpcConfig", "RoleArn"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

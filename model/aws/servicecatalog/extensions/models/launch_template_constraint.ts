@@ -57,11 +57,11 @@ const GlobalArgsSchema = z.object({
   Description: z.string().describe("The description of the constraint.")
     .optional(),
   AcceptLanguage: z.string().describe("The language code.").optional(),
-  PortfolioId: z.string().describe("The portfolio identifier."),
-  ProductId: z.string().describe("The product identifier."),
+  PortfolioId: z.string().describe("The portfolio identifier.").optional(),
+  ProductId: z.string().describe("The product identifier.").optional(),
   Rules: z.string().describe(
     "A json encoded string of the template constraint rules",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -110,7 +110,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ServiceCatalog LaunchTemplateConstraint. Registered at `@swamp/aws/servicecatalog/launch-template-constraint`. */
 export const model = {
   type: "@swamp/aws/servicecatalog/launch-template-constraint",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -172,6 +172,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -189,6 +194,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["PortfolioId", "ProductId", "Rules"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

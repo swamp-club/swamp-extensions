@@ -205,17 +205,18 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   RuleOrder: z.number().int().min(1).max(1000).describe(
     "An integer ranging from 1 to 1000 that represents the order in which the rule action is applied to findings. Security Hub CSPM applies rules with lower values for this parameter first.",
-  ),
+  ).optional(),
   Description: z.string().min(1).max(1024).describe(
     "A description of the rule.",
-  ),
-  RuleName: z.string().min(1).max(256).describe("The name of the rule."),
+  ).optional(),
+  RuleName: z.string().min(1).max(256).describe("The name of the rule.")
+    .optional(),
   IsTerminal: z.boolean().describe(
     "Specifies whether a rule is the last to be applied with respect to a finding that matches the rule criteria. This is useful when a finding matches the criteria for multiple rules, and each rule has different actions. If a rule is terminal, Security Hub CSPM applies the rule action to a finding that matches the rule criteria and doesn't evaluate other rules for the finding. By default, a rule isn't terminal.",
   ).optional(),
   Actions: z.array(AutomationRulesActionSchema).describe(
     "One or more actions to update finding fields if a finding matches the conditions specified in Criteria.",
-  ),
+  ).optional(),
   Criteria: z.object({
     ProductArn: z.array(StringFilterSchema).describe(
       "The Amazon Resource Name (ARN) for a third-party product that generated a finding in Security Hub CSPM. Array Members: Minimum number of 1 item. Maximum number of 20 items.",
@@ -324,7 +325,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "A set of [Security Finding Format (ASFF)](https://docs.aws.amazon.com/securityhub/latest/userguide/securityhub-findings-format.html) finding field attributes and corresponding expected values that ASH uses to filter findings. If a rule is enabled and a finding matches the criteria specified in this parameter, ASH applies the rule action to the finding.",
-  ),
+  ).optional(),
   Tags: z.record(z.string(), z.string().min(0).max(256)).describe(
     "User-defined tags associated with an automation rule.",
   ).optional(),
@@ -539,7 +540,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecurityHub AutomationRule. Registered at `@swamp/aws/securityhub/automation-rule`. */
 export const model = {
   type: "@swamp/aws/securityhub/automation-rule",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -621,6 +622,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -638,6 +644,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Actions",
+          "Criteria",
+          "Description",
+          "RuleName",
+          "RuleOrder",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

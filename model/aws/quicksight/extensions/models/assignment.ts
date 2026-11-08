@@ -58,13 +58,13 @@ const GlobalArgsSchema = z.object({
     new RegExp("(?=^.{2,256}$)(?!.*\\s)[0-9a-zA-Z-_.:=+@]*$"),
   ).describe(
     "The name of the assignment, also called a rule. The name must be unique within the AWS account.",
-  ),
+  ).optional(),
   AssignmentStatus: z.enum(["ENABLED", "DRAFT", "DISABLED"]).describe(
     "The status of the assignment.",
-  ),
+  ).optional(),
   Namespace: z.string().max(64).regex(new RegExp("^[a-zA-Z0-9._-]*$")).describe(
     "The namespace that contains the assignment.",
-  ),
+  ).optional(),
   Identities: z.record(z.string(), z.array(z.string())).describe(
     "The QuickSight users, groups, or both that you want to assign the policy to. This maps identity type to a list of identity names.",
   ).optional(),
@@ -129,10 +129,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight Assignment. Registered at `@swamp/aws/quicksight/assignment`. */
 export const model = {
   type: "@swamp/aws/quicksight/assignment",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -153,6 +158,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AssignmentName", "AssignmentStatus", "Namespace"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

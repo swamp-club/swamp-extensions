@@ -124,7 +124,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Provider: z.enum(["GITHUB", "GITLAB", "BITBUCKET", "CONFLUENCE"]).describe(
     "The integration provider.",
-  ),
+  ).optional(),
   ProviderInput: z.object({
     Github: GitHubInputSchema.describe(
       "The input required to create a GitHub integration.",
@@ -141,7 +141,8 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "The provider-specific input required to create the integration. Exactly one of the provider input objects must be specified.",
   ).optional(),
-  DisplayName: z.string().describe("The display name for the integration."),
+  DisplayName: z.string().describe("The display name for the integration.")
+    .optional(),
   KmsKeyId: z.string().describe(
     "The identifier of the AWS KMS key to use for encrypting data associated with the integration. Can be a key ID, key ARN, alias name, or alias ARN.",
   ).optional(),
@@ -231,7 +232,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecurityAgent Integration. Registered at `@swamp/aws/securityagent/integration`. */
 export const model = {
   type: "@swamp/aws/securityagent/integration",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -245,6 +246,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -265,6 +271,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DisplayName", "Provider"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

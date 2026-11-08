@@ -58,15 +58,14 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "arn:aws(-[\\w]+)*:detective:(([a-z]+-)+[0-9]+):[0-9]{12}:graph:[0-9a-f]{32}",
     ),
-  ).describe(
-    "The ARN of the graph to which the member account will be invited",
-  ),
+  ).describe("The ARN of the graph to which the member account will be invited")
+    .optional(),
   MemberId: z.string().regex(new RegExp("[0-9]{12}")).describe(
     "The AWS account ID to be invited to join the graph as a member",
-  ),
+  ).optional(),
   MemberEmailAddress: z.string().regex(new RegExp(".*@.*")).describe(
     "The root email address for the account to be invited, for validation. Updating this field has no effect.",
-  ),
+  ).optional(),
   DisableEmailNotification: z.boolean().describe(
     "When set to true, invitation emails are not sent to the member accounts. Member accounts must still accept the invitation before they are added to the behavior graph. Updating this field has no effect.",
   ).optional(),
@@ -130,7 +129,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Detective MemberInvitation. Registered at `@swamp/aws/detective/member-invitation`. */
 export const model = {
   type: "@swamp/aws/detective/member-invitation",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -192,6 +191,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -209,6 +213,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["GraphArn", "MemberEmailAddress", "MemberId"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

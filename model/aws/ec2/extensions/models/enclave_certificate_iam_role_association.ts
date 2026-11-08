@@ -59,12 +59,12 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "The Amazon Resource Name (ARN) of the ACM certificate with which to associate the IAM role.",
-  ),
+  ).optional(),
   RoleArn: z.string().min(1).max(1283).regex(
     new RegExp("^arn:aws[A-Za-z0-9-]{0,64}:iam:.*:([0-9]{12})?:role/.+$"),
   ).describe(
     "The Amazon Resource Name (ARN) of the IAM role to associate with the ACM certificate. You can associate up to 16 IAM roles with an ACM certificate.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -116,7 +116,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 EnclaveCertificateIamRoleAssociation. Registered at `@swamp/aws/ec2/enclave-certificate-iam-role-association`. */
 export const model = {
   type: "@swamp/aws/ec2/enclave-certificate-iam-role-association",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -178,6 +178,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -195,6 +200,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["CertificateArn", "RoleArn"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

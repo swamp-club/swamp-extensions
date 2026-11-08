@@ -92,8 +92,8 @@ const GlobalArgsSchema = z.object({
     "STOP_SCHEDULING_AND_CANCEL_TASKS",
   ]).optional(),
   Description: z.string().min(0).max(100).optional(),
-  DisplayName: z.string().min(1).max(100),
-  FarmId: z.string().regex(new RegExp("^farm-[0-9a-f]{32}$")),
+  DisplayName: z.string().min(1).max(100).optional(),
+  FarmId: z.string().regex(new RegExp("^farm-[0-9a-f]{32}$")).optional(),
   JobAttachmentSettings: z.object({
     S3BucketName: z.string().min(3).max(63).regex(
       new RegExp(
@@ -209,7 +209,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Deadline Queue. Registered at `@swamp/aws/deadline/queue`. */
 export const model = {
   type: "@swamp/aws/deadline/queue",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -281,6 +281,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -298,6 +303,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DisplayName", "FarmId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

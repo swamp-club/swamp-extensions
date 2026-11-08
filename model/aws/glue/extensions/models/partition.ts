@@ -156,13 +156,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   DatabaseName: z.string().describe(
     "The AWS account ID of the catalog in which the partion is to be created.",
-  ),
+  ).optional(),
   TableName: z.string().describe(
     "The name of the metadata table in which the partition is to be created.",
-  ),
+  ).optional(),
   CatalogId: z.string().describe(
     "The name of the catalog database in which to create the partition.",
-  ),
+  ).optional(),
   PartitionInput: z.object({
     StorageDescriptor: StorageDescriptorSchema.describe(
       "Provides information about the physical location where the partition is stored.",
@@ -173,7 +173,8 @@ const GlobalArgsSchema = z.object({
     Parameters: z.record(z.string(), z.unknown()).describe(
       "Key-value pairs defining partition parameters.",
     ).optional(),
-  }).describe("The structure used to create and update a partition."),
+  }).describe("The structure used to create and update a partition.")
+    .optional(),
 });
 
 const StateSchema = z.object({
@@ -238,7 +239,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue Partition. Registered at `@swamp/aws/glue/partition`. */
 export const model = {
   type: "@swamp/aws/glue/partition",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.14.1",
@@ -252,6 +253,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -272,6 +278,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "CatalogId",
+          "DatabaseName",
+          "PartitionInput",
+          "TableName",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

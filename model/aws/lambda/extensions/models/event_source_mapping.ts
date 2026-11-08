@@ -201,7 +201,7 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "The name or ARN of the Lambda function. **Name formats** *Function name* – MyFunction. *Function ARN* – arn:aws:lambda:us-west-2:123456789012:function:MyFunction. *Version or Alias ARN* – arn:aws:lambda:us-west-2:123456789012:function:MyFunction:PROD. *Partial ARN* – 123456789012:function:MyFunction. The length constraint applies only to the full ARN. If you specify only the function name, it's limited to 64 characters in length.",
-  ),
+  ).optional(),
   DestinationConfig: z.object({
     OnFailure: OnFailureSchema.describe(
       "The destination configuration for failed invocations.",
@@ -561,7 +561,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda EventSourceMapping. Registered at `@swamp/aws/lambda/event-source-mapping`. */
 export const model = {
   type: "@swamp/aws/lambda/event-source-mapping",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -638,6 +638,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -655,6 +660,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["FunctionName"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

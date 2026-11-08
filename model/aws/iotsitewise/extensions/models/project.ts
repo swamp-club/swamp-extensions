@@ -61,8 +61,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   PortalId: z.string().describe(
     "The ID of the portal in which to create the project.",
-  ),
-  ProjectName: z.string().describe("A friendly name for the project."),
+  ).optional(),
+  ProjectName: z.string().describe("A friendly name for the project.")
+    .optional(),
   ProjectDescription: z.string().describe("A description for the project.")
     .optional(),
   AssetIds: z.array(z.string()).describe(
@@ -125,7 +126,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTSiteWise Project. Registered at `@swamp/aws/iotsitewise/project`. */
 export const model = {
   type: "@swamp/aws/iotsitewise/project",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -187,6 +188,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -204,6 +210,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["PortalId", "ProjectName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

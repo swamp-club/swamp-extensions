@@ -2,6 +2,8 @@ import type { AwsEnrichment } from "../types.ts";
 
 export const enrichment: AwsEnrichment = {
   cfTypeName: "AWS::Amplify::Domain",
+  // The custom methods read AppId and DomainName from the global arguments.
+  requiredGlobalArgs: ["AppId", "DomainName"],
   npmImports: {
     "@aws-sdk/client-amplify": "npm:@aws-sdk/client-amplify@3.1161.0",
     "@smithy/node-http-handler": "npm:@smithy/node-http-handler@4.9.7",

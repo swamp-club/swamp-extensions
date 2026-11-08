@@ -126,23 +126,24 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   InstrumentationType: z.enum(["BREAKPOINT", "PROBE"]).describe(
     "Type of instrumentation: BREAKPOINT (temporary, expires after 24 hours) or PROBE (permanent, persists until deleted).",
-  ),
+  ).optional(),
   Service: z.string().min(1).max(255).regex(
     new RegExp("^[A-Za-z0-9:/+=,.@_-]+$"),
   ).describe(
     "The name of the service to instrument. This should match the service.name resource attribute reported by the application.",
-  ),
+  ).optional(),
   Environment: z.string().min(1).max(255).regex(
     new RegExp("^[A-Za-z0-9:/+=,.@_-]+$"),
-  ).describe("The environment that the service is running in."),
+  ).describe("The environment that the service is running in.").optional(),
   SignalType: z.enum(["SNAPSHOT"]).describe(
     "The telemetry signal type to emit for this instrumentation. The supported value is SNAPSHOT.",
-  ),
+  ).optional(),
   Location: z.object({
     CodeLocation: CodeLocationSchema.describe(
       "Identifies a code location to instrument.",
     ),
-  }).describe("The location where instrumentation should be applied."),
+  }).describe("The location where instrumentation should be applied.")
+    .optional(),
   Description: z.string().min(1).max(50).describe(
     "An optional short description that explains the purpose of this instrumentation.",
   ).optional(),
@@ -159,7 +160,7 @@ const GlobalArgsSchema = z.object({
     ),
   }).describe(
     "Specifies what to capture when the instrumentation point is hit.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "An optional list of key-value pairs to associate with the instrumentation configuration.",
   ).optional(),
@@ -254,7 +255,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApplicationSignals InstrumentationConfig. Registered at `@swamp/aws/applicationsignals/instrumentation-config`. */
 export const model = {
   type: "@swamp/aws/applicationsignals/instrumentation-config",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -263,6 +264,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -283,6 +289,19 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "CaptureConfiguration",
+          "Environment",
+          "InstrumentationType",
+          "Location",
+          "Service",
+          "SignalType",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -80,7 +80,7 @@ const GlobalArgsSchema = z.object({
     ).describe("ARN(s) of the agent(s) to use for an NFS location."),
   }).describe(
     "Contains a list of Amazon Resource Names (ARNs) of agents that are used to connect an NFS server.",
-  ),
+  ).optional(),
   ServerHostname: z.string().max(255).regex(
     new RegExp(
       "^(([a-zA-Z0-9\\-]*[a-zA-Z0-9])\\.)*([A-Za-z0-9\\-]*[A-Za-z0-9])$",
@@ -175,7 +175,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataSync LocationNFS. Registered at `@swamp/aws/datasync/location-nfs`. */
 export const model = {
   type: "@swamp/aws/datasync/location-nfs",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.09.17.1",
@@ -189,6 +189,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -209,6 +214,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["OnPremConfig"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

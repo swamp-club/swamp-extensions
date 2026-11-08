@@ -53,7 +53,7 @@ const GlobalArgsSchema = z.object({
   ResourceId: z.string().min(1).max(64).describe("ResourceId"),
   AutodefinedReverseFlag: z.enum(["DISABLE"]).describe(
     "Represents the desired status of AutodefinedReverse. The only supported value on creation is DISABLE. Deletion of this resource will return AutodefinedReverse to its default value (ENABLED).",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -96,7 +96,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Route53Resolver ResolverConfig. Registered at `@swamp/aws/route53resolver/resolver-config`. */
 export const model = {
   type: "@swamp/aws/route53resolver/resolver-config",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -158,6 +158,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -175,6 +180,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AutodefinedReverseFlag", "ResourceId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -125,13 +125,13 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*$",
     ),
-  ).describe("The identifier of the Amazon Connect instance."),
+  ).describe("The identifier of the Amazon Connect instance.").optional(),
   Permissions: z.array(z.string().min(1).max(128)).describe(
     "Permissions assigned to the security profile.",
   ).optional(),
   SecurityProfileName: z.string().min(1).max(127).regex(
     new RegExp("^[ a-zA-Z0-9_@-]+$"),
-  ).describe("The name of the security profile."),
+  ).describe("The name of the security profile.").optional(),
   TagRestrictedResources: z.array(z.string().min(1).max(128)).describe(
     "The list of resources that a security profile applies tag restrictions to in Amazon Connect.",
   ).optional(),
@@ -253,7 +253,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect SecurityProfile. Registered at `@swamp/aws/connect/security-profile`. */
 export const model = {
   type: "@swamp/aws/connect/security-profile",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -338,6 +338,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -355,6 +360,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["InstanceArn", "SecurityProfileName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

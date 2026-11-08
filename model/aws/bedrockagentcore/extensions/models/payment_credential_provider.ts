@@ -175,10 +175,10 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   Name: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9\\-_]+$"))
-    .describe("Unique name for the payment credential provider"),
+    .describe("Unique name for the payment credential provider").optional(),
   CredentialProviderVendor: z.enum(["CoinbaseCDP", "StripePrivy"]).describe(
     "Supported vendor types for payment providers",
-  ),
+  ).optional(),
   ProviderConfigurationInput: z.object({
     CoinbaseCdpConfiguration: CoinbaseCdpConfigurationInputSchema.describe(
       "Coinbase CDP configuration with API credentials",
@@ -276,7 +276,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore PaymentCredentialProvider. Registered at `@swamp/aws/bedrockagentcore/payment-credential-provider`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/payment-credential-provider",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.06.03.1",
@@ -323,6 +323,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -340,6 +345,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["CredentialProviderVendor", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

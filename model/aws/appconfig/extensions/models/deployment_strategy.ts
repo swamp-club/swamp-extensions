@@ -65,7 +65,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   DeploymentDurationInMinutes: z.number().describe(
     "Total amount of time for a deployment to last.",
-  ),
+  ).optional(),
   Description: z.string().describe("A description of the deployment strategy.")
     .optional(),
   FinalBakeTimeInMinutes: z.number().describe(
@@ -73,14 +73,14 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   GrowthFactor: z.number().describe(
     "The percentage of targets to receive a deployed configuration during each interval.",
-  ),
+  ).optional(),
   GrowthType: z.enum(["EXPONENTIAL", "LINEAR"]).describe(
     "The algorithm used to define how percentage grows over time. AWS AppConfig supports the following growth types: Linear: For this type, AWS AppConfig processes the deployment by dividing the total number of targets by the value specified for Step percentage. For example, a linear deployment that uses a Step percentage of 10 deploys the configuration to 10 percent of the hosts. After those deployments are complete, the system deploys the configuration to the next 10 percent. This continues until 100% of the targets have successfully received the configuration. Exponential: For this type, AWS AppConfig processes the deployment exponentially using the following formula: G*(2^N). In this formula, G is the growth factor specified by the user and N is the number of steps until the configuration is deployed to all targets. For example, if you specify a growth factor of 2, then the system rolls out the configuration as follows: 2*(2^0) 2*(2^1) 2*(2^2) Expressed numerically, the deployment rolls out as follows: 2% of the targets, 4% of the targets, 8% of the targets, and continues until the configuration has been deployed to all targets.",
   ).optional(),
-  Name: z.string().describe("A name for the deployment strategy."),
+  Name: z.string().describe("A name for the deployment strategy.").optional(),
   ReplicateTo: z.enum(["NONE", "SSM_DOCUMENT"]).describe(
     "Save the deployment strategy to a Systems Manager (SSM) document.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "Assigns metadata to an AWS AppConfig resource. Tags help organize and categorize your AWS AppConfig resources. Each tag consists of a key and an optional value, both of which you define. You can specify a maximum of 50 tags for a resource.",
   ).optional(),
@@ -148,7 +148,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppConfig DeploymentStrategy. Registered at `@swamp/aws/appconfig/deployment-strategy`. */
 export const model = {
   type: "@swamp/aws/appconfig/deployment-strategy",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -210,6 +210,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -227,6 +232,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "DeploymentDurationInMinutes",
+          "GrowthFactor",
+          "Name",
+          "ReplicateTo",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

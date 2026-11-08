@@ -70,14 +70,14 @@ const GlobalArgsSchema = z.object({
   Id: z.string().describe("The unique identifier for the Asset."),
   PackagingGroupId: z.string().describe(
     "The ID of the PackagingGroup for the Asset.",
-  ),
+  ).optional(),
   ResourceId: z.string().describe(
     "The resource ID to include in SPEKE key requests.",
   ).optional(),
-  SourceArn: z.string().describe("ARN of the source object in S3."),
+  SourceArn: z.string().describe("ARN of the source object in S3.").optional(),
   SourceRoleArn: z.string().describe(
     "The IAM role_arn used to access the source S3 bucket.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "A collection of tags associated with a resource",
   ).optional(),
@@ -140,7 +140,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaPackage Asset. Registered at `@swamp/aws/mediapackage/asset`. */
 export const model = {
   type: "@swamp/aws/mediapackage/asset",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -202,6 +202,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -219,6 +224,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Id", "PackagingGroupId", "SourceArn", "SourceRoleArn"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

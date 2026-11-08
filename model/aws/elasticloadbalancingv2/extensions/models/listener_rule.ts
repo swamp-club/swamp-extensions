@@ -325,13 +325,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Actions: z.array(ActionSchema).describe(
     "The actions. The rule must include exactly one of the following types of actions: forward, fixed-response, or redirect, and it must be the last action to be performed. If the rule is for an HTTPS listener, it can also optionally include an authentication action.",
-  ),
+  ).optional(),
   Priority: z.number().int().describe(
     "The rule priority. A listener can't have multiple rules with the same priority. If you try to reorder rules by updating their priorities, do not specify a new priority if an existing rule already uses this priority, as this can cause an error. If you need to reuse a priority with a different rule, you must remove it as a priority first, and then specify it in a subsequent update.",
-  ),
+  ).optional(),
   Conditions: z.array(RuleConditionSchema).describe(
     "The conditions. The rule can optionally include up to one of each of the following conditions: http-request-method, host-header, path-pattern, and source-ip. A rule can also optionally include one or more of each of the following conditions: http-header and query-string.",
-  ),
+  ).optional(),
   Transforms: z.array(TransformSchema).optional(),
   Tags: z.array(TagSchema).optional(),
 });
@@ -390,7 +390,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElasticLoadBalancingV2 ListenerRule. Registered at `@swamp/aws/elasticloadbalancingv2/listener-rule`. */
 export const model = {
   type: "@swamp/aws/elasticloadbalancingv2/listener-rule",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -467,6 +467,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -484,6 +489,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Actions", "Conditions", "Priority"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

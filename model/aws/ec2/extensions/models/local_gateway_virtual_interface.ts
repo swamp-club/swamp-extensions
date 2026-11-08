@@ -65,11 +65,11 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   LocalGatewayVirtualInterfaceGroupId: z.string().describe(
     "The ID of the virtual interface group",
-  ),
-  OutpostLagId: z.string().describe("The Outpost LAG ID."),
-  Vlan: z.number().int().describe("The ID of the VLAN."),
-  LocalAddress: z.string().describe("The local address."),
-  PeerAddress: z.string().describe("The peer address."),
+  ).optional(),
+  OutpostLagId: z.string().describe("The Outpost LAG ID.").optional(),
+  Vlan: z.number().int().describe("The ID of the VLAN.").optional(),
+  LocalAddress: z.string().describe("The local address.").optional(),
+  PeerAddress: z.string().describe("The peer address.").optional(),
   PeerBgpAsn: z.number().int().describe("The peer BGP ASN.").optional(),
   PeerBgpAsnExtended: z.number().int().describe(
     "The extended 32-bit ASN of the BGP peer for use with larger ASN values.",
@@ -138,7 +138,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 LocalGatewayVirtualInterface. Registered at `@swamp/aws/ec2/local-gateway-virtual-interface`. */
 export const model = {
   type: "@swamp/aws/ec2/local-gateway-virtual-interface",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -200,6 +200,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -217,6 +222,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "LocalAddress",
+          "LocalGatewayVirtualInterfaceGroupId",
+          "OutpostLagId",
+          "PeerAddress",
+          "Vlan",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

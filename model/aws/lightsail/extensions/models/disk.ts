@@ -94,7 +94,7 @@ const GlobalArgsSchema = z.object({
   AddOns: z.array(AddOnSchema).describe(
     "An array of objects representing the add-ons to enable for the new instance.",
   ).optional(),
-  SizeInGb: z.number().int().describe("Size of the Lightsail disk"),
+  SizeInGb: z.number().int().describe("Size of the Lightsail disk").optional(),
 });
 
 const StateSchema = z.object({
@@ -159,7 +159,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lightsail Disk. Registered at `@swamp/aws/lightsail/disk`. */
 export const model = {
   type: "@swamp/aws/lightsail/disk",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -226,6 +226,11 @@ export const model = {
       description: "Added: AvailabilityZone",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -243,6 +248,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DiskName", "SizeInGb"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

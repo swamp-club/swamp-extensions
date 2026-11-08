@@ -283,7 +283,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().regex(
     new RegExp("^[0-9A-Za-z][-._0-9A-Za-z ]{0,126}[0-9A-Za-z]$"),
-  ).describe("The name of this SLO."),
+  ).describe("The name of this SLO.").optional(),
   Description: z.string().min(1).max(1024).describe(
     "An optional description for this SLO. Default is 'No description'",
   ).optional(),
@@ -467,7 +467,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApplicationSignals ServiceLevelObjective. Registered at `@swamp/aws/applicationsignals/service-level-objective`. */
 export const model = {
   type: "@swamp/aws/applicationsignals/service-level-objective",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -534,6 +534,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -551,6 +556,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

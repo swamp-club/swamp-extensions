@@ -149,10 +149,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   MembershipIdentifier: z.string().min(36).max(36).regex(
     new RegExp("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"),
-  ),
+  ).optional(),
   Name: z.string().max(128).regex(
     new RegExp("^[a-zA-Z0-9_](([a-zA-Z0-9_ ]+-)*([a-zA-Z0-9_ ]+))?$"),
-  ),
+  ).optional(),
   Schema: z.object({
     ReferencedTables: z.array(
       z.string().max(128).regex(
@@ -163,11 +163,11 @@ const GlobalArgsSchema = z.object({
   Source: z.object({
     Text: z.string().min(0).max(90000).optional(),
     Artifacts: AnalysisTemplateArtifactsSchema.optional(),
-  }),
+  }).optional(),
   SourceMetadata: z.object({
     Artifacts: AnalysisTemplateArtifactMetadataSchema.optional(),
   }).optional(),
-  Format: z.enum(["SQL", "PYSPARK_1_0"]),
+  Format: z.enum(["SQL", "PYSPARK_1_0"]).optional(),
   ErrorMessageConfiguration: z.object({
     Type: z.enum(["DETAILED"]),
   }).optional(),
@@ -273,7 +273,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CleanRooms AnalysisTemplate. Registered at `@swamp/aws/cleanrooms/analysis-template`. */
 export const model = {
   type: "@swamp/aws/cleanrooms/analysis-template",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -335,6 +335,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -352,6 +357,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Format", "MembershipIdentifier", "Name", "Source"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

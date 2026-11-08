@@ -64,10 +64,10 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   Name: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
-    .describe("A name that identifies the access grant."),
+    .describe("A name that identifies the access grant.").optional(),
   DomainId: z.string().regex(new RegExp("^d-[0-9a-z]{1,25}$")).describe(
     "The ID of the organization domain the grant belongs to.",
-  ),
+  ).optional(),
   Principal: z.object({
     PrincipalType: z.enum([
       "IDC_USER",
@@ -84,8 +84,8 @@ const GlobalArgsSchema = z.object({
     PrincipalAttributes: z.array(PrincipalAttributeSchema).describe(
       "Attribute key-value pairs that select the principals the grant applies to.",
     ).optional(),
-  }).describe("The principal receiving the grant."),
-  Permission: z.enum(["ADMIN"]).describe("The permission granted."),
+  }).describe("The principal receiving the grant.").optional(),
+  Permission: z.enum(["ADMIN"]).describe("The permission granted.").optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -164,7 +164,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudWatch DomainAccessGrantForOrganization. Registered at `@swamp/aws/cloudwatch/domain-access-grant-for-organization`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/domain-access-grant-for-organization",
-  version: "2026.10.31.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.30.1",
@@ -173,6 +173,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.31.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -193,6 +198,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DomainId", "Name", "Permission", "Principal"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

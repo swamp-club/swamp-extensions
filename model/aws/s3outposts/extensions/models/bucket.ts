@@ -120,9 +120,10 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "(?=^.{3,63}$)(?!^(\\d+\\.)+\\d+$)(^(([a-z0-9]|[a-z0-9][a-z0-9\\-]*[a-z0-9])\\.)*([a-z0-9]|[a-z0-9][a-z0-9\\-]*[a-z0-9])$)",
     ),
-  ).describe("A name for the bucket."),
+  ).describe("A name for the bucket.").optional(),
   OutpostId: z.string().regex(new RegExp("^(op-[a-f0-9]{17}|\\d{12}|ec2)$"))
-    .describe("The id of the customer outpost on which the bucket resides."),
+    .describe("The id of the customer outpost on which the bucket resides.")
+    .optional(),
   Tags: z.array(TagSchema).describe(
     "An arbitrary set of tags (key-value pairs) for this S3Outposts bucket.",
   ).optional(),
@@ -192,7 +193,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for S3Outposts Bucket. Registered at `@swamp/aws/s3outposts/bucket`. */
 export const model = {
   type: "@swamp/aws/s3outposts/bucket",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -254,6 +255,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -271,6 +277,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["BucketName", "OutpostId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

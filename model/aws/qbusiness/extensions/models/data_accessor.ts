@@ -101,10 +101,10 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  ActionConfigurations: z.array(ActionConfigurationSchema),
+  ActionConfigurations: z.array(ActionConfigurationSchema).optional(),
   ApplicationId: z.string().min(36).max(36).regex(
     new RegExp("^[a-zA-Z0-9][a-zA-Z0-9-]{35}$"),
-  ),
+  ).optional(),
   AuthenticationDetail: z.object({
     AuthenticationType: z.enum(["AWS_IAM_IDC_TTI", "AWS_IAM_IDC_AUTH_CODE"]),
     AuthenticationConfiguration: z.object({
@@ -119,10 +119,10 @@ const GlobalArgsSchema = z.object({
   }).optional(),
   DisplayName: z.string().min(1).max(100).regex(
     new RegExp("^[a-zA-Z0-9][a-zA-Z0-9_-]*$"),
-  ),
+  ).optional(),
   Principal: z.string().min(1).max(1284).regex(
     new RegExp("^arn:aws:iam::[0-9]{12}:role/[a-zA-Z0-9_/+=,.@-]+$"),
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
@@ -200,7 +200,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QBusiness DataAccessor. Registered at `@swamp/aws/qbusiness/data-accessor`. */
 export const model = {
   type: "@swamp/aws/qbusiness/data-accessor",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -267,6 +267,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -284,6 +289,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ActionConfigurations",
+          "ApplicationId",
+          "DisplayName",
+          "Principal",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

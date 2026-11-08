@@ -62,12 +62,14 @@ const GlobalArgsSchema = z.object({
   AppBundleArn: z.string().min(1).max(1011).regex(new RegExp("^arn:.+$"))
     .describe(
       "The Amazon Resource Name (ARN) of the app bundle for the ingestion.",
-    ),
-  App: z.string().min(1).max(255).describe("The name of the application."),
+    ).optional(),
+  App: z.string().min(1).max(255).describe("The name of the application.")
+    .optional(),
   TenantId: z.string().min(1).max(1024).describe(
     "The ID of the application tenant.",
-  ),
-  IngestionType: z.enum(["auditLog"]).describe("The type of the ingestion."),
+  ).optional(),
+  IngestionType: z.enum(["auditLog"]).describe("The type of the ingestion.")
+    .optional(),
   Tags: z.array(TagSchema).describe(
     "A map of the key-value pairs of the tag or tags to assign to the resource.",
   ).optional(),
@@ -128,7 +130,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppFabric Ingestion. Registered at `@swamp/aws/appfabric/ingestion`. */
 export const model = {
   type: "@swamp/aws/appfabric/ingestion",
-  version: "2026.10.28.1",
+  version: "2026.11.08.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -145,6 +154,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["App", "AppBundleArn", "IngestionType", "TenantId"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

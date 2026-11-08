@@ -87,13 +87,14 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   DomainName: z.string().min(2).max(50).regex(
     new RegExp("^([a-z][a-z0-9\\-]{0,48}[a-z0-9])$"),
-  ).describe("The name of the domain that contains the package group."),
+  ).describe("The name of the domain that contains the package group.")
+    .optional(),
   DomainOwner: z.string().regex(new RegExp("[0-9]{12}")).describe(
     "The 12-digit account ID of the AWS account that owns the domain.",
   ).optional(),
   Pattern: z.string().min(2).max(520).describe(
     "The package group pattern that is used to gather packages.",
-  ),
+  ).optional(),
   ContactInfo: z.string().max(1000).describe(
     "The contact info of the package group.",
   ).optional(),
@@ -178,7 +179,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CodeArtifact PackageGroup. Registered at `@swamp/aws/codeartifact/package-group`. */
 export const model = {
   type: "@swamp/aws/codeartifact/package-group",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -240,6 +241,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -257,6 +263,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DomainName", "Pattern"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -56,19 +56,19 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ResourceName: z.string().regex(new RegExp("[a-za-z0-9_\\.-]+")).describe(
     "The name of the resource that is being synchronized to the repository.",
-  ),
+  ).optional(),
   Branch: z.string().describe(
     "The name of the branch of the repository from which resources are to be synchronized,",
-  ),
+  ).optional(),
   ConfigFile: z.string().describe(
     "The source provider repository path of the sync configuration file of the respective SyncType.",
-  ),
+  ).optional(),
   SyncType: z.string().describe(
     "The type of resource synchronization service that is to be configured, for example, CFN_STACK_SYNC.",
-  ),
+  ).optional(),
   RoleArn: z.string().describe(
     "The IAM Role that allows AWS to update CloudFormation stacks based on content in the specified repository.",
-  ),
+  ).optional(),
   PublishDeploymentStatus: z.enum(["ENABLED", "DISABLED"]).describe(
     "Whether to enable or disable publishing of deployment status to source providers.",
   ).optional(),
@@ -81,7 +81,7 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "A UUID that uniquely identifies the RepositoryLink that the SyncConfig is associated with.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -155,7 +155,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CodeStarConnections SyncConfiguration. Registered at `@swamp/aws/codestarconnections/sync-configuration`. */
 export const model = {
   type: "@swamp/aws/codestarconnections/sync-configuration",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -217,6 +217,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -234,6 +239,19 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Branch",
+          "ConfigFile",
+          "RepositoryLinkId",
+          "ResourceName",
+          "RoleArn",
+          "SyncType",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

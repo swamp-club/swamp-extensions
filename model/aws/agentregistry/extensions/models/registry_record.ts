@@ -233,7 +233,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(255).regex(
     new RegExp("^[a-zA-Z0-9][a-zA-Z0-9_\\-\\.\\/]*$"),
-  ).describe("The name of the registry record."),
+  ).describe("The name of the registry record.").optional(),
   DisplayName: z.string().min(1).max(255).describe(
     "The human-readable display name of the registry record.",
   ).optional(),
@@ -242,7 +242,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   RecordType: z.enum(["MCP", "AGENT", "SKILL", "CUSTOM", "GATEWAY"]).describe(
     "The type of the registry record.",
-  ),
+  ).optional(),
   Descriptors: z.object({
     McpServer: McpServerDescriptorSchema.describe(
       "The MCP server descriptor, populated when the record type is MCP.",
@@ -264,7 +264,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "The typed set of descriptors for a registry record. Exactly one descriptor field is populated based on the record type.",
-  ),
+  ).optional(),
   RecordVersion: z.string().min(1).max(255).regex(
     new RegExp("^[a-zA-Z0-9.-]+$"),
   ).describe("The version of the registry record.").optional(),
@@ -379,7 +379,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AgentRegistry RegistryRecord. Registered at `@swamp/aws/agentregistry/registry-record`. */
 export const model = {
   type: "@swamp/aws/agentregistry/registry-record",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.28.1",
@@ -416,6 +416,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -433,6 +438,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Descriptors", "Name", "RecordType"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

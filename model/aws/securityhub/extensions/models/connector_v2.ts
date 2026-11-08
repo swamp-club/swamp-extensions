@@ -56,7 +56,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(64).regex(new RegExp(".*\\S.*")).describe(
     "The name of the connector",
-  ),
+  ).optional(),
   Description: z.string().min(0).max(256).regex(new RegExp(".*\\S.*")).describe(
     "A description of the connector",
   ).optional(),
@@ -65,7 +65,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Provider: z.record(z.string(), z.unknown()).describe(
     "The third-party provider configuration for the connector",
-  ),
+  ).optional(),
   Tags: z.record(z.string(), z.string().min(0).max(256)).describe(
     "A key-value pair to associate with a resource.",
   ).optional(),
@@ -136,7 +136,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecurityHub ConnectorV2. Registered at `@swamp/aws/securityhub/connector-v2`. */
 export const model = {
   type: "@swamp/aws/securityhub/connector-v2",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -213,6 +213,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -230,6 +235,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "Provider"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

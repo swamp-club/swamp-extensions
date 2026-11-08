@@ -63,20 +63,20 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(63).regex(
     new RegExp("^[a-zA-Z0-9][a-zA-Z0-9\\-_]*"),
-  ).describe("The name for the dataset"),
+  ).describe("The name for the dataset").optional(),
   DatasetType: z.enum(["Interactions", "Items", "Users"]).describe(
     "The type of dataset",
-  ),
+  ).optional(),
   DatasetGroupArn: z.string().max(256).regex(
     new RegExp("arn:([a-z\\d-]+):personalize:.*:.*:.+"),
   ).describe(
     "The Amazon Resource Name (ARN) of the dataset group to add the dataset to",
-  ),
+  ).optional(),
   SchemaArn: z.string().max(256).regex(
     new RegExp("arn:([a-z\\d-]+):personalize:.*:.*:.+"),
   ).describe(
     "The ARN of the schema to associate with the dataset. The schema defines the dataset fields.",
-  ),
+  ).optional(),
   DatasetImportJob: z.object({
     JobName: z.string().min(1).max(63).regex(
       new RegExp("^[a-zA-Z0-9][a-zA-Z0-9\\-_]*"),
@@ -200,7 +200,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Personalize Dataset. Registered at `@swamp/aws/personalize/dataset`. */
 export const model = {
   type: "@swamp/aws/personalize/dataset",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -272,6 +272,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -289,6 +294,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DatasetGroupArn", "DatasetType", "Name", "SchemaArn"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

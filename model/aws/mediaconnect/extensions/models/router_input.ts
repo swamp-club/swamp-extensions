@@ -372,7 +372,7 @@ const GlobalArgsSchema = z.object({
     Merge: MergeRouterInputConfigurationSchema.describe(
       "Configuration settings for a merge router input that combines two input sources.",
     ).optional(),
-  }).describe("The configuration settings for a router input."),
+  }).describe("The configuration settings for a router input.").optional(),
   ContentQualityAnalysisConfiguration: z.object({
     ContentLevel: ContentQualityAnalysisFeatureConfigurationSchema.describe(
       "Configures the content quality analysis features for the router input.",
@@ -392,16 +392,18 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   MaximumBitrate: z.number().int().describe(
     "The maximum bitrate for the router input.",
-  ),
-  Name: z.string().min(1).max(128).describe("The name of the router input."),
+  ).optional(),
+  Name: z.string().min(1).max(128).describe("The name of the router input.")
+    .optional(),
   RegionName: z.string().describe(
     "The Amazon Web Services Region for the router input. Defaults to the current region if not specified.",
   ).optional(),
-  RoutingScope: z.enum(["REGIONAL", "GLOBAL"]),
+  RoutingScope: z.enum(["REGIONAL", "GLOBAL"]).optional(),
   Tags: z.array(TagSchema).describe(
     "Key-value pairs that can be used to tag and organize this router input.",
   ).optional(),
-  Tier: z.enum(["INPUT_100", "INPUT_50", "INPUT_20", "INPUT_500", "INPUT_250"]),
+  Tier: z.enum(["INPUT_100", "INPUT_50", "INPUT_20", "INPUT_500", "INPUT_250"])
+    .optional(),
   TransitEncryption: z.object({
     EncryptionKeyType: z.enum(["SECRETS_MANAGER", "AUTOMATIC"]).optional(),
     EncryptionKeyConfiguration: z.object({
@@ -557,7 +559,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaConnect RouterInput. Registered at `@swamp/aws/mediaconnect/router-input`. */
 export const model = {
   type: "@swamp/aws/mediaconnect/router-input",
-  version: "2026.10.30.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -644,6 +646,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -661,6 +668,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Configuration",
+          "MaximumBitrate",
+          "Name",
+          "RoutingScope",
+          "Tier",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -66,13 +66,13 @@ const GlobalArgsSchema = z.object({
     RfRegion: z.string().min(1).max(64).describe(
       "FUOTA task LoRaWAN RF region",
     ),
-  }).describe("FUOTA task LoRaWAN"),
+  }).describe("FUOTA task LoRaWAN").optional(),
   FirmwareUpdateImage: z.string().min(1).max(2048).describe(
     "FUOTA task firmware update image binary S3 link",
-  ),
+  ).optional(),
   FirmwareUpdateRole: z.string().min(1).max(256).describe(
     "FUOTA task firmware IAM role for reading S3",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "A list of key-value pairs that contain metadata for the FUOTA task.",
   ).optional(),
@@ -166,7 +166,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTWireless FuotaTask. Registered at `@swamp/aws/iotwireless/fuota-task`. */
 export const model = {
   type: "@swamp/aws/iotwireless/fuota-task",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -228,6 +228,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -245,6 +250,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["FirmwareUpdateImage", "FirmwareUpdateRole", "LoRaWAN"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

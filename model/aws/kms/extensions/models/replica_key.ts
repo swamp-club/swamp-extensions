@@ -71,10 +71,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   KeyPolicy: z.record(z.string(), z.unknown()).describe(
     "The key policy that authorizes use of the AWS KMS key. The key policy must observe the following rules.",
-  ),
+  ).optional(),
   PrimaryKeyArn: z.string().min(1).max(256).describe(
     "Identifies the primary AWS KMS key to create a replica of. Specify the Amazon Resource Name (ARN) of the AWS KMS key. You cannot specify an alias or key ID. For help finding the ARN, see Finding the Key ID and ARN in the AWS Key Management Service Developer Guide.",
-  ),
+  ).optional(),
   Enabled: z.boolean().describe(
     "Specifies whether the AWS KMS key is enabled. Disabled AWS KMS keys cannot be used in cryptographic operations.",
   ).optional(),
@@ -142,7 +142,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for KMS ReplicaKey. Registered at `@swamp/aws/kms/replica-key`. */
 export const model = {
   type: "@swamp/aws/kms/replica-key",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -214,6 +214,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -231,6 +236,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["KeyPolicy", "PrimaryKeyArn"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

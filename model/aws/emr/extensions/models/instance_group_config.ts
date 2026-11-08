@@ -118,21 +118,21 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  JobFlowId: z.string(),
+  JobFlowId: z.string().optional(),
   AutoScalingPolicy: z.object({
     Rules: z.array(ScalingRuleSchema),
     Constraints: ScalingConstraintsSchema,
   }).optional(),
   BidPrice: z.string().optional(),
-  InstanceCount: z.number().int(),
+  InstanceCount: z.number().int().optional(),
   EbsConfiguration: z.object({
     EbsBlockDeviceConfigs: z.array(EbsBlockDeviceConfigSchema).optional(),
     EbsOptimized: z.boolean().optional(),
   }).optional(),
-  InstanceRole: z.string(),
+  InstanceRole: z.string().optional(),
   CustomAmiId: z.string().optional(),
   Configurations: z.array(AppConfigurationSchema).optional(),
-  InstanceType: z.string(),
+  InstanceType: z.string().optional(),
   Market: z.string().optional(),
   Name: z.string().optional(),
 });
@@ -204,7 +204,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EMR InstanceGroupConfig. Registered at `@swamp/aws/emr/instance-group-config`. */
 export const model = {
   type: "@swamp/aws/emr/instance-group-config",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -218,6 +218,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -238,6 +243,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "InstanceCount",
+          "InstanceRole",
+          "InstanceType",
+          "JobFlowId",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

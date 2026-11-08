@@ -47,6 +47,50 @@ import {
 import { computeUpgradesBlock } from "../shared/upgradesGenerator.ts";
 import type { CfSchema, OnlyProperties } from "../shared/schema/types.ts";
 
+/**
+ * The properties the create request needs: CloudFormation's top-level
+ * `required` list, limited to properties the model sends (read-only
+ * properties are never sent, so they are never checked). Sorted.
+ */
+export function createRequiredProperties(
+  cfSchema: CfSchema,
+  domainProperties: Record<string, unknown>,
+): string[] {
+  return (cfSchema.required ?? [])
+    .filter((name) => Object.hasOwn(domainProperties, name))
+    .sort();
+}
+
+/**
+ * The create-required properties that stay required in GlobalArgsSchema:
+ * only those a non-create method reads from the global arguments. That is
+ * the writable naming field (update and sync use it to find stored state)
+ * and any global an enrichment's custom methods declare they read. Every
+ * other create-required property is optional in GlobalArgsSchema and is
+ * enforced by a check at the start of create instead.
+ *
+ * Throws when a declared `requiredGlobalArgs` name is not a writable
+ * property, so a typo or schema rename fails generation.
+ */
+export function globalArgsRequiredProperties(
+  createRequired: string[],
+  domainProperties: Record<string, unknown>,
+  namingField: string,
+  isSyntheticName: boolean,
+  requiredGlobalArgs: string[] = [],
+): string[] {
+  for (const name of requiredGlobalArgs) {
+    if (!Object.hasOwn(domainProperties, name)) {
+      throw new Error(
+        `requiredGlobalArgs names "${name}", which is not a writable property`,
+      );
+    }
+  }
+  const keep = new Set(requiredGlobalArgs);
+  if (!isSyntheticName) keep.add(namingField);
+  return createRequired.filter((name) => keep.has(name));
+}
+
 const CF_SCHEMA_URL =
   "https://schema.cloudformation.us-east-1.amazonaws.com/CloudformationSchema.zip";
 
@@ -320,10 +364,27 @@ export async function generateAwsModels(options: {
           domainProperties,
         );
 
+        // GlobalArgsSchema keeps required only what non-create methods read;
+        // the rest of create's required fields are checked inside create.
+        // Only the top-level required list is reduced: nested objects read
+        // their own required lists, so their output is unchanged.
+        const rawEnrichment = getEnrichment(typeName);
+        const createRequired = createRequiredProperties(
+          cfSchema,
+          domainProperties,
+        );
+        const naming = resolveNamingField(onlyProperties, cfSchema);
+        const globalRequired = globalArgsRequiredProperties(
+          createRequired,
+          domainProperties,
+          naming.field,
+          naming.synthetic,
+          rawEnrichment?.requiredGlobalArgs,
+        );
         const zodResult = generateZodSchemas(
           domainProperties,
           resourceValueProperties,
-          cfSchema,
+          { ...cfSchema, required: globalRequired },
           onlyProperties,
         );
 
@@ -334,7 +395,6 @@ export async function generateAwsModels(options: {
         const filePath = `extensions/models/${fileName}`;
 
         // Generate with placeholder version for change detection
-        const rawEnrichment = getEnrichment(typeName);
         const enrichment = rawEnrichment?.sourceFile
           ? {
             source: await parseEnrichmentSource(rawEnrichment.sourceFile),
@@ -382,6 +442,7 @@ export async function generateAwsModels(options: {
           listMethod,
           modelMethods,
           domainPropertyNames,
+          createRequiredProperties: createRequired,
         });
 
         const { version, status, existingContent } = await computeModelVersion(
@@ -424,6 +485,7 @@ export async function generateAwsModels(options: {
           listMethod,
           modelMethods,
           domainPropertyNames,
+          createRequiredProperties: createRequired,
         });
 
         models.push({ filePath, sourceCode });

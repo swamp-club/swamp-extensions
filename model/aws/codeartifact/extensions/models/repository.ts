@@ -65,10 +65,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   RepositoryName: z.string().min(2).max(100).regex(
     new RegExp("^([A-Za-z0-9][A-Za-z0-9._\\-]{1,99})$"),
-  ).describe("The name of the repository."),
+  ).describe("The name of the repository.").optional(),
   DomainName: z.string().min(2).max(50).regex(
     new RegExp("^([a-z][a-z0-9\\-]{0,48}[a-z0-9])$"),
-  ).describe("The name of the domain that contains the repository."),
+  ).describe("The name of the domain that contains the repository.").optional(),
   Description: z.string().max(1000).describe(
     "A text description of the repository.",
   ).optional(),
@@ -149,7 +149,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CodeArtifact Repository. Registered at `@swamp/aws/codeartifact/repository`. */
 export const model = {
   type: "@swamp/aws/codeartifact/repository",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -216,6 +216,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -233,6 +238,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DomainName", "RepositoryName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

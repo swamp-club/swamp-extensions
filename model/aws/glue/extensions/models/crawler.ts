@@ -215,14 +215,14 @@ const GlobalArgsSchema = z.object({
     HudiTargets: z.array(HudiTargetSchema).describe(
       "Specifies Apache Hudi data store targets.",
     ).optional(),
-  }).describe("Specifies data stores to crawl."),
+  }).describe("Specifies data stores to crawl.").optional(),
   CrawlerSecurityConfiguration: z.string().describe(
     "The name of the SecurityConfiguration structure to be used by this crawler.",
   ).optional(),
   Name: z.string().describe("The name of the crawler.").optional(),
   Role: z.string().describe(
     "The Amazon Resource Name (ARN) of an IAM role that's used to access customer resources, such as Amazon Simple Storage Service (Amazon S3) data.",
-  ),
+  ).optional(),
   LakeFormationConfiguration: z.object({
     UseLakeFormationCredentials: z.boolean().describe(
       "Specifies whether to use AWS Lake Formation credentials for the crawler instead of the IAM role credentials.",
@@ -394,7 +394,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue Crawler. Registered at `@swamp/aws/glue/crawler`. */
 export const model = {
   type: "@swamp/aws/glue/crawler",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -461,6 +461,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -478,6 +483,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Role", "Targets"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

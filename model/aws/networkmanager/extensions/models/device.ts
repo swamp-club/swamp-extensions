@@ -65,7 +65,8 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Description: z.string().describe("The description of the device.").optional(),
   Tags: z.array(TagSchema).describe("The tags for the device.").optional(),
-  GlobalNetworkId: z.string().describe("The ID of the global network."),
+  GlobalNetworkId: z.string().describe("The ID of the global network.")
+    .optional(),
   AWSLocation: z.object({
     Zone: z.string().describe(
       "The Zone that the device is located in. Specify the ID of an Availability Zone, Local Zone, Wavelength Zone, or an Outpost.",
@@ -163,7 +164,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkManager Device. Registered at `@swamp/aws/networkmanager/device`. */
 export const model = {
   type: "@swamp/aws/networkmanager/device",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -225,6 +226,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -242,6 +248,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["GlobalNetworkId"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -65,7 +65,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   HumanTaskUiName: z.string().min(1).max(63).regex(
     new RegExp("^[a-z0-9](-*[a-z0-9])*$"),
-  ).describe("The name of the human task user interface."),
+  ).describe("The name of the human task user interface.").optional(),
   UiTemplate: z.object({
     Content: z.string().min(1).max(128000).describe(
       "The content of the Liquid template for the worker user interface.",
@@ -126,7 +126,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker HumanTaskUi. Registered at `@swamp/aws/sagemaker/human-task-ui`. */
 export const model = {
   type: "@swamp/aws/sagemaker/human-task-ui",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -148,6 +148,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -165,6 +170,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["HumanTaskUiName"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

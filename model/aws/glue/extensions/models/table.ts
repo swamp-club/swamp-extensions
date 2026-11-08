@@ -262,7 +262,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   DatabaseName: z.string().describe(
     "The name of the database where the table metadata resides. For Hive compatibility, this must be all lowercase.",
-  ),
+  ).optional(),
   TableInput: z.object({
     Owner: z.string().describe(
       "The table owner. Included for Apache Hive compatibility. Not used in the normal course of AWS Glue operations.",
@@ -307,7 +307,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   CatalogId: z.string().describe(
     "The ID of the Data Catalog in which to create the Table.",
-  ),
+  ).optional(),
   Name: z.string().describe(
     "The table name. For Hive compatibility, this is folded to lowercase when it is stored.",
   ).optional(),
@@ -416,7 +416,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue Table. Registered at `@swamp/aws/glue/table`. */
 export const model = {
   type: "@swamp/aws/glue/table",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.14.1",
@@ -430,6 +430,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -450,6 +455,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["CatalogId", "DatabaseName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

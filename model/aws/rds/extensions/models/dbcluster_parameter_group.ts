@@ -62,13 +62,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Description: z.string().describe(
     "The description for the DB cluster parameter group.",
-  ),
+  ).optional(),
   Family: z.string().describe(
     'The DB cluster parameter group family name. A DB cluster parameter group can be associated with one and only one DB cluster parameter group family, and can be applied only to a DB cluster running a database engine and engine version compatible with that DB cluster parameter group family. *Aurora MySQL* Example: aurora-mysql5.7, aurora-mysql8.0 *Aurora PostgreSQL* Example: aurora-postgresql14 *RDS for MySQL* Example: mysql8.0 *RDS for PostgreSQL* Example: postgres13 To list all of the available parameter group families for a DB engine, use the following command: aws rds describe-db-engine-versions --query "DBEngineVersions[].DBParameterGroupFamily" --engine  For example, to list all of the available parameter group families for the Aurora PostgreSQL DB engine, use the following command: aws rds describe-db-engine-versions --query "DBEngineVersions[].DBParameterGroupFamily" --engine aurora-postgresql The output contains duplicates. The following are the valid DB engine values: aurora-mysql aurora-postgresql mysql postgres',
-  ),
+  ).optional(),
   Parameters: z.record(z.string(), z.unknown()).describe(
     "Provides a list of parameters for the DB cluster parameter group.",
-  ),
+  ).optional(),
   DBClusterParameterGroupName: z.string().min(1).regex(
     new RegExp("^[a-zA-Z]{1}(?:-?[a-zA-Z0-9])*$"),
   ).describe(
@@ -132,7 +132,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RDS DBClusterParameterGroup. Registered at `@swamp/aws/rds/dbcluster-parameter-group`. */
 export const model = {
   type: "@swamp/aws/rds/dbcluster-parameter-group",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -204,6 +204,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -221,6 +226,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Description", "Family", "Parameters"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

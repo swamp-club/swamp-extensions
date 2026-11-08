@@ -63,10 +63,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   SnapshotIdentifier: z.string().min(1).max(255).describe(
     "A unique identifier for the snapshot that you are requesting. This identifier must be unique for all snapshots within the Amazon Web Services account.",
-  ),
+  ).optional(),
   ClusterIdentifier: z.string().min(1).max(63).describe(
     "The cluster identifier for which you want a snapshot.",
-  ),
+  ).optional(),
   ManualSnapshotRetentionPeriod: z.number().int().min(-1).max(3653).describe(
     "The number of days that a manual snapshot is retained. If the value is -1, the manual snapshot is retained indefinitely. The value must be either -1 or an integer between 1 and 3653.",
   ).optional(),
@@ -139,7 +139,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Redshift Snapshot. Registered at `@swamp/aws/redshift/snapshot`. */
 export const model = {
   type: "@swamp/aws/redshift/snapshot",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -148,6 +148,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -168,6 +173,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ClusterIdentifier", "SnapshotIdentifier"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

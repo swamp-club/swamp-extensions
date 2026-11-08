@@ -85,18 +85,18 @@ const GlobalArgsSchema = z.object({
     new RegExp("^[a-zA-Z0-9-]+$"),
   ).describe(
     "The descriptive name of the container association. You can't change the name of a container association after you create it.",
-  ),
+  ).optional(),
   Description: z.string().min(0).max(512).regex(new RegExp("^.*$")).describe(
     "A description of the container association.",
   ).optional(),
   Type: z.enum(["ECS", "EKS"]).describe(
     "The type of containers to monitor. You can't change the container type after creation.",
-  ),
+  ).optional(),
   ContainerMonitoringConfigurations: z.array(
     ContainerMonitoringConfigurationSchema,
   ).describe(
     "The monitoring configurations for the container association. Each configuration specifies an Amazon ECS or Amazon EKS cluster to monitor and optional attribute filters to narrow which containers are tracked.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -163,7 +163,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkFirewall ContainerAssociation. Registered at `@swamp/aws/networkfirewall/container-association`. */
 export const model = {
   type: "@swamp/aws/networkfirewall/container-association",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -172,6 +172,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -192,6 +197,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ContainerAssociationName",
+          "ContainerMonitoringConfigurations",
+          "Type",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

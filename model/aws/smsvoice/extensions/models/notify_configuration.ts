@@ -64,10 +64,11 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   DisplayName: z.string().min(1).max(15).regex(new RegExp("^[A-Za-z0-9_ -]+$"))
-    .describe("The display name to associate with the notify configuration."),
+    .describe("The display name to associate with the notify configuration.")
+    .optional(),
   UseCase: z.enum(["CODE_VERIFICATION"]).describe(
     "The use case for the notify configuration.",
-  ),
+  ).optional(),
   DefaultTemplateId: z.string().max(256).regex(new RegExp("^[A-Za-z0-9_-]*$"))
     .describe(
       "The default template identifier to associate with the notify configuration. If specified, this template is used when sending messages without an explicit template identifier.",
@@ -83,7 +84,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   EnabledChannels: z.array(z.enum(["SMS", "VOICE", "MMS", "RCS"])).describe(
     "An array of channels to enable for the notify configuration. Supported values include SMS and VOICE.",
-  ),
+  ).optional(),
   DeletionProtectionEnabled: z.boolean().describe(
     "By default this is set to false. When set to true the notify configuration can't be deleted.",
   ).optional(),
@@ -166,7 +167,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SMSVOICE NotifyConfiguration. Registered at `@swamp/aws/smsvoice/notify-configuration`. */
 export const model = {
   type: "@swamp/aws/smsvoice/notify-configuration",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -175,6 +176,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -195,6 +201,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DisplayName", "EnabledChannels", "UseCase"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

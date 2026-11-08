@@ -55,10 +55,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   VPCId: z.string().describe(
     "The ID of the VPC that you associated the Resolver rule with.",
-  ),
+  ).optional(),
   ResolverRuleId: z.string().describe(
     "The ID of the Resolver rule that you associated with the VPC that is specified by VPCId.",
-  ),
+  ).optional(),
   Name: z.string().describe(
     "The name of an association between a Resolver rule and a VPC. The name can be up to 64 characters long and can contain letters (a-z, A-Z), numbers (0-9), hyphens (-), underscores (_), and spaces. The name cannot consist of only numbers.",
   ).optional(),
@@ -109,7 +109,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Route53Resolver ResolverRuleAssociation. Registered at `@swamp/aws/route53resolver/resolver-rule-association`. */
 export const model = {
   type: "@swamp/aws/route53resolver/resolver-rule-association",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -171,6 +171,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -188,6 +193,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ResolverRuleId", "VPCId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

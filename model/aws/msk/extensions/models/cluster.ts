@@ -183,15 +183,15 @@ const GlobalArgsSchema = z.object({
     BrokerAZDistribution: z.string().min(6).max(9).optional(),
     ClientSubnets: z.array(z.string()),
     InstanceType: z.string().min(5).max(32),
-  }),
+  }).optional(),
   EnhancedMonitoring: z.enum([
     "DEFAULT",
     "PER_BROKER",
     "PER_TOPIC_PER_BROKER",
     "PER_TOPIC_PER_PARTITION",
   ]).optional(),
-  KafkaVersion: z.string().min(1).max(128),
-  NumberOfBrokerNodes: z.number().int(),
+  KafkaVersion: z.string().min(1).max(128).optional(),
+  NumberOfBrokerNodes: z.number().int().optional(),
   EncryptionInfo: z.object({
     EncryptionAtRest: EncryptionAtRestSchema.optional(),
     EncryptionInTransit: EncryptionInTransitSchema.optional(),
@@ -199,7 +199,7 @@ const GlobalArgsSchema = z.object({
   OpenMonitoring: z.object({
     Prometheus: PrometheusSchema,
   }).optional(),
-  ClusterName: z.string().min(1).max(64),
+  ClusterName: z.string().min(1).max(64).optional(),
   ClientAuthentication: z.object({
     Tls: TlsSchema.optional(),
     Sasl: SaslSchema.optional(),
@@ -346,7 +346,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MSK Cluster. Registered at `@swamp/aws/msk/cluster`. */
 export const model = {
   type: "@swamp/aws/msk/cluster",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -423,6 +423,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -440,6 +445,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "BrokerNodeGroupInfo",
+          "ClusterName",
+          "KafkaVersion",
+          "NumberOfBrokerNodes",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

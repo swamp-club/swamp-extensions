@@ -106,7 +106,7 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Owner: z.string().describe("The owner of the product."),
+  Owner: z.string().describe("The owner of the product.").optional(),
   Description: z.string().describe("The description of the product.")
     .optional(),
   SupportEmail: z.string().describe("The contact email for product support.")
@@ -125,7 +125,7 @@ const GlobalArgsSchema = z.object({
     .describe(
       "The configuration of the provisioning artifact (also known as a version).",
     ).optional(),
-  Name: z.string().describe("The name of the product."),
+  Name: z.string().describe("The name of the product.").optional(),
   ReplaceProvisioningArtifacts: z.boolean().describe(
     "This property is turned off by default. If turned off, you can update provisioning artifacts or product attributes (such as description, distributor, name, owner, and more) and the associated provisioning artifacts will retain the same unique identifier. Provisioning artifacts are matched within the CloudFormationProduct resource, and only those that have been updated will be changed. Provisioning artifacts are matched by a combinaton of provisioning artifact template URL and name.",
   ).optional(),
@@ -244,7 +244,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ServiceCatalog CloudFormationProduct. Registered at `@swamp/aws/servicecatalog/cloud-formation-product`. */
 export const model = {
   type: "@swamp/aws/servicecatalog/cloud-formation-product",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -266,6 +266,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -283,6 +288,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "Owner"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

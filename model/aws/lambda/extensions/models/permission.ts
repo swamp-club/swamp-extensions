@@ -57,7 +57,7 @@ const GlobalArgsSchema = z.object({
     new RegExp("^(lambda:[*]|lambda:[a-zA-Z]+|[*])$"),
   ).describe(
     "The action that the principal can use on the function. For example, lambda:InvokeFunction or lambda:GetFunction.",
-  ),
+  ).optional(),
   EventSourceToken: z.string().min(1).max(256).regex(
     new RegExp("^[a-zA-Z0-9._\\-]+$"),
   ).describe(
@@ -69,7 +69,7 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "The name or ARN of the Lambda function, version, or alias. **Name formats** *Function name* – my-function (name-only), my-function:v1 (with alias). *Function ARN* – arn:aws:lambda:us-west-2:123456789012:function:my-function. *Partial ARN* – 123456789012:function:my-function. You can append a version number or alias to any of the formats. The length constraint applies only to the full ARN. If you specify only the function name, it is limited to 64 characters in length.",
-  ),
+  ).optional(),
   FunctionUrlAuthType: z.enum(["AWS_IAM", "NONE"]).describe(
     "The type of authentication that your function URL uses. Set to AWS_IAM if you want to restrict access to authenticated users only. Set to NONE if you want to bypass IAM authentication to create a public endpoint. For more information, see [Control access to Lambda function URLs](https://docs.aws.amazon.com/lambda/latest/dg/urls-auth.html).",
   ).optional(),
@@ -78,7 +78,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Principal: z.string().min(1).max(256).regex(new RegExp("^.*$")).describe(
     "The AWS-service, AWS-account, IAM user, or IAM role that invokes the function. If you specify a service, use SourceArn or SourceAccount to limit who can invoke the function through that service.",
-  ),
+  ).optional(),
   PrincipalOrgID: z.string().min(12).max(34).regex(
     new RegExp("^o-[a-z0-9]{10,32}$"),
   ).describe(
@@ -181,7 +181,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda Permission. Registered at `@swamp/aws/lambda/permission`. */
 export const model = {
   type: "@swamp/aws/lambda/permission",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -253,6 +253,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -270,6 +275,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Action", "FunctionName", "Principal"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

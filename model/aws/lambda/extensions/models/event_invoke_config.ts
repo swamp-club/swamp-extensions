@@ -84,7 +84,7 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^(arn:(aws[a-zA-Z-]*)?:lambda:)?([a-z]+(-[a-z]+)+-\\d{1}:)?(\\d{12}:)?(function:)?([a-zA-Z0-9-_]+)(:(\\$LATEST(\\.PUBLISHED)?|[a-zA-Z0-9-_]+))?$",
     ),
-  ).describe("The name of the Lambda function."),
+  ).describe("The name of the Lambda function.").optional(),
   MaximumEventAgeInSeconds: z.number().int().min(60).max(21600).describe(
     "The maximum age of a request that Lambda sends to a function for processing.",
   ).optional(),
@@ -93,7 +93,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Qualifier: z.string().regex(
     new RegExp("^\\$(LATEST(\\.PUBLISHED)?)|[a-zA-Z0-9$_-]{1,129}$"),
-  ).describe("The identifier of a version or alias."),
+  ).describe("The identifier of a version or alias.").optional(),
 });
 
 const StateSchema = z.object({
@@ -160,7 +160,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda EventInvokeConfig. Registered at `@swamp/aws/lambda/event-invoke-config`. */
 export const model = {
   type: "@swamp/aws/lambda/event-invoke-config",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -222,6 +222,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -239,6 +244,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["FunctionName", "Qualifier"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

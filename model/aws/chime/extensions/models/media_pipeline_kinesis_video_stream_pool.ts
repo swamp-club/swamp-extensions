@@ -55,14 +55,15 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   PoolName: z.string().min(1).max(128).regex(new RegExp("^[0-9a-zA-Z._-]+$"))
-    .describe("The name of the Kinesis Video Stream Pool."),
+    .describe("The name of the Kinesis Video Stream Pool.").optional(),
   StreamConfiguration: z.object({
     Region: z.string().min(1).max(32).regex(new RegExp("^([a-z]+-){2,}\\d+$"))
       .describe("The AWS Region of the video stream."),
     DataRetentionInHours: z.number().int().min(0).describe(
       "The amount of time that data is retained, in hours.",
     ).optional(),
-  }).describe("The configuration settings for the Kinesis video stream."),
+  }).describe("The configuration settings for the Kinesis video stream.")
+    .optional(),
   Tags: z.array(z.object({
     Key: z.string().min(1).max(128),
     Value: z.string().min(0).max(256),
@@ -131,7 +132,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Chime MediaPipelineKinesisVideoStreamPool. Registered at `@swamp/aws/chime/media-pipeline-kinesis-video-stream-pool`. */
 export const model = {
   type: "@swamp/aws/chime/media-pipeline-kinesis-video-stream-pool",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.14.1",
@@ -145,6 +146,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -165,6 +171,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["PoolName", "StreamConfiguration"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

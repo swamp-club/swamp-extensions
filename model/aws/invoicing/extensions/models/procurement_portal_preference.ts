@@ -86,19 +86,20 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ProcurementPortalName: z.enum(["SAP_BUSINESS_NETWORK", "COUPA"]).describe(
     "The name of the procurement portal.",
-  ),
+  ).optional(),
   BuyerDomain: z.enum(["NetworkID"]).describe(
     "The domain identifier for the buyer in the procurement portal.",
-  ),
+  ).optional(),
   BuyerIdentifier: z.string().min(0).max(1024).regex(new RegExp("^\\S+$"))
-    .describe("The unique identifier for the buyer in the procurement portal."),
+    .describe("The unique identifier for the buyer in the procurement portal.")
+    .optional(),
   SupplierDomain: z.enum(["NetworkID"]).describe(
     "The domain identifier for the supplier in the procurement portal.",
-  ),
+  ).optional(),
   SupplierIdentifier: z.string().min(0).max(1024).regex(new RegExp("^\\S+$"))
     .describe(
       "The unique identifier for the supplier in the procurement portal.",
-    ),
+    ).optional(),
   Selector: z.object({
     InvoiceUnitArns: z.array(z.string()).describe(
       "The Amazon Resource Name (ARN) of invoice unit identifiers to which this preference applies.",
@@ -145,7 +146,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   EinvoiceDeliveryEnabled: z.boolean().describe(
     "Indicates whether e-invoice delivery is enabled for this procurement portal preference.",
-  ),
+  ).optional(),
   EinvoiceDeliveryPreference: z.object({
     EinvoiceDeliveryDocumentTypes: z.array(
       z.enum([
@@ -178,10 +179,10 @@ const GlobalArgsSchema = z.object({
   }).describe("Specifies the preferences for e-invoice delivery.").optional(),
   PurchaseOrderRetrievalEnabled: z.boolean().describe(
     "Indicates whether purchase order retrieval is enabled for this procurement portal preference.",
-  ),
+  ).optional(),
   Contacts: z.array(ContactSchema).describe(
     "List of contact information for portal administrators and technical contacts.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "The tags associated with this procurement portal preference.",
   ).optional(),
@@ -359,7 +360,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Invoicing ProcurementPortalPreference. Registered at `@swamp/aws/invoicing/procurement-portal-preference`. */
 export const model = {
   type: "@swamp/aws/invoicing/procurement-portal-preference",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -368,6 +369,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -388,6 +394,21 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "BuyerDomain",
+          "BuyerIdentifier",
+          "Contacts",
+          "EinvoiceDeliveryEnabled",
+          "ProcurementPortalName",
+          "PurchaseOrderRetrievalEnabled",
+          "SupplierDomain",
+          "SupplierIdentifier",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

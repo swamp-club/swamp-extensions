@@ -68,11 +68,11 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AuthMode: z.enum(["SSO", "IAM"]).describe(
     "Specifies whether the Studio authenticates users using single sign-on (SSO) or IAM. Amazon EMR Studio currently only supports SSO authentication.",
-  ),
+  ).optional(),
   DefaultS3Location: z.string().min(6).max(10280).regex(new RegExp("^s3://.*"))
     .describe(
       "The default Amazon S3 location to back up EMR Studio Workspaces and notebook files. A Studio user can select an alternative Amazon S3 location when creating a Workspace.",
-    ),
+    ).optional(),
   Description: z.string().min(0).max(256).describe(
     "A detailed description of the Studio.",
   ).optional(),
@@ -80,24 +80,24 @@ const GlobalArgsSchema = z.object({
     new RegExp("^sg-[a-zA-Z0-9\\-._]+$"),
   ).describe(
     "The ID of the Amazon EMR Studio Engine security group. The Engine security group allows inbound network traffic from the Workspace security group, and it must be in the same VPC specified by VpcId.",
-  ),
+  ).optional(),
   Name: z.string().min(1).max(256).regex(new RegExp("[a-zA-Z0-9_-]+")).describe(
     "A descriptive name for the Amazon EMR Studio.",
-  ),
+  ).optional(),
   ServiceRole: z.string().regex(
     new RegExp(
       "^arn:aws(-(cn|us-gov|iso-f|iso-e))?:[a-z-]+:(([a-z]+-)+[0-9])?:([0-9]{12})?:[^.]+$",
     ),
   ).describe(
     "The IAM role that will be assumed by the Amazon EMR Studio. The service role provides a way for Amazon EMR Studio to interoperate with other AWS services.",
-  ),
+  ).optional(),
   SubnetIds: z.array(
     z.string().regex(
       new RegExp("^(subnet-[a-f0-9]{13})|(subnet-[a-f0-9]{8})$"),
     ),
   ).describe(
     "A list of up to 5 subnet IDs to associate with the Studio. The subnets must belong to the VPC specified by VpcId. Studio users can create a Workspace in any of the specified subnets.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "A list of tags to associate with the Studio. Tags are user-defined key-value pairs that consist of a required key string with a maximum of 128 characters, and an optional value string with a maximum of 256 characters.",
   ).optional(),
@@ -111,12 +111,12 @@ const GlobalArgsSchema = z.object({
   VpcId: z.string().regex(new RegExp("^(vpc-[0-9a-f]{8}|vpc-[0-9a-f]{17})$"))
     .describe(
       "The ID of the Amazon Virtual Private Cloud (Amazon VPC) to associate with the Studio.",
-    ),
+    ).optional(),
   WorkspaceSecurityGroupId: z.string().regex(
     new RegExp("^sg-[a-zA-Z0-9\\-._]+$"),
   ).describe(
     "The ID of the Amazon EMR Studio Workspace security group. The Workspace security group allows outbound network traffic to resources in the Engine security group, and it must be in the same VPC specified by VpcId.",
-  ),
+  ).optional(),
   IdpAuthUrl: z.string().max(4096).regex(
     new RegExp(
       "^https://[0-9a-zA-Z]([-.\\w]*[0-9a-zA-Z])(:[0-9]*)*([?/#].*)?$",
@@ -274,7 +274,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EMR Studio. Registered at `@swamp/aws/emr/studio`. */
 export const model = {
   type: "@swamp/aws/emr/studio",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -336,6 +336,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -353,6 +358,21 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AuthMode",
+          "DefaultS3Location",
+          "EngineSecurityGroupId",
+          "Name",
+          "ServiceRole",
+          "SubnetIds",
+          "VpcId",
+          "WorkspaceSecurityGroupId",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

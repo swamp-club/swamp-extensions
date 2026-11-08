@@ -98,10 +98,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ApiId: z.string().describe(
     "AppSync Api Id that this Channel Namespace belongs to.",
-  ),
+  ).optional(),
   Name: z.string().min(1).max(50).regex(
     new RegExp("([A-Za-z0-9](?:[A-Za-z0-9\\-]{0,48}[A-Za-z0-9])?)"),
-  ).describe("Namespace indentifier."),
+  ).describe("Namespace indentifier.").optional(),
   SubscribeAuthModes: z.array(AuthModeSchema).describe(
     "List of AuthModes supported for Subscribe operations.",
   ).optional(),
@@ -192,7 +192,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppSync ChannelNamespace. Registered at `@swamp/aws/appsync/channel-namespace`. */
 export const model = {
   type: "@swamp/aws/appsync/channel-namespace",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -254,6 +254,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -271,6 +276,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ApiId", "Name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

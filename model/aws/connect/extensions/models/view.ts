@@ -69,13 +69,13 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*$",
     ),
-  ).describe("The Amazon Resource Name (ARN) of the instance."),
+  ).describe("The Amazon Resource Name (ARN) of the instance.").optional(),
   Name: z.string().min(1).max(512).regex(
     new RegExp(
       "^([\\p{L}\\p{N}_.:\\/=+\\-@()']+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@()']*)$",
       "u",
     ),
-  ).describe("The name of the view."),
+  ).describe("The name of the view.").optional(),
   Description: z.string().min(0).max(4096).regex(
     new RegExp(
       "^([\\p{L}\\p{N}_.:\\/=+\\-@,()']+[\\p{L}\\p{Z}\\p{N}_.:\\/=+\\-@,()']*)$",
@@ -84,7 +84,7 @@ const GlobalArgsSchema = z.object({
   ).describe("The description of the view.").optional(),
   Template: z.record(z.string(), z.unknown()).describe(
     "The template of the view as JSON.",
-  ),
+  ).optional(),
   Actions: z.array(
     z.string().min(1).max(255).regex(
       new RegExp(
@@ -92,7 +92,7 @@ const GlobalArgsSchema = z.object({
         "u",
       ),
     ),
-  ).describe("The actions of the view in an array."),
+  ).describe("The actions of the view in an array.").optional(),
   Tags: z.array(TagSchema).describe("One or more tags.").optional(),
 });
 
@@ -166,7 +166,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect View. Registered at `@swamp/aws/connect/view`. */
 export const model = {
   type: "@swamp/aws/connect/view",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -238,6 +238,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -255,6 +260,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Actions", "InstanceArn", "Name", "Template"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

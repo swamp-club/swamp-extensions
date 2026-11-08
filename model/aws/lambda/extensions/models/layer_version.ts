@@ -71,7 +71,7 @@ const GlobalArgsSchema = z.object({
     S3ObjectStorageMode: z.enum(["COPY", "REFERENCE"]).describe(
       "Specifies whether Lambda should copy the deployment package to its internal storage (COPY) or reference it directly from your S3 bucket (REFERENCE).",
     ).optional(),
-  }).describe("The function layer archive."),
+  }).describe("The function layer archive.").optional(),
   CompatibleArchitectures: z.array(z.string()).describe(
     "A list of compatible instruction set architectures.",
   ).optional(),
@@ -145,7 +145,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda LayerVersion. Registered at `@swamp/aws/lambda/layer-version`. */
 export const model = {
   type: "@swamp/aws/lambda/layer-version",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -217,6 +217,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -234,6 +239,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Content"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

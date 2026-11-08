@@ -61,7 +61,7 @@ const GlobalArgsSchema = z.object({
     "LessThanOrEqualToThreshold",
   ]).describe(
     "The comparison operator used to compare the specified statistic and the threshold.",
-  ),
+  ).optional(),
   DatapointsToAlarm: z.number().min(1).describe(
     "The number of datapoints within the evaluation period that must be breaching to trigger the alarm.",
   ).optional(),
@@ -70,26 +70,27 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   EvaluationPeriods: z.number().min(1).describe(
     "The number of periods over which data is compared to the specified threshold.",
-  ),
+  ).optional(),
   GroupIdentifier: z.string().regex(new RegExp("^[^\\s]+$")).describe(
     "A cloudwatch alarm template group's identifier. Can be either be its id or current name.",
   ).optional(),
   MetricName: z.string().min(0).max(64).describe(
     "The name of the metric associated with the alarm. Must be compatible with targetResourceType.",
-  ),
+  ).optional(),
   Name: z.string().min(1).max(255).regex(new RegExp("^[^\\s]+$")).describe(
     "A resource's name. Names must be unique within the scope of a resource type in a specific region.",
-  ),
+  ).optional(),
   Period: z.number().min(10).max(86400).describe(
     "The period, in seconds, over which the specified statistic is applied.",
-  ),
+  ).optional(),
   Statistic: z.enum(["SampleCount", "Average", "Sum", "Minimum", "Maximum"])
-    .describe("The statistic to apply to the alarm's metric data."),
+    .describe("The statistic to apply to the alarm's metric data.").optional(),
   Tags: z.record(z.string(), z.string()).describe(
     "Represents the tags associated with a resource.",
   ).optional(),
   TargetResourceType: z.enum([
     "CLOUDFRONT_DISTRIBUTION",
+    "ELEMENTAL_INFERENCE_FEED",
     "MEDIALIVE_MULTIPLEX",
     "MEDIALIVE_CHANNEL",
     "MEDIALIVE_INPUT_DEVICE",
@@ -100,14 +101,14 @@ const GlobalArgsSchema = z.object({
     "S3_BUCKET",
   ]).describe(
     "The resource type this template should dynamically generate cloudwatch metric alarms for.",
-  ),
+  ).optional(),
   Threshold: z.number().describe(
     "The threshold value to compare with the specified statistic.",
-  ),
+  ).optional(),
   TreatMissingData: z.enum(["notBreaching", "breaching", "ignore", "missing"])
     .describe(
       "Specifies how missing data points are treated when evaluating the alarm's condition.",
-    ),
+    ).optional(),
 });
 
 const StateSchema = z.object({
@@ -176,6 +177,7 @@ const InputsSchema = z.object({
   ).optional(),
   TargetResourceType: z.enum([
     "CLOUDFRONT_DISTRIBUTION",
+    "ELEMENTAL_INFERENCE_FEED",
     "MEDIALIVE_MULTIPLEX",
     "MEDIALIVE_CHANNEL",
     "MEDIALIVE_INPUT_DEVICE",
@@ -215,7 +217,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaLive CloudWatchAlarmTemplate. Registered at `@swamp/aws/medialive/cloud-watch-alarm-template`. */
 export const model = {
   type: "@swamp/aws/medialive/cloud-watch-alarm-template",
-  version: "2026.10.23.1",
+  version: "2026.11.08.2",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -277,6 +279,16 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -294,6 +306,22 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ComparisonOperator",
+          "EvaluationPeriods",
+          "MetricName",
+          "Name",
+          "Period",
+          "Statistic",
+          "TargetResourceType",
+          "Threshold",
+          "TreatMissingData",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

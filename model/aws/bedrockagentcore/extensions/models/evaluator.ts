@@ -214,7 +214,8 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   EvaluatorName: z.string().regex(new RegExp("^[a-zA-Z][a-zA-Z0-9_]{0,47}$"))
-    .describe("The name of the evaluator. Must be unique within your account."),
+    .describe("The name of the evaluator. Must be unique within your account.")
+    .optional(),
   Description: z.string().min(1).max(200).describe(
     "The description of the evaluator.",
   ).optional(),
@@ -230,10 +231,10 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "The configuration for the evaluator, including LLM-as-a-Judge, code-based, or derived settings.",
-  ),
+  ).optional(),
   Level: z.enum(["TOOL_CALL", "TRACE", "SESSION"]).describe(
     "The evaluation level that determines the scope of evaluation. Required for all evaluator configuration types. For Derived evaluators it must match the level of the base evaluator identified by BaseEvaluatorId.",
-  ),
+  ).optional(),
   KmsKeyArn: z.string().min(1).max(2048).regex(
     new RegExp(
       "^arn:aws(|-cn|-us-gov):kms:[a-zA-Z0-9-]+:[0-9]{12}:key/[a-zA-Z0-9-]{36}$",
@@ -325,7 +326,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Evaluator. Registered at `@swamp/aws/bedrockagentcore/evaluator`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/evaluator",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -422,6 +423,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -439,6 +445,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["EvaluatorConfig", "EvaluatorName", "Level"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

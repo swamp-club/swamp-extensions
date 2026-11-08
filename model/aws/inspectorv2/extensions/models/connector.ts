@@ -100,16 +100,16 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   Name: z.string().min(1).max(50).regex(new RegExp("^[\\p{L}\\p{N}_-]+$", "u"))
-    .describe("Display name for the connector."),
+    .describe("Display name for the connector.").optional(),
   Description: z.string().min(0).max(200).describe(
     "Optional description of the connector.",
   ).optional(),
-  Provider: z.enum(["AZURE"]).describe(
-    "The cloud provider for this connector.",
-  ),
+  Provider: z.enum(["AZURE"]).describe("The cloud provider for this connector.")
+    .optional(),
   ProviderConfiguration: z.object({
     Azure: AzureProviderConfigurationSchema,
-  }).describe("Provider-specific configuration including regions and scope."),
+  }).describe("Provider-specific configuration including regions and scope.")
+    .optional(),
   Health: z.object({
     ConnectorStatus: z.enum([
       "CONNECTED",
@@ -200,7 +200,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for InspectorV2 Connector. Registered at `@swamp/aws/inspectorv2/connector`. */
 export const model = {
   type: "@swamp/aws/inspectorv2/connector",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -227,6 +227,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -244,6 +249,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "Provider", "ProviderConfiguration"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

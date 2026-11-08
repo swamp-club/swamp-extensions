@@ -63,10 +63,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   InstanceId: z.string().min(1).max(100).describe(
     "The identifier of the Amazon Connect instance.",
-  ),
+  ).optional(),
   VocabularyName: z.string().min(1).max(140).regex(
     new RegExp("^[0-9a-zA-Z._-]+$"),
-  ).describe("A unique name of the custom vocabulary."),
+  ).describe("A unique name of the custom vocabulary.").optional(),
   LanguageCode: z.enum([
     "ar-AE",
     "de-CH",
@@ -101,10 +101,10 @@ const GlobalArgsSchema = z.object({
     "pl-PL",
     "sv-SE",
     "tl-PH",
-  ]).describe("The language code of the vocabulary entries."),
+  ]).describe("The language code of the vocabulary entries.").optional(),
   Content: z.string().min(1).max(60000).describe(
     "The content of the custom vocabulary in plain-text format with a table of values.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "The tags used to organize, track, or control access for this resource.",
   ).optional(),
@@ -198,7 +198,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect Vocabulary. Registered at `@swamp/aws/connect/vocabulary`. */
 export const model = {
   type: "@swamp/aws/connect/vocabulary",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -207,6 +207,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -227,6 +232,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Content",
+          "InstanceId",
+          "LanguageCode",
+          "VocabularyName",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

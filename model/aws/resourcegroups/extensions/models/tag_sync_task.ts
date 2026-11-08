@@ -59,24 +59,24 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "The Amazon resource name (ARN) or name of the application group for which you want to create a tag-sync task",
-  ),
+  ).optional(),
   TagKey: z.string().min(1).max(128).regex(
     new RegExp("^([\\p{L}\\p{Z}\\p{N}_.:/=+\\-@]*)$", "u"),
   ).describe(
     "The tag key. Resources tagged with this tag key-value pair will be added to the application. If a resource with this tag is later untagged, the tag-sync task removes the resource from the application.",
-  ),
+  ).optional(),
   TagValue: z.string().min(0).max(256).regex(
     new RegExp("^([\\p{L}\\p{Z}\\p{N}_.:/=+\\-@]*)$", "u"),
   ).describe(
     "The tag value. Resources tagged with this tag key-value pair will be added to the application. If a resource with this tag is later untagged, the tag-sync task removes the resource from the application.",
-  ),
+  ).optional(),
   RoleArn: z.string().min(20).max(2048).regex(
     new RegExp(
       "arn:(aws[a-zA-Z-]*)?:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+",
     ),
   ).describe(
     "The Amazon resource name (ARN) of the role assumed by the service to tag and untag resources on your behalf.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -143,7 +143,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ResourceGroups TagSyncTask. Registered at `@swamp/aws/resourcegroups/tag-sync-task`. */
 export const model = {
   type: "@swamp/aws/resourcegroups/tag-sync-task",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -205,6 +205,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -222,6 +227,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Group", "RoleArn", "TagKey", "TagValue"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

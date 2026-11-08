@@ -78,7 +78,7 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$",
     ),
-  ),
+  ).optional(),
   Association: z.object({
     KnowledgeBaseId: z.string().regex(
       new RegExp(
@@ -87,11 +87,9 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     ExternalBedrockKnowledgeBaseConfig: ExternalBedrockKnowledgeBaseConfigSchema
       .optional(),
-  }),
-  AssociationType: z.enum([
-    "KNOWLEDGE_BASE",
-    "EXTERNAL_BEDROCK_KNOWLEDGE_BASE",
-  ]),
+  }).optional(),
+  AssociationType: z.enum(["KNOWLEDGE_BASE", "EXTERNAL_BEDROCK_KNOWLEDGE_BASE"])
+    .optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
@@ -155,7 +153,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Wisdom AssistantAssociation. Registered at `@swamp/aws/wisdom/assistant-association`. */
 export const model = {
   type: "@swamp/aws/wisdom/assistant-association",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -217,6 +215,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -234,6 +237,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AssistantId", "Association", "AssociationType"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

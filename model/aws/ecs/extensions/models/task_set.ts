@@ -111,11 +111,11 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Cluster: z.string().describe(
     "The short name or full Amazon Resource Name (ARN) of the cluster that hosts the service to create the task set in.",
-  ),
+  ).optional(),
   LoadBalancers: z.array(LoadBalancerSchema).optional(),
   Service: z.string().describe(
     "The short name or full Amazon Resource Name (ARN) of the service to create the task set in.",
-  ),
+  ).optional(),
   Scale: z.object({
     Value: z.number().min(0).max(100).describe(
       "The value, specified as a percent total of a service's desiredCount, to scale the task set. Accepted values are numbers between 0 and 100.",
@@ -136,7 +136,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   TaskDefinition: z.string().describe(
     "The short name or full Amazon Resource Name (ARN) of the task definition for the tasks in the task set to use.",
-  ),
+  ).optional(),
   NetworkConfiguration: z.object({
     AwsVpcConfiguration: AwsVpcConfigurationSchema.describe(
       "The VPC subnets and security groups associated with a task. All specified subnets and security groups must be from the same VPC.",
@@ -240,7 +240,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECS TaskSet. Registered at `@swamp/aws/ecs/task-set`. */
 export const model = {
   type: "@swamp/aws/ecs/task-set",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -297,6 +297,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -314,6 +319,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Cluster", "Service", "TaskDefinition"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

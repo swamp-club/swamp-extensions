@@ -61,7 +61,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   PolicyRuleNumber: z.number().int().describe(
     "The rule number of the metering policy entry",
-  ),
+  ).optional(),
   DestinationTransitGatewayAttachmentType: z.enum([
     "vpc",
     "vpn",
@@ -78,7 +78,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   TransitGatewayMeteringPolicyId: z.string().describe(
     "The ID of the transit gateway metering policy for which the entry is being created",
-  ),
+  ).optional(),
   DestinationPortRange: z.string().describe(
     "The list of ports on destination instances receiving traffic from the transit gateway",
   ).optional(),
@@ -88,7 +88,7 @@ const GlobalArgsSchema = z.object({
     "transit-gateway-owner",
   ]).describe(
     "The resource owner information responsible for paying default billable charges for the traffic flow",
-  ),
+  ).optional(),
   SourceCidrBlock: z.string().describe(
     "The list of IP addresses of the instances sending traffic to the transit gateway for which the metering policy entry is applicable",
   ).optional(),
@@ -209,7 +209,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 TransitGatewayMeteringPolicyEntry. Registered at `@swamp/aws/ec2/transit-gateway-metering-policy-entry`. */
 export const model = {
   type: "@swamp/aws/ec2/transit-gateway-metering-policy-entry",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -271,6 +271,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -288,6 +293,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "MeteredAccount",
+          "PolicyRuleNumber",
+          "TransitGatewayMeteringPolicyId",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

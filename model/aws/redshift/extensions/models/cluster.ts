@@ -135,10 +135,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   NodeType: z.string().describe(
     "The node type to be provisioned for the cluster.Valid Values: ds2.xlarge | ds2.8xlarge | dc1.large | dc1.8xlarge | dc2.large | dc2.8xlarge | ra3.large | ra3.4xlarge | ra3.16xlarge | rg.large | rg.xlarge | rg.4xlarge | rg.12xlarge",
-  ),
+  ).optional(),
   MasterUsername: z.string().max(128).describe(
     "The user name associated with the master user account for the cluster that is being created. The user name can't be PUBLIC and first character must be a letter.",
-  ),
+  ).optional(),
   PubliclyAccessible: z.boolean().describe(
     "If true, the cluster can be accessed from a public network.",
   ).optional(),
@@ -198,7 +198,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ClusterType: z.string().describe(
     "The type of the cluster. When cluster type is specified as single-node, the NumberOfNodes parameter is not required and if multi-node, the NumberOfNodes parameter is required",
-  ),
+  ).optional(),
   Classic: z.boolean().describe(
     "A boolean value indicating whether the resize operation is using the classic resize process. If you don't provide this parameter or set the value to false, the resize type is elastic.",
   ).optional(),
@@ -210,7 +210,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   DBName: z.string().describe(
     "The name of the first database to be created when the cluster is created. To create additional databases after the cluster is created, connect to the cluster with a SQL client and use SQL commands to create a database.",
-  ),
+  ).optional(),
   SnapshotCopyRetentionPeriod: z.number().int().describe(
     "The number of days to retain automated snapshots in the destination region after they are copied from the source region. Default is 7. Constraints: Must be at least 1 and no more than 35.",
   ).optional(),
@@ -464,7 +464,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Redshift Cluster. Registered at `@swamp/aws/redshift/cluster`. */
 export const model = {
   type: "@swamp/aws/redshift/cluster",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -541,6 +541,11 @@ export const model = {
       description: "Added: Port",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -558,6 +563,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ClusterType", "DBName", "MasterUsername", "NodeType"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

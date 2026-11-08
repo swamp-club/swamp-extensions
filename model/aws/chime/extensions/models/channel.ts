@@ -65,12 +65,13 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "The ARN of the AppInstanceUser or AppInstanceBot that performs every operation on this channel. Whichever of the two creates a channel automatically becomes one of its moderators, so the same ARN can subsequently read, update and delete the channel.",
-  ),
+  ).optional(),
   AppInstanceArn: z.string().min(5).max(1600).regex(
     new RegExp(
       "^arn:[a-z0-9-\\.]{1,63}:[a-z0-9-\\.]{0,63}:[a-z0-9-\\.]{0,63}:[a-z0-9-\\.]{0,63}:[^/].{0,1023}$",
     ),
-  ).describe("The ARN of the AppInstance that contains the channel."),
+  ).describe("The ARN of the AppInstance that contains the channel.")
+    .optional(),
   ChannelId: z.string().min(1).max(64).regex(
     new RegExp("^[A-Za-z0-9]([A-Za-z0-9\\:\\-\\_\\.\\@]{0,62}[A-Za-z0-9])?$"),
   ).describe(
@@ -81,7 +82,7 @@ const GlobalArgsSchema = z.object({
       "^[\\u0009\\u000A\\u000D\\u0020-\\u007E\\u0085\\u00A0-\\uD7FF\\uE000-\\uFFFD𐀀-􏿿]*$",
       "u",
     ),
-  ).describe("The name of the channel."),
+  ).describe("The name of the channel.").optional(),
   Mode: z.enum(["UNRESTRICTED", "RESTRICTED"]).describe(
     "The channel mode. In an UNRESTRICTED channel, members can add themselves and other members; in a RESTRICTED channel, only administrators and moderators can add members. An elastic channel must be RESTRICTED.",
   ).optional(),
@@ -287,7 +288,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Chime Channel. Registered at `@swamp/aws/chime/channel`. */
 export const model = {
   type: "@swamp/aws/chime/channel",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.14.1",
@@ -309,6 +310,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -326,6 +332,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AppInstanceArn", "ChimeBearer", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

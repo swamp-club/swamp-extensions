@@ -70,10 +70,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   PortalContactEmail: z.string().describe(
     "The AWS administrator's contact email address.",
-  ),
+  ).optional(),
   PortalDescription: z.string().describe("A description for the portal.")
     .optional(),
-  PortalName: z.string().describe("A friendly name for the portal."),
+  PortalName: z.string().describe("A friendly name for the portal.").optional(),
   PortalType: z.enum(["SITEWISE_PORTAL_V1", "SITEWISE_PORTAL_V2"]).describe(
     "The type of portal",
   ).optional(),
@@ -82,7 +82,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   RoleArn: z.string().describe(
     "The ARN of a service role that allows the portal's users to access your AWS IoT SiteWise resources on your behalf.",
-  ),
+  ).optional(),
   NotificationSenderEmail: z.string().describe(
     "The email address that sends alarm notifications.",
   ).optional(),
@@ -184,7 +184,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTSiteWise Portal. Registered at `@swamp/aws/iotsitewise/portal`. */
 export const model = {
   type: "@swamp/aws/iotsitewise/portal",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -246,6 +246,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -263,6 +268,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["PortalContactEmail", "PortalName", "RoleArn"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

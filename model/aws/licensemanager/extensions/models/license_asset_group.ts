@@ -68,7 +68,7 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Name: z.string().max(128).describe("License asset group name."),
+  Name: z.string().max(128).describe("License asset group name.").optional(),
   Description: z.string().max(1024).describe("License asset group description.")
     .optional(),
   AssociatedLicenseAssetRulesetARNs: z.array(
@@ -77,9 +77,9 @@ const GlobalArgsSchema = z.object({
         "^arn:aws[a-zA-Z-]*:[A-Za-z0-9][A-Za-z0-9_/.-]{0,62}:[A-Za-z0-9_/.-]{0,63}:[A-Za-z0-9_/.-]{0,63}:[A-Za-z0-9][A-Za-z0-9:_/+=,@.-]{0,1023}$",
       ),
     ),
-  ).describe("ARNs of associated license asset rulesets."),
+  ).describe("ARNs of associated license asset rulesets.").optional(),
   LicenseAssetGroupConfigurations: z.array(LicenseAssetGroupConfigurationSchema)
-    .describe("License asset group configurations."),
+    .describe("License asset group configurations.").optional(),
   Properties: z.array(LicenseAssetGroupPropertySchema).describe(
     "License asset group properties.",
   ).optional(),
@@ -144,7 +144,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for LicenseManager LicenseAssetGroup. Registered at `@swamp/aws/licensemanager/license-asset-group`. */
 export const model = {
   type: "@swamp/aws/licensemanager/license-asset-group",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -153,6 +153,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -173,6 +178,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AssociatedLicenseAssetRulesetARNs",
+          "LicenseAssetGroupConfigurations",
+          "Name",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

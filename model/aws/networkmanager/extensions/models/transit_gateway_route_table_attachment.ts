@@ -65,10 +65,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   PeeringId: z.string().describe(
     "The Id of peering between transit gateway and core network.",
-  ),
+  ).optional(),
   TransitGatewayRouteTableArn: z.string().describe(
     "The Arn of transit gateway route table.",
-  ),
+  ).optional(),
   ProposedSegmentChange: z.object({
     Tags: z.array(TagSchema).describe(
       "The key-value tags that changed for the segment.",
@@ -197,7 +197,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkManager TransitGatewayRouteTableAttachment. Registered at `@swamp/aws/networkmanager/transit-gateway-route-table-attachment`. */
 export const model = {
   type: "@swamp/aws/networkmanager/transit-gateway-route-table-attachment",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -289,6 +289,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -307,6 +312,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["PeeringId", "TransitGatewayRouteTableArn"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

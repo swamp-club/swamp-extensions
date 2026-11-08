@@ -77,10 +77,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Direction: z.string().describe(
     "Indicates whether the Resolver endpoint allows inbound or outbound DNS queries: - INBOUND: allows DNS queries to your VPC from your network - OUTBOUND: allows DNS queries from your VPC to your network - INBOUND_DELEGATION: allows DNS queries to your VPC from your network with authoritative answers from private hosted zones",
-  ),
+  ).optional(),
   IpAddresses: z.array(IpAddressRequestSchema).describe(
     "The subnets and IP addresses in your VPC that DNS queries originate from (for outbound endpoints) or that you forward DNS queries to (for inbound endpoints). The subnet ID uniquely identifies a VPC.",
-  ),
+  ).optional(),
   Name: z.string().describe(
     "A friendly name that lets you easily find a configuration in the Resolver dashboard in the Route 53 console.",
   ).optional(),
@@ -109,7 +109,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   SecurityGroupIds: z.array(z.string()).describe(
     "The ID of one or more security groups that control access to this VPC. The security group must include one or more inbound rules (for inbound endpoints) or outbound rules (for outbound endpoints). Inbound and outbound rules must allow TCP and UDP access. For inbound access, open port 53. For outbound access, open the port that you're using for DNS queries on your network.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -202,7 +202,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Route53Resolver ResolverEndpoint. Registered at `@swamp/aws/route53resolver/resolver-endpoint`. */
 export const model = {
   type: "@swamp/aws/route53resolver/resolver-endpoint",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -269,6 +269,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -286,6 +291,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Direction", "IpAddresses", "SecurityGroupIds"].filter(
+          (k) => g[k] === undefined,
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

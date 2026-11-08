@@ -89,18 +89,18 @@ const GlobalArgsSchema = z.object({
   }).optional(),
   OperationName: z.string().optional(),
   RequestModels: z.record(z.string(), z.string()).optional(),
-  RestApiId: z.string(),
+  RestApiId: z.string().optional(),
   AuthorizationScopes: z.array(z.string()).optional(),
   RequestValidatorId: z.string().optional(),
   RequestParameters: z.record(z.string(), z.boolean()).optional(),
   MethodResponses: z.array(MethodResponseSchema).optional(),
   AuthorizerId: z.string().optional(),
-  ResourceId: z.string(),
+  ResourceId: z.string().optional(),
   ApiKeyRequired: z.boolean().optional(),
   AuthorizationType: z.string().describe(
     "The method's authorization type. This parameter is required. For valid values, see [Method](https://docs.aws.amazon.com/apigateway/latest/api/API_Method.html) in the *API Gateway API Reference*. If you specify the AuthorizerId property, specify CUSTOM or COGNITO_USER_POOLS for this property.",
   ).optional(),
-  HttpMethod: z.string(),
+  HttpMethod: z.string().optional(),
 });
 
 const StateSchema = z.object({
@@ -199,7 +199,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApiGateway Method. Registered at `@swamp/aws/apigateway/method`. */
 export const model = {
   type: "@swamp/aws/apigateway/method",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -256,6 +256,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -273,6 +278,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["HttpMethod", "ResourceId", "RestApiId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

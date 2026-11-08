@@ -82,27 +82,28 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  ProductSKU: z.string().min(1).max(1024).describe(
-    "ProductSKU of the license.",
-  ),
+  ProductSKU: z.string().min(1).max(1024).describe("ProductSKU of the license.")
+    .optional(),
   Issuer: z.object({
     Name: z.string(),
     SignKey: z.string().optional(),
-  }),
-  LicenseName: z.string().describe("Name for the created license."),
-  ProductName: z.string().describe("Product name for the created license."),
-  HomeRegion: z.string().describe("Home region for the created license."),
+  }).optional(),
+  LicenseName: z.string().describe("Name for the created license.").optional(),
+  ProductName: z.string().describe("Product name for the created license.")
+    .optional(),
+  HomeRegion: z.string().describe("Home region for the created license.")
+    .optional(),
   Validity: z.object({
     Begin: z.string().describe("Validity begin date for the license."),
     End: z.string().describe("Validity begin date for the license."),
-  }),
-  Entitlements: z.array(EntitlementSchema),
-  Beneficiary: z.string().describe("Beneficiary of the license."),
+  }).optional(),
+  Entitlements: z.array(EntitlementSchema).optional(),
+  Beneficiary: z.string().describe("Beneficiary of the license.").optional(),
   ConsumptionConfiguration: z.object({
     RenewType: z.string().optional(),
     ProvisionalConfiguration: ProvisionalConfigurationSchema.optional(),
     BorrowConfiguration: BorrowConfigurationSchema.optional(),
-  }),
+  }).optional(),
   LicenseMetadata: z.array(MetadataSchema).optional(),
   Status: z.string().optional(),
   Tags: z.array(TagSchema).describe("A list of tags to attach.").optional(),
@@ -190,7 +191,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for LicenseManager License. Registered at `@swamp/aws/licensemanager/license`. */
 export const model = {
   type: "@swamp/aws/licensemanager/license",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -252,6 +253,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -269,6 +275,22 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Beneficiary",
+          "ConsumptionConfiguration",
+          "Entitlements",
+          "HomeRegion",
+          "Issuer",
+          "LicenseName",
+          "ProductName",
+          "ProductSKU",
+          "Validity",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

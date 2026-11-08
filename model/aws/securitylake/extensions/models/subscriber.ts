@@ -94,10 +94,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AccessTypes: z.array(z.enum(["LAKEFORMATION", "S3"])).describe(
     "The Amazon S3 or AWS Lake Formation access type.",
-  ),
-  DataLakeArn: z.string().min(1).max(256).describe(
-    "The ARN for the data lake.",
-  ),
+  ).optional(),
+  DataLakeArn: z.string().min(1).max(256).describe("The ARN for the data lake.")
+    .optional(),
   SubscriberIdentity: z.object({
     ExternalId: z.string().min(2).max(1224).regex(
       new RegExp("^[\\w+=,.@:/-]*$"),
@@ -107,10 +106,10 @@ const GlobalArgsSchema = z.object({
     Principal: z.string().regex(
       new RegExp("^([0-9]{12}|[a-z0-9\\.\\-]*\\.(amazonaws|amazon)\\.com)$"),
     ).describe("The AWS identity principal."),
-  }).describe("The AWS identity used to access your data."),
+  }).describe("The AWS identity used to access your data.").optional(),
   SubscriberName: z.string().min(1).max(64).regex(
     new RegExp("^[\\\\\\w\\s\\-_:/,.@=+]*$"),
-  ).describe("The name of your Security Lake subscriber account."),
+  ).describe("The name of your Security Lake subscriber account.").optional(),
   SubscriberDescription: z.string().describe(
     "The description for your subscriber account in Security Lake.",
   ).optional(),
@@ -119,7 +118,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Sources: z.array(SourceSchema).describe(
     "The supported AWS services from which logs and events are collected.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -196,7 +195,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecurityLake Subscriber. Registered at `@swamp/aws/securitylake/subscriber`. */
 export const model = {
   type: "@swamp/aws/securitylake/subscriber",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -258,6 +257,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -275,6 +279,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AccessTypes",
+          "DataLakeArn",
+          "Sources",
+          "SubscriberIdentity",
+          "SubscriberName",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

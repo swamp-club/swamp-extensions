@@ -65,7 +65,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AmazonSideAsn: z.number().int().min(1).max(4294967294).describe(
     "The Amazon-side ASN of the Route Server.",
-  ),
+  ).optional(),
   PersistRoutes: z.enum(["enable", "disable"]).describe(
     "Whether to enable persistent routes",
   ).optional(),
@@ -134,7 +134,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 RouteServer. Registered at `@swamp/aws/ec2/route-server`. */
 export const model = {
   type: "@swamp/aws/ec2/route-server",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -196,6 +196,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -213,6 +218,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AmazonSideAsn"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

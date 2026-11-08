@@ -56,8 +56,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ApiCachingBehavior: z.string().describe(
     "Caching behavior, such as FULL_REQUEST_CACHING, PER_RESOLVER_CACHING, or OPERATION_LEVEL_CACHING",
-  ),
-  ApiId: z.string().describe("Unique AWS AppSync GraphQL API identifier."),
+  ).optional(),
+  ApiId: z.string().describe("Unique AWS AppSync GraphQL API identifier.")
+    .optional(),
   AtRestEncryptionEnabled: z.boolean().describe(
     "At-rest encryption flag for cache. You cannot update this setting after creation.",
   ).optional(),
@@ -69,10 +70,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Ttl: z.number().int().describe(
     "TTL in seconds for cache entries. Valid values are 1-3600.",
-  ),
+  ).optional(),
   Type: z.string().describe(
     "The cache instance type, such as SMALL, LARGE and LARGE_4X",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -135,7 +136,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppSync ApiCache. Registered at `@swamp/aws/appsync/api-cache`. */
 export const model = {
   type: "@swamp/aws/appsync/api-cache",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -144,6 +145,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -164,6 +170,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ApiCachingBehavior", "ApiId", "Ttl", "Type"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

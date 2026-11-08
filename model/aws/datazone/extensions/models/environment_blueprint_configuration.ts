@@ -79,10 +79,10 @@ const GlobalArgsSchema = z.object({
     z.string().min(4).max(16).regex(
       new RegExp("^[a-z]{2}-?(iso|gov)?-{1}[a-z]*-{1}[0-9]$"),
     ),
-  ),
+  ).optional(),
   EnvironmentBlueprintIdentifier: z.string().regex(
     new RegExp("^[a-zA-Z0-9_-]{1,36}$"),
-  ),
+  ).optional(),
   RegionalParameters: z.array(RegionalParameterSchema).optional(),
   ProvisioningRoleArn: z.string().regex(
     new RegExp(
@@ -92,9 +92,8 @@ const GlobalArgsSchema = z.object({
   ProvisioningConfigurations: z.array(z.object({
     LakeFormationConfiguration: LakeFormationConfigurationSchema.optional(),
   })).optional(),
-  DomainIdentifier: z.string().regex(
-    new RegExp("^dzd[-_][a-zA-Z0-9_-]{1,36}$"),
-  ),
+  DomainIdentifier: z.string().regex(new RegExp("^dzd[-_][a-zA-Z0-9_-]{1,36}$"))
+    .optional(),
   EnvironmentRolePermissionBoundary: z.string().regex(
     new RegExp("^arn:aws[^:]*:iam::(aws|\\d{12}):policy/[\\w+=,.@-]*$"),
   ).optional(),
@@ -182,7 +181,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataZone EnvironmentBlueprintConfiguration. Registered at `@swamp/aws/datazone/environment-blueprint-configuration`. */
 export const model = {
   type: "@swamp/aws/datazone/environment-blueprint-configuration",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -244,6 +243,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -261,6 +265,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "DomainIdentifier",
+          "EnabledRegions",
+          "EnvironmentBlueprintIdentifier",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

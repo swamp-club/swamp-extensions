@@ -96,13 +96,13 @@ const GlobalArgsSchema = z.object({
   ).describe("The Name of the FeatureGroup."),
   RecordIdentifierFeatureName: z.string().min(1).max(64).regex(
     new RegExp("^[a-zA-Z0-9](-*[a-zA-Z0-9]){0,63}"),
-  ).describe("The Record Identifier Feature Name."),
+  ).describe("The Record Identifier Feature Name.").optional(),
   EventTimeFeatureName: z.string().min(1).max(64).regex(
     new RegExp("^[a-zA-Z0-9](-*[a-zA-Z0-9]){0,63}"),
-  ).describe("The Event Time Feature Name."),
+  ).describe("The Event Time Feature Name.").optional(),
   FeatureDefinitions: z.array(FeatureDefinitionSchema).describe(
     "An Array of Feature Definition",
-  ),
+  ).optional(),
   OnlineStoreConfig: z.object({
     SecurityConfig: OnlineStoreSecurityConfigSchema.optional(),
     EnableOnlineStore: z.boolean().optional(),
@@ -246,7 +246,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker FeatureGroup. Registered at `@swamp/aws/sagemaker/feature-group`. */
 export const model = {
   type: "@swamp/aws/sagemaker/feature-group",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -313,6 +313,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -330,6 +335,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "EventTimeFeatureName",
+          "FeatureDefinitions",
+          "FeatureGroupName",
+          "RecordIdentifierFeatureName",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

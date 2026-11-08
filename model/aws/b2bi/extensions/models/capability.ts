@@ -433,11 +433,11 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Configuration: z.object({
     Edi: EdiConfigurationSchema.optional(),
-  }),
+  }).optional(),
   InstructionsDocuments: z.array(S3LocationSchema).optional(),
-  Name: z.string().min(1).max(254),
+  Name: z.string().min(1).max(254).optional(),
   Tags: z.array(TagSchema).optional(),
-  Type: z.enum(["edi"]),
+  Type: z.enum(["edi"]).optional(),
 });
 
 const StateSchema = z.object({
@@ -490,7 +490,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for B2BI Capability. Registered at `@swamp/aws/b2bi/capability`. */
 export const model = {
   type: "@swamp/aws/b2bi/capability",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -552,6 +552,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -569,6 +574,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Configuration", "Name", "Type"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

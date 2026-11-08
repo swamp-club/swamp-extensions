@@ -314,7 +314,7 @@ const GlobalArgsSchema = z.object({
     "Description of the DataAutomationProject",
   ).optional(),
   ProjectName: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9-_]+$"))
-    .describe("Name of the DataAutomationProject"),
+    .describe("Name of the DataAutomationProject").optional(),
   ProjectType: z.enum(["ASYNC", "SYNC"]).describe(
     "Type of the DataAutomationProject - Sync or Async",
   ).optional(),
@@ -423,7 +423,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock DataAutomationProject. Registered at `@swamp/aws/bedrock/data-automation-project`. */
 export const model = {
   type: "@swamp/aws/bedrock/data-automation-project",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -485,6 +485,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -502,6 +507,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ProjectName"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -106,8 +106,9 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*$",
     ),
-  ).describe("The identifier of the Amazon Connect instance."),
-  Name: z.string().min(1).max(128).describe("The name of the custom metric"),
+  ).describe("The identifier of the Amazon Connect instance.").optional(),
+  Name: z.string().min(1).max(128).describe("The name of the custom metric")
+    .optional(),
   Description: z.string().min(0).max(500).describe(
     "The description of the custom metric",
   ).optional(),
@@ -118,13 +119,13 @@ const GlobalArgsSchema = z.object({
     Calculation: z.string().min(1).max(1024).describe(
       "The calculation formula",
     ),
-  }).describe("The calculation configuration for the metric"),
+  }).describe("The calculation configuration for the metric").optional(),
   Status: z.enum(["SAVED", "PUBLISHED"]).describe(
     "The status of the custom metric",
-  ),
+  ).optional(),
   Unit: z.enum(["INTEGER", "DOUBLE", "PERCENT", "SECONDS"]).describe(
     "Display unit for the metric data",
-  ),
+  ).optional(),
   PositiveTrendIndicator: z.enum(["POSITIVE", "NEGATIVE", "NEUTRAL"]).describe(
     "Indicates how to classify a positive trend in metric data on the UI",
   ).optional(),
@@ -222,7 +223,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect Metric. Registered at `@swamp/aws/connect/metric`. */
 export const model = {
   type: "@swamp/aws/connect/metric",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.09.12.1",
@@ -236,6 +237,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -256,6 +262,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "InstanceArn",
+          "MetricCalculation",
+          "Name",
+          "Status",
+          "Unit",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

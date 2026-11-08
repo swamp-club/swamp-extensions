@@ -80,22 +80,22 @@ const GlobalArgsSchema = z.object({
   }).describe("The source port range.").optional(),
   RuleAction: z.string().describe(
     "The action to take on the filtered traffic (accept/reject).",
-  ),
+  ).optional(),
   SourceCidrBlock: z.string().describe(
     "The source CIDR block to assign to the Traffic Mirror Filter rule.",
-  ),
+  ).optional(),
   RuleNumber: z.number().int().describe(
     "The number of the Traffic Mirror rule.",
-  ),
+  ).optional(),
   DestinationCidrBlock: z.string().describe(
     "The destination CIDR block to assign to the Traffic Mirror rule.",
-  ),
+  ).optional(),
   TrafficMirrorFilterId: z.string().describe(
     "The ID of the filter that this rule is associated with.",
-  ),
+  ).optional(),
   TrafficDirection: z.string().describe(
     "The direction of traffic (ingress/egress).",
-  ),
+  ).optional(),
   Protocol: z.number().int().describe(
     "The number of protocol, for example 17 (UDP), to assign to the Traffic Mirror rule.",
   ).optional(),
@@ -197,7 +197,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 TrafficMirrorFilterRule. Registered at `@swamp/aws/ec2/traffic-mirror-filter-rule`. */
 export const model = {
   type: "@swamp/aws/ec2/traffic-mirror-filter-rule",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -259,6 +259,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -276,6 +281,19 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "DestinationCidrBlock",
+          "RuleAction",
+          "RuleNumber",
+          "SourceCidrBlock",
+          "TrafficDirection",
+          "TrafficMirrorFilterId",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

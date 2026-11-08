@@ -910,7 +910,7 @@ const GlobalArgsSchema = z.object({
     MetricName: z.string().min(1).max(128),
     SampledRequestsEnabled: z.boolean(),
     CloudWatchMetricsEnabled: z.boolean(),
-  }).describe("Visibility Metric of the WebACL."),
+  }).describe("Visibility Metric of the WebACL.").optional(),
   Name: z.string().regex(new RegExp("^[0-9A-Za-z_-]{1,128}$")).describe(
     "Name of the WebACL.",
   ).optional(),
@@ -926,10 +926,10 @@ const GlobalArgsSchema = z.object({
       .optional(),
   }).describe(
     "Default Action WebACL will take against ingress traffic when there is no matching Rule.",
-  ),
+  ).optional(),
   Scope: z.enum(["CLOUDFRONT", "REGIONAL"]).describe(
     "Use CLOUDFRONT for CloudFront WebACL, use REGIONAL for Application Load Balancer and API Gateway.",
-  ),
+  ).optional(),
   ApplicationConfig: z.object({
     Attributes: z.array(ApplicationAttributeSchema).describe(
       "Contains the attribute name and a list of values for that attribute.",
@@ -1087,7 +1087,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for WAFv2 WebACL. Registered at `@swamp/aws/wafv2/web-acl`. */
 export const model = {
   type: "@swamp/aws/wafv2/web-acl",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1164,6 +1164,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1181,6 +1186,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DefaultAction", "Scope", "VisibilityConfig"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

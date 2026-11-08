@@ -72,9 +72,10 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  GatewayId: z.string().regex(new RegExp("^rtb-gw-[a-z0-9-]{1,25}$")),
-  LinkId: z.string().regex(new RegExp("^link-[a-z0-9-]{1,25}$")),
-  Priority: z.number().int().min(1).max(1000),
+  GatewayId: z.string().regex(new RegExp("^rtb-gw-[a-z0-9-]{1,25}$"))
+    .optional(),
+  LinkId: z.string().regex(new RegExp("^link-[a-z0-9-]{1,25}$")).optional(),
+  Priority: z.number().int().min(1).max(1000).optional(),
   Conditions: z.object({
     HostHeader: z.string().min(1).max(255).regex(
       new RegExp("^[A-Za-z0-9._~-]+$"),
@@ -105,7 +106,7 @@ const GlobalArgsSchema = z.object({
       .optional(),
   }).describe(
     "Conditions for a routing rule. All non-null fields must match (AND logic). At least one field must be set. HostHeader and HostHeaderWildcard are mutually exclusive. PathPrefix and PathExact are mutually exclusive.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe("Tags to assign to the LinkRoutingRule.")
     .optional(),
 });
@@ -196,7 +197,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RTBFabric LinkRoutingRule. Registered at `@swamp/aws/rtbfabric/link-routing-rule`. */
 export const model = {
   type: "@swamp/aws/rtbfabric/link-routing-rule",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.06.06.1",
@@ -238,6 +239,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -255,6 +261,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Conditions", "GatewayId", "LinkId", "Priority"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

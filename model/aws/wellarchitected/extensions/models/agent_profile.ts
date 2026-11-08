@@ -77,7 +77,7 @@ const GlobalArgsSchema = z.object({
   Name: z.string().min(3).max(128).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
     .describe(
       "The name of the profile. Unique within the account and used as the last component of the ARN.",
-    ),
+    ).optional(),
   DisplayName: z.string().min(3).max(128).describe(
     "The human-readable display name of the profile.",
   ).optional(),
@@ -92,13 +92,13 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "The ARN of the IAM role assumed to execute recommendation actions.",
-  ),
+  ).optional(),
   Pillars: z.array(
     z.enum(["COST_OPTIMIZATION", "SECURITY", "RESILIENCE", "PERFORMANCE"]),
-  ).describe("The list of Well-Architected pillars to focus on."),
+  ).describe("The list of Well-Architected pillars to focus on.").optional(),
   AggregationConfiguration: z.array(AggregationConfigurationSchema).describe(
     "The aggregation configuration entries (account, regions, access role) associated with this profile.",
-  ),
+  ).optional(),
   DeletionProtection: z.boolean().describe(
     "Whether deletion protection is enabled for the profile. When enabled, the profile cannot be deleted until deletion protection is disabled.",
   ).optional(),
@@ -184,7 +184,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for WellArchitected AgentProfile. Registered at `@swamp/aws/wellarchitected/agent-profile`. */
 export const model = {
   type: "@swamp/aws/wellarchitected/agent-profile",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -193,6 +193,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -213,6 +218,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AggregationConfiguration",
+          "ExecutionRoleArn",
+          "Name",
+          "Pillars",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

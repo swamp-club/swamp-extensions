@@ -285,11 +285,11 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(2).max(50).regex(
     new RegExp("^(?!.* {2})[a-zA-Z][a-zA-Z0-9 _-]{0,48}[a-zA-Z0-9_-]$"),
-  ),
+  ).optional(),
   Description: z.string().min(1).max(200).regex(
     new RegExp("^(?!.* {2})[ a-zA-Z0-9.,!?;:@#$%&\\-_/\\\\]*$"),
   ).optional(),
-  Widgets: z.array(WidgetSchema),
+  Widgets: z.array(WidgetSchema).optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
@@ -341,7 +341,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BCM Dashboard. Registered at `@swamp/aws/bcm/dashboard`. */
 export const model = {
   type: "@swamp/aws/bcm/dashboard",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.06.15.1",
@@ -373,6 +373,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -390,6 +395,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "Widgets"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

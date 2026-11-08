@@ -98,19 +98,21 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   AppBundleArn: z.string().min(1).max(1011).regex(new RegExp("^arn:.+$"))
-    .describe("The Amazon Resource Name (ARN) of the app bundle."),
+    .describe("The Amazon Resource Name (ARN) of the app bundle.").optional(),
   IngestionArn: z.string().min(1).max(1011).regex(new RegExp("^arn:.+$"))
-    .describe("The Amazon Resource Name (ARN) of the ingestion."),
+    .describe("The Amazon Resource Name (ARN) of the ingestion.").optional(),
   ProcessingConfiguration: z.object({
     AuditLog: AuditLogProcessingConfigurationSchema.describe(
       "Contains information about an audit log processing configuration.",
     ),
-  }).describe("Contains information about how ingested data is processed."),
+  }).describe("Contains information about how ingested data is processed.")
+    .optional(),
   DestinationConfiguration: z.object({
     AuditLog: AuditLogDestinationConfigurationSchema.describe(
       "Contains information about an audit log destination configuration.",
     ),
-  }).describe("Contains information about the destination of ingested data."),
+  }).describe("Contains information about the destination of ingested data.")
+    .optional(),
   Tags: z.array(TagSchema).describe(
     "A map of the key-value pairs of the tag or tags to assign to the resource.",
   ).optional(),
@@ -180,7 +182,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppFabric IngestionDestination. Registered at `@swamp/aws/appfabric/ingestion-destination`. */
 export const model = {
   type: "@swamp/aws/appfabric/ingestion-destination",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -189,6 +191,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -209,6 +216,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AppBundleArn",
+          "DestinationConfiguration",
+          "IngestionArn",
+          "ProcessingConfiguration",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -65,13 +65,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ResourceId: z.string().describe(
     "The resource that you associated the profile with.",
-  ),
+  ).optional(),
   ProfileId: z.string().describe(
     "The ID of the profile that you associated with the resource that is specified by ResourceId.",
-  ),
+  ).optional(),
   Name: z.string().describe(
     "The name of an association between a Profile and a VPC.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -140,7 +140,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Route53Profiles ProfileAssociation. Registered at `@swamp/aws/route53profiles/profile-association`. */
 export const model = {
   type: "@swamp/aws/route53profiles/profile-association",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -207,6 +207,11 @@ export const model = {
       description: "Added: Priority",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -224,6 +229,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "ProfileId", "ResourceId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

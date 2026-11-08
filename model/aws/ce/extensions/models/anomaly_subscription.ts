@@ -72,15 +72,16 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   SubscriptionName: z.string().min(0).max(1024).regex(new RegExp("[\\S\\s]*"))
-    .describe("The name of the subscription."),
+    .describe("The name of the subscription.").optional(),
   MonitorArnList: z.array(
     z.string().regex(
       new RegExp(
         "^arn:aws[-a-z0-9]*:[a-z0-9]+:[-a-z0-9]*:[0-9]{12}:[-a-zA-Z0-9/:_]+$",
       ),
     ),
-  ).describe("A list of cost anomaly monitors."),
-  Subscribers: z.array(SubscriberSchema).describe("A list of subscriber"),
+  ).describe("A list of cost anomaly monitors.").optional(),
+  Subscribers: z.array(SubscriberSchema).describe("A list of subscriber")
+    .optional(),
   Threshold: z.number().min(0).describe(
     "The dollar value that triggers a notification if the threshold is exceeded.",
   ).optional(),
@@ -89,7 +90,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Frequency: z.enum(["DAILY", "IMMEDIATE", "WEEKLY"]).describe(
     "The frequency at which anomaly reports are sent over email.",
-  ),
+  ).optional(),
   ResourceTags: z.array(ResourceTagSchema).describe(
     "Tags to assign to subscription.",
   ).optional(),
@@ -159,7 +160,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CE AnomalySubscription. Registered at `@swamp/aws/ce/anomaly-subscription`. */
 export const model = {
   type: "@swamp/aws/ce/anomaly-subscription",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -221,6 +222,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -238,6 +244,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Frequency",
+          "MonitorArnList",
+          "Subscribers",
+          "SubscriptionName",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -730,7 +730,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   DomainId: z.string().min(1).max(63).describe(
     "The ID of the associated Domain.",
-  ),
+  ).optional(),
   SingleSignOnUserIdentifier: z.string().regex(new RegExp("UserName")).describe(
     "A specifier for the type of value specified in SingleSignOnUserValue. Currently, the only supported value is \"UserName\". If the Domain's AuthMode is SSO, this field is required. If the Domain's AuthMode is not SSO, this field cannot be specified.",
   ).optional(),
@@ -739,7 +739,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   UserProfileName: z.string().min(1).max(63).describe(
     "A name for the UserProfile.",
-  ),
+  ).optional(),
   UserSettings: z.object({
     ExecutionRole: z.string().min(20).max(2048).regex(
       new RegExp(
@@ -909,7 +909,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker UserProfile. Registered at `@swamp/aws/sagemaker/user-profile`. */
 export const model = {
   type: "@swamp/aws/sagemaker/user-profile",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -981,6 +981,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -998,6 +1003,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DomainId", "UserProfileName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

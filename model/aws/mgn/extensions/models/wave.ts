@@ -61,7 +61,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(256).regex(
     new RegExp("^[^\\s\\x00]( *[^\\s\\x00])*$"),
-  ).describe("The name of the wave."),
+  ).describe("The name of the wave.").optional(),
   Description: z.string().min(0).max(600).regex(new RegExp("^[^\\x00]*$"))
     .describe("A description of the wave.").optional(),
   WaveAggregatedStatus: z.object({
@@ -138,7 +138,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MGN Wave. Registered at `@swamp/aws/mgn/wave`. */
 export const model = {
   type: "@swamp/aws/mgn/wave",
-  version: "2026.10.28.1",
+  version: "2026.11.08.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -155,6 +162,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -80,9 +80,11 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "The Amazon Resource Name (ARN) or Universal Unique Identifier (UUID) of the app bundle to use for the request.",
-  ),
-  App: z.string().min(1).max(255).describe("The name of the application."),
-  AuthType: z.enum(["oauth2", "apiKey"]).describe("The authorization type."),
+  ).optional(),
+  App: z.string().min(1).max(255).describe("The name of the application.")
+    .optional(),
+  AuthType: z.enum(["oauth2", "apiKey"]).describe("The authorization type.")
+    .optional(),
   Credential: z.object({
     Oauth2Credential: Oauth2CredentialSchema.describe(
       "Contains OAuth2 client credential information.",
@@ -98,7 +100,7 @@ const GlobalArgsSchema = z.object({
     TenantDisplayName: z.string().min(1).max(2048).describe(
       "The display name of the tenant.",
     ),
-  }).describe("Contains information about an application tenant."),
+  }).describe("Contains information about an application tenant.").optional(),
   Tags: z.array(TagSchema).describe("Tags to apply to the app authorization.")
     .optional(),
 });
@@ -183,7 +185,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppFabric AppAuthorization. Registered at `@swamp/aws/appfabric/app-authorization`. */
 export const model = {
   type: "@swamp/aws/appfabric/app-authorization",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -192,6 +194,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -212,6 +219,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["App", "AppBundleIdentifier", "AuthType", "Tenant"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

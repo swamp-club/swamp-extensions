@@ -61,12 +61,13 @@ const GlobalArgsSchema = z.object({
     new RegExp("^[\\p{L}\\p{M}\\p{S}\\p{N}\\p{P}\\t\\n\\r  ]+$", "u"),
   ).describe(
     "A string containing the name of the group. This value is commonly displayed when the group is referenced.",
-  ),
+  ).optional(),
   IdentityStoreId: z.string().min(1).max(36).regex(
     new RegExp(
       "^d-[0-9a-f]{10}$|^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
     ),
-  ).describe("The globally unique identifier for the identity store."),
+  ).describe("The globally unique identifier for the identity store.")
+    .optional(),
 });
 
 const StateSchema = z.object({
@@ -119,7 +120,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IdentityStore Group. Registered at `@swamp/aws/identitystore/group`. */
 export const model = {
   type: "@swamp/aws/identitystore/group",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -181,6 +182,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -198,6 +204,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DisplayName", "IdentityStoreId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

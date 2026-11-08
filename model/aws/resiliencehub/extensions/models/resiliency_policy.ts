@@ -60,7 +60,7 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   PolicyName: z.string().regex(new RegExp("^[A-Za-z0-9][A-Za-z0-9_\\-]{1,59}$"))
-    .describe("Name of Resiliency Policy."),
+    .describe("Name of Resiliency Policy.").optional(),
   PolicyDescription: z.string().max(500).describe(
     "Description of Resiliency Policy.",
   ).optional(),
@@ -75,13 +75,13 @@ const GlobalArgsSchema = z.object({
     "Important",
     "CoreServices",
     "NonCritical",
-  ]).describe("Resiliency Policy Tier."),
+  ]).describe("Resiliency Policy Tier.").optional(),
   Policy: z.object({
     AZ: FailurePolicySchema.describe("Failure Policy."),
     Hardware: FailurePolicySchema.describe("Failure Policy."),
     Software: FailurePolicySchema.describe("Failure Policy."),
     Region: FailurePolicySchema.describe("Failure Policy.").optional(),
-  }),
+  }).optional(),
   Tags: z.record(z.string(), z.string().max(256)).optional(),
 });
 
@@ -153,7 +153,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ResilienceHub ResiliencyPolicy. Registered at `@swamp/aws/resiliencehub/resiliency-policy`. */
 export const model = {
   type: "@swamp/aws/resiliencehub/resiliency-policy",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -215,6 +215,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -232,6 +237,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Policy", "PolicyName", "Tier"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

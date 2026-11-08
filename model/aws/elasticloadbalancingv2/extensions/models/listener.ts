@@ -262,10 +262,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   LoadBalancerArn: z.string().describe(
     "The Amazon Resource Name (ARN) of the load balancer.",
-  ),
+  ).optional(),
   DefaultActions: z.array(ActionSchema).describe(
     "The actions for the default rule. You cannot define a condition for a default rule. To create additional rules for an Application Load Balancer, use [AWS::ElasticLoadBalancingV2::ListenerRule](https://docs.aws.amazon.com/AWSCloudFormation/latest/UserGuide/aws-resource-elasticloadbalancingv2-listenerrule.html).",
-  ),
+  ).optional(),
   Port: z.number().int().describe(
     "The port on which the load balancer is listening. You can't specify a port for a Gateway Load Balancer.",
   ).optional(),
@@ -366,7 +366,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElasticLoadBalancingV2 Listener. Registered at `@swamp/aws/elasticloadbalancingv2/listener`. */
 export const model = {
   type: "@swamp/aws/elasticloadbalancingv2/listener",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -448,6 +448,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -465,6 +470,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DefaultActions", "LoadBalancerArn"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

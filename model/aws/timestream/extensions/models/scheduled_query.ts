@@ -167,25 +167,26 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   QueryString: z.string().min(1).max(262144).describe(
     "The query string to run. Parameter names can be specified in the query string @ character followed by an identifier. The named Parameter @scheduled_runtime is reserved and can be used in the query to get the time at which the query is scheduled to run. The timestamp calculated according to the ScheduleConfiguration parameter, will be the value of @scheduled_runtime paramater for each query run. For example, consider an instance of a scheduled query executing on 2021-12-01 00:00:00. For this instance, the @scheduled_runtime parameter is initialized to the timestamp 2021-12-01 00:00:00 when invoking the query.",
-  ),
+  ).optional(),
   ScheduleConfiguration: z.object({
     ScheduleExpression: z.string().min(1).max(256).describe(
       "An expression that denotes when to trigger the scheduled query run. This can be a cron expression or a rate expression.",
     ),
-  }).describe("Configuration for when the scheduled query is executed."),
+  }).describe("Configuration for when the scheduled query is executed.")
+    .optional(),
   NotificationConfiguration: z.object({
     SnsConfiguration: SnsConfigurationSchema.describe(
       "SNS configuration for notification upon scheduled query execution.",
     ),
   }).describe(
     "Notification configuration for the scheduled query. A notification is sent by Timestream when a query run finishes, when the state is updated or when you delete it.",
-  ),
+  ).optional(),
   ClientToken: z.string().min(32).max(128).describe(
     "Using a ClientToken makes the call to CreateScheduledQuery idempotent, in other words, making the same request repeatedly will produce the same result. Making multiple identical CreateScheduledQuery requests has the same effect as making a single request. If CreateScheduledQuery is called without a ClientToken, the Query SDK generates a ClientToken on your behalf. After 8 hours, any request with the same ClientToken is treated as a new request.",
   ).optional(),
   ScheduledQueryExecutionRoleArn: z.string().min(1).max(2048).describe(
     "The ARN for the IAM role that Timestream will assume when running the scheduled query.",
-  ),
+  ).optional(),
   TargetConfiguration: z.object({
     TimestreamConfiguration: TimestreamConfigurationSchema.describe(
       "Configuration needed to write data into the Timestream database and table.",
@@ -199,7 +200,7 @@ const GlobalArgsSchema = z.object({
     ),
   }).describe(
     "Configuration for error reporting. Error reports will be generated when a problem is encountered when writing the query results.",
-  ),
+  ).optional(),
   KmsKeyId: z.string().min(1).max(2048).describe(
     "The Amazon KMS key used to encrypt the scheduled query resource, at-rest. If the Amazon KMS key is not specified, the scheduled query resource will be encrypted with a Timestream owned Amazon KMS key. To specify a KMS key, use the key ID, key ARN, alias name, or alias ARN. When using an alias name, prefix the name with alias/. If ErrorReportConfiguration uses SSE_KMS as encryption type, the same KmsKeyId is used to encrypt the error report at rest.",
   ).optional(),
@@ -314,7 +315,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Timestream ScheduledQuery. Registered at `@swamp/aws/timestream/scheduled-query`. */
 export const model = {
   type: "@swamp/aws/timestream/scheduled-query",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -376,6 +377,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -393,6 +399,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ErrorReportConfiguration",
+          "NotificationConfiguration",
+          "QueryString",
+          "ScheduleConfiguration",
+          "ScheduledQueryExecutionRoleArn",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

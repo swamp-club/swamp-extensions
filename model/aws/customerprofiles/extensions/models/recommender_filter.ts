@@ -55,13 +55,13 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   DomainName: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
-    .describe("The unique name of the domain."),
+    .describe("The unique name of the domain.").optional(),
   RecommenderFilterName: z.string().min(1).max(63).regex(
     new RegExp("^[a-zA-Z0-9_-]+$"),
-  ).describe("The name of the recommender filter."),
+  ).describe("The name of the recommender filter.").optional(),
   RecommenderFilterExpression: z.string().min(1).max(2500).describe(
     "The filter expression that defines which items to include or exclude from recommendations.",
-  ),
+  ).optional(),
   RecommenderSchemaName: z.string().min(1).max(64).regex(
     new RegExp("^[a-zA-Z0-9_-]+$"),
   ).describe(
@@ -148,10 +148,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CustomerProfiles RecommenderFilter. Registered at `@swamp/aws/customerprofiles/recommender-filter`. */
 export const model = {
   type: "@swamp/aws/customerprofiles/recommender-filter",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -172,6 +177,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "DomainName",
+          "RecommenderFilterExpression",
+          "RecommenderFilterName",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

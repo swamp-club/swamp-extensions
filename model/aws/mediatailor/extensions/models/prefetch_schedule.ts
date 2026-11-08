@@ -107,10 +107,11 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Name: z.string().describe("The name to assign to the prefetch schedule."),
+  Name: z.string().describe("The name to assign to the prefetch schedule.")
+    .optional(),
   PlaybackConfigurationName: z.string().describe(
     "The name of the playback configuration.",
-  ),
+  ).optional(),
   Consumption: z.object({
     AvailMatchingCriteria: z.array(AvailMatchingCriteriaSchema).describe(
       "If you only want MediaTailor to insert prefetched ads into avails that match specific dynamic variables, set the avail matching criteria.",
@@ -271,7 +272,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaTailor PrefetchSchedule. Registered at `@swamp/aws/mediatailor/prefetch-schedule`. */
 export const model = {
   type: "@swamp/aws/mediatailor/prefetch-schedule",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -280,6 +281,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -300,6 +306,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "PlaybackConfigurationName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

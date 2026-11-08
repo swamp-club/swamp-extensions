@@ -71,10 +71,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   IpPools: z.array(IpPoolSchema).describe(
     "The list of IP address cidr pools for the network",
-  ),
+  ).optional(),
   Name: z.string().describe(
     "The user-specified name of the Network to be created.",
-  ),
+  ).optional(),
   Routes: z.array(RouteSchema).describe("The routes for the network")
     .optional(),
   Tags: z.array(TagsSchema).describe("A collection of key-value pairs.")
@@ -131,7 +131,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaLive Network. Registered at `@swamp/aws/medialive/network`. */
 export const model = {
   type: "@swamp/aws/medialive/network",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -193,6 +193,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -210,6 +215,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["IpPools", "Name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

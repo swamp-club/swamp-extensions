@@ -59,16 +59,16 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  IamRoleArn: z.string(),
+  IamRoleArn: z.string().optional(),
   ProtectedResourceArns: z.array(z.string()).optional(),
   ProtectedResourceConditions: z.object({
     StringEquals: z.array(KeyValueSchema).optional(),
     StringNotEquals: z.array(KeyValueSchema).optional(),
   }).optional(),
-  ProtectedResourceType: z.string(),
+  ProtectedResourceType: z.string().optional(),
   RestoreMetadataOverrides: z.record(z.string(), z.string()).optional(),
-  RestoreTestingPlanName: z.string(),
-  RestoreTestingSelectionName: z.string(),
+  RestoreTestingPlanName: z.string().optional(),
+  RestoreTestingSelectionName: z.string().optional(),
   ValidationWindowHours: z.number().int().optional(),
 });
 
@@ -126,7 +126,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Backup RestoreTestingSelection. Registered at `@swamp/aws/backup/restore-testing-selection`. */
 export const model = {
   type: "@swamp/aws/backup/restore-testing-selection",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -188,6 +188,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -205,6 +210,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "IamRoleArn",
+          "ProtectedResourceType",
+          "RestoreTestingPlanName",
+          "RestoreTestingSelectionName",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

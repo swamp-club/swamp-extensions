@@ -68,7 +68,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(32).regex(new RegExp("[\\w+=,.@-]+")).describe(
     "The name you want to assign to this permission set.",
-  ),
+  ).optional(),
   Description: z.string().min(1).max(700).regex(
     new RegExp("[\\u0009\\u000A\\u000D\\u0020-\\u007E\\u00A1-\\u00FF]*"),
   ).describe("The permission set description.").optional(),
@@ -76,7 +76,8 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "arn:aws(-[a-z]{1,5}){0,3}:sso:::instance/(sso)?ins-[a-zA-Z0-9-.]{16}",
     ),
-  ).describe("The sso instance arn that the permission set is owned."),
+  ).describe("The sso instance arn that the permission set is owned.")
+    .optional(),
   SessionDuration: z.string().min(1).max(100).regex(
     new RegExp(
       "^(-?)P(?=\\d|T\\d)(?:(\\d+)Y)?(?:(\\d+)M)?(?:(\\d+)([DW]))?(?:T(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+(?:\\.\\d+)?)S)?)?$",
@@ -195,7 +196,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SSO PermissionSet. Registered at `@swamp/aws/sso/permission-set`. */
 export const model = {
   type: "@swamp/aws/sso/permission-set",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -272,6 +273,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -289,6 +295,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["InstanceArn", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

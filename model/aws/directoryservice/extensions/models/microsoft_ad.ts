@@ -65,7 +65,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().describe(
     "The fully qualified domain name for the AWS Managed Microsoft AD directory, such as corp.example.com. This name will resolve inside your VPC only. It does not need to be publicly resolvable.",
-  ),
+  ).optional(),
   Password: z.string().describe(
     "The password for the default administrative user named Admin. If you need to change the password for the administrator account, see the ResetUserPassword API call in the AWS Directory Service API Reference.",
   ).optional(),
@@ -81,7 +81,7 @@ const GlobalArgsSchema = z.object({
     ),
   }).describe(
     "Specifies the VPC settings of the Microsoft AD directory server in AWS.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -157,7 +157,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DirectoryService MicrosoftAD. Registered at `@swamp/aws/directoryservice/microsoft-ad`. */
 export const model = {
   type: "@swamp/aws/directoryservice/microsoft-ad",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -166,6 +166,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -186,6 +191,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "VpcSettings"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

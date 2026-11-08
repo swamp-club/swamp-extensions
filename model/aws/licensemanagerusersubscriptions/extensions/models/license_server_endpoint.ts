@@ -88,7 +88,7 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "The Amazon Resource Name (ARN) that identifies the registered identity provider the license server endpoint is created for. For Active Directory, that can be a self-managed Active Directory or an AWS Managed Microsoft AD.",
-  ),
+  ).optional(),
   LicenseServerSettings: z.object({
     ServerType: z.enum(["RDS_SAL"]).describe("The type of license server."),
     ServerSettings: ServerSettingsSchema.describe(
@@ -181,7 +181,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for LicenseManagerUserSubscriptions LicenseServerEndpoint. Registered at `@swamp/aws/licensemanagerusersubscriptions/license-server-endpoint`. */
 export const model = {
   type: "@swamp/aws/licensemanagerusersubscriptions/license-server-endpoint",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
@@ -190,6 +190,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -212,6 +217,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["IdentityProviderArn"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

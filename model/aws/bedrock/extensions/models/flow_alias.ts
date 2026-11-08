@@ -64,7 +64,7 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:aws(-[^:]+)?:bedrock:[a-z0-9-]{1,20}:[0-9]{12}:flow/[0-9a-zA-Z]{10}$",
     ),
-  ).describe("Arn representation of the Flow"),
+  ).describe("Arn representation of the Flow").optional(),
   ConcurrencyConfiguration: z.object({
     Type: z.enum(["Automatic", "Manual"]),
     MaxConcurrency: z.number().min(1).max(100).describe(
@@ -76,9 +76,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().regex(new RegExp("^([0-9a-zA-Z][_-]?){1,100}$")).describe(
     "Name for a resource.",
-  ),
+  ).optional(),
   RoutingConfiguration: z.array(FlowAliasRoutingConfigurationListItemSchema)
-    .describe("Routing configuration for a Flow alias."),
+    .describe("Routing configuration for a Flow alias.").optional(),
   Tags: z.record(
     z.string(),
     z.string().min(0).max(256).regex(new RegExp("^[a-zA-Z0-9\\s._:/=+@-]*$")),
@@ -155,7 +155,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock FlowAlias. Registered at `@swamp/aws/bedrock/flow-alias`. */
 export const model = {
   type: "@swamp/aws/bedrock/flow-alias",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -217,6 +217,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -234,6 +239,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["FlowArn", "Name", "RoutingConfiguration"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

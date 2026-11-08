@@ -76,7 +76,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Regions: z.array(RegionSchema).describe(
     "The list of buckets that you want to associate this Multi Region Access Point with.",
-  ),
+  ).optional(),
   Name: z.string().min(3).max(50).regex(
     new RegExp("^[a-z0-9][-a-z0-9]{1,48}[a-z0-9]$"),
   ).describe("The name you want to assign to this Multi Region Access Point.")
@@ -147,7 +147,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for S3 MultiRegionAccessPoint. Registered at `@swamp/aws/s3/multi-region-access-point`. */
 export const model = {
   type: "@swamp/aws/s3/multi-region-access-point",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -209,6 +209,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -226,6 +231,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Regions"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -148,7 +148,7 @@ const GlobalArgsSchema = z.object({
     "The description of the Stage resource for the Deployment resource to create. To specify a stage description, you must also provide a stage name.",
   ).optional(),
   StageName: z.string().optional(),
-  RestApiId: z.string(),
+  RestApiId: z.string().optional(),
   DeploymentCanarySettings: z.object({
     StageVariableOverrides: z.record(z.string(), z.string()).optional(),
     PercentTraffic: z.number().optional(),
@@ -285,7 +285,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApiGateway Deployment. Registered at `@swamp/aws/apigateway/deployment`. */
 export const model = {
   type: "@swamp/aws/apigateway/deployment",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -347,6 +347,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -364,6 +369,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["RestApiId"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

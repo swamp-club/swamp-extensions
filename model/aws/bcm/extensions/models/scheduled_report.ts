@@ -83,7 +83,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(2).max(50).regex(
     new RegExp("^(?!.* {2})[a-zA-Z][a-zA-Z0-9 _-]{0,48}[a-zA-Z0-9_-]$"),
-  ).describe("The name of the scheduled report."),
+  ).describe("The name of the scheduled report.").optional(),
   Description: z.string().min(1).max(200).regex(
     new RegExp("^(?!.* {2})[ a-zA-Z0-9.,!?;:@#$%&\\-_/\\\\]*$"),
   ).describe("A description of the scheduled report's purpose or contents.")
@@ -94,12 +94,12 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "The ARN of the dashboard associated with the scheduled report. Managed dashboards cannot be used.",
-  ),
+  ).optional(),
   ScheduledReportExecutionRoleArn: z.string().min(20).max(2048).regex(
     new RegExp("^arn:aws[-a-z0-9]*:iam::[0-9]{12}:role/[a-zA-Z0-9+=,.@_/-]+$"),
   ).describe(
     "The ARN of the IAM role that the scheduled report uses to execute. AWS Billing and Cost Management Dashboards assumes this IAM role while executing the scheduled report.",
-  ),
+  ).optional(),
   ScheduleConfig: z.object({
     ScheduleExpression: z.string().min(0).max(1024).regex(
       new RegExp("^[\\S\\s]*$"),
@@ -118,7 +118,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "The schedule configuration that defines when and how often the report is generated.",
-  ),
+  ).optional(),
   WidgetIds: z.array(z.string()).describe(
     "The list of widget identifiers included in the scheduled report. If not specified, all widgets in the dashboard are included.",
   ).optional(),
@@ -257,7 +257,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BCM ScheduledReport. Registered at `@swamp/aws/bcm/scheduled-report`. */
 export const model = {
   type: "@swamp/aws/bcm/scheduled-report",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -266,6 +266,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -286,6 +291,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "DashboardArn",
+          "Name",
+          "ScheduleConfig",
+          "ScheduledReportExecutionRoleArn",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

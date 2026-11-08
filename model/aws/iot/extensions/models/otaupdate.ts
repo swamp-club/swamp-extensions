@@ -186,12 +186,12 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   OtaUpdateId: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
-    .describe("The ID of the OTA update to be created."),
+    .describe("The ID of the OTA update to be created.").optional(),
   Description: z.string().max(2028).regex(new RegExp("^[^\\p{C}]+$", "u"))
     .describe("The description of the OTA update.").optional(),
   Targets: z.array(z.string()).describe(
     "The devices targeted to receive OTA updates.",
-  ),
+  ).optional(),
   Protocols: z.array(z.enum(["MQTT", "HTTP"])).describe(
     "The protocol used to transfer the OTA update image.",
   ).optional(),
@@ -221,7 +221,7 @@ const GlobalArgsSchema = z.object({
   }).optional(),
   Files: z.array(OTAUpdateFileSchema).describe(
     "The files to be streamed by the OTA update.",
-  ),
+  ).optional(),
   RoleArn: z.string().min(20).max(2048).describe(
     "The IAM role that grants AWS IoT Core access to the Amazon S3, IoT jobs and AWS Code Signing resources to create an OTA update job.",
   ).optional(),
@@ -337,7 +337,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoT OTAUpdate. Registered at `@swamp/aws/iot/otaupdate`. */
 export const model = {
   type: "@swamp/aws/iot/otaupdate",
-  version: "2026.10.24.1",
+  version: "2026.11.08.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -354,6 +361,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Files", "OtaUpdateId", "Targets"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

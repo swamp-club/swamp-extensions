@@ -80,7 +80,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   FunctionName: z.string().min(1).max(256).describe(
     "The name of the web function this revision belongs to. The length constraint applies only to the full ARN. If you specify only the function name, it is limited to 64 characters in length.",
-  ),
+  ).optional(),
   Description: z.string().min(0).max(256).describe(
     "A description of the revision.",
   ).optional(),
@@ -98,7 +98,7 @@ const GlobalArgsSchema = z.object({
         new RegExp("^[a-z][a-z0-9]*[0-9]+(\\.[a-z0-9]+)*$"),
       ).describe("The runtime identifier."),
     }).describe("The runtime configuration for the revision."),
-  }).describe("The build configuration for the revision."),
+  }).describe("The build configuration for the revision.").optional(),
   ServiceConfig: z.object({
     ExecutionRoleArn: z.string().min(20).max(2048).regex(
       new RegExp("^arn:(aws[a-z-]*){1}:iam::[0-9]{12}:role/.*$"),
@@ -123,7 +123,7 @@ const GlobalArgsSchema = z.object({
         "The logging configuration for the web function.",
       ).optional(),
     }).describe("The telemetry configuration.").optional(),
-  }).describe("The service configuration for the revision."),
+  }).describe("The service configuration for the revision.").optional(),
 });
 
 const StateSchema = z.object({
@@ -231,7 +231,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda WebFunctionRevision. Registered at `@swamp/aws/lambda/web-function-revision`. */
 export const model = {
   type: "@swamp/aws/lambda/web-function-revision",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.09.1",
@@ -245,6 +245,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -265,6 +270,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["BuildConfig", "FunctionName", "ServiceConfig"].filter(
+          (k) => g[k] === undefined,
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

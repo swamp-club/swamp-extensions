@@ -163,19 +163,19 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   DomainName: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
-    .describe("The unique name of the domain."),
+    .describe("The unique name of the domain.").optional(),
   EventTriggerName: z.string().min(1).max(64).regex(
     new RegExp("^[a-zA-Z0-9_-]+$"),
-  ).describe("The unique name of the event trigger."),
+  ).describe("The unique name of the event trigger.").optional(),
   ObjectTypeName: z.string().min(1).max(255).regex(
     new RegExp("^[a-zA-Z_][a-zA-Z_0-9-]*$"),
-  ).describe("The unique name of the object type."),
+  ).describe("The unique name of the object type.").optional(),
   Description: z.string().min(1).max(1000).describe(
     "The description of the event trigger.",
   ).optional(),
   EventTriggerConditions: z.array(EventTriggerConditionSchema).describe(
     "A list of conditions that determine when an event should trigger the destination.",
-  ),
+  ).optional(),
   EventTriggerLimits: z.object({
     EventExpiration: z.number().int().describe(
       "Specifies that an event will only trigger the destination if it is processed within a certain latency period.",
@@ -295,7 +295,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CustomerProfiles EventTrigger. Registered at `@swamp/aws/customerprofiles/event-trigger`. */
 export const model = {
   type: "@swamp/aws/customerprofiles/event-trigger",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -367,6 +367,11 @@ export const model = {
       description: "Added: IntentFilterDefinition",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -384,6 +389,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "DomainName",
+          "EventTriggerConditions",
+          "EventTriggerName",
+          "ObjectTypeName",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

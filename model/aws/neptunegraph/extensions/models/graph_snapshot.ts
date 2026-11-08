@@ -61,10 +61,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   GraphIdentifier: z.string().regex(new RegExp("^g-[a-z0-9]{10}$")).describe(
     "The unique identifier of the Neptune Analytics graph to create the snapshot from.",
-  ),
+  ).optional(),
   SnapshotName: z.string().min(1).max(63).regex(
     new RegExp("^(?!gs-)[a-z][a-z0-9]*(-[a-z0-9]+)*$"),
-  ).describe("The snapshot name."),
+  ).describe("The snapshot name.").optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -119,7 +119,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NeptuneGraph GraphSnapshot. Registered at `@swamp/aws/neptunegraph/graph-snapshot`. */
 export const model = {
   type: "@swamp/aws/neptunegraph/graph-snapshot",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.23.1",
@@ -171,6 +171,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -188,6 +193,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["GraphIdentifier", "SnapshotName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

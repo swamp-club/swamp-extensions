@@ -115,7 +115,7 @@ const GlobalArgsSchema = z.object({
   ),
   Type: z.enum(["OPENZFS", "ONTAP"]).describe(
     "The type of Amazon FSx volume that the S3 access point is attached to.",
-  ),
+  ).optional(),
   OntapConfiguration: z.object({
     VolumeId: z.string().min(23).max(23).regex(
       new RegExp("^(fsvol-[0-9a-f]{17,})$"),
@@ -238,7 +238,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for FSx S3AccessPointAttachment. Registered at `@swamp/aws/fsx/s3access-point-attachment`. */
 export const model = {
   type: "@swamp/aws/fsx/s3access-point-attachment",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -315,6 +315,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -332,6 +337,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "Type"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

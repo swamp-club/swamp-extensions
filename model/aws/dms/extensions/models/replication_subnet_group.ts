@@ -58,13 +58,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ReplicationSubnetGroupDescription: z.string().describe(
     "The description for the subnet group.",
-  ),
+  ).optional(),
   ReplicationSubnetGroupIdentifier: z.string().describe(
     "The name for the replication subnet group. This value is stored as a lowercase string.",
   ).optional(),
   SubnetIds: z.array(z.string()).describe(
     "One or more subnet IDs to be assigned to the replication subnet group.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "One or more tags to be assigned to the replication subnet group",
   ).optional(),
@@ -117,7 +117,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DMS ReplicationSubnetGroup. Registered at `@swamp/aws/dms/replication-subnet-group`. */
 export const model = {
   type: "@swamp/aws/dms/replication-subnet-group",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -139,6 +139,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -156,6 +161,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ReplicationSubnetGroupDescription", "SubnetIds"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

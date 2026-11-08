@@ -77,7 +77,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   DBInstanceClass: z.string().describe(
     "Contains the name of the compute and memory capacity class of the DB instance. If you update this property, some interruptions may occur.",
-  ),
+  ).optional(),
   DBInstanceIdentifier: z.string().describe(
     "Contains a user-supplied database identifier. This identifier is the unique key that identifies a DB instance.",
   ).optional(),
@@ -179,7 +179,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Neptune DBInstance. Registered at `@swamp/aws/neptune/dbinstance`. */
 export const model = {
   type: "@swamp/aws/neptune/dbinstance",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -241,6 +241,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -258,6 +263,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DBInstanceClass"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

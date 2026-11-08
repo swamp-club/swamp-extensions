@@ -58,10 +58,10 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*$",
     ),
-  ).describe("The identifier of the Amazon Connect instance."),
+  ).describe("The identifier of the Amazon Connect instance.").optional(),
   Name: z.string().min(1).max(100).describe(
     "The name of the predefined attribute.",
-  ),
+  ).optional(),
   Values: z.object({
     StringList: z.array(z.string().min(1).max(100)).describe(
       "Predefined attribute values of type string list.",
@@ -152,7 +152,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect PredefinedAttribute. Registered at `@swamp/aws/connect/predefined-attribute`. */
 export const model = {
   type: "@swamp/aws/connect/predefined-attribute",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -214,6 +214,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -231,6 +236,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["InstanceArn", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

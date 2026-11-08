@@ -62,15 +62,16 @@ const GlobalArgsSchema = z.object({
   EventTypeId: z.string().min(1).max(2048).optional(),
   CreatedBy: z.string().min(1).max(2048).optional(),
   TargetAddress: z.string().min(1).max(2048).optional(),
-  EventTypeIds: z.array(z.string().min(1).max(200)),
+  EventTypeIds: z.array(z.string().min(1).max(200)).optional(),
   Status: z.enum(["ENABLED", "DISABLED"]).optional(),
-  DetailType: z.enum(["BASIC", "FULL"]),
+  DetailType: z.enum(["BASIC", "FULL"]).optional(),
   Resource: z.string().regex(
     new RegExp("^arn:aws[^:\\s]*:[^:\\s]*:[^:\\s]*:[0-9]{12}:[^\\s]+$"),
-  ),
-  Targets: z.array(TargetSchema),
+  ).optional(),
+  Targets: z.array(TargetSchema).optional(),
   Tags: z.record(z.string(), z.string()).optional(),
-  Name: z.string().min(1).max(64).regex(new RegExp("[A-Za-z0-9\\-_ ]+$")),
+  Name: z.string().min(1).max(64).regex(new RegExp("[A-Za-z0-9\\-_ ]+$"))
+    .optional(),
 });
 
 const StateSchema = z.object({
@@ -129,7 +130,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CodeStarNotifications NotificationRule. Registered at `@swamp/aws/codestarnotifications/notification-rule`. */
 export const model = {
   type: "@swamp/aws/codestarnotifications/notification-rule",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -191,6 +192,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -208,6 +214,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "DetailType",
+          "EventTypeIds",
+          "Name",
+          "Resource",
+          "Targets",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

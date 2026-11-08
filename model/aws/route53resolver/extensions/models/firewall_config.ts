@@ -56,14 +56,14 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ResourceId: z.string().min(1).max(64).describe(
     "The ID of the VPC that this firewall configuration applies to.",
-  ),
+  ).optional(),
   FirewallFailOpen: z.enum([
     "ENABLED",
     "DISABLED",
     "USE_LOCAL_RESOURCE_SETTING",
   ]).describe(
     "Determines how DNS Firewall operates during failures. By default, fail open is disabled, which means the failure mode is closed. If you enable this option, the failure mode is open. This behavior is only enforced for VPCs that have at least one DNS Firewall rule group association.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -113,10 +113,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Route53Resolver FirewallConfig. Registered at `@swamp/aws/route53resolver/firewall-config`. */
 export const model = {
   type: "@swamp/aws/route53resolver/firewall-config",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -137,6 +142,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["FirewallFailOpen", "ResourceId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

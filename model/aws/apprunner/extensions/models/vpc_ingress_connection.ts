@@ -66,7 +66,7 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "arn:aws(-[\\w]+)*:[a-z0-9-\\.]{0,63}:[a-z0-9-\\.]{0,63}:[0-9]{12}:(\\w|/|-){1,1011}",
     ),
-  ).describe("The Amazon Resource Name (ARN) of the service."),
+  ).describe("The Amazon Resource Name (ARN) of the service.").optional(),
   IngressVpcConfiguration: z.object({
     VpcId: z.string().describe(
       "The ID of the VPC that the VPC endpoint is used in.",
@@ -74,7 +74,8 @@ const GlobalArgsSchema = z.object({
     VpcEndpointId: z.string().describe(
       "The ID of the VPC endpoint that your App Runner service connects to.",
     ),
-  }).describe("The configuration of customer’s VPC and related VPC endpoint"),
+  }).describe("The configuration of customer’s VPC and related VPC endpoint")
+    .optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
@@ -138,7 +139,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppRunner VpcIngressConnection. Registered at `@swamp/aws/apprunner/vpc-ingress-connection`. */
 export const model = {
   type: "@swamp/aws/apprunner/vpc-ingress-connection",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -200,6 +201,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -217,6 +223,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["IngressVpcConfiguration", "ServiceArn"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

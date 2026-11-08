@@ -162,9 +162,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   WorkspaceName: z.string().min(1).max(128).regex(
     new RegExp("^[a-zA-Z0-9_-]+$"),
-  ).describe("The name of the workspace."),
+  ).describe("The name of the workspace.").optional(),
   TaskName: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
-    .describe("The name of the task. Must be unique within the workspace."),
+    .describe("The name of the task. Must be unique within the workspace.")
+    .optional(),
   Description: z.string().min(0).max(2048).describe(
     "A description of the task.",
   ).optional(),
@@ -172,7 +173,7 @@ const GlobalArgsSchema = z.object({
     ContainerTaskConfiguration: ContainerTaskConfigurationSchema.describe(
       "Configuration for running a custom container image on managed compute.",
     ),
-  }).describe("The task execution configuration."),
+  }).describe("The task execution configuration.").optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -236,7 +237,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTSiteWise Task. Registered at `@swamp/aws/iotsitewise/task`. */
 export const model = {
   type: "@swamp/aws/iotsitewise/task",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.09.15.1",
@@ -250,6 +251,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -270,6 +276,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["TaskConfiguration", "TaskName", "WorkspaceName"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

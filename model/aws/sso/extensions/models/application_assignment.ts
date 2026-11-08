@@ -57,17 +57,17 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "arn:aws(-[a-z]{1,5}){0,3}:sso::\\d{12}:application/(sso)?ins-[a-zA-Z0-9-.]{16}/apl-[a-zA-Z0-9]{16}",
     ),
-  ).describe("The ARN of the application."),
+  ).describe("The ARN of the application.").optional(),
   PrincipalType: z.enum(["USER", "GROUP"]).describe(
     "The entity type for which the assignment will be created.",
-  ),
+  ).optional(),
   PrincipalId: z.string().min(1).max(47).regex(
     new RegExp(
       "^([0-9a-f]{10}-|)[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$",
     ),
   ).describe(
     "An identifier for an object in IAM Identity Center, such as a user or group",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -120,7 +120,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SSO ApplicationAssignment. Registered at `@swamp/aws/sso/application-assignment`. */
 export const model = {
   type: "@swamp/aws/sso/application-assignment",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -187,6 +187,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -204,6 +209,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ApplicationArn", "PrincipalId", "PrincipalType"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

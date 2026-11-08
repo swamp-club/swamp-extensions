@@ -125,7 +125,7 @@ const GlobalArgsSchema = z.object({
   ),
   Type: z.enum(["ShadowMode"]).describe(
     "The type of the inference experiment that you want to run.",
-  ),
+  ).optional(),
   Description: z.string().min(1).max(1024).regex(new RegExp(".*")).describe(
     "The description of the inference experiment.",
   ).optional(),
@@ -133,10 +133,11 @@ const GlobalArgsSchema = z.object({
     new RegExp("^arn:aws[a-z\\-]*:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$"),
   ).describe(
     "The Amazon Resource Name (ARN) of an IAM role that Amazon SageMaker can assume to access model artifacts and container images, and manage Amazon SageMaker Inference endpoints for model deployment.",
-  ),
+  ).optional(),
   EndpointName: z.string().max(63).regex(
     new RegExp("^[a-zA-Z0-9](-*[a-zA-Z0-9])*"),
-  ).describe("The name of the endpoint used to run the inference experiment."),
+  ).describe("The name of the endpoint used to run the inference experiment.")
+    .optional(),
   EndpointMetadata: z.object({
     EndpointName: z.string().max(63).regex(
       new RegExp("^[a-zA-Z0-9](-*[a-zA-Z0-9])*"),
@@ -191,7 +192,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ModelVariants: z.array(ModelVariantConfigSchema).describe(
     "An array of ModelVariantConfig objects. Each ModelVariantConfig object in the array describes the infrastructure configuration for the corresponding variant.",
-  ),
+  ).optional(),
   ShadowModeConfig: z.object({
     SourceModelVariantName: z.string().max(63).regex(
       new RegExp("^[a-zA-Z0-9]([\\-a-zA-Z0-9]*[a-zA-Z0-9])?"),
@@ -371,7 +372,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker InferenceExperiment. Registered at `@swamp/aws/sagemaker/inference-experiment`. */
 export const model = {
   type: "@swamp/aws/sagemaker/inference-experiment",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -433,6 +434,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -450,6 +456,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "EndpointName",
+          "ModelVariants",
+          "Name",
+          "RoleArn",
+          "Type",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

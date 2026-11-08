@@ -61,42 +61,43 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   StagingAreaSubnetId: z.string().min(0).max(255).regex(
     new RegExp("^subnet-[0-9a-fA-F]{8,}$"),
-  ).describe("The subnet to be used by the replication staging area."),
+  ).describe("The subnet to be used by the replication staging area.")
+    .optional(),
   AssociateDefaultSecurityGroup: z.boolean().describe(
     "Whether to associate the default Application Migration Service Security Group with the Replication Configuration Template.",
-  ),
+  ).optional(),
   ReplicationServersSecurityGroupsIDs: z.array(
     z.string().min(0).max(255).regex(new RegExp("^sg-[0-9a-fA-F]{8,}$")),
   ).describe(
     "The security group IDs that will be used by the replication server.",
-  ),
+  ).optional(),
   ReplicationServerInstanceType: z.string().min(0).max(255).describe(
     "The instance type to be used for the replication server.",
-  ),
+  ).optional(),
   UseDedicatedReplicationServer: z.boolean().describe(
     "Whether to use a dedicated Replication Server in the replication staging area.",
-  ),
+  ).optional(),
   DefaultLargeStagingDiskType: z.enum(["GP2", "ST1", "GP3"]).describe(
     "The Staging Disk EBS volume type to be used during replication.",
-  ),
+  ).optional(),
   EbsEncryption: z.enum(["DEFAULT", "CUSTOM"]).describe(
     "The type of EBS encryption to be used during replication.",
-  ),
+  ).optional(),
   EbsEncryptionKeyArn: z.string().min(20).max(2048).describe(
     "The ARN of the EBS encryption key to be used during replication.",
   ).optional(),
   BandwidthThrottling: z.number().int().min(0).max(10000).describe(
     "Configure bandwidth throttling for the outbound data transfer rate of the Source Server in Mbps.",
-  ),
+  ).optional(),
   DataPlaneRouting: z.enum(["PRIVATE_IP", "PUBLIC_IP"]).describe(
     "The data plane routing mechanism that will be used for replication.",
-  ),
+  ).optional(),
   CreatePublicIP: z.boolean().describe(
     "Whether to create a Public IP for the Recovery Instance by default.",
-  ),
+  ).optional(),
   StagingAreaTags: z.record(z.string(), z.string().min(0).max(256)).describe(
     "A set of tags to be associated with all resources created in the replication staging area: EC2 replication server, EBS volumes, EBS snapshots, etc.",
-  ),
+  ).optional(),
   UseFipsEndpoint: z.boolean().describe(
     "Whether to use a FIPS endpoint when initiating the agent connection to the Application Migration Service service.",
   ).optional(),
@@ -212,7 +213,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MGN ReplicationConfigurationTemplate. Registered at `@swamp/aws/mgn/replication-configuration-template`. */
 export const model = {
   type: "@swamp/aws/mgn/replication-configuration-template",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -229,6 +237,24 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AssociateDefaultSecurityGroup",
+          "BandwidthThrottling",
+          "CreatePublicIP",
+          "DataPlaneRouting",
+          "DefaultLargeStagingDiskType",
+          "EbsEncryption",
+          "ReplicationServerInstanceType",
+          "ReplicationServersSecurityGroupsIDs",
+          "StagingAreaSubnetId",
+          "StagingAreaTags",
+          "UseDedicatedReplicationServer",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

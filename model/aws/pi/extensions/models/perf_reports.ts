@@ -60,17 +60,17 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ServiceType: z.enum(["RDS", "DOCDB"]).describe(
     "The AWS service for which Performance Insights returns metrics. Valid values are RDS and DOCDB.",
-  ),
+  ).optional(),
   Identifier: z.string().min(0).max(256).regex(new RegExp("^[a-zA-Z0-9-]+$"))
     .describe(
       "An immutable, AWS Region-unique identifier for a data source. Performance Insights gathers metrics from this data source. To use an Amazon RDS instance as a data source, specify its DbiResourceId value.",
-    ),
+    ).optional(),
   StartTime: z.string().describe(
     "The start time defined for the analysis report in ISO 8601 format.",
-  ),
+  ).optional(),
   EndTime: z.string().describe(
     "The end time defined for the analysis report in ISO 8601 format.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -133,7 +133,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for PI PerfReports. Registered at `@swamp/aws/pi/perf-reports`. */
 export const model = {
   type: "@swamp/aws/pi/perf-reports",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -142,6 +142,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -162,6 +167,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["EndTime", "Identifier", "ServiceType", "StartTime"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

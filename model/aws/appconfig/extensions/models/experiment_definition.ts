@@ -85,7 +85,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   EnvironmentIdentifier: z.string().min(1).max(2048).describe(
     "The environment ID, name, or ARN.",
-  ),
+  ).optional(),
   AudienceDescription: z.string().max(1024).describe(
     "Human-readable description of the audience.",
   ).optional(),
@@ -94,18 +94,18 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ApplicationIdentifier: z.string().min(1).max(2048).describe(
     "The application ID, name, or ARN.",
-  ),
+  ).optional(),
   AudienceRule: z.string().max(16384).describe(
     "Rule expression defining the experiment audience.",
-  ),
+  ).optional(),
   Hypothesis: z.string().max(1024).describe("The hypothesis of the experiment.")
     .optional(),
   Name: z.string().min(1).max(64).describe(
     "A name for the experiment definition.",
-  ),
+  ).optional(),
   ConfigurationProfileIdentifier: z.string().min(1).max(2048).describe(
     "The configuration profile ID, name, or ARN.",
-  ),
+  ).optional(),
   Control: z.object({
     Description: z.string().max(1024).optional(),
     AttributeValues: z.record(z.string(), AttributeValueSchema).describe(
@@ -115,11 +115,12 @@ const GlobalArgsSchema = z.object({
       "Whether the flag is enabled for this variant.",
     ),
     Weight: z.number().describe("Traffic weight percentage."),
-  }).describe("The control (baseline) variant."),
+  }).describe("The control (baseline) variant.").optional(),
   FlagKey: z.string().min(1).max(64).describe(
     "The key of the existing flag in the configuration profile to experiment on.",
-  ),
-  Treatments: z.array(TreatmentSchema).describe("Treatment variants (1-5)."),
+  ).optional(),
+  Treatments: z.array(TreatmentSchema).describe("Treatment variants (1-5).")
+    .optional(),
   Tags: z.array(TagSchema).describe(
     "Tags to associate with the experiment definition.",
   ).optional(),
@@ -215,7 +216,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppConfig ExperimentDefinition. Registered at `@swamp/aws/appconfig/experiment-definition`. */
 export const model = {
   type: "@swamp/aws/appconfig/experiment-definition",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -237,6 +238,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -254,6 +260,21 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ApplicationIdentifier",
+          "AudienceRule",
+          "ConfigurationProfileIdentifier",
+          "Control",
+          "EnvironmentIdentifier",
+          "FlagKey",
+          "Name",
+          "Treatments",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -62,7 +62,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ApiId: z.string().describe(
     "The AWS AppSync GraphQL API that you want to attach using this function.",
-  ),
+  ).optional(),
   Code: z.string().describe(
     "The resolver code that contains the request and response functions. When code is used, the runtime is required. The runtime value must be APPSYNC_JS.",
   ).optional(),
@@ -71,7 +71,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   DataSourceName: z.string().describe(
     "The name of data source this function will attach.",
-  ),
+  ).optional(),
   Description: z.string().describe("The function description.").optional(),
   FunctionVersion: z.string().describe(
     "The version of the request mapping template. Currently, only the 2018-05-29 version of the template is supported.",
@@ -79,7 +79,7 @@ const GlobalArgsSchema = z.object({
   MaxBatchSize: z.number().int().describe(
     "The maximum number of resolver request inputs that will be sent to a single AWS Lambda function in a BatchInvoke operation.",
   ).optional(),
-  Name: z.string().describe("The name of the function."),
+  Name: z.string().describe("The name of the function.").optional(),
   RequestMappingTemplate: z.string().describe(
     "The Function request mapping template. Functions support only the 2018-05-29 version of the request mapping template.",
   ).optional(),
@@ -227,7 +227,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppSync FunctionConfiguration. Registered at `@swamp/aws/appsync/function-configuration`. */
 export const model = {
   type: "@swamp/aws/appsync/function-configuration",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -289,6 +289,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -306,6 +311,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ApiId", "DataSourceName", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -56,13 +56,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   InstanceAttributes: z.record(z.string(), z.unknown()).describe(
     "A string map that contains information for the service that is specified in ServiceId.",
-  ),
+  ).optional(),
   InstanceId: z.string().min(1).max(64).describe(
     "An identifier that you want to associate with the instance.",
   ).optional(),
   ServiceId: z.string().min(1).max(255).describe(
     "The ID or Amazon Resource Name (ARN) of the service that you want to use for settings for the instance.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -109,7 +109,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ServiceDiscovery Instance. Registered at `@swamp/aws/servicediscovery/instance`. */
 export const model = {
   type: "@swamp/aws/servicediscovery/instance",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -118,6 +118,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -138,6 +143,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["InstanceAttributes", "ServiceId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

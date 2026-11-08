@@ -57,21 +57,21 @@ const GlobalArgsSchema = z.object({
   RuleLocation: z.object({
     Uri: z.string().describe("S3 uri of Guard files."),
     VersionId: z.string().describe("S3 object version").optional(),
-  }).describe("S3 Source Location for the Guard files."),
+  }).describe("S3 Source Location for the Guard files.").optional(),
   LogBucket: z.string().describe(
     "S3 Bucket where the guard validate report will be uploaded to",
   ).optional(),
   HookStatus: z.enum(["ENABLED", "DISABLED"]).describe(
     "Attribute to specify which stacks this hook applies to or should get invoked for",
-  ),
+  ).optional(),
   TargetOperations: z.array(
     z.enum(["RESOURCE", "STACK", "CHANGE_SET", "CLOUD_CONTROL"]),
   ).describe(
     "Which operations should this Hook run against? Resource changes, stacks or change sets.",
-  ),
+  ).optional(),
   FailureMode: z.enum(["FAIL", "WARN"]).describe(
     "Attribute to specify CloudFormation behavior on hook failure.",
-  ),
+  ).optional(),
   TargetFilters: z.record(z.string(), z.unknown()).describe(
     "Attribute to specify which targets should invoke the hook",
   ).optional(),
@@ -106,12 +106,12 @@ const GlobalArgsSchema = z.object({
       "^(?!aws)[A-Za-z0-9]{2,64}::[A-Za-z0-9]{2,64}::[A-Za-z0-9]{2,64}$",
       "i",
     ),
-  ).describe("The typename alias for the hook."),
+  ).describe("The typename alias for the hook.").optional(),
   ExecutionRole: z.string().max(256).regex(
     new RegExp("arn:.+:iam::[0-9]{12}:role/.+"),
   ).describe(
     "The execution role ARN assumed by hooks to read Guard rules from S3 and write Guard outputs to S3.",
-  ),
+  ).optional(),
   Options: z.object({}).optional(),
 });
 
@@ -230,7 +230,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFormation GuardHook. Registered at `@swamp/aws/cloudformation/guard-hook`. */
 export const model = {
   type: "@swamp/aws/cloudformation/guard-hook",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -245,6 +245,11 @@ export const model = {
     {
       toVersion: "2026.10.25.1",
       description: "Added: Options",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -264,6 +269,19 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Alias",
+          "ExecutionRole",
+          "FailureMode",
+          "HookStatus",
+          "RuleLocation",
+          "TargetOperations",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

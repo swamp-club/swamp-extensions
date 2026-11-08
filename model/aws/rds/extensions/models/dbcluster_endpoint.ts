@@ -63,15 +63,15 @@ const GlobalArgsSchema = z.object({
     new RegExp("^[a-z][a-z0-9]*(-[a-z0-9]+)*$"),
   ).describe(
     "The identifier to use for the new endpoint. This parameter is stored as a lowercase string.",
-  ),
+  ).optional(),
   DBClusterIdentifier: z.string().min(1).max(63).regex(
     new RegExp("^[a-z][a-z0-9]*(-[a-z0-9]+)*$"),
   ).describe(
     "The DB cluster identifier of the DB cluster associated with the endpoint. This parameter is stored as a lowercase string.",
-  ),
+  ).optional(),
   CustomEndpointType: z.enum(["READER", "WRITER", "ANY"]).describe(
     "The type of the custom endpoint.",
-  ),
+  ).optional(),
   StaticMembers: z.array(z.string()).describe(
     "List of DB instance identifiers that are part of the custom endpoint group. Once either member list is set, it can be changed or replaced by the other list, but both lists cannot be removed in place; removing them requires replacing the endpoint.",
   ).optional(),
@@ -148,7 +148,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RDS DBClusterEndpoint. Registered at `@swamp/aws/rds/dbcluster-endpoint`. */
 export const model = {
   type: "@swamp/aws/rds/dbcluster-endpoint",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -157,6 +157,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -177,6 +182,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "CustomEndpointType",
+          "DBClusterEndpointIdentifier",
+          "DBClusterIdentifier",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

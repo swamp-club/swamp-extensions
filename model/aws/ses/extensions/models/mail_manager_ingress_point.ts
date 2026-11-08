@@ -82,7 +82,7 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  TrafficPolicyId: z.string().min(1).max(100),
+  TrafficPolicyId: z.string().min(1).max(100).optional(),
   IngressPointConfiguration: z.object({
     SmtpPassword: z.string().min(8).max(64).regex(
       new RegExp("^[A-Za-z0-9!@#$%^&*()_+\\-=\\[\\]{}|.,?]+$"),
@@ -101,11 +101,11 @@ const GlobalArgsSchema = z.object({
     PublicNetworkConfiguration: PublicNetworkConfigurationSchema.optional(),
     PrivateNetworkConfiguration: PrivateNetworkConfigurationSchema.optional(),
   }).optional(),
-  RuleSetId: z.string().min(1).max(100),
+  RuleSetId: z.string().min(1).max(100).optional(),
   StatusToUpdate: z.enum(["ACTIVE", "CLOSED"]).optional(),
   Tags: z.array(TagSchema).optional(),
   TlsPolicy: z.enum(["REQUIRED", "OPTIONAL", "FIPS"]).optional(),
-  Type: z.enum(["OPEN", "AUTH", "MTLS"]),
+  Type: z.enum(["OPEN", "AUTH", "MTLS"]).optional(),
 });
 
 const StateSchema = z.object({
@@ -184,7 +184,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SES MailManagerIngressPoint. Registered at `@swamp/aws/ses/mail-manager-ingress-point`. */
 export const model = {
   type: "@swamp/aws/ses/mail-manager-ingress-point",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -266,6 +266,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -283,6 +288,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["RuleSetId", "TrafficPolicyId", "Type"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

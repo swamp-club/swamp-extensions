@@ -100,23 +100,23 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   DisplayName: z.string().min(1).max(256).regex(
     new RegExp("^[\\p{L}\\p{Z}\\p{N}\\p{P}\\p{M}]*$", "u"),
-  ).describe("The display name of the cloud connector."),
+  ).describe("The display name of the cloud connector.").optional(),
   Description: z.string().min(1).max(1024).regex(
     new RegExp("^[\\p{L}\\p{Z}\\p{N}\\p{P}\\p{M}]*$", "u"),
   ).describe("The description of the cloud connector.").optional(),
   RoleArn: z.string().min(20).max(2048).regex(
     new RegExp("^arn:aws[a-z0-9-]*:iam::\\d{12}:role/[\\w-/.@+=,]{1,1017}$"),
-  ).describe("The IAM role ARN used by the cloud connector."),
+  ).describe("The IAM role ARN used by the cloud connector.").optional(),
   Configuration: z.object({
     AzureConfiguration: AzureConfigurationSchema.describe(
       "Configuration for connecting to Azure.",
     ),
-  }).describe("The configuration for the cloud connector."),
+  }).describe("The configuration for the cloud connector.").optional(),
   ConfigConnectorArn: z.string().min(1).max(512).regex(
     new RegExp(
       "^arn:aws(-cn|-us-gov)?:config:[a-z0-9-]+:\\d{12}:connector/.+$",
     ),
-  ).describe("The ARN of the AWS Config connector."),
+  ).describe("The ARN of the AWS Config connector.").optional(),
   Tags: z.array(TagSchema).describe("Tags to apply to the cloud connector.")
     .optional(),
 });
@@ -186,7 +186,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SSM CloudConnector. Registered at `@swamp/aws/ssm/cloud-connector`. */
 export const model = {
   type: "@swamp/aws/ssm/cloud-connector",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -213,6 +213,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -230,6 +235,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ConfigConnectorArn",
+          "Configuration",
+          "DisplayName",
+          "RoleArn",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

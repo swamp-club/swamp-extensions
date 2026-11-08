@@ -68,7 +68,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().max(64).regex(new RegExp("^[a-zA-Z0-9-]+$")).describe(
     "The name of the bill estimate",
-  ),
+  ).optional(),
   BillInterval: z.object({
     Start: z.string().optional(),
     End: z.string().optional(),
@@ -146,10 +146,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BcmPricingCalculator BillEstimate. Registered at `@swamp/aws/bcmpricingcalculator/bill-estimate`. */
 export const model = {
   type: "@swamp/aws/bcmpricingcalculator/bill-estimate",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -170,6 +175,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

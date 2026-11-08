@@ -57,10 +57,10 @@ const GlobalArgsSchema = z.object({
     new RegExp("^[a-zA-Z][-a-zA-Z0-9]*$"),
   ).describe(
     "The name of the change set. Must be unique among all change sets associated with the specified stack.",
-  ),
+  ).optional(),
   StackName: z.string().min(1).describe(
     "The name or unique ID of the stack for which you are creating a change set.",
-  ),
+  ).optional(),
   TemplateBody: z.string().min(1).describe(
     "A structure that contains the body of the revised template.",
   ).optional(),
@@ -212,7 +212,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFormation ChangeSet. Registered at `@swamp/aws/cloudformation/change-set`. */
 export const model = {
   type: "@swamp/aws/cloudformation/change-set",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -221,6 +221,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -241,6 +246,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ChangeSetName", "StackName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

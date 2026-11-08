@@ -64,7 +64,7 @@ const GlobalArgsSchema = z.object({
       "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\t]*$",
       "u",
     ),
-  ).describe("The ID of the session."),
+  ).describe("The ID of the session.").optional(),
   Description: z.string().min(0).max(2048).regex(
     new RegExp(
       "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDC00-\\uDBFF\\uDFFF\\r\\n\\t]*$",
@@ -73,7 +73,7 @@ const GlobalArgsSchema = z.object({
   ).describe("The description of the session.").optional(),
   Role: z.string().min(20).max(2048).regex(
     new RegExp("^arn:aws[^:]*:iam::[0-9]*:role/.+$"),
-  ).describe("The IAM Role ARN."),
+  ).describe("The IAM Role ARN.").optional(),
   Command: z.object({
     Name: z.string().min(1).max(255).regex(
       new RegExp(
@@ -86,7 +86,7 @@ const GlobalArgsSchema = z.object({
     PythonVersion: z.string().regex(new RegExp("^([2-3]|3[.]9)$")).describe(
       "Specifies the Python version. The Python version indicates the version supported for jobs of type Spark.",
     ).optional(),
-  }).describe("The SessionCommand that runs the job."),
+  }).describe("The SessionCommand that runs the job.").optional(),
   Timeout: z.number().int().min(1).describe(
     "The number of minutes before session times out.",
   ).optional(),
@@ -281,7 +281,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue Session. Registered at `@swamp/aws/glue/session`. */
 export const model = {
   type: "@swamp/aws/glue/session",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.14.1",
@@ -295,6 +295,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -315,6 +320,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Command", "Id", "Role"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

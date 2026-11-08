@@ -163,10 +163,10 @@ const GlobalArgsSchema = z.object({
       "List of Lambda layers to attach to the canary",
     ).optional(),
     BlueprintTypes: z.array(z.string()).optional(),
-  }).describe("Provide the canary script source"),
+  }).describe("Provide the canary script source").optional(),
   ArtifactS3Location: z.string().regex(new RegExp("^(s3|S3)://")).describe(
     "Provide the s3 bucket output location for test results",
-  ),
+  ).optional(),
   ArtifactConfig: z.object({
     S3Encryption: S3EncryptionSchema.describe(
       "Encryption configuration for uploading artifacts to S3",
@@ -178,11 +178,12 @@ const GlobalArgsSchema = z.object({
     RetryConfig: RetryConfigSchema.describe(
       "Provide canary auto retry configuration",
     ).optional(),
-  }).describe("Frequency to run your canaries"),
+  }).describe("Frequency to run your canaries").optional(),
   ExecutionRoleArn: z.string().describe(
     "Lambda Execution role used to run your canaries",
-  ),
-  RuntimeVersion: z.string().describe("Runtime version of Synthetics Library"),
+  ).optional(),
+  RuntimeVersion: z.string().describe("Runtime version of Synthetics Library")
+    .optional(),
   SuccessRetentionPeriod: z.number().int().describe(
     "Retention period of successful canary runs represented in number of days",
   ).optional(),
@@ -437,7 +438,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Synthetics Canary. Registered at `@swamp/aws/synthetics/canary`. */
 export const model = {
   type: "@swamp/aws/synthetics/canary",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -509,6 +510,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -526,6 +532,19 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ArtifactS3Location",
+          "Code",
+          "ExecutionRoleArn",
+          "Name",
+          "RuntimeVersion",
+          "Schedule",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

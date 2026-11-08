@@ -256,12 +256,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   MediaInsightsPipelineConfigurationName: z.string().min(2).max(64).regex(
     new RegExp("^[0-9a-zA-Z._-]+$"),
-  ).describe("The name of the media insights pipeline configuration."),
+  ).describe("The name of the media insights pipeline configuration.")
+    .optional(),
   ResourceAccessRoleArn: z.string().min(1).max(1024).regex(
     new RegExp("^arn[\\/\\:\\-\\_\\.a-zA-Z0-9]+$"),
   ).describe(
     "The ARN of the role used by the service to access Amazon Web Services resources.",
-  ),
+  ).optional(),
   RealTimeAlertConfiguration: z.object({
     Disabled: z.boolean().describe("Turns off real-time alerts.").optional(),
     Rules: z.array(RealTimeAlertRuleSchema).describe("The rules in the alert.")
@@ -269,7 +270,7 @@ const GlobalArgsSchema = z.object({
   }).optional(),
   Elements: z.array(MediaInsightsPipelineConfigurationElementSchema).describe(
     "The elements in the configuration.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "The tags associated with the configuration.",
   ).optional(),
@@ -339,7 +340,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Chime MediaInsightsPipelineConfiguration. Registered at `@swamp/aws/chime/media-insights-pipeline-configuration`. */
 export const model = {
   type: "@swamp/aws/chime/media-insights-pipeline-configuration",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.14.1",
@@ -348,6 +349,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -368,6 +374,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Elements",
+          "MediaInsightsPipelineConfigurationName",
+          "ResourceAccessRoleArn",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

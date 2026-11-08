@@ -354,7 +354,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ProductionVariants: z.array(ProductionVariantSchema).describe(
     "A list of ProductionVariant objects, one for each model that you want to host at this endpoint.",
-  ),
+  ).optional(),
   KmsKeyId: z.string().describe(
     "The Amazon Resource Name (ARN) of an AWS Key Management Service key that Amazon SageMaker uses to encrypt data on the storage volume attached to the ML compute instance that hosts the endpoint.",
   ).optional(),
@@ -594,7 +594,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker EndpointConfig. Registered at `@swamp/aws/sagemaker/endpoint-config`. */
 export const model = {
   type: "@swamp/aws/sagemaker/endpoint-config",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -603,6 +603,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -623,6 +628,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ProductionVariants"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

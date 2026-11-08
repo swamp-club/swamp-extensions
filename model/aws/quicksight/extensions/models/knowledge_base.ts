@@ -92,20 +92,21 @@ const GlobalArgsSchema = z.object({
   AccessControlConfiguration: z.object({
     IsACLEnabled: z.boolean().optional(),
   }).optional(),
-  AwsAccountId: z.string().min(12).max(12).regex(new RegExp("^[0-9]*$")),
+  AwsAccountId: z.string().min(12).max(12).regex(new RegExp("^[0-9]*$"))
+    .optional(),
   DataSourceArn: z.string().min(0).max(1284).regex(
     new RegExp(
       "^arn:[a-z0-9-\\.]{1,63}:[a-z0-9-\\.]{0,63}:[a-z0-9-\\.]{0,63}:[a-z0-9-\\.]{0,63}:[^/].{0,1023}$",
     ),
-  ),
+  ).optional(),
   Description: z.string().max(1000).regex(new RegExp("^\\P{C}*$")).optional(),
   IsEmailNotificationOptedForIngestionFailures: z.boolean().optional(),
   KnowledgeBaseConfiguration: z.object({
     TemplateConfiguration: KbTemplateConfigurationSchema.optional(),
-  }),
+  }).optional(),
   KnowledgeBaseId: z.string().min(1).max(1024).regex(
     new RegExp("^[0-9a-zA-Z-_=.+]+$"),
-  ),
+  ).optional(),
   MediaExtractionConfiguration: z.object({
     ImageExtractionConfiguration: ImageExtractionConfigurationSchema.optional(),
     AudioExtractionConfiguration: AudioExtractionConfigurationSchema.optional(),
@@ -113,7 +114,7 @@ const GlobalArgsSchema = z.object({
   }).optional(),
   Name: z.string().max(128).regex(
     new RegExp("^[\\p{L}\\p{N}][\\p{L}\\p{N} _\\-\\.]*$", "u"),
-  ),
+  ).optional(),
   Permissions: z.array(ResourcePermissionSchema).optional(),
   PrimaryOwnerArn: z.string().optional(),
   Tags: z.array(TagSchema).optional(),
@@ -208,7 +209,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight KnowledgeBase. Registered at `@swamp/aws/quicksight/knowledge-base`. */
 export const model = {
   type: "@swamp/aws/quicksight/knowledge-base",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -230,6 +231,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -247,6 +253,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AwsAccountId",
+          "DataSourceArn",
+          "KnowledgeBaseConfiguration",
+          "KnowledgeBaseId",
+          "Name",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

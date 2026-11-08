@@ -63,13 +63,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   InstanceId: z.string().min(1).max(100).describe(
     "The identifier of the Amazon Connect instance.",
-  ),
+  ).optional(),
   IntegrationAssociationId: z.string().min(1).max(200).describe(
     "The identifier for the integration association.",
-  ),
+  ).optional(),
   UseCaseType: z.enum(["RULES_EVALUATION", "CONNECT_CAMPAIGNS"]).describe(
     "The type of use case to associate to the integration association.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "The tags used to organize, track, or control access for this resource.",
   ).optional(),
@@ -125,7 +125,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect UseCase. Registered at `@swamp/aws/connect/use-case`. */
 export const model = {
   type: "@swamp/aws/connect/use-case",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -134,6 +134,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -154,6 +159,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "InstanceId",
+          "IntegrationAssociationId",
+          "UseCaseType",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

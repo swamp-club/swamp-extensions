@@ -76,7 +76,7 @@ const GlobalArgsSchema = z.object({
     ).describe("List of Signing profile version Arns"),
   }).describe(
     "When the CodeSigningConfig is later on attached to a function, the function code will be expected to be signed by profiles from this list",
-  ),
+  ).optional(),
   CodeSigningPolicies: z.object({
     UntrustedArtifactOnDeployment: z.enum(["Warn", "Enforce"]).describe(
       "Indicates how Lambda operations involve updating the code artifact will operate. Default to Warn if not provided",
@@ -153,7 +153,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda CodeSigningConfig. Registered at `@swamp/aws/lambda/code-signing-config`. */
 export const model = {
   type: "@swamp/aws/lambda/code-signing-config",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -215,6 +215,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -232,6 +237,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AllowedPublishers"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

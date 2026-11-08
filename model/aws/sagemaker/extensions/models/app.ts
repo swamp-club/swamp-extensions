@@ -61,15 +61,15 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AppName: z.string().min(1).max(63).regex(
     new RegExp("^[a-zA-Z0-9](-*[a-zA-Z0-9]){0,62}"),
-  ).describe("The name of the app."),
+  ).describe("The name of the app.").optional(),
   AppType: z.enum([
     "JupyterServer",
     "KernelGateway",
     "RStudioServerPro",
     "RSessionGateway",
     "Canvas",
-  ]).describe("The type of app."),
-  DomainId: z.string().min(1).max(63).describe("The domain ID."),
+  ]).describe("The type of app.").optional(),
+  DomainId: z.string().min(1).max(63).describe("The domain ID.").optional(),
   ResourceSpec: z.object({
     InstanceType: z.enum([
       "system",
@@ -263,7 +263,7 @@ const GlobalArgsSchema = z.object({
     .optional(),
   UserProfileName: z.string().min(1).max(63).regex(
     new RegExp("^[a-zA-Z0-9](-*[a-zA-Z0-9]){0,62}"),
-  ).describe("The user profile name."),
+  ).describe("The user profile name.").optional(),
   RecoveryMode: z.boolean().describe(
     "Indicates whether the application is launched in recovery mode.",
   ).optional(),
@@ -523,7 +523,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker App. Registered at `@swamp/aws/sagemaker/app`. */
 export const model = {
   type: "@swamp/aws/sagemaker/app",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -585,6 +585,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -602,6 +607,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AppName", "AppType", "DomainId", "UserProfileName"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

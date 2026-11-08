@@ -761,7 +761,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AuthMode: z.enum(["SSO", "IAM"]).describe(
     "The mode of authentication that members use to access the domain.",
-  ),
+  ).optional(),
   DefaultUserSettings: z.object({
     ExecutionRole: z.string().min(20).max(2048).regex(
       new RegExp(
@@ -811,7 +811,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     SharingSettings: SharingSettingsSchema.describe("The sharing settings.")
       .optional(),
-  }).describe("The default user settings."),
+  }).describe("The default user settings.").optional(),
   DefaultSpaceSettings: z.object({
     ExecutionRole: z.string().min(20).max(2048).regex(
       new RegExp(
@@ -842,7 +842,7 @@ const GlobalArgsSchema = z.object({
   }).describe("The default space settings.").optional(),
   DomainName: z.string().max(63).regex(
     new RegExp("^[a-zA-Z0-9](-*[a-zA-Z0-9]){0,62}"),
-  ).describe("A name for the domain."),
+  ).describe("A name for the domain.").optional(),
   KmsKeyId: z.string().max(2048).regex(new RegExp(".*")).describe(
     "SageMaker uses AWS KMS to encrypt the EFS volume attached to the domain with an AWS managed customer master key (CMK) by default.",
   ).optional(),
@@ -1105,7 +1105,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker Domain. Registered at `@swamp/aws/sagemaker/domain`. */
 export const model = {
   type: "@swamp/aws/sagemaker/domain",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -1192,6 +1192,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1209,6 +1214,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AuthMode", "DefaultUserSettings", "DomainName"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

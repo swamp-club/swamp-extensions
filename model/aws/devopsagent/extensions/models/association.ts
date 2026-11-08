@@ -56,13 +56,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AgentSpaceId: z.string().min(1).max(255).describe(
     "The unique identifier of the AgentSpace",
-  ),
+  ).optional(),
   ServiceId: z.string().min(1).max(255).describe(
     "The identifier for the associated service",
-  ),
+  ).optional(),
   Configuration: z.record(z.string(), z.unknown()).describe(
     "The configuration that directs how AgentSpace interacts with the given service",
-  ),
+  ).optional(),
   LinkedAssociationIds: z.array(z.string().min(1).max(255)).describe(
     "Set of linked association IDs for parent-child relationships",
   ).optional(),
@@ -119,7 +119,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DevOpsAgent Association. Registered at `@swamp/aws/devopsagent/association`. */
 export const model = {
   type: "@swamp/aws/devopsagent/association",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -186,6 +186,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -203,6 +208,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AgentSpaceId", "Configuration", "ServiceId"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

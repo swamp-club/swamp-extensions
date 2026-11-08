@@ -372,15 +372,15 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:[\\w-]+:pca-connector-ad:[\\w-]+:[0-9]+:connector\\/[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$",
     ),
-  ),
+  ).optional(),
   Definition: z.object({
     TemplateV2: TemplateV2Schema.optional(),
     TemplateV3: TemplateV3Schema.optional(),
     TemplateV4: TemplateV4Schema.optional(),
-  }),
+  }).optional(),
   Name: z.string().min(1).max(64).regex(
     new RegExp("^(?!^\\s+$)((?![\\x5c'\\x2b,;<=>#\\x22])([\\x20-\\x7E]))+$"),
-  ),
+  ).optional(),
   ReenrollAllCertificateHolders: z.boolean().optional(),
   Tags: z.record(z.string(), z.string()).optional(),
 });
@@ -442,7 +442,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for PCAConnectorAD Template. Registered at `@swamp/aws/pcaconnectorad/template`. */
 export const model = {
   type: "@swamp/aws/pcaconnectorad/template",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -504,6 +504,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -521,6 +526,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ConnectorArn", "Definition", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

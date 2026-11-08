@@ -54,21 +54,22 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Description: z.string().describe("The description of the constraint."),
+  Description: z.string().describe("The description of the constraint.")
+    .optional(),
   StackInstanceControl: z.string().describe(
     "Permission to create, update, and delete stack instances. Choose from ALLOWED and NOT_ALLOWED.",
-  ),
+  ).optional(),
   AcceptLanguage: z.string().describe("The language code.").optional(),
-  PortfolioId: z.string().describe("The portfolio identifier."),
-  ProductId: z.string().describe("The product identifier."),
+  PortfolioId: z.string().describe("The portfolio identifier.").optional(),
+  ProductId: z.string().describe("The product identifier.").optional(),
   RegionList: z.array(z.string()).describe(
     "One or more AWS Regions where the provisioned product will be available.",
-  ),
-  AdminRole: z.string().describe("AdminRole ARN."),
+  ).optional(),
+  AdminRole: z.string().describe("AdminRole ARN.").optional(),
   AccountList: z.array(z.string()).describe(
     "One or more AWS accounts that will have access to the provisioned product.",
-  ),
-  ExecutionRole: z.string().describe("ExecutionRole name."),
+  ).optional(),
+  ExecutionRole: z.string().describe("ExecutionRole name.").optional(),
 });
 
 const StateSchema = z.object({
@@ -129,7 +130,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ServiceCatalog StackSetConstraint. Registered at `@swamp/aws/servicecatalog/stack-set-constraint`. */
 export const model = {
   type: "@swamp/aws/servicecatalog/stack-set-constraint",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -191,6 +192,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -208,6 +214,21 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AccountList",
+          "AdminRole",
+          "Description",
+          "ExecutionRole",
+          "PortfolioId",
+          "ProductId",
+          "RegionList",
+          "StackInstanceControl",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

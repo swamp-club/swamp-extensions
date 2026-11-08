@@ -60,16 +60,16 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "The Amazon Resource Name (ARN) of the parent Agent Profile that owns this context. Pass `!Ref` of the parent AWS::WellArchitected::AgentProfile to flow its ARN here.",
-  ),
+  ).optional(),
   Title: z.string().min(1).max(1000).regex(new RegExp("^[\\P{C}]+$")).describe(
     "The title of the Agent Context.",
-  ),
+  ).optional(),
   ContextType: z.enum(["APPLICATION"]).describe(
     "The type of the Agent Context.",
-  ),
+  ).optional(),
   Content: z.record(z.string(), z.unknown()).describe(
     "The free-form content of the Agent Context, supplied as an arbitrary JSON object.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -132,7 +132,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for WellArchitected AgentContext. Registered at `@swamp/aws/wellarchitected/agent-context`. */
 export const model = {
   type: "@swamp/aws/wellarchitected/agent-context",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -141,6 +141,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -161,6 +166,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Content", "ContextType", "ProfileArn", "Title"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

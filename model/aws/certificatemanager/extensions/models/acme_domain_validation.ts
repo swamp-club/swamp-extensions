@@ -77,15 +77,15 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AcmeEndpointArn: z.string().describe(
     "The ARN of the ACME endpoint this domain validation is associated with.",
-  ),
-  DomainName: z.string().describe("The domain name to validate."),
+  ).optional(),
+  DomainName: z.string().describe("The domain name to validate.").optional(),
   PrevalidationOptions: z.object({
     DnsPrevalidation: DnsPrevalidationOptionsSchema.describe(
       "DNS-based prevalidation options for the domain validation.",
     ),
   }).describe(
     "Prevalidation method configuration. Currently only DNS-based prevalidation is supported.",
-  ),
+  ).optional(),
   Tags: z.array(z.object({
     Key: z.string().min(1).max(128).describe("The key name of the tag."),
     Value: z.string().min(0).max(256).describe("The value for the tag."),
@@ -151,7 +151,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CertificateManager AcmeDomainValidation. Registered at `@swamp/aws/certificatemanager/acme-domain-validation`. */
 export const model = {
   type: "@swamp/aws/certificatemanager/acme-domain-validation",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -178,6 +178,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -195,6 +200,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AcmeEndpointArn",
+          "DomainName",
+          "PrevalidationOptions",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

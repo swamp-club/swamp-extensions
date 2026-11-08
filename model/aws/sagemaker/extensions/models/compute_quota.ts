@@ -132,7 +132,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(63).regex(
     new RegExp("^[a-zA-Z0-9](-*[a-zA-Z0-9]){0,62}$"),
-  ).describe("The name of the compute allocation definition."),
+  ).describe("The name of the compute allocation definition.").optional(),
   Description: z.string().min(0).max(1024).regex(
     new RegExp("^[\\p{L}\\p{M}\\p{Z}\\p{S}\\p{N}\\p{P}]*$", "u"),
   ).describe("A free-form description of the compute allocation definition.")
@@ -143,7 +143,7 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "The ARN of the EKS-orchestrated SageMaker HyperPod cluster the compute allocation definition is bound to. Slurm-orchestrated clusters are rejected by the service.",
-  ),
+  ).optional(),
   ComputeQuotaConfig: z.object({
     ComputeQuotaResources: z.array(ComputeQuotaResourceConfigSchema).describe(
       "Per-instance-type compute quotas for the team. When VCpu / MemoryInGiB / Accelerators are partially specified, SageMaker auto-fills the remaining fields ratio-proportionally to the underlying instance — Read may return values the customer did not supply (drift may flag this).",
@@ -156,7 +156,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "Compute allocation rules: per-resource quotas, idle-borrowing strategy, and team-task preemption policy.",
-  ),
+  ).optional(),
   ComputeQuotaTarget: z.object({
     TeamName: z.string().regex(
       new RegExp("^[a-z0-9]([-a-z0-9]*[a-z0-9]){0,39}?$"),
@@ -166,7 +166,7 @@ const GlobalArgsSchema = z.object({
     FairShareWeight: z.number().int().min(0).max(100).describe(
       "Relative fair-share weight when fair-share scheduling is enabled on the parent ClusterSchedulerConfig. Defaults service-side to 0 when omitted.",
     ).optional(),
-  }).describe("The team this compute allocation rule applies to."),
+  }).describe("The team this compute allocation rule applies to.").optional(),
   ActivationState: z.enum(["Enabled", "Disabled"]).describe(
     "Whether the compute allocation rule is active. Defaults service-side to 'Enabled' when omitted on Create.",
   ).optional(),
@@ -270,7 +270,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker ComputeQuota. Registered at `@swamp/aws/sagemaker/compute-quota`. */
 export const model = {
   type: "@swamp/aws/sagemaker/compute-quota",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
@@ -279,6 +279,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -299,6 +304,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ClusterArn",
+          "ComputeQuotaConfig",
+          "ComputeQuotaTarget",
+          "Name",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

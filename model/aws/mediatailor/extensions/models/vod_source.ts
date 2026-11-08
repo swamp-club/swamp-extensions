@@ -71,11 +71,11 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   HttpPackageConfigurations: z.array(HttpPackageConfigurationSchema).describe(
     "A list of HTTP package configuration parameters for this VOD source.",
-  ),
-  SourceLocationName: z.string(),
+  ).optional(),
+  SourceLocationName: z.string().optional(),
   Tags: z.array(TagSchema).describe("The tags to assign to the VOD source.")
     .optional(),
-  VodSourceName: z.string(),
+  VodSourceName: z.string().optional(),
 });
 
 const StateSchema = z.object({
@@ -122,7 +122,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaTailor VodSource. Registered at `@swamp/aws/mediatailor/vod-source`. */
 export const model = {
   type: "@swamp/aws/mediatailor/vod-source",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -184,6 +184,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -201,6 +206,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "HttpPackageConfigurations",
+          "SourceLocationName",
+          "VodSourceName",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

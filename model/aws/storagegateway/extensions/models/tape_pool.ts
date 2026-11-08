@@ -63,10 +63,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   PoolName: z.string().min(1).max(100).regex(
     new RegExp("^[ -\\.0-\\[\\]-~]*[!-\\.0-\\[\\]-~][ -\\.0-\\[\\]-~]*$"),
-  ).describe("The name of the custom tape pool."),
+  ).describe("The name of the custom tape pool.").optional(),
   StorageClass: z.enum(["DEEP_ARCHIVE", "GLACIER"]).describe(
     "The storage class associated with the custom pool (S3 Glacier or S3 Glacier Deep Archive).",
-  ),
+  ).optional(),
   RetentionLockType: z.enum(["COMPLIANCE", "GOVERNANCE", "NONE"]).describe(
     "Tape retention lock type. Governance mode allows authorized removal; compliance mode prevents all removal.",
   ).optional(),
@@ -132,7 +132,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for StorageGateway TapePool. Registered at `@swamp/aws/storagegateway/tape-pool`. */
 export const model = {
   type: "@swamp/aws/storagegateway/tape-pool",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -154,6 +154,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -171,6 +176,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["PoolName", "StorageClass"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

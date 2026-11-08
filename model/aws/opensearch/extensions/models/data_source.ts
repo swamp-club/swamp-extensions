@@ -63,14 +63,14 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   DomainName: z.string().min(3).max(28).regex(new RegExp("^[a-z][a-z0-9\\-]+$"))
-    .describe("The name of the OpenSearch Service domain."),
+    .describe("The name of the OpenSearch Service domain.").optional(),
   Name: z.string().min(3).max(80).regex(new RegExp("^[a-z][a-z0-9_]+$"))
-    .describe("The name of the data source."),
+    .describe("The name of the data source.").optional(),
   DataSourceType: z.object({
     S3GlueDataCatalog: S3GlueDataCatalogSchema.describe(
       "Configuration for an S3 Glue Data Catalog data source.",
     ).optional(),
-  }).describe("The type of data source."),
+  }).describe("The type of data source.").optional(),
   Description: z.string().max(1000).describe(
     "A description of the data source.",
   ).optional(),
@@ -128,7 +128,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for OpenSearch DataSource. Registered at `@swamp/aws/opensearch/data-source`. */
 export const model = {
   type: "@swamp/aws/opensearch/data-source",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -150,6 +150,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -167,6 +172,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DataSourceType", "DomainName", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

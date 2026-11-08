@@ -110,10 +110,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   EndpointType: z.string().describe(
     "The type of endpoint. Valid values are source and target.",
-  ),
+  ).optional(),
   EngineName: z.string().describe(
     "The type of engine for the endpoint, depending on the EndpointType value.",
-  ),
+  ).optional(),
   ExtraConnectionAttributes: z.string().describe(
     "Additional attributes associated with the connection",
   ).optional(),
@@ -1938,7 +1938,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DMS Endpoint. Registered at `@swamp/aws/dms/endpoint`. */
 export const model = {
   type: "@swamp/aws/dms/endpoint",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -1965,6 +1965,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1982,6 +1987,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["EndpointType", "EngineName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

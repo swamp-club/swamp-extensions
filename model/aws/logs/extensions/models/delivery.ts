@@ -66,12 +66,12 @@ const GlobalArgsSchema = z.object({
   DeliverySourceName: z.string().min(1).max(60).regex(new RegExp("[\\w-]*$"))
     .describe(
       "The name of the delivery source that is associated with this delivery.",
-    ),
+    ).optional(),
   DeliveryDestinationArn: z.string().min(16).max(2048).regex(
     new RegExp("[\\w#+=/:,.@-]*\\*?"),
   ).describe(
     "The ARN of the delivery destination that is associated with this delivery.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "The tags that have been assigned to this delivery.",
   ).optional(),
@@ -155,7 +155,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Logs Delivery. Registered at `@swamp/aws/logs/delivery`. */
 export const model = {
   type: "@swamp/aws/logs/delivery",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -217,6 +217,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -234,6 +239,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DeliveryDestinationArn", "DeliverySourceName"].filter(
+          (k) => g[k] === undefined,
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

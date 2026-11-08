@@ -65,13 +65,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   DBClusterIdentifier: z.string().min(1).max(63).describe(
     "The name of the primary DB cluster for the DB shard group.",
-  ),
+  ).optional(),
   ComputeRedundancy: z.number().int().min(0).describe(
     "Specifies whether to create standby standby DB data access shard for the DB shard group. Valid values are the following: 0 - Creates a DB shard group without a standby DB data access shard. This is the default value. 1 - Creates a DB shard group with a standby DB data access shard in a different Availability Zone (AZ). 2 - Creates a DB shard group with two standby DB data access shard in two different AZs.",
   ).optional(),
   MaxACU: z.number().describe(
     "The maximum capacity of the DB shard group in Aurora capacity units (ACUs).",
-  ),
+  ).optional(),
   MinACU: z.number().describe(
     "The minimum capacity of the DB shard group in Aurora capacity units (ACUs).",
   ).optional(),
@@ -144,7 +144,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RDS DBShardGroup. Registered at `@swamp/aws/rds/dbshard-group`. */
 export const model = {
   type: "@swamp/aws/rds/dbshard-group",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -206,6 +206,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -223,6 +228,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DBClusterIdentifier", "MaxACU"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

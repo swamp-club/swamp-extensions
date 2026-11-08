@@ -132,7 +132,7 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Name: z.string().describe("The name of the lifecycle policy."),
+  Name: z.string().describe("The name of the lifecycle policy.").optional(),
   Description: z.string().describe("The description of the lifecycle policy.")
     .optional(),
   Status: z.enum(["DISABLED", "ENABLED"]).describe(
@@ -140,20 +140,20 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ExecutionRole: z.string().describe(
     "The execution role of the lifecycle policy.",
-  ),
+  ).optional(),
   ResourceType: z.enum(["AMI_IMAGE", "CONTAINER_IMAGE"]).describe(
     "The resource type of the lifecycle policy.",
-  ),
+  ).optional(),
   PolicyDetails: z.array(PolicyDetailSchema).describe(
     "The policy details of the lifecycle policy.",
-  ),
+  ).optional(),
   ResourceSelection: z.object({
     Recipes: z.array(RecipeSelectionSchema).describe("The recipes to select.")
       .optional(),
     TagMap: z.record(z.string(), z.string()).describe(
       "The Image Builder resources to select by tag.",
     ).optional(),
-  }).describe("The resource selection of the lifecycle policy."),
+  }).describe("The resource selection of the lifecycle policy.").optional(),
   Tags: z.record(z.string(), z.string()).describe(
     "The tags associated with the lifecycle policy.",
   ).optional(),
@@ -228,7 +228,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ImageBuilder LifecyclePolicy. Registered at `@swamp/aws/imagebuilder/lifecycle-policy`. */
 export const model = {
   type: "@swamp/aws/imagebuilder/lifecycle-policy",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -290,6 +290,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -307,6 +312,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ExecutionRole",
+          "Name",
+          "PolicyDetails",
+          "ResourceSelection",
+          "ResourceType",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

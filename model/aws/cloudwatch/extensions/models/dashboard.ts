@@ -65,7 +65,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   DashboardBody: z.string().describe(
     "The detailed information about the dashboard in JSON format, including the widgets to include and their location on the dashboard",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "A list of key-value pairs to associate with the cloudwatch dashboard. You can associate up to 50 tags with a dashboard",
   ).optional(),
@@ -114,7 +114,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudWatch Dashboard. Registered at `@swamp/aws/cloudwatch/dashboard`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/dashboard",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -181,6 +181,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -198,6 +203,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DashboardBody"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

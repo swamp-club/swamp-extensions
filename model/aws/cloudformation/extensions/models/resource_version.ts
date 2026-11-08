@@ -69,12 +69,12 @@ const GlobalArgsSchema = z.object({
     .optional(),
   SchemaHandlerPackage: z.string().describe(
     "A url to the S3 bucket containing the schema handler package that contains the schema, event handlers, and associated files for the type you want to register. For information on generating a schema handler package for the type you want to register, see submit in the CloudFormation CLI User Guide.",
-  ),
+  ).optional(),
   TypeName: z.string().regex(
     new RegExp("^[A-Za-z0-9]{2,64}::[A-Za-z0-9]{2,64}::[A-Za-z0-9]{2,64}$"),
   ).describe(
     "The name of the type being registered. We recommend that type names adhere to the following pattern: company_or_organization::service::type.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -144,7 +144,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFormation ResourceVersion. Registered at `@swamp/aws/cloudformation/resource-version`. */
 export const model = {
   type: "@swamp/aws/cloudformation/resource-version",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -153,6 +153,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -173,6 +178,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["SchemaHandlerPackage", "TypeName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -87,14 +87,15 @@ const GlobalArgsSchema = z.object({
     new RegExp("arn:aws(-[\\w]+)*:iam::[0-9]{12}:role/.*"),
   ).describe(
     "ARN of the IAM role that allows access to the stream processor, and provides Rekognition read permissions for KVS stream and write permissions to S3 bucket and SNS topic.",
-  ),
+  ).optional(),
   KinesisVideoStream: z.object({
     Arn: z.string().max(2048).regex(
       new RegExp("(^arn:([a-z\\d-]+):kinesisvideo:([a-z\\d-]+):\\d{12}:.+$)"),
     ).describe(
       "ARN of the Kinesis Video Stream that streams the source video.",
     ),
-  }).describe("The Kinesis Video Stream that streams the source video."),
+  }).describe("The Kinesis Video Stream that streams the source video.")
+    .optional(),
   FaceSearchSettings: z.object({
     CollectionId: z.string().max(255).regex(new RegExp("^[a-zA-Z0-9_\\.\\-]+$"))
       .describe(
@@ -291,7 +292,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Rekognition StreamProcessor. Registered at `@swamp/aws/rekognition/stream-processor`. */
 export const model = {
   type: "@swamp/aws/rekognition/stream-processor",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -359,6 +360,11 @@ export const model = {
         "Added: KinesisVideoStream, KinesisDataStream, NotificationChannel",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -376,6 +382,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["KinesisVideoStream", "RoleArn"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

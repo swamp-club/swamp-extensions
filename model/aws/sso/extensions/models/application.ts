@@ -74,7 +74,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(0).max(255).regex(new RegExp("^[\\w+=,.@-]+$")).describe(
     "The name you want to assign to this Identity Center (SSO) Application",
-  ),
+  ).optional(),
   Description: z.string().min(1).max(128).describe(
     "The description information for the Identity Center (SSO) Application",
   ).optional(),
@@ -84,14 +84,14 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "The ARN of the instance of IAM Identity Center under which the operation will run",
-  ),
+  ).optional(),
   ApplicationProviderArn: z.string().min(10).max(1224).regex(
     new RegExp(
       "^arn:aws(-[a-z]{1,5}){0,3}:sso::aws:applicationProvider/[a-zA-Z0-9-/]+$",
     ),
   ).describe(
     "The ARN of the application provider under which the operation will run",
-  ),
+  ).optional(),
   Status: z.enum(["ENABLED", "DISABLED"]).describe(
     "Specifies whether the application is enabled or disabled",
   ).optional(),
@@ -186,7 +186,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SSO Application. Registered at `@swamp/aws/sso/application`. */
 export const model = {
   type: "@swamp/aws/sso/application",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -258,6 +258,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -275,6 +280,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ApplicationProviderArn", "InstanceArn", "Name"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

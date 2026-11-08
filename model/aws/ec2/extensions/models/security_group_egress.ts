@@ -71,7 +71,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   IpProtocol: z.string().describe(
     "The IP protocol name ( tcp, udp, icmp, icmpv6) or number (see [Protocol Numbers](https://docs.aws.amazon.com/http://www.iana.org/assignments/protocol-numbers/protocol-numbers.xhtml)). Use -1 to specify all protocols. When authorizing security group rules, specifying -1 or a protocol number other than tcp, udp, icmp, or icmpv6 allows traffic on all ports, regardless of any port range you specify. For tcp, udp, and icmp, you must specify a port range. For icmpv6, the port range is optional; if you omit the port range, traffic for all types and codes is allowed.",
-  ),
+  ).optional(),
   DestinationSecurityGroupId: z.string().describe(
     "The ID of the security group. You must specify exactly one of the following: CidrIp, CidrIpv6, DestinationPrefixListId, or DestinationSecurityGroupId.",
   ).optional(),
@@ -80,7 +80,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   GroupId: z.string().describe(
     "The ID of the security group. You must specify either the security group ID or the security group name in the request. For security groups in a nondefault VPC, you must specify the security group ID.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -152,7 +152,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 SecurityGroupEgress. Registered at `@swamp/aws/ec2/security-group-egress`. */
 export const model = {
   type: "@swamp/aws/ec2/security-group-egress",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -214,6 +214,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -231,6 +236,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["GroupId", "IpProtocol"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

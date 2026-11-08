@@ -114,10 +114,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   CategoryName: z.string().min(1).max(200).regex(
     new RegExp("^[0-9a-zA-Z._-]+$"),
-  ).describe("A unique name, chosen by you, for your Call Analytics category."),
-  Rules: z.array(RuleSchema).describe(
-    "Rules define a Call Analytics category.",
-  ),
+  ).describe("A unique name, chosen by you, for your Call Analytics category.")
+    .optional(),
+  Rules: z.array(RuleSchema).describe("Rules define a Call Analytics category.")
+    .optional(),
   InputType: z.enum(["REAL_TIME", "POST_CALL"]).describe(
     "The input type associated with the specified category.",
   ).optional(),
@@ -177,7 +177,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Transcribe CallAnalyticsCategory. Registered at `@swamp/aws/transcribe/call-analytics-category`. */
 export const model = {
   type: "@swamp/aws/transcribe/call-analytics-category",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -186,6 +186,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -206,6 +211,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["CategoryName", "Rules"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

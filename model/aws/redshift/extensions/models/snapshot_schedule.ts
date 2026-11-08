@@ -63,13 +63,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ScheduleIdentifier: z.string().describe(
     "A unique identifier for the snapshot schedule. Only alphanumeric characters are allowed.",
-  ),
+  ).optional(),
   ScheduleDescription: z.string().describe(
     "The description of the snapshot schedule.",
   ).optional(),
   ScheduleDefinitions: z.array(z.string()).describe(
     'The definition of the snapshot schedule. The definition is made up of schedule expressions, for example "cron(30 12 *)" or "rate(12 hours)".',
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "An optional set of tags for the snapshot schedule.",
   ).optional(),
@@ -125,7 +125,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Redshift SnapshotSchedule. Registered at `@swamp/aws/redshift/snapshot-schedule`. */
 export const model = {
   type: "@swamp/aws/redshift/snapshot-schedule",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -147,6 +147,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -164,6 +169,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ScheduleDefinitions", "ScheduleIdentifier"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

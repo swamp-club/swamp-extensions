@@ -63,10 +63,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   IndexId: z.string().min(36).max(36).regex(
     new RegExp("^[a-zA-Z0-9][a-zA-Z0-9-]*$"),
-  ).describe("The identifier of the index for the thesaurus."),
+  ).describe("The identifier of the index for the thesaurus.").optional(),
   Name: z.string().min(1).max(100).regex(
     new RegExp("^[a-zA-Z0-9][a-zA-Z0-9_-]*$"),
-  ).describe("A name for the thesaurus."),
+  ).describe("A name for the thesaurus.").optional(),
   Description: z.string().min(0).max(1000).regex(new RegExp("^\\P{C}*$"))
     .describe("A description for the thesaurus.").optional(),
   RoleArn: z.string().min(0).max(1284).regex(
@@ -75,7 +75,7 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "An IAM role that gives Amazon Kendra permissions to access the thesaurus file specified in SourceS3Path.",
-  ),
+  ).optional(),
   SourceS3Path: z.object({
     Bucket: z.string().min(3).max(63).regex(
       new RegExp("^[a-z0-9][\\.\\-a-z0-9]{1,61}[a-z0-9]$"),
@@ -83,7 +83,7 @@ const GlobalArgsSchema = z.object({
     Key: z.string().min(1).max(1024).describe("The name of the file."),
   }).describe(
     "Information required to find a specific file in an Amazon S3 bucket.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "A list of key-value pairs that identify or categorize the thesaurus.",
   ).optional(),
@@ -159,7 +159,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Kendra Thesaurus. Registered at `@swamp/aws/kendra/thesaurus`. */
 export const model = {
   type: "@swamp/aws/kendra/thesaurus",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -168,6 +168,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -188,6 +193,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["IndexId", "Name", "RoleArn", "SourceS3Path"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

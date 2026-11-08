@@ -69,7 +69,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AddressFamily: z.string().describe(
     "The address family of the address space in this pool. Either IPv4 or IPv6.",
-  ),
+  ).optional(),
   AllocationMinNetmaskLength: z.number().int().describe(
     "The minimum allowed netmask length for allocations made from this pool.",
   ).optional(),
@@ -91,7 +91,7 @@ const GlobalArgsSchema = z.object({
   Description: z.string().optional(),
   IpamScopeId: z.string().describe(
     "The Id of the scope this pool is a part of.",
-  ),
+  ).optional(),
   Locale: z.string().describe(
     'The region of this pool. If not set, this will default to "None" which will disable non-custom allocations. If the locale has been specified for the source pool, this value must match.',
   ).optional(),
@@ -232,7 +232,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 IPAMPool. Registered at `@swamp/aws/ec2/ipampool`. */
 export const model = {
   type: "@swamp/aws/ec2/ipampool",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -294,6 +294,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -311,6 +316,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AddressFamily", "IpamScopeId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

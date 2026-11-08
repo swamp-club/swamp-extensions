@@ -60,18 +60,18 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "Amazon Resource Name (ARN), Partial ARN, name, version, or alias of the Lambda function to invoke with this hook.",
-  ),
+  ).optional(),
   HookStatus: z.enum(["ENABLED", "DISABLED"]).describe(
     "Attribute to specify which stacks this hook applies to or should get invoked for",
-  ),
+  ).optional(),
   TargetOperations: z.array(
     z.enum(["RESOURCE", "STACK", "CHANGE_SET", "CLOUD_CONTROL"]),
   ).describe(
     "Which operations should this Hook run against? Resource changes, stacks or change sets.",
-  ),
+  ).optional(),
   FailureMode: z.enum(["FAIL", "WARN"]).describe(
     "Attribute to specify CloudFormation behavior on hook failure.",
-  ),
+  ).optional(),
   TargetFilters: z.record(z.string(), z.unknown()).describe(
     "Attribute to specify which targets should invoke the hook",
   ).optional(),
@@ -106,10 +106,11 @@ const GlobalArgsSchema = z.object({
       "^(?!aws)[A-Za-z0-9]{2,64}::[A-Za-z0-9]{2,64}::[A-Za-z0-9]{2,64}$",
       "i",
     ),
-  ).describe("The typename alias for the hook."),
+  ).describe("The typename alias for the hook.").optional(),
   ExecutionRole: z.string().max(256).regex(
     new RegExp("arn:.+:iam::[0-9]{12}:role/.+"),
-  ).describe("The execution role ARN assumed by Hooks to invoke Lambda."),
+  ).describe("The execution role ARN assumed by Hooks to invoke Lambda.")
+    .optional(),
   AutoUpdate: z.boolean().describe(
     "Whether to automatically update the extension in this account and Region when a new minor version is published by the extension publisher.",
   ).optional(),
@@ -257,7 +258,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFormation LambdaHook. Registered at `@swamp/aws/cloudformation/lambda-hook`. */
 export const model = {
   type: "@swamp/aws/cloudformation/lambda-hook",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -329,6 +330,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -346,6 +352,19 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Alias",
+          "ExecutionRole",
+          "FailureMode",
+          "HookStatus",
+          "LambdaFunction",
+          "TargetOperations",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -65,16 +65,16 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   S3BucketName: z.string().describe(
     "The name of the Amazon S3 bucket where the capacity manager data export will be stored. The bucket must exist and be accessible by EC2 Capacity Manager service.",
-  ),
+  ).optional(),
   S3BucketPrefix: z.string().describe(
     "The prefix for the S3 bucket location where exported files will be placed. If not specified, files will be placed in the root of the bucket.",
   ).optional(),
   Schedule: z.enum(["hourly"]).describe(
     "The schedule for the capacity manager data export. Currently supports hourly exports that provide periodic snapshots of capacity manager data.",
-  ),
+  ).optional(),
   OutputFormat: z.enum(["csv", "parquet"]).describe(
     "The format of the exported capacity manager data. Choose 'csv' for comma-separated values or 'parquet' for optimized columnar storage format.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to the capacity manager data export.",
   ).optional(),
@@ -133,7 +133,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 CapacityManagerDataExport. Registered at `@swamp/aws/ec2/capacity-manager-data-export`. */
 export const model = {
   type: "@swamp/aws/ec2/capacity-manager-data-export",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -195,6 +195,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -212,6 +217,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["OutputFormat", "S3BucketName", "Schedule"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

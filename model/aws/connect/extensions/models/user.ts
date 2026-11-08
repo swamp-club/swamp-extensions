@@ -138,7 +138,7 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*$",
     ),
-  ).describe("The identifier of the Amazon Connect instance."),
+  ).describe("The identifier of the Amazon Connect instance.").optional(),
   DirectoryUserId: z.string().describe(
     "The identifier of the user account in the directory used for identity management.",
   ).optional(),
@@ -149,7 +149,7 @@ const GlobalArgsSchema = z.object({
   ).describe("The identifier of the hierarchy group for the user.").optional(),
   Username: z.string().min(1).max(64).regex(
     new RegExp("[a-zA-Z0-9\\_\\-\\.\\@]+"),
-  ).describe("The user name for the account."),
+  ).describe("The user name for the account.").optional(),
   Password: z.string().regex(
     new RegExp("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)[a-zA-Z\\d\\S]{8,64}$"),
   ).describe(
@@ -159,7 +159,7 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*/routing-profile/[-a-zA-Z0-9]*$",
     ),
-  ).describe("The identifier of the routing profile for the user."),
+  ).describe("The identifier of the routing profile for the user.").optional(),
   IdentityInfo: z.object({
     FirstName: z.string().describe(
       "The first name. This is required if you are using Amazon Connect or SAML for identity management.",
@@ -201,7 +201,7 @@ const GlobalArgsSchema = z.object({
         "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*/security-profile/[-a-zA-Z0-9]*$",
       ),
     ),
-  ).describe("One or more security profile arns for the user"),
+  ).describe("One or more security profile arns for the user").optional(),
   Tags: z.array(TagSchema).describe("One or more tags.").optional(),
   UserProficiencies: z.array(UserProficiencySchema).describe(
     "One or more predefined attributes assigned to a user, with a level that indicates how skilled they are.",
@@ -369,7 +369,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect User. Registered at `@swamp/aws/connect/user`. */
 export const model = {
   type: "@swamp/aws/connect/user",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -441,6 +441,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -458,6 +463,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "InstanceArn",
+          "RoutingProfileArn",
+          "SecurityProfileArns",
+          "Username",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

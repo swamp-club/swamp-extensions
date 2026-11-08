@@ -103,7 +103,7 @@ const GlobalArgsSchema = z.object({
     ),
   }).describe(
     "Specifies configuration information for the input data for the inference scheduler, including delimiter, format, and dataset location.",
-  ),
+  ).optional(),
   DataOutputConfiguration: z.object({
     KmsKeyId: z.string().min(1).max(2048).regex(
       new RegExp("^[A-Za-z0-9][A-Za-z0-9:_/+=,@.-]{0,2048}$"),
@@ -115,11 +115,11 @@ const GlobalArgsSchema = z.object({
     ),
   }).describe(
     "Specifies configuration information for the output results for the inference scheduler, including the S3 location for the output.",
-  ),
+  ).optional(),
   DataUploadFrequency: z.enum(["PT5M", "PT10M", "PT15M", "PT30M", "PT1H"])
     .describe(
       "How often data is uploaded to the source S3 bucket for the input data.",
-    ),
+    ).optional(),
   InferenceSchedulerName: z.string().min(1).max(200).regex(
     new RegExp("^[0-9a-zA-Z_-]{1,200}$"),
   ).describe("The name of the inference scheduler being created.").optional(),
@@ -127,12 +127,12 @@ const GlobalArgsSchema = z.object({
     new RegExp("^[0-9a-zA-Z_-]{1,200}$"),
   ).describe(
     "The name of the previously trained ML model being used to create the inference scheduler.",
-  ),
+  ).optional(),
   RoleArn: z.string().min(20).max(2048).regex(
     new RegExp("arn:aws(-[^:]+)?:iam::[0-9]{12}:role/.+"),
   ).describe(
     "The Amazon Resource Name (ARN) of a role with permission to access the data source being used for the inference.",
-  ),
+  ).optional(),
   ServerSideKmsKeyId: z.string().min(1).max(2048).regex(
     new RegExp("^[A-Za-z0-9][A-Za-z0-9:_/+=,@.-]{0,2048}$"),
   ).describe(
@@ -246,7 +246,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for LookoutEquipment InferenceScheduler. Registered at `@swamp/aws/lookoutequipment/inference-scheduler`. */
 export const model = {
   type: "@swamp/aws/lookoutequipment/inference-scheduler",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -308,6 +308,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -325,6 +330,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "DataInputConfiguration",
+          "DataOutputConfiguration",
+          "DataUploadFrequency",
+          "ModelName",
+          "RoleArn",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

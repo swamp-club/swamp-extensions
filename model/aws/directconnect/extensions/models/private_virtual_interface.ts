@@ -86,7 +86,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   BgpPeers: z.array(BgpPeerSchema).describe(
     "The BGP peers configured on this virtual interface.",
-  ),
+  ).optional(),
   DirectConnectGatewayId: z.string().regex(
     new RegExp(
       "^(arn:aws[a-z-]*:directconnect::[0-9]{12}:dx-gateway/)?[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
@@ -95,7 +95,8 @@ const GlobalArgsSchema = z.object({
   EnableSiteLink: z.boolean().describe(
     "Indicates whether to enable or disable SiteLink.",
   ).optional(),
-  Vlan: z.number().int().min(0).max(4095).describe("The ID of the VLAN."),
+  Vlan: z.number().int().min(0).max(4095).describe("The ID of the VLAN.")
+    .optional(),
   Mtu: z.number().int().describe(
     "The maximum transmission unit (MTU), in bytes. The supported values are 1500 and 9001. The default value is 1500.",
   ).optional(),
@@ -107,7 +108,7 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^((arn:aws[a-z-]*:directconnect:[a-z0-9-]+:[0-9]{12}:(dxcon/dxcon|dxlag/dxlag))|dx(con|lag))-[a-z0-9A-Z]{8,21}$",
     ),
-  ).describe("The ID or ARN of the connection or LAG."),
+  ).describe("The ID or ARN of the connection or LAG.").optional(),
   AllocatePrivateVirtualInterfaceRoleArn: z.string().regex(
     new RegExp("^arn:aws[a-z-]*:iam::[0-9]{12}:role/.+$"),
   ).describe(
@@ -116,7 +117,7 @@ const GlobalArgsSchema = z.object({
   VirtualInterfaceName: z.string().regex(new RegExp("^[\\w \\-_,\\/]{1,100}$"))
     .describe(
       "The name of the virtual interface assigned by the customer network. The name has a maximum of 100 characters. The following are valid characters: a-z, 0-9 and a hyphen (-).",
-    ),
+    ).optional(),
   VirtualGatewayId: z.string().regex(
     new RegExp(
       "^(arn:aws[a-z-]*:ec2:[a-z0-9-]+:[0-9]{12}:vpn-gateway/)?vgw-[a-zA-Z0-9]{8,32}$",
@@ -214,7 +215,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DirectConnect PrivateVirtualInterface. Registered at `@swamp/aws/directconnect/private-virtual-interface`. */
 export const model = {
   type: "@swamp/aws/directconnect/private-virtual-interface",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -281,6 +282,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -298,6 +304,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "BgpPeers",
+          "ConnectionId",
+          "VirtualInterfaceName",
+          "Vlan",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

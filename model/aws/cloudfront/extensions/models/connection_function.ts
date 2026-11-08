@@ -73,10 +73,10 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Name: z.string().describe("The connection function name."),
+  Name: z.string().describe("The connection function name.").optional(),
   ConnectionFunctionCode: z.string().describe(
     "The code for the connection function.",
-  ),
+  ).optional(),
   ConnectionFunctionConfig: z.object({
     Comment: z.string().describe(
       "A comment to describe the function. The comment cannot be longer than 128 characters.",
@@ -87,9 +87,8 @@ const GlobalArgsSchema = z.object({
     KeyValueStoreAssociations: z.array(KeyValueStoreAssociationSchema).describe(
       "The configuration for the key value store associations.",
     ).optional(),
-  }).describe(
-    "Contains configuration information about a CloudFront function.",
-  ),
+  }).describe("Contains configuration information about a CloudFront function.")
+    .optional(),
   AutoPublish: z.boolean().describe(
     "A flag that determines whether to automatically publish the function to the LIVE stage when it’s created. To automatically publish to the LIVE stage, set this property to true.",
   ).optional(),
@@ -168,7 +167,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFront ConnectionFunction. Registered at `@swamp/aws/cloudfront/connection-function`. */
 export const model = {
   type: "@swamp/aws/cloudfront/connection-function",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -240,6 +239,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -257,6 +261,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ConnectionFunctionCode",
+          "ConnectionFunctionConfig",
+          "Name",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

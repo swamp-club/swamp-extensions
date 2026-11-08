@@ -67,10 +67,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().regex(new RegExp("[a-zA-Z0-9._-]{1,128}")).describe(
     "The reservation name.",
-  ),
+  ).optional(),
   TargetDpus: z.number().int().min(1).describe(
     "The number of DPUs to request to be allocated to the reservation.",
-  ),
+  ).optional(),
   CapacityAssignmentConfiguration: z.object({
     CapacityAssignments: z.array(CapacityAssignmentSchema).describe(
       "List of capacity assignments",
@@ -140,7 +140,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Athena CapacityReservation. Registered at `@swamp/aws/athena/capacity-reservation`. */
 export const model = {
   type: "@swamp/aws/athena/capacity-reservation",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -202,6 +202,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -219,6 +224,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "TargetDpus"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -145,7 +145,8 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "The details of the import task to use to create the graph. When specified, the graph is created using CreateGraphUsingImportTask and data is imported from the supplied source.",
   ).optional(),
-  ProvisionedMemory: z.number().int().describe("Memory for the Graph."),
+  ProvisionedMemory: z.number().int().describe("Memory for the Graph.")
+    .optional(),
   Tags: z.array(TagSchema).describe("The tags associated with this graph.")
     .optional(),
 });
@@ -273,7 +274,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NeptuneGraph Graph. Registered at `@swamp/aws/neptunegraph/graph`. */
 export const model = {
   type: "@swamp/aws/neptunegraph/graph",
-  version: "2026.10.28.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -350,6 +351,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -367,6 +373,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ProvisionedMemory"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

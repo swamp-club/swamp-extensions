@@ -57,18 +57,18 @@ const GlobalArgsSchema = z.object({
   AccessRights: z.object({
     Enroll: z.enum(["ALLOW", "DENY"]).optional(),
     AutoEnroll: z.enum(["ALLOW", "DENY"]).optional(),
-  }),
+  }).optional(),
   GroupDisplayName: z.string().min(0).max(256).regex(
     new RegExp("^[\\x20-\\x7E]+$"),
-  ),
+  ).optional(),
   GroupSecurityIdentifier: z.string().min(7).max(256).regex(
     new RegExp("^S-[0-9]-([0-9]+-){1,14}[0-9]+$"),
-  ),
+  ).optional(),
   TemplateArn: z.string().min(5).max(200).regex(
     new RegExp(
       "^arn:[\\w-]+:pca-connector-ad:[\\w-]+:[0-9]+:connector(\\/[\\w-]+)\\/template(\\/[\\w-]+)$",
     ),
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -125,7 +125,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for PCAConnectorAD TemplateGroupAccessControlEntry. Registered at `@swamp/aws/pcaconnectorad/template-group-access-control-entry`. */
 export const model = {
   type: "@swamp/aws/pcaconnectorad/template-group-access-control-entry",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -192,6 +192,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -210,6 +215,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AccessRights",
+          "GroupDisplayName",
+          "GroupSecurityIdentifier",
+          "TemplateArn",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -74,7 +74,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   SnsTopicArn: z.string().describe(
     "The Amazon Resource Name (ARN) of the SNS topic created for event notification. SNS automatically creates the ARN when you create a topic and subscribe to it. RDS doesn't support FIFO (first in, first out) topics. For more information, see [Message ordering and deduplication (FIFO topics)](https://docs.aws.amazon.com/sns/latest/dg/sns-fifo-topics.html) in the *Amazon Simple Notification Service Developer Guide*.",
-  ),
+  ).optional(),
   SourceIds: z.array(z.string()).describe(
     "The list of identifiers of the event sources for which events are returned. If not specified, then all sources are included in the response. An identifier must begin with a letter and must contain only ASCII letters, digits, and hyphens. It can't end with a hyphen or contain two consecutive hyphens. Constraints: If SourceIds are supplied, SourceType must also be provided. If the source type is a DB instance, a DBInstanceIdentifier value must be supplied. If the source type is a DB cluster, a DBClusterIdentifier value must be supplied. If the source type is a DB parameter group, a DBParameterGroupName value must be supplied. If the source type is a DB security group, a DBSecurityGroupName value must be supplied. If the source type is a DB snapshot, a DBSnapshotIdentifier value must be supplied. If the source type is a DB cluster snapshot, a DBClusterSnapshotIdentifier value must be supplied. If the source type is an RDS Proxy, a DBProxyName value must be supplied.",
   ).optional(),
@@ -142,7 +142,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RDS EventSubscription. Registered at `@swamp/aws/rds/event-subscription`. */
 export const model = {
   type: "@swamp/aws/rds/event-subscription",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -204,6 +204,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -221,6 +226,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["SnsTopicArn"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

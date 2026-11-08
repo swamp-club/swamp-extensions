@@ -102,7 +102,7 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*$",
     ),
-  ).describe("Amazon Connect Instance Arn"),
+  ).describe("Amazon Connect Instance Arn").optional(),
   DialerConfig: z.object({
     ProgressiveDialerConfig: ProgressiveDialerConfigSchema.describe(
       "Progressive Dialer config",
@@ -113,8 +113,9 @@ const GlobalArgsSchema = z.object({
     AgentlessDialerConfig: AgentlessDialerConfigSchema.describe(
       "Agentless Dialer config",
     ).optional(),
-  }).describe("The possible types of dialer config parameters"),
-  Name: z.string().min(1).max(127).describe("Amazon Connect Campaign Name"),
+  }).describe("The possible types of dialer config parameters").optional(),
+  Name: z.string().min(1).max(127).describe("Amazon Connect Campaign Name")
+    .optional(),
   OutboundCallConfig: z.object({
     ConnectContactFlowArn: z.string().max(500).regex(
       new RegExp(
@@ -134,7 +135,7 @@ const GlobalArgsSchema = z.object({
     AnswerMachineDetectionConfig: AnswerMachineDetectionConfigSchema.describe(
       "The configuration used for answering machine detection during outbound calls",
     ).optional(),
-  }).describe("The configuration used for outbound calls."),
+  }).describe("The configuration used for outbound calls.").optional(),
   Tags: z.array(TagSchema).describe("One or more tags.").optional(),
 });
 
@@ -225,7 +226,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ConnectCampaigns Campaign. Registered at `@swamp/aws/connectcampaigns/campaign`. */
 export const model = {
   type: "@swamp/aws/connectcampaigns/campaign",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -287,6 +288,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -304,6 +310,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ConnectInstanceArn",
+          "DialerConfig",
+          "Name",
+          "OutboundCallConfig",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

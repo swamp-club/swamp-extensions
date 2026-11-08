@@ -795,16 +795,17 @@ const GlobalArgsSchema = z.object({
   }).optional(),
   RoleArn: z.string().min(32).max(2048).regex(
     new RegExp("^arn:aws[a-zA-Z-]*:iam::[0-9]{12}:role/.*$"),
-  ),
+  ).optional(),
   BotType: z.enum(["Bot", "BotNetwork"]).describe(
     "The type of a bot to create.",
   ).optional(),
-  Name: z.string().min(1).max(100).regex(new RegExp("^([0-9a-zA-Z][_-]?)+$")),
+  Name: z.string().min(1).max(100).regex(new RegExp("^([0-9a-zA-Z][_-]?)+$"))
+    .optional(),
   BotTags: z.array(TagSchema).optional(),
   TestBotAliasTags: z.array(TagSchema).optional(),
   AutoBuildBotLocales: z.boolean().optional(),
   BotLocales: z.array(BotLocaleSchema).optional(),
-  IdleSessionTTLInSeconds: z.number().int().min(60).max(86400),
+  IdleSessionTTLInSeconds: z.number().int().min(60).max(86400).optional(),
   BotFileS3Location: z.object({
     S3ObjectVersion: z.string().min(1).max(1024).optional(),
     S3Bucket: z.string().min(3).max(63).regex(
@@ -834,7 +835,7 @@ const GlobalArgsSchema = z.object({
   }).optional(),
   DataPrivacy: z.object({
     ChildDirected: z.boolean(),
-  }),
+  }).optional(),
 });
 
 const StateSchema = z.object({
@@ -951,7 +952,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lex Bot. Registered at `@swamp/aws/lex/bot`. */
 export const model = {
   type: "@swamp/aws/lex/bot",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -1033,6 +1034,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1050,6 +1056,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "DataPrivacy",
+          "IdleSessionTTLInSeconds",
+          "Name",
+          "RoleArn",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

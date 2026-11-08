@@ -56,14 +56,14 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ClusterArn: z.string().describe(
     "The Amazon Resource Name (ARN) of the MSK cluster",
-  ),
-  TopicName: z.string().describe("The name of the topic"),
+  ).optional(),
+  TopicName: z.string().describe("The name of the topic").optional(),
   PartitionCount: z.number().int().min(1).describe(
     "The number of partitions for the topic",
-  ),
+  ).optional(),
   ReplicationFactor: z.number().int().min(1).describe(
     "The replication factor for the topic",
-  ),
+  ).optional(),
   Configs: z.string().describe(
     "Base64 encoded configuration properties of the topic",
   ).optional(),
@@ -120,7 +120,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MSK Topic. Registered at `@swamp/aws/msk/topic`. */
 export const model = {
   type: "@swamp/aws/msk/topic",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -182,6 +182,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -199,6 +204,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ClusterArn",
+          "PartitionCount",
+          "ReplicationFactor",
+          "TopicName",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

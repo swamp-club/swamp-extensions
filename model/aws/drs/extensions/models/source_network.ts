@@ -60,14 +60,14 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   VpcID: z.string().min(12).max(21).regex(new RegExp("^vpc-[0-9a-fA-F]{8,}$"))
-    .describe("The VPC ID to protect."),
+    .describe("The VPC ID to protect.").optional(),
   OriginAccountID: z.string().min(12).max(12).regex(new RegExp("[0-9]{12,}"))
-    .describe("The account ID containing the VPC to protect."),
+    .describe("The account ID containing the VPC to protect.").optional(),
   OriginRegion: z.string().max(255).regex(
     new RegExp(
       "^(us(-gov)?|ap|ca|cn|eu|eusc|sa|af|me|mx|il)-([a-z]{2}-)?(central|north|(north(?:east|west))|south|south(?:east|west)|east|west)-[0-9]$",
     ),
-  ).describe("The region containing the VPC to protect."),
+  ).describe("The region containing the VPC to protect.").optional(),
   Tags: z.array(TagSchema).describe(
     "A set of tags associated with the Source Network.",
   ).optional(),
@@ -123,7 +123,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DRS SourceNetwork. Registered at `@swamp/aws/drs/source-network`. */
 export const model = {
   type: "@swamp/aws/drs/source-network",
-  version: "2026.10.23.2",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -137,6 +137,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -157,6 +162,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["OriginAccountID", "OriginRegion", "VpcID"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

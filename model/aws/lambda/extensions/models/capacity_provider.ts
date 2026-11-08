@@ -125,7 +125,8 @@ const GlobalArgsSchema = z.object({
     ).describe(
       "The ARN of the IAM role that the capacity provider uses to manage compute instances and other AWS resources.",
     ),
-  }).describe("The permissions configuration for the capacity provider."),
+  }).describe("The permissions configuration for the capacity provider.")
+    .optional(),
   Tags: z.array(TagSchema).describe(
     "A key-value pair that provides metadata for the capacity provider.",
   ).optional(),
@@ -140,7 +141,7 @@ const GlobalArgsSchema = z.object({
     ).describe(
       "A list of security group IDs that control network access for compute instances managed by the capacity provider.",
     ),
-  }).describe("The VPC configuration for the capacity provider."),
+  }).describe("The VPC configuration for the capacity provider.").optional(),
   PropagateTags: z.object({
     Mode: z.enum(["None", "Explicit"]).describe(
       "The mode for tag propagation. Use Explicit to propagate specific tags, or None to disable propagation.",
@@ -301,7 +302,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda CapacityProvider. Registered at `@swamp/aws/lambda/capacity-provider`. */
 export const model = {
   type: "@swamp/aws/lambda/capacity-provider",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -403,6 +404,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -420,6 +426,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["PermissionsConfig", "VpcConfig"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

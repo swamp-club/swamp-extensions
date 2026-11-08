@@ -69,13 +69,13 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "The identifier of the Amazon Connect instance that has been replicated.",
-  ),
+  ).optional(),
   Description: z.string().min(1).max(250).regex(
     new RegExp("(^[\\S].*[\\S]$)|(^[\\S]$)"),
   ).describe("A description for the traffic distribution group.").optional(),
   Name: z.string().min(1).max(128).regex(
     new RegExp("(^[\\S].*[\\S]$)|(^[\\S]$)"),
-  ).describe("The name for the traffic distribution group."),
+  ).describe("The name for the traffic distribution group.").optional(),
   Tags: z.array(TagSchema).describe("One or more tags.").optional(),
 });
 
@@ -132,7 +132,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect TrafficDistributionGroup. Registered at `@swamp/aws/connect/traffic-distribution-group`. */
 export const model = {
   type: "@swamp/aws/connect/traffic-distribution-group",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -194,6 +194,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -211,6 +216,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["InstanceArn", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

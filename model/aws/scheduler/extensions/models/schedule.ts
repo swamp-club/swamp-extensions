@@ -214,7 +214,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "Flexible time window allows configuration of a window within which a schedule can be invoked",
-  ),
+  ).optional(),
   GroupName: z.string().min(1).max(64).regex(new RegExp("^[0-9a-zA-Z-_.]+$"))
     .describe(
       "The name of the schedule group to associate with this schedule. If you omit this, the default schedule group is used.",
@@ -230,7 +230,7 @@ const GlobalArgsSchema = z.object({
     .optional(),
   ScheduleExpression: z.string().min(1).max(256).describe(
     "The scheduling expression.",
-  ),
+  ).optional(),
   ScheduleExpressionTimezone: z.string().min(1).max(50).describe(
     "The timezone in which the scheduling expression is evaluated.",
   ).optional(),
@@ -273,7 +273,7 @@ const GlobalArgsSchema = z.object({
     SqsParameters: SqsParametersSchema.describe(
       "Contains the message group ID to use when the target is a FIFO queue. If you specify an SQS FIFO queue as a target, the queue must have content-based deduplication enabled.",
     ).optional(),
-  }).describe("The schedule target."),
+  }).describe("The schedule target.").optional(),
 });
 
 const StateSchema = z.object({
@@ -408,7 +408,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Scheduler Schedule. Registered at `@swamp/aws/scheduler/schedule`. */
 export const model = {
   type: "@swamp/aws/scheduler/schedule",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -475,6 +475,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -492,6 +497,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["FlexibleTimeWindow", "ScheduleExpression", "Target"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

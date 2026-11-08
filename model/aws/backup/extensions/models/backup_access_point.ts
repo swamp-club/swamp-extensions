@@ -70,7 +70,7 @@ const GlobalArgsSchema = z.object({
     new RegExp("^(arn:aws[a-z-]*:[a-z-\\d]+:[a-z-\\d]+:).+$"),
   ).describe(
     "The Amazon Resource Name (ARN) of the recovery point for which to create the backup access point. The recovery point must be an Amazon S3 recovery point in the AVAILABLE, STOPPED, or COMPLETED state.",
-  ),
+  ).optional(),
   AccessPointPolicy: z.record(z.string(), z.unknown()).describe(
     "An optional resource-based policy document, in JSON, to apply to the underlying Amazon S3 access point. The policy controls how backup data can be accessed through the access point. If you do not specify a policy, access is governed by the caller's IAM permissions. The serialized policy may not exceed 200000 characters. This value is not returned by the service and cannot be updated in place.",
   ).optional(),
@@ -152,7 +152,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Backup BackupAccessPoint. Registered at `@swamp/aws/backup/backup-access-point`. */
 export const model = {
   type: "@swamp/aws/backup/backup-access-point",
-  version: "2026.10.31.1",
+  version: "2026.11.08.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -169,6 +176,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["RecoveryPointArn"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

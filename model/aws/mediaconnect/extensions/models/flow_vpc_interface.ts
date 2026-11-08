@@ -65,19 +65,20 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "The Amazon Resource Name (ARN), a unique identifier for any AWS resource, of the flow.",
-  ),
+  ).optional(),
   Name: z.string().describe(
     "Immutable and has to be a unique against other VpcInterfaces in this Flow.",
-  ),
+  ).optional(),
   RoleArn: z.string().regex(
     new RegExp("^arn:(aws[a-zA-Z-]*):iam::[0-9]{12}:role/[a-zA-Z0-9_+=,.@-]+$"),
   ).describe(
     "Role Arn MediaConnect can assume to create ENIs in customer's account.",
-  ),
+  ).optional(),
   SecurityGroupIds: z.array(z.string()).describe(
     "Security Group IDs to be used on ENI.",
-  ),
-  SubnetId: z.string().describe("Subnet must be in the AZ of the Flow"),
+  ).optional(),
+  SubnetId: z.string().describe("Subnet must be in the AZ of the Flow")
+    .optional(),
   Tags: z.array(TagSchema).describe(
     "Key-value pairs that can be used to tag and organize this VPC network interface.",
   ).optional(),
@@ -145,7 +146,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaConnect FlowVpcInterface. Registered at `@swamp/aws/mediaconnect/flow-vpc-interface`. */
 export const model = {
   type: "@swamp/aws/mediaconnect/flow-vpc-interface",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -212,6 +213,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -229,6 +235,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "FlowArn",
+          "Name",
+          "RoleArn",
+          "SecurityGroupIds",
+          "SubnetId",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

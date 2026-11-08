@@ -251,7 +251,7 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   RuleName: z.string().min(1).max(100).regex(new RegExp("^[0-9A-Za-z-]+$"))
-    .describe("The name of the organization telemetry rule"),
+    .describe("The name of the organization telemetry rule").optional(),
   Rule: z.object({
     ResourceType: z.enum([
       "AWS::EC2::VPC",
@@ -302,7 +302,7 @@ const GlobalArgsSchema = z.object({
     AllRegions: z.boolean().describe(
       "When true, the rule is replicated to all supported regions",
     ).optional(),
-  }).describe("The telemetry rule"),
+  }).describe("The telemetry rule").optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource",
   ).optional(),
@@ -414,7 +414,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ObservabilityAdmin OrganizationTelemetryRule. Registered at `@swamp/aws/observabilityadmin/organization-telemetry-rule`. */
 export const model = {
   type: "@swamp/aws/observabilityadmin/organization-telemetry-rule",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.09.11.1",
@@ -446,6 +446,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -464,6 +469,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Rule", "RuleName"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

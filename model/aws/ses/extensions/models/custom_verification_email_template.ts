@@ -61,19 +61,19 @@ const GlobalArgsSchema = z.object({
   ),
   FromEmailAddress: z.string().describe(
     "The email address that the custom verification email is sent from.",
-  ),
+  ).optional(),
   TemplateSubject: z.string().describe(
     "The subject line of the custom verification email.",
-  ),
+  ).optional(),
   TemplateContent: z.string().describe(
     "The content of the custom verification email. The total size of the email must be less than 10 MB. The message body may contain HTML, with some limitations.",
-  ),
+  ).optional(),
   SuccessRedirectionURL: z.string().describe(
     "The URL that the recipient of the verification email is sent to if his or her address is successfully verified.",
-  ),
+  ).optional(),
   FailureRedirectionURL: z.string().describe(
     "The URL that the recipient of the verification email is sent to if his or her address is not successfully verified.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "The tags (keys and values) associated with the tenant.",
   ).optional(),
@@ -138,7 +138,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SES CustomVerificationEmailTemplate. Registered at `@swamp/aws/ses/custom-verification-email-template`. */
 export const model = {
   type: "@swamp/aws/ses/custom-verification-email-template",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -200,6 +200,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -217,6 +222,19 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "FailureRedirectionURL",
+          "FromEmailAddress",
+          "SuccessRedirectionURL",
+          "TemplateContent",
+          "TemplateName",
+          "TemplateSubject",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -81,9 +81,8 @@ const GlobalArgsSchema = z.object({
   Description: z.string().min(0).max(1024).regex(
     new RegExp("^[^\\p{C}]+$", "u"),
   ).optional(),
-  PackageName: z.string().min(1).max(128).regex(
-    new RegExp("^[a-zA-Z0-9-_.]+$"),
-  ),
+  PackageName: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9-_.]+$"))
+    .optional(),
   Recipe: z.string().describe(
     "The inline json job document associated with a software package version",
   ).optional(),
@@ -170,7 +169,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoT SoftwarePackageVersion. Registered at `@swamp/aws/iot/software-package-version`. */
 export const model = {
   type: "@swamp/aws/iot/software-package-version",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -232,6 +231,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -249,6 +253,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["PackageName"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

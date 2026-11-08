@@ -61,10 +61,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   DetectorId: z.string().min(1).max(300).describe(
     "The ID of the GuardDuty detector associated with the publishing destination.",
-  ),
+  ).optional(),
   DestinationType: z.string().describe(
     "The type of resource for the publishing destination. Currently only Amazon S3 buckets are supported.",
-  ),
+  ).optional(),
   DestinationProperties: z.object({
     DestinationArn: z.string().describe(
       "The ARN of the resource to publish to.",
@@ -72,7 +72,7 @@ const GlobalArgsSchema = z.object({
     KmsKeyArn: z.string().describe(
       "The ARN of the KMS key to use for encryption.",
     ).optional(),
-  }),
+  }).optional(),
   Tags: z.array(TagItemSchema).optional(),
 });
 
@@ -133,7 +133,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GuardDuty PublishingDestination. Registered at `@swamp/aws/guardduty/publishing-destination`. */
 export const model = {
   type: "@swamp/aws/guardduty/publishing-destination",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -195,6 +195,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -212,6 +217,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "DestinationProperties",
+          "DestinationType",
+          "DetectorId",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

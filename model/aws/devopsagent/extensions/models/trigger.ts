@@ -62,16 +62,16 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AgentSpaceId: z.string().min(1).max(255).describe(
     "The unique identifier of the parent Agent Space.",
-  ),
-  Type: z.enum(["TIME_BASED"]).describe("The type of trigger."),
+  ).optional(),
+  Type: z.enum(["TIME_BASED"]).describe("The type of trigger.").optional(),
   Condition: z.object({
     Schedule: ScheduleSchema.describe(
       "Schedule configuration for a time-based trigger.",
     ),
-  }).describe("The condition that causes the trigger to fire."),
+  }).describe("The condition that causes the trigger to fire.").optional(),
   Action: z.record(z.string(), z.unknown()).describe(
     "The action to perform when the trigger fires. A JSON object containing actionType and task.",
-  ),
+  ).optional(),
   Status: z.enum(["Active", "Inactive"]).describe(
     "The status of the trigger. Active triggers fire on schedule; Inactive triggers are paused.",
   ).optional(),
@@ -135,7 +135,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DevOpsAgent Trigger. Registered at `@swamp/aws/devopsagent/trigger`. */
 export const model = {
   type: "@swamp/aws/devopsagent/trigger",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -157,6 +157,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -174,6 +179,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Action", "AgentSpaceId", "Condition", "Type"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

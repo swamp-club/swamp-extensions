@@ -86,17 +86,17 @@ const GlobalArgsSchema = z.object({
   }).describe("Key-value pairs to configure log publishing.").optional(),
   MaxUnits: z.number().int().min(1).max(384).describe(
     "The maximum pipeline capacity, in Ingestion OpenSearch Compute Units (OCUs).",
-  ),
+  ).optional(),
   MinUnits: z.number().int().min(1).max(384).describe(
     "The minimum pipeline capacity, in Ingestion OpenSearch Compute Units (OCUs).",
-  ),
+  ).optional(),
   PipelineConfigurationBody: z.string().min(1).max(100000).describe(
     "The Data Prepper pipeline configuration.",
-  ),
+  ).optional(),
   PipelineName: z.string().min(3).max(28).regex(new RegExp("[a-z][a-z0-9\\-]+"))
     .describe(
       "Name of the OpenSearch Ingestion Service pipeline to create. Pipeline names are unique across the pipelines owned by an account within an AWS Region.",
-    ),
+    ).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -286,7 +286,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for OSIS Pipeline. Registered at `@swamp/aws/osis/pipeline`. */
 export const model = {
   type: "@swamp/aws/osis/pipeline",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -353,6 +353,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -370,6 +375,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "MaxUnits",
+          "MinUnits",
+          "PipelineConfigurationBody",
+          "PipelineName",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

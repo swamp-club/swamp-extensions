@@ -55,12 +55,13 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   GroupName: z.string().min(1).regex(new RegExp("^[\\u0020-\\u00FF]+$"))
-    .describe("A name for the group."),
+    .describe("A name for the group.").optional(),
   Description: z.string().min(1).max(512).describe(
     "A description for the group.",
   ).optional(),
   Namespace: z.string().min(0).max(64).regex(new RegExp("^[a-zA-Z0-9._-]*$"))
-    .describe("The namespace that you want the group to be a part of."),
+    .describe("The namespace that you want the group to be a part of.")
+    .optional(),
 });
 
 const StateSchema = z.object({
@@ -108,10 +109,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight Group. Registered at `@swamp/aws/quicksight/group`. */
 export const model = {
   type: "@swamp/aws/quicksight/group",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -132,6 +138,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["GroupName", "Namespace"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

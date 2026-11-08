@@ -58,13 +58,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Description: z.string().min(1).max(255).describe(
     "The description for the DB cluster parameter group.",
-  ),
+  ).optional(),
   Parameters: z.record(z.string(), z.unknown()).describe(
     "An object containing key-value pairs of parameters to set for the DB cluster parameter group.",
-  ),
+  ).optional(),
   Family: z.string().min(1).max(255).describe(
     "The DB cluster parameter group family name (e.g. docdb5.0).",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -124,7 +124,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DocDB DBClusterParameterGroup. Registered at `@swamp/aws/docdb/dbcluster-parameter-group`. */
 export const model = {
   type: "@swamp/aws/docdb/dbcluster-parameter-group",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -133,6 +133,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -153,6 +158,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Description", "Family", "Parameters"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -72,7 +72,7 @@ const GlobalArgsSchema = z.object({
   EnableTerminationProtection: z.boolean().optional(),
   NotificationARNs: z.array(z.string()).optional(),
   Parameters: z.record(z.string(), z.string()).optional(),
-  StackName: z.string(),
+  StackName: z.string().optional(),
   StackPolicyBody: z.record(z.string(), z.unknown()).optional(),
   StackPolicyURL: z.string().optional(),
   StackStatusReason: z.string().optional(),
@@ -164,7 +164,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFormation Stack. Registered at `@swamp/aws/cloudformation/stack`. */
 export const model = {
   type: "@swamp/aws/cloudformation/stack",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -173,6 +173,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -193,6 +198,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["StackName"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

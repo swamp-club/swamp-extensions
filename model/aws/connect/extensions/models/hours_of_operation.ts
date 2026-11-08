@@ -171,17 +171,18 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*$",
     ),
-  ).describe("The identifier of the Amazon Connect instance."),
+  ).describe("The identifier of the Amazon Connect instance.").optional(),
   Name: z.string().min(1).max(127).describe(
     "The name of the hours of operation.",
-  ),
+  ).optional(),
   Description: z.string().min(1).max(250).describe(
     "The description of the hours of operation.",
   ).optional(),
-  TimeZone: z.string().describe("The time zone of the hours of operation."),
+  TimeZone: z.string().describe("The time zone of the hours of operation.")
+    .optional(),
   Config: z.array(HoursOfOperationConfigSchema).describe(
     "Configuration information for the hours of operation: day, start time, and end time.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe("One or more tags.").optional(),
   HoursOfOperationOverrides: z.array(HoursOfOperationOverrideSchema).describe(
     "One or more hours of operation overrides assigned to an hour of operation.",
@@ -263,7 +264,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect HoursOfOperation. Registered at `@swamp/aws/connect/hours-of-operation`. */
 export const model = {
   type: "@swamp/aws/connect/hours-of-operation",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -325,6 +326,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -342,6 +348,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Config", "InstanceArn", "Name", "TimeZone"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

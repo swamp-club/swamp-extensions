@@ -68,7 +68,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ResiliencyGroupName: z.string().min(1).max(255).regex(
     new RegExp("^[a-zA-Z0-9_\\-]+$"),
-  ).describe("The name of the resiliency group."),
+  ).describe("The name of the resiliency group.").optional(),
   IntendedResiliencyModel: z.enum([
     "maximum-resiliency",
     "high-resiliency",
@@ -147,7 +147,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DirectConnect ResiliencyGroup. Registered at `@swamp/aws/directconnect/resiliency-group`. */
 export const model = {
   type: "@swamp/aws/directconnect/resiliency-group",
-  version: "2026.10.30.1",
+  version: "2026.11.08.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -164,6 +171,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ResiliencyGroupName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

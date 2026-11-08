@@ -73,17 +73,17 @@ const GlobalArgsSchema = z.object({
   ).describe("The name of the endpoint."),
   VpcSecurityGroupIds: z.array(z.string()).describe(
     "A list of vpc security group ids to apply to the created endpoint access.",
-  ),
+  ).optional(),
   ResourceOwner: z.string().regex(new RegExp("^\\d{12}$")).describe(
     "The AWS account ID of the owner of the cluster.",
   ).optional(),
   SubnetGroupName: z.string().regex(new RegExp("^(?=^[a-zA-Z0-9-]+$).{1,255}$"))
     .describe(
       "The subnet group name where Amazon Redshift chooses to deploy the endpoint.",
-    ),
+    ).optional(),
   ClusterIdentifier: z.string().describe(
     "A unique identifier for the cluster. You use this identifier to refer to the cluster for any subsequent cluster operations such as deleting or modifying. All alphabetical characters must be lower case, no hypens at the end, no two consecutive hyphens. Cluster name should be unique for all clusters within an AWS account",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -158,7 +158,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Redshift EndpointAccess. Registered at `@swamp/aws/redshift/endpoint-access`. */
 export const model = {
   type: "@swamp/aws/redshift/endpoint-access",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -220,6 +220,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -237,6 +242,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ClusterIdentifier",
+          "EndpointName",
+          "SubnetGroupName",
+          "VpcSecurityGroupIds",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

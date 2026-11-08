@@ -56,11 +56,12 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   LoadBalancerName: z.string().regex(new RegExp("\\w[\\w\\-]*\\w")).describe(
     "The name of your load balancer.",
-  ),
-  CertificateName: z.string().describe("The SSL/TLS certificate name."),
+  ).optional(),
+  CertificateName: z.string().describe("The SSL/TLS certificate name.")
+    .optional(),
   CertificateDomainName: z.string().describe(
     "The domain name (e.g., example.com) for your SSL/TLS certificate.",
-  ),
+  ).optional(),
   CertificateAlternativeNames: z.array(z.string()).describe(
     "An array of strings listing alternative domains and subdomains for your SSL/TLS certificate.",
   ).optional(),
@@ -129,7 +130,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lightsail LoadBalancerTlsCertificate. Registered at `@swamp/aws/lightsail/load-balancer-tls-certificate`. */
 export const model = {
   type: "@swamp/aws/lightsail/load-balancer-tls-certificate",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -191,6 +192,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -208,6 +214,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "CertificateDomainName",
+          "CertificateName",
+          "LoadBalancerName",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

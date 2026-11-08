@@ -60,16 +60,17 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   MonitorName: z.string().min(1).max(200).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
-    .describe("The name of the monitor the probe belongs to."),
+    .describe("The name of the monitor the probe belongs to.").optional(),
   SourceArn: z.string().min(20).max(2048).regex(new RegExp("^arn:.*$"))
-    .describe("The ARN of the subnet the probe sends traffic from."),
+    .describe("The ARN of the subnet the probe sends traffic from.").optional(),
   Destination: z.string().min(1).max(255).describe(
     "The literal IPv4 or IPv6 address the probe sends traffic to. The service rejects a domain name and a CIDR block.",
-  ),
+  ).optional(),
   DestinationPort: z.number().int().min(0).max(65536).describe(
     "The port the probe sends traffic to. Applies to the TCP protocol only.",
   ).optional(),
-  Protocol: z.enum(["TCP", "ICMP"]).describe("The protocol the probe uses."),
+  Protocol: z.enum(["TCP", "ICMP"]).describe("The protocol the probe uses.")
+    .optional(),
   PacketSize: z.number().int().min(56).max(8500).describe(
     "The size, in bytes, of the packets the probe sends.",
   ).optional(),
@@ -138,7 +139,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkMonitor Probe. Registered at `@swamp/aws/networkmonitor/probe`. */
 export const model = {
   type: "@swamp/aws/networkmonitor/probe",
-  version: "2026.10.24.1",
+  version: "2026.11.08.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -155,6 +163,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Destination", "MonitorName", "Protocol", "SourceArn"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

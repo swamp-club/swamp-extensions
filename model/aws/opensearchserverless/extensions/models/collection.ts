@@ -65,7 +65,7 @@ const GlobalArgsSchema = z.object({
   Name: z.string().min(3).max(64).regex(new RegExp("^[a-z][a-z0-9-]{2,63}$"))
     .describe(
       "The name of the collection. The name must meet the following criteria: Unique to your account and AWS Region Starts with a lowercase letter Contains only lowercase letters a-z, the numbers 0-9 and the hyphen (-) Contains between 3 and 64 characters",
-    ),
+    ).optional(),
   Tags: z.array(TagSchema).describe("List of tags to be added to the resource")
     .optional(),
   Type: z.enum(["SEARCH", "TIMESERIES", "VECTORSEARCH"]).describe(
@@ -196,7 +196,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for OpenSearchServerless Collection. Registered at `@swamp/aws/opensearchserverless/collection`. */
 export const model = {
   type: "@swamp/aws/opensearchserverless/collection",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -278,6 +278,11 @@ export const model = {
       description: "Added: FipsEndpoints",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -295,6 +300,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

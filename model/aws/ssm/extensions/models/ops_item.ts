@@ -59,9 +59,10 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Title: z.string().describe("The title of the OpsItem."),
-  Description: z.string().describe("The description of the OpsItem."),
-  Source: z.string().describe("The origin of the OpsItem."),
+  Title: z.string().describe("The title of the OpsItem.").optional(),
+  Description: z.string().describe("The description of the OpsItem.")
+    .optional(),
+  Source: z.string().describe("The origin of the OpsItem.").optional(),
   Priority: z.number().int().describe("The priority of the OpsItem.")
     .optional(),
   Severity: z.string().describe("The severity of the OpsItem.").optional(),
@@ -126,7 +127,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SSM OpsItem. Registered at `@swamp/aws/ssm/ops-item`. */
 export const model = {
   type: "@swamp/aws/ssm/ops-item",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -148,6 +149,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -165,6 +171,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Description", "Source", "Title"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

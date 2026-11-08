@@ -146,7 +146,8 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):fsx:[a-z\\-0-9]+:[0-9]{12}:storage-virtual-machine/fs-[0-9a-f]+/svm-[0-9a-f]{17,}$",
     ),
-  ).describe("The Amazon Resource Name (ARN) for the FSx ONTAP SVM."),
+  ).describe("The Amazon Resource Name (ARN) for the FSx ONTAP SVM.")
+    .optional(),
   SecurityGroupArns: z.array(
     z.string().max(128).regex(
       new RegExp(
@@ -155,7 +156,7 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "The ARNs of the security groups that are to use to configure the FSx ONTAP file system.",
-  ),
+  ).optional(),
   Protocol: z.object({
     NFS: NFSSchema.describe(
       "NFS protocol configuration for FSx ONTAP file system.",
@@ -244,7 +245,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataSync LocationFSxONTAP. Registered at `@swamp/aws/datasync/location-fsx-ontap`. */
 export const model = {
   type: "@swamp/aws/datasync/location-fsx-ontap",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -258,6 +259,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -278,6 +284,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["SecurityGroupArns", "StorageVirtualMachineArn"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

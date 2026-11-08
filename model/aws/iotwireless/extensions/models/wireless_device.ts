@@ -117,13 +117,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Type: z.enum(["Sidewalk", "LoRaWAN"]).describe(
     "Wireless device type, currently only Sidewalk and LoRa",
-  ),
+  ).optional(),
   Name: z.string().max(256).describe("Wireless device name").optional(),
   Description: z.string().max(2048).describe("Wireless device description")
     .optional(),
   DestinationName: z.string().max(128).describe(
     "Wireless device destination name",
-  ),
+  ).optional(),
   LoRaWAN: z.object({
     DevEui: z.string().regex(new RegExp("[a-f0-9]{16}")).optional(),
     DeviceProfileId: z.string().max(256).optional(),
@@ -236,7 +236,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTWireless WirelessDevice. Registered at `@swamp/aws/iotwireless/wireless-device`. */
 export const model = {
   type: "@swamp/aws/iotwireless/wireless-device",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -298,6 +298,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -315,6 +320,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DestinationName", "Type"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

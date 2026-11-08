@@ -55,10 +55,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Protocol: z.enum(["Email", "SMS"]).describe(
     "The protocol of the contact method, such as Email or SMS (text messaging).",
-  ),
+  ).optional(),
   ContactEndpoint: z.string().min(1).max(256).describe(
     "The destination of the contact method, such as an email address or a mobile phone number.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -107,7 +107,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lightsail ContactMethod. Registered at `@swamp/aws/lightsail/contact-method`. */
 export const model = {
   type: "@swamp/aws/lightsail/contact-method",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -116,6 +116,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -136,6 +141,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ContactEndpoint", "Protocol"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

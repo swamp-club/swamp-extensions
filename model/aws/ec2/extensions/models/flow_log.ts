@@ -91,7 +91,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ResourceId: z.string().describe(
     "The ID of the subnet, network interface, or VPC for which you want to create a flow log.",
-  ),
+  ).optional(),
   ResourceType: z.enum([
     "NetworkInterface",
     "Subnet",
@@ -101,7 +101,7 @@ const GlobalArgsSchema = z.object({
     "RegionalNatGateway",
   ]).describe(
     "The type of resource for which to create the flow log. For example, if you specified a VPC ID for the ResourceId property, specify VPC for this property.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe("The tags to apply to the flow logs.")
     .optional(),
   TrafficType: z.enum(["ACCEPT", "ALL", "REJECT"]).describe(
@@ -218,7 +218,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 FlowLog. Registered at `@swamp/aws/ec2/flow-log`. */
 export const model = {
   type: "@swamp/aws/ec2/flow-log",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -285,6 +285,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -302,6 +307,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ResourceId", "ResourceType"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

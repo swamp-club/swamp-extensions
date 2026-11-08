@@ -67,10 +67,10 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "Identifier for the schema where the schema version will be created.",
-  ),
+  ).optional(),
   SchemaDefinition: z.string().min(1).max(170000).describe(
     "Complete definition of the schema in plain-text.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -130,7 +130,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue SchemaVersion. Registered at `@swamp/aws/glue/schema-version`. */
 export const model = {
   type: "@swamp/aws/glue/schema-version",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -192,6 +192,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -209,6 +214,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Schema", "SchemaDefinition"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

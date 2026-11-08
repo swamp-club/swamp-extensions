@@ -181,7 +181,7 @@ const GlobalArgsSchema = z.object({
   ChannelName: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9_.-]+$"))
     .describe(
       "The name of the channel. The name's uniqueness is scoped per AWS account and region.",
-    ),
+    ).optional(),
   EncryptionConfiguration: z.object({
     EncryptionType: z.enum(["KMS"]).describe(
       "The encryption type. KMS is the only supported value.",
@@ -214,12 +214,12 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   StreamConfigurationList: z.array(StreamConfigurationSchema).describe(
     "List of stream configurations associated with the channel. v1 supports a single element; the list shape allows future extensibility to fan in from multiple streams.",
-  ),
+  ).optional(),
   ServiceExecutionRoleARN: z.string().min(1).max(512).regex(
     new RegExp("^arn:aws[-a-z0-9]*:iam::\\d{12}:role/[a-zA-Z_0-9+=,.@\\-_/]+$"),
   ).describe(
     "The ARN of the IAM role that the channel assumes to read from the source stream, deliver records to the destination, and (when enabled) write CloudWatch Logs.",
-  ),
+  ).optional(),
   S3TablesDestinationConfiguration: z.object({
     S3TablesConfigurationList: z.array(S3TableConfigurationSchema).describe(
       "The list of S3 Tables destinations. v1 supports a single element; the list shape allows future extensibility to fan out to multiple tables.",
@@ -355,7 +355,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Kinesis Channel. Registered at `@swamp/aws/kinesis/channel`. */
 export const model = {
   type: "@swamp/aws/kinesis/channel",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -369,6 +369,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -389,6 +394,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ChannelName",
+          "ServiceExecutionRoleARN",
+          "StreamConfigurationList",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

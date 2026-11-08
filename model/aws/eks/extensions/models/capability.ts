@@ -127,21 +127,21 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ClusterName: z.string().min(1).max(100).describe(
     "The name of the EKS cluster where you want to create the capability.",
-  ),
+  ).optional(),
   CapabilityName: z.string().min(1).max(100).describe(
     "A unique name for the capability. The name must be unique within your cluster and can contain alphanumeric characters, hyphens, and underscores.",
-  ),
+  ).optional(),
   Type: z.enum(["ARGOCD", "ACK", "KRO"]).describe(
     "The type of capability to create. Valid values are: ACK (AWS Controllers for Kubernetes, which lets you manage AWS resources directly from Kubernetes), ARGOCD (Argo CD for GitOps-based continuous delivery), or KRO (Kube Resource Orchestrator for composing and managing custom Kubernetes resources).",
-  ),
+  ).optional(),
   RoleArn: z.string().regex(
     new RegExp("^arn:aws[a-z-]*:iam::[0-9]+:role/[a-zA-Z0-9+=,.@_-]+$"),
   ).describe(
     "The Amazon Resource Name (ARN) of the IAM role that the capability uses to interact with AWS services. This role must have a trust policy that allows the EKS service principal to assume it, and it must have the necessary permissions for the capability type you're creating.",
-  ),
+  ).optional(),
   DeletePropagationPolicy: z.enum(["RETAIN"]).describe(
     "Specifies how Kubernetes resources managed by the capability should be handled when the capability is deleted. Currently, the only supported value is RETAIN which retains all Kubernetes resources managed by the capability when the capability is deleted.",
-  ),
+  ).optional(),
   Configuration: z.object({
     ArgoCd: ArgoCdSchema.describe(
       "Configuration settings for an Argo CD capability. This includes the Kubernetes namespace, IAM Identity Center integration, RBAC role mappings, and network access configuration.",
@@ -234,7 +234,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EKS Capability. Registered at `@swamp/aws/eks/capability`. */
 export const model = {
   type: "@swamp/aws/eks/capability",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -316,6 +316,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -333,6 +338,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "CapabilityName",
+          "ClusterName",
+          "DeletePropagationPolicy",
+          "RoleArn",
+          "Type",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -64,7 +64,7 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   ConnectionName: z.string().regex(new RegExp("^[\\w \\-_,\\/]{1,200}$"))
-    .describe("The name of the connection."),
+    .describe("The name of the connection.").optional(),
   LagId: z.string().regex(
     new RegExp(
       "^(arn:aws[a-z-]*:directconnect:[a-z0-9-]+:[0-9]{12}:dxlag/)?dxlag-[a-zA-Z0-9]{8,21}$",
@@ -79,12 +79,12 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Bandwidth: z.string().regex(new RegExp("^[1-9][0-9]*(M|G)bps$")).describe(
     "The bandwidth of the connection.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe("The tags associated with the connection.")
     .optional(),
   Location: z.string().regex(new RegExp("^[a-zA-Z0-9-]+$")).describe(
     "The location of the connection.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -151,7 +151,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DirectConnect Connection. Registered at `@swamp/aws/directconnect/connection`. */
 export const model = {
   type: "@swamp/aws/directconnect/connection",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -213,6 +213,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -230,6 +235,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Bandwidth", "ConnectionName", "Location"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -65,12 +65,12 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ResourceType: z.string().describe(
     "The resource type this permission can be used with.",
-  ),
+  ).optional(),
   PolicyTemplate: z.record(z.string(), z.unknown()).describe(
     "Policy template for the permission.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).optional(),
-  Name: z.string().describe("The name of the permission."),
+  Name: z.string().describe("The name of the permission.").optional(),
 });
 
 const StateSchema = z.object({
@@ -121,7 +121,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RAM Permission. Registered at `@swamp/aws/ram/permission`. */
 export const model = {
   type: "@swamp/aws/ram/permission",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -193,6 +193,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -210,6 +215,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "PolicyTemplate", "ResourceType"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

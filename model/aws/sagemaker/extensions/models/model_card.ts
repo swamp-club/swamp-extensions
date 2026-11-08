@@ -273,7 +273,7 @@ const GlobalArgsSchema = z.object({
   ModelCardStatus: z.enum(["Draft", "PendingReview", "Approved", "Archived"])
     .describe(
       "The approval status of the model card within your organization. Different organizations might have different criteria for model card review and approval.",
-    ),
+    ).optional(),
   Content: z.object({
     ModelOverview: ModelOverviewSchema.describe("Overview about the model.")
       .optional(),
@@ -289,7 +289,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     EvaluationDetails: z.array(EvaluationDetailSchema).optional(),
     AdditionalInformation: AdditionalInformationSchema.optional(),
-  }).describe("The content of the model card."),
+  }).describe("The content of the model card.").optional(),
   Tags: z.array(TagSchema).describe(
     "Key-value pairs used to manage metadata for model cards.",
   ).optional(),
@@ -389,7 +389,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker ModelCard. Registered at `@swamp/aws/sagemaker/model-card`. */
 export const model = {
   type: "@swamp/aws/sagemaker/model-card",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -456,6 +456,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -473,6 +478,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Content", "ModelCardName", "ModelCardStatus"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

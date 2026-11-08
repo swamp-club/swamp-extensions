@@ -141,7 +141,7 @@ const GlobalArgsSchema = z.object({
       ),
     ).optional(),
   }).describe("An FMS includeMap or excludeMap.").optional(),
-  ExcludeResourceTags: z.boolean(),
+  ExcludeResourceTags: z.boolean().optional(),
   IncludeMap: z.object({
     ACCOUNT: z.array(z.string().min(12).max(12).regex(new RegExp("^([0-9]*)$")))
       .optional(),
@@ -153,11 +153,11 @@ const GlobalArgsSchema = z.object({
   }).describe("An FMS includeMap or excludeMap.").optional(),
   PolicyName: z.string().min(1).max(1024).regex(
     new RegExp("^([a-zA-Z0-9_.:/=+\\-@\\s]+)$"),
-  ),
+  ).optional(),
   PolicyDescription: z.string().max(256).regex(
     new RegExp("^([a-zA-Z0-9_.:/=+\\-@\\s]+)$"),
   ).optional(),
-  RemediationEnabled: z.boolean(),
+  RemediationEnabled: z.boolean().optional(),
   ResourceTags: z.array(ResourceTagSchema).optional(),
   ResourceTagLogicalOperator: z.enum(["AND", "OR"]).optional(),
   ResourceType: z.string().min(1).max(128).regex(new RegExp("^([^\\s]*)$"))
@@ -187,7 +187,7 @@ const GlobalArgsSchema = z.object({
     ]).describe("Firewall policy type."),
     PolicyOption: PolicyOptionSchema.describe("Firewall policy option.")
       .optional(),
-  }).describe("Firewall security service policy data."),
+  }).describe("Firewall security service policy data.").optional(),
   DeleteAllPolicyResources: z.boolean().optional(),
   ResourcesCleanUp: z.boolean().optional(),
   Tags: z.array(PolicyTagSchema).optional(),
@@ -311,7 +311,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for FMS Policy. Registered at `@swamp/aws/fms/policy`. */
 export const model = {
   type: "@swamp/aws/fms/policy",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -373,6 +373,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -390,6 +395,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ExcludeResourceTags",
+          "PolicyName",
+          "RemediationEnabled",
+          "SecurityServicePolicyData",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

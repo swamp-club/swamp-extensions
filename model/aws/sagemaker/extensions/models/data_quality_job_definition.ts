@@ -228,7 +228,8 @@ const GlobalArgsSchema = z.object({
     Environment: z.record(z.string(), z.string().min(1).max(256)).describe(
       "Sets the environment variables in the Docker container",
     ).optional(),
-  }).describe("Container image configuration object for the monitoring job."),
+  }).describe("Container image configuration object for the monitoring job.")
+    .optional(),
   DataQualityJobInput: z.object({
     EndpointInput: EndpointInputSchema.describe(
       "The endpoint for a monitoring job.",
@@ -236,7 +237,7 @@ const GlobalArgsSchema = z.object({
     BatchTransformInput: BatchTransformInputSchema.describe(
       "The batch transform input for a monitoring job.",
     ).optional(),
-  }).describe("The inputs for a monitoring job."),
+  }).describe("The inputs for a monitoring job.").optional(),
   DataQualityJobOutputConfig: z.object({
     KmsKeyId: z.string().max(2048).regex(new RegExp(".*")).describe(
       "The AWS Key Management Service (AWS KMS) key that Amazon SageMaker uses to encrypt the model artifacts at rest using Amazon S3 server-side encryption.",
@@ -244,12 +245,13 @@ const GlobalArgsSchema = z.object({
     MonitoringOutputs: z.array(MonitoringOutputSchema).describe(
       "Monitoring outputs for monitoring jobs. This is where the output of the periodic monitoring jobs is uploaded.",
     ),
-  }).describe("The output configuration for monitoring jobs."),
+  }).describe("The output configuration for monitoring jobs.").optional(),
   JobResources: z.object({
     ClusterConfig: ClusterConfigSchema.describe(
       "Configuration for the cluster used to run model monitoring jobs.",
     ),
-  }).describe("Identifies the resources to deploy for a monitoring job."),
+  }).describe("Identifies the resources to deploy for a monitoring job.")
+    .optional(),
   NetworkConfig: z.object({
     EnableInterContainerTrafficEncryption: z.boolean().describe(
       "Whether to encrypt all communications between distributed processing jobs. Choose True to encrypt communications. Encryption provides greater security for distributed processing jobs, but the processing might take longer.",
@@ -271,7 +273,7 @@ const GlobalArgsSchema = z.object({
     new RegExp("^arn:aws[a-z\\-]*:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$"),
   ).describe(
     "The Amazon Resource Name (ARN) of an IAM role that Amazon SageMaker can assume to perform tasks on your behalf.",
-  ),
+  ).optional(),
   StoppingCondition: z.object({
     MaxRuntimeInSeconds: z.number().int().min(1).max(86400).describe(
       "The maximum runtime allowed in seconds.",
@@ -449,7 +451,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker DataQualityJobDefinition. Registered at `@swamp/aws/sagemaker/data-quality-job-definition`. */
 export const model = {
   type: "@swamp/aws/sagemaker/data-quality-job-definition",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -511,6 +513,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -528,6 +535,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "DataQualityAppSpecification",
+          "DataQualityJobInput",
+          "DataQualityJobOutputConfig",
+          "JobResources",
+          "RoleArn",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

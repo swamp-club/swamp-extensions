@@ -55,8 +55,8 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AuthenticationType: z.string().describe(
     "The authentication type for the user.",
-  ),
-  UserName: z.string().describe("The email address of the user."),
+  ).optional(),
+  UserName: z.string().describe("The email address of the user.").optional(),
   FirstName: z.string().describe("The first name, or given name, of the user.")
     .optional(),
   LastName: z.string().describe("The last name, or surname, of the user.")
@@ -115,7 +115,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppStream User. Registered at `@swamp/aws/appstream/user`. */
 export const model = {
   type: "@swamp/aws/appstream/user",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.06.06.1",
@@ -152,6 +152,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -169,6 +174,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AuthenticationType", "UserName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

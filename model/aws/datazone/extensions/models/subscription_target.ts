@@ -67,32 +67,32 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ApplicableAssetTypes: z.array(
     z.string().min(1).max(256).regex(new RegExp("^[^\\.]*")),
-  ).describe(
-    "The asset types that can be included in the subscription target.",
-  ),
+  ).describe("The asset types that can be included in the subscription target.")
+    .optional(),
   AuthorizedPrincipals: z.array(
     z.string().regex(new RegExp("^[a-zA-Z0-9:/_-]*$")),
-  ).describe("The authorized principals of the subscription target."),
+  ).describe("The authorized principals of the subscription target.")
+    .optional(),
   DomainIdentifier: z.string().regex(new RegExp("^dzd[-_][a-zA-Z0-9_-]{1,36}$"))
     .describe(
       "The ID of the Amazon DataZone domain in which subscription target would be created.",
-    ),
+    ).optional(),
   EnvironmentIdentifier: z.string().regex(new RegExp("^[a-zA-Z0-9_-]{1,36}$"))
     .describe(
       "The ID of the environment in which subscription target would be created.",
-    ),
+    ).optional(),
   ManageAccessRole: z.string().describe(
     "The manage access role that is used to create the subscription target.",
   ).optional(),
   Name: z.string().min(1).max(256).describe(
     "The name of the subscription target.",
-  ),
+  ).optional(),
   Provider: z.string().describe("The provider of the subscription target.")
     .optional(),
   SubscriptionTargetConfig: z.array(SubscriptionTargetFormSchema).describe(
     "The configuration of the subscription target.",
-  ),
-  Type: z.string().describe("The type of the subscription target."),
+  ).optional(),
+  Type: z.string().describe("The type of the subscription target.").optional(),
 });
 
 const StateSchema = z.object({
@@ -172,7 +172,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataZone SubscriptionTarget. Registered at `@swamp/aws/datazone/subscription-target`. */
 export const model = {
   type: "@swamp/aws/datazone/subscription-target",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -234,6 +234,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -251,6 +256,20 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ApplicableAssetTypes",
+          "AuthorizedPrincipals",
+          "DomainIdentifier",
+          "EnvironmentIdentifier",
+          "Name",
+          "SubscriptionTargetConfig",
+          "Type",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

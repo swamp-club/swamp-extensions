@@ -309,21 +309,21 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ReplicatorName: z.string().min(1).max(128).regex(
     new RegExp("^[0-9A-Za-z][0-9A-Za-z-]{0,}$"),
-  ).describe("The name of the replicator."),
+  ).describe("The name of the replicator.").optional(),
   Description: z.string().max(1024).describe(
     "A summary description of the replicator.",
   ).optional(),
   KafkaClusters: z.array(KafkaClusterSchema).describe(
     "Specifies a list of Kafka clusters which are targets of the replicator.",
-  ),
+  ).optional(),
   ReplicationInfoList: z.array(ReplicationInfoSchema).describe(
     "A list of replication configurations, where each configuration targets a given source cluster to target cluster replication flow.",
-  ),
+  ).optional(),
   ServiceExecutionRoleArn: z.string().regex(
     new RegExp("arn:(aws|aws-us-gov|aws-cn):iam:.*"),
   ).describe(
     "The Amazon Resource Name (ARN) of the IAM role used by the replicator to access external resources.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "A collection of tags associated with a resource",
   ).optional(),
@@ -402,7 +402,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MSK Replicator. Registered at `@swamp/aws/msk/replicator`. */
 export const model = {
   type: "@swamp/aws/msk/replicator",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -484,6 +484,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -501,6 +506,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "KafkaClusters",
+          "ReplicationInfoList",
+          "ReplicatorName",
+          "ServiceExecutionRoleArn",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

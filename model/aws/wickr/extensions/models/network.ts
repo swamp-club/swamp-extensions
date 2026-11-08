@@ -56,10 +56,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   NetworkName: z.string().describe(
     "The name of the network. Must be between 1 and 20 characters.",
-  ),
+  ).optional(),
   AccessLevel: z.enum(["STANDARD", "PREMIUM"]).describe(
     "The access level of the network, which determines available features and capabilities.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -107,7 +107,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Wickr Network. Registered at `@swamp/aws/wickr/network`. */
 export const model = {
   type: "@swamp/aws/wickr/network",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -129,6 +129,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -146,6 +151,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AccessLevel", "NetworkName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

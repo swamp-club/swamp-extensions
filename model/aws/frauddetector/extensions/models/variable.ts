@@ -61,16 +61,16 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().regex(new RegExp("^[a-z_][a-z0-9_]{0,99}?$")).describe(
     "The name of the variable.",
-  ),
+  ).optional(),
   DataSource: z.enum(["EVENT", "EXTERNAL_MODEL_SCORE"]).describe(
     "The source of the data.",
-  ),
+  ).optional(),
   DataType: z.enum(["STRING", "INTEGER", "FLOAT", "BOOLEAN"]).describe(
     "The data type.",
-  ),
+  ).optional(),
   DefaultValue: z.string().describe(
     "The default value for the variable when no value is received.",
-  ),
+  ).optional(),
   Description: z.string().min(1).max(256).describe("The description.")
     .optional(),
   Tags: z.array(TagSchema).describe("Tags associated with this variable.")
@@ -209,7 +209,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for FraudDetector Variable. Registered at `@swamp/aws/frauddetector/variable`. */
 export const model = {
   type: "@swamp/aws/frauddetector/variable",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -271,6 +271,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -288,6 +293,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DataSource", "DataType", "DefaultValue", "Name"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

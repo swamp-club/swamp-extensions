@@ -59,10 +59,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Architecture: z.enum(["X86_64", "ARM64", "ARMHF"]).describe(
     "The target architecture of the robot.",
-  ),
+  ).optional(),
   GreengrassGroupId: z.string().min(1).max(1224).describe(
     "The Greengrass group id.",
-  ),
+  ).optional(),
   Tags: z.record(z.string(), z.string().min(1).max(256)).describe(
     "A key-value pair to associate with a resource.",
   ).optional(),
@@ -122,7 +122,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RoboMaker Robot. Registered at `@swamp/aws/robomaker/robot`. */
 export const model = {
   type: "@swamp/aws/robomaker/robot",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.23.1",
@@ -169,6 +169,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -186,6 +191,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Architecture", "GreengrassGroupId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -105,14 +105,14 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().regex(new RegExp("^[a-zA-Z0-9_]*$")).describe(
     "Name of the Rotation",
-  ),
-  ContactIds: z.array(z.string()).describe("Members of the rotation"),
+  ).optional(),
+  ContactIds: z.array(z.string()).describe("Members of the rotation")
+    .optional(),
   StartTime: z.string().regex(
     new RegExp("^(\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2})$"),
-  ).describe("Start time of the first shift of Oncall Schedule"),
-  TimeZoneId: z.string().describe(
-    "TimeZone Identifier for the Oncall Schedule",
-  ),
+  ).describe("Start time of the first shift of Oncall Schedule").optional(),
+  TimeZoneId: z.string().describe("TimeZone Identifier for the Oncall Schedule")
+    .optional(),
   Recurrence: z.object({
     MonthlySettings: z.array(MonthlySettingSchema).describe(
       "Information about on-call rotations that recur monthly.",
@@ -135,7 +135,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "Information about when an on-call rotation is in effect and how long the rotation period lasts.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
@@ -219,7 +219,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SSMContacts Rotation. Registered at `@swamp/aws/ssmcontacts/rotation`. */
 export const model = {
   type: "@swamp/aws/ssmcontacts/rotation",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -281,6 +281,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -298,6 +303,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ContactIds",
+          "Name",
+          "Recurrence",
+          "StartTime",
+          "TimeZoneId",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

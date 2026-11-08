@@ -77,7 +77,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   CallerReference: z.string().describe(
     "A unique value that identifies the create request. Any string unique within the account works; CloudFront refuses to change it once set, so supplying a different value replaces the configuration. It is also the only value CloudFront returns that identifies a configuration as this stack's, so cleaning up after a failed create depends on the template keeping it.",
-  ),
+  ).optional(),
   Comment: z.string().min(1).max(128).describe(
     "An optional comment describing the field-level encryption configuration. CloudFront stores an omitted comment and an explicitly empty one identically as an empty string, and Read normalizes that empty string back to absent -- so omitting Comment round-trips, while asking for an empty string does not and would report perpetual drift. `minLength: 1` refuses the empty string at template validation; omission is the way to express no comment. The service documents a maximum of 128 characters, and `maxLength` moves that refusal from the API to template validation.",
   ).optional(),
@@ -90,7 +90,7 @@ const GlobalArgsSchema = z.object({
     ),
   }).describe(
     "How CloudFront handles query arguments, including the profile paired with each one.",
-  ),
+  ).optional(),
   ContentTypeProfileConfig: z.object({
     ForwardWhenContentTypeIsUnknown: z.boolean().describe(
       "Whether CloudFront forwards a request when the content type names a profile that does not exist.",
@@ -100,7 +100,7 @@ const GlobalArgsSchema = z.object({
     ),
   }).describe(
     "How CloudFront handles content types, including the profile paired with each one.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -174,10 +174,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFront FieldLevelEncryptionConfig. Registered at `@swamp/aws/cloudfront/field-level-encryption-config`. */
 export const model = {
   type: "@swamp/aws/cloudfront/field-level-encryption-config",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -198,6 +203,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "CallerReference",
+          "ContentTypeProfileConfig",
+          "QueryArgProfileConfig",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

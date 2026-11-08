@@ -101,15 +101,15 @@ const GlobalArgsSchema = z.object({
   Alias: z.string().min(1).max(255).regex(new RegExp("^[a-z0-9_\\-\\.]*$"))
     .describe(
       "Alias of the contact. String value with 20 to 256 characters. Only alphabetical, numeric characters, dash, or underscore allowed.",
-    ),
+    ).optional(),
   DisplayName: z.string().min(1).max(255).regex(
     new RegExp("^[a-zA-Z0-9_\\-\\s]*$"),
   ).describe(
     "Name of the contact. String value with 3 to 256 characters. Only alphabetical, space, numeric characters, dash, or underscore allowed.",
-  ),
+  ).optional(),
   Type: z.enum(["PERSONAL", "ESCALATION", "ONCALL_SCHEDULE"]).describe(
     "Contact type, which specify type of contact. Currently supported values: “PERSONAL”, “SHARED”, “OTHER“.",
-  ),
+  ).optional(),
   Plan: z.array(StageSchema).describe(
     "The stages that an escalation plan or engagement plan engages contacts and contact methods in.",
   ).optional(),
@@ -170,7 +170,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SSMContacts Contact. Registered at `@swamp/aws/ssmcontacts/contact`. */
 export const model = {
   type: "@swamp/aws/ssmcontacts/contact",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -232,6 +232,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -249,6 +254,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Alias", "DisplayName", "Type"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

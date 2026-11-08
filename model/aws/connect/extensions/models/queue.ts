@@ -110,17 +110,18 @@ const GlobalArgsSchema = z.object({
   MaxContacts: z.number().int().min(0).describe(
     "The maximum number of contacts that can be in the queue before it is considered full.",
   ).optional(),
-  Name: z.string().min(1).max(127).describe("The name of the queue."),
+  Name: z.string().min(1).max(127).describe("The name of the queue.")
+    .optional(),
   HoursOfOperationArn: z.string().regex(
     new RegExp(
       "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*/operating-hours/[-a-zA-Z0-9]*$",
     ),
-  ).describe("The identifier for the hours of operation."),
+  ).describe("The identifier for the hours of operation.").optional(),
   InstanceArn: z.string().regex(
     new RegExp(
       "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*$",
     ),
-  ).describe("The identifier of the Amazon Connect instance."),
+  ).describe("The identifier of the Amazon Connect instance.").optional(),
   OutboundEmailConfig: z.object({
     OutboundEmailAddressId: z.string().regex(
       new RegExp(
@@ -247,7 +248,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect Queue. Registered at `@swamp/aws/connect/queue`. */
 export const model = {
   type: "@swamp/aws/connect/queue",
-  version: "2026.11.07.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -324,6 +325,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -341,6 +347,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["HoursOfOperationArn", "InstanceArn", "Name"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

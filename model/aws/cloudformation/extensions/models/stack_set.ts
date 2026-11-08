@@ -181,7 +181,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   PermissionModel: z.enum(["SERVICE_MANAGED", "SELF_MANAGED"]).describe(
     "Describes how the IAM roles required for stack set operations are created. By default, SELF-MANAGED is specified.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "The key-value pairs to associate with this stack set and the stacks created from it. AWS CloudFormation also propagates these tags to supported resources that are created in the stacks. A maximum number of 50 tags can be specified.",
   ).optional(),
@@ -699,7 +699,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFormation StackSet. Registered at `@swamp/aws/cloudformation/stack-set`. */
 export const model = {
   type: "@swamp/aws/cloudformation/stack-set",
-  version: "2026.11.02.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.24.1",
@@ -746,6 +746,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -781,6 +786,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["PermissionModel", "StackSetName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

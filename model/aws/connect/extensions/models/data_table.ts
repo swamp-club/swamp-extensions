@@ -69,11 +69,11 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*$",
     ),
-  ).describe("The identifier of the Amazon Connect instance."),
+  ).describe("The identifier of the Amazon Connect instance.").optional(),
   Name: z.string().min(1).max(128).regex(
     new RegExp("^[\\p{L}\\p{Z}\\p{N}\\-_.:=@'|]+$", "u"),
-  ).describe("The name of the Data Table"),
-  TimeZone: z.string().describe("The time zone of the Data Table"),
+  ).describe("The name of the Data Table").optional(),
+  TimeZone: z.string().describe("The time zone of the Data Table").optional(),
   Description: z.string().min(0).max(250).regex(new RegExp("^[\\P{C}\r\n\t]+$"))
     .describe("The description of the Data Table.").optional(),
   ValueLockLevel: z.enum([
@@ -82,12 +82,13 @@ const GlobalArgsSchema = z.object({
     "PRIMARY_VALUE",
     "ATTRIBUTE",
     "VALUE",
-  ]).describe("The value lock level of the Data Table"),
+  ]).describe("The value lock level of the Data Table").optional(),
   LockVersion: z.object({
     DataTable: z.string().describe("The data table for the lock version")
       .optional(),
   }).describe("The lock version of the Data Table").optional(),
-  Status: z.enum(["PUBLISHED"]).describe("The status of the Data Table"),
+  Status: z.enum(["PUBLISHED"]).describe("The status of the Data Table")
+    .optional(),
   Tags: z.array(TagSchema).describe("One or more tags.").optional(),
 });
 
@@ -162,7 +163,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect DataTable. Registered at `@swamp/aws/connect/data-table`. */
 export const model = {
   type: "@swamp/aws/connect/data-table",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -229,6 +230,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -246,6 +252,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "InstanceArn",
+          "Name",
+          "Status",
+          "TimeZone",
+          "ValueLockLevel",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

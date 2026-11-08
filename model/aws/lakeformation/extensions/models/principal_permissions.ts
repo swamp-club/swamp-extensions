@@ -163,7 +163,7 @@ const GlobalArgsSchema = z.object({
     DataLakePrincipalIdentifier: z.string().min(1).max(255).describe(
       "An identifier for the LFlong principal.",
     ).optional(),
-  }).describe("The principal to be granted a permission."),
+  }).describe("The principal to be granted a permission.").optional(),
   Resource: z.object({
     Catalog: CatalogResourceSchema.describe(
       "The identifier for the Data Catalog. By default, the account ID. The Data Catalog is the persistent metadata store. It contains database definitions, table definitions, and other control information to manage your LFlong environment.",
@@ -189,7 +189,7 @@ const GlobalArgsSchema = z.object({
     LFTagPolicy: LFTagPolicyResourceSchema.describe(
       "A list of LF-tag conditions that define a resource's LF-tag policy.",
     ).optional(),
-  }).describe("The resource to be granted or revoked permissions."),
+  }).describe("The resource to be granted or revoked permissions.").optional(),
   Permissions: z.array(
     z.enum([
       "ALL",
@@ -206,7 +206,7 @@ const GlobalArgsSchema = z.object({
       "ASSOCIATE",
       "GRANT_WITH_LF_TAG_EXPRESSION",
     ]),
-  ).describe("The permissions granted or revoked."),
+  ).describe("The permissions granted or revoked.").optional(),
   PermissionsWithGrantOption: z.array(
     z.enum([
       "ALL",
@@ -225,7 +225,7 @@ const GlobalArgsSchema = z.object({
     ]),
   ).describe(
     "Indicates the ability to grant permissions (as a subset of permissions granted).",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -348,7 +348,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for LakeFormation PrincipalPermissions. Registered at `@swamp/aws/lakeformation/principal-permissions`. */
 export const model = {
   type: "@swamp/aws/lakeformation/principal-permissions",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -420,6 +420,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -437,6 +442,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Permissions",
+          "PermissionsWithGrantOption",
+          "Principal",
+          "Resource",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

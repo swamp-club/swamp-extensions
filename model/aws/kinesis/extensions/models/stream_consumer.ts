@@ -66,12 +66,12 @@ const GlobalArgsSchema = z.object({
     new RegExp("^[a-zA-Z0-9_.-]+$"),
   ).describe(
     "The name of the Kinesis Stream Consumer. For a given Kinesis data stream, each consumer must have a unique name. However, consumer names don't have to be unique across data streams.",
-  ),
+  ).optional(),
   StreamARN: z.string().min(1).max(2048).regex(
     new RegExp("^arn:aws.*:kinesis:.*:\\d{12}:stream/\\S+"),
   ).describe(
     "The Amazon resource name (ARN) of the Kinesis data stream that you want to register the consumer with.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "An arbitrary set of tags (key–value pairs) to associate with the Kinesis consumer.",
   ).optional(),
@@ -128,7 +128,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Kinesis StreamConsumer. Registered at `@swamp/aws/kinesis/stream-consumer`. */
 export const model = {
   type: "@swamp/aws/kinesis/stream-consumer",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -190,6 +190,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -207,6 +212,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ConsumerName", "StreamARN"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

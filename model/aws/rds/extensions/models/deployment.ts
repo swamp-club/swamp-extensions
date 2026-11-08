@@ -61,10 +61,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   BlueGreenDeploymentName: z.string().min(1).max(60).regex(
     new RegExp("^[a-zA-Z](?:-?[a-zA-Z0-9]+)*$"),
-  ).describe("The name of the Blue/Green Deployment."),
+  ).describe("The name of the Blue/Green Deployment.").optional(),
   Source: z.string().min(1).max(2048).regex(
     new RegExp("^arn:[A-Za-z][0-9A-Za-z-:._]*$"),
-  ).describe("The ARN of the source production database."),
+  ).describe("The ARN of the source production database.").optional(),
   TargetEngineVersion: z.string().min(1).max(64).regex(
     new RegExp("^[0-9A-Za-z-_.]+$"),
   ).describe("The DB engine version for the target database.").optional(),
@@ -201,7 +201,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RDS Deployment. Registered at `@swamp/aws/rds/deployment`. */
 export const model = {
   type: "@swamp/aws/rds/deployment",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -210,6 +210,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -230,6 +235,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["BlueGreenDeploymentName", "Source"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

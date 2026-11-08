@@ -119,7 +119,7 @@ const GlobalArgsSchema = z.object({
   }).optional(),
   IpCount: z.number().int().describe(
     "The number of IP addresses in the Anycast static IP list.",
-  ),
+  ).optional(),
   IpAddressType: z.enum(["ipv4", "dualstack"]).describe(
     "The IP address type for the Anycast static IP list.",
   ).optional(),
@@ -127,7 +127,7 @@ const GlobalArgsSchema = z.object({
     "A list of IPAM CIDR configurations that define the IP address ranges, IPAM pools, and associated Anycast IP addresses.",
   ).optional(),
   Name: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9-_]{1,64}$"))
-    .describe("The name of the Anycast static IP list."),
+    .describe("The name of the Anycast static IP list.").optional(),
   Tags: z.object({
     Items: z.array(TagSchema).describe(
       "A complex type that contains Tag elements.",
@@ -232,7 +232,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFront AnycastIpList. Registered at `@swamp/aws/cloudfront/anycast-ip-list`. */
 export const model = {
   type: "@swamp/aws/cloudfront/anycast-ip-list",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -299,6 +299,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -316,6 +321,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["IpCount", "Name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -81,21 +81,22 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "Properties that configure the authentication applied to incoming webhook trigger requests",
-  ),
+  ).optional(),
   Filters: z.array(WebhookFilterRuleSchema).describe(
     "A list of rules applied to the body/payload sent in the POST request to a webhook URL",
-  ),
+  ).optional(),
   Authentication: z.enum(["GITHUB_HMAC", "IP", "UNAUTHENTICATED"]).describe(
     "Supported options are GITHUB_HMAC, IP, and UNAUTHENTICATED.",
-  ),
+  ).optional(),
   TargetPipeline: z.string().min(1).max(100).regex(
     new RegExp("[A-Za-z0-9.@\\-_]+"),
-  ).describe("The name of the pipeline you want to connect to the webhook."),
+  ).describe("The name of the pipeline you want to connect to the webhook.")
+    .optional(),
   TargetAction: z.string().min(1).max(100).regex(
     new RegExp("[A-Za-z0-9.@\\-_]+"),
   ).describe(
     "The name of the action in a pipeline you want to connect to the webhook.",
-  ),
+  ).optional(),
   Name: z.string().min(1).max(100).regex(new RegExp("[A-Za-z0-9.@\\-_]+"))
     .describe("The name of the webhook").optional(),
   TargetPipelineVersion: z.number().int().describe(
@@ -191,7 +192,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CodePipeline Webhook. Registered at `@swamp/aws/codepipeline/webhook`. */
 export const model = {
   type: "@swamp/aws/codepipeline/webhook",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -258,6 +259,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -275,6 +281,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Authentication",
+          "AuthenticationConfiguration",
+          "Filters",
+          "TargetAction",
+          "TargetPipeline",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

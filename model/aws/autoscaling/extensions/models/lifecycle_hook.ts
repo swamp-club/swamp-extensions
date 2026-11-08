@@ -56,7 +56,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AutoScalingGroupName: z.string().describe(
     "The name of the Auto Scaling group for the lifecycle hook.",
-  ),
+  ).optional(),
   DefaultResult: z.string().describe(
     "The action the Auto Scaling group takes when the lifecycle hook timeout elapses or if an unexpected failure occurs. The valid values are CONTINUE and ABANDON (default).",
   ).optional(),
@@ -68,7 +68,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   LifecycleTransition: z.string().describe(
     "The instance state to which you want to attach the lifecycle hook.",
-  ),
+  ).optional(),
   NotificationMetadata: z.string().min(1).max(1023).describe(
     "Additional information that is included any time Amazon EC2 Auto Scaling sends a message to the notification target.",
   ).optional(),
@@ -144,7 +144,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AutoScaling LifecycleHook. Registered at `@swamp/aws/autoscaling/lifecycle-hook`. */
 export const model = {
   type: "@swamp/aws/autoscaling/lifecycle-hook",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -206,6 +206,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -223,6 +228,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AutoScalingGroupName", "LifecycleTransition"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

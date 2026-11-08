@@ -80,7 +80,8 @@ const GlobalArgsSchema = z.object({
     Version: z.enum(["Kinetic", "Melodic", "Dashing"]).describe(
       "The version of robot software suite.",
     ).optional(),
-  }).describe("The robot software suite used by the robot application."),
+  }).describe("The robot software suite used by the robot application.")
+    .optional(),
   CurrentRevisionId: z.string().min(1).max(40).describe(
     "The revision ID of robot application.",
   ).optional(),
@@ -155,7 +156,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RoboMaker RobotApplication. Registered at `@swamp/aws/robomaker/robot-application`. */
 export const model = {
   type: "@swamp/aws/robomaker/robot-application",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.23.1",
@@ -202,6 +203,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -219,6 +225,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["RobotSoftwareSuite"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

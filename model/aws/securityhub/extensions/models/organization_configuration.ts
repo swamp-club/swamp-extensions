@@ -56,7 +56,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AutoEnable: z.boolean().describe(
     "Whether to automatically enable Security Hub in new member accounts when they join the organization.",
-  ),
+  ).optional(),
   AutoEnableStandards: z.enum(["DEFAULT", "NONE"]).describe(
     "Whether to automatically enable Security Hub default standards in new member accounts when they join the organization.",
   ).optional(),
@@ -113,7 +113,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecurityHub OrganizationConfiguration. Registered at `@swamp/aws/securityhub/organization-configuration`. */
 export const model = {
   type: "@swamp/aws/securityhub/organization-configuration",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -175,6 +175,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -192,6 +197,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AutoEnable"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

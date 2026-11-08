@@ -183,7 +183,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Listeners: z.array(ListenersSchema).describe(
     "The Listeners for the load balancer. You can specify at most one listener per port.",
-  ),
+  ).optional(),
   LoadBalancerName: z.string().describe(
     "The name of the load balancer. This name must be unique within your set of load balancers for the region.",
   ).optional(),
@@ -359,7 +359,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElasticLoadBalancing LoadBalancer. Registered at `@swamp/aws/elasticloadbalancing/load-balancer`. */
 export const model = {
   type: "@swamp/aws/elasticloadbalancing/load-balancer",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -381,6 +381,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -398,6 +403,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Listeners"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

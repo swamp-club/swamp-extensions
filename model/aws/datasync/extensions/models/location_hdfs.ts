@@ -78,7 +78,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   NameNodes: z.array(NameNodeSchema).describe(
     "An array of Name Node(s) of the HDFS location.",
-  ),
+  ).optional(),
   BlockSize: z.number().int().min(1048576).max(1073741824).describe(
     "Size of chunks (blocks) in bytes that the data is divided into when stored in the HDFS cluster.",
   ).optional(),
@@ -110,7 +110,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AuthenticationType: z.enum(["SIMPLE", "KERBEROS"]).describe(
     "The authentication mode used to determine identity of user.",
-  ),
+  ).optional(),
   SimpleUser: z.string().min(1).max(256).regex(
     new RegExp("^[_.A-Za-z0-9][-_.A-Za-z0-9]*$"),
   ).describe(
@@ -135,7 +135,7 @@ const GlobalArgsSchema = z.object({
         "^arn:(aws|aws-cn|aws-us-gov|aws-eusc|aws-iso|aws-iso-b):datasync:[a-z\\-0-9]+:[0-9]{12}:agent/agent-[0-9a-z]{17}$",
       ),
     ),
-  ).describe("ARN(s) of the agent(s) to use for an HDFS location."),
+  ).describe("ARN(s) of the agent(s) to use for an HDFS location.").optional(),
   Subdirectory: z.string().max(4096).regex(
     new RegExp("^[a-zA-Z0-9_\\-\\+\\./\\(\\)\\$\\p{Zs}]+$", "u"),
   ).describe(
@@ -346,7 +346,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataSync LocationHDFS. Registered at `@swamp/aws/datasync/location-hdfs`. */
 export const model = {
   type: "@swamp/aws/datasync/location-hdfs",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -361,6 +361,11 @@ export const model = {
     {
       toVersion: "2026.10.25.1",
       description: "Added: ManagedSecretConfig",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -380,6 +385,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AgentArns", "AuthenticationType", "NameNodes"].filter(
+          (k) => g[k] === undefined,
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

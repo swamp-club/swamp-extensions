@@ -66,16 +66,16 @@ const GlobalArgsSchema = z.object({
     .optional(),
   AllowUnassociatedTargets: z.boolean().describe(
     "Enables a maintenance window task to run on managed instances, even if you have not registered those instances as targets. If enabled, then you must specify the unregistered instances (by instance ID) when you register a task with the maintenance window.",
-  ),
+  ).optional(),
   Cutoff: z.number().int().describe(
     "The number of hours before the end of the maintenance window that AWS Systems Manager stops scheduling new tasks for execution.",
-  ),
+  ).optional(),
   Schedule: z.string().describe(
     "The schedule of the maintenance window in the form of a cron or rate expression.",
-  ),
+  ).optional(),
   Duration: z.number().int().describe(
     "The duration of the maintenance window in hours.",
-  ),
+  ).optional(),
   ScheduleOffset: z.number().int().describe(
     "The number of days to wait to run a maintenance window after the scheduled cron expression date and time.",
   ).optional(),
@@ -85,7 +85,7 @@ const GlobalArgsSchema = z.object({
   Tags: z.array(TagSchema).describe(
     "Optional metadata that you assign to a resource in the form of an arbitrary set of tags (key-value pairs). Tags enable you to categorize a resource in different ways, such as by purpose, owner, or environment. For example, you might want to tag a maintenance window to identify the type of tasks it will run, the types of targets, and the environment it will run in.",
   ).optional(),
-  Name: z.string().describe("The name of the maintenance window."),
+  Name: z.string().describe("The name of the maintenance window.").optional(),
   ScheduleTimezone: z.string().describe(
     "The time zone that the scheduled maintenance window executions are based on, in Internet Assigned Numbers Authority (IANA) format.",
   ).optional(),
@@ -165,7 +165,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SSM MaintenanceWindow. Registered at `@swamp/aws/ssm/maintenance-window`. */
 export const model = {
   type: "@swamp/aws/ssm/maintenance-window",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -227,6 +227,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -244,6 +249,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AllowUnassociatedTargets",
+          "Cutoff",
+          "Duration",
+          "Name",
+          "Schedule",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

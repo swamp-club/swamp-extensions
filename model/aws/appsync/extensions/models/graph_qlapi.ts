@@ -114,7 +114,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AuthenticationType: z.string().describe(
     "Security configuration for your GraphQL API",
-  ),
+  ).optional(),
   EnhancedMetricsConfig: z.object({
     OperationLevelMetricsConfig: z.string().describe(
       "Controls how operation metrics will be emitted to CloudWatch. Operation metrics include:",
@@ -161,7 +161,7 @@ const GlobalArgsSchema = z.object({
   MergedApiExecutionRoleArn: z.string().describe(
     "The AWS Identity and Access Management service role ARN for a merged API.",
   ).optional(),
-  Name: z.string().describe("The API name"),
+  Name: z.string().describe("The API name").optional(),
   OpenIDConnectConfig: z.object({
     ClientId: z.string().describe(
       "The client identifier of the Relying party at the OpenID identity provider.",
@@ -384,7 +384,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppSync GraphQLApi. Registered at `@swamp/aws/appsync/graph-qlapi`. */
 export const model = {
   type: "@swamp/aws/appsync/graph-qlapi",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -461,6 +461,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -478,6 +483,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AuthenticationType", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

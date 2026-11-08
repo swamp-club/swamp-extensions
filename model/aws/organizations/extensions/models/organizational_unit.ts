@@ -65,12 +65,12 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(128).regex(new RegExp("[\\s\\S]*")).describe(
     "The friendly name of this OU.",
-  ),
+  ).optional(),
   ParentId: z.string().max(100).regex(
     new RegExp("^(r-[0-9a-z]{4,32})|(ou-[0-9a-z]{4,32}-[a-z0-9]{8,32})$"),
   ).describe(
     "The unique identifier (ID) of the parent root or OU that you want to create the new OU in.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "A list of tags that you want to attach to the newly created OU.",
   ).optional(),
@@ -125,7 +125,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Organizations OrganizationalUnit. Registered at `@swamp/aws/organizations/organizational-unit`. */
 export const model = {
   type: "@swamp/aws/organizations/organizational-unit",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -192,6 +192,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -209,6 +214,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "ParentId"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

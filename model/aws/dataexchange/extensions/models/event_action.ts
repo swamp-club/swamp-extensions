@@ -96,12 +96,12 @@ const GlobalArgsSchema = z.object({
     ExportRevisionToS3: AutoExportRevisionToS3RequestDetailsSchema.describe(
       "Details of the operation to be performed by the job.",
     ).optional(),
-  }).describe("What occurs after a certain event."),
+  }).describe("What occurs after a certain event.").optional(),
   Event: z.object({
     RevisionPublished: RevisionPublishedSchema.describe(
       "Information about the published revision.",
     ).optional(),
-  }).describe("What occurs to start an action."),
+  }).describe("What occurs to start an action.").optional(),
   Tags: z.array(TagSchema).describe("The tags for the event action.")
     .optional(),
 });
@@ -161,7 +161,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataExchange EventAction. Registered at `@swamp/aws/dataexchange/event-action`. */
 export const model = {
   type: "@swamp/aws/dataexchange/event-action",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -170,6 +170,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -190,6 +195,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Action", "Event"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

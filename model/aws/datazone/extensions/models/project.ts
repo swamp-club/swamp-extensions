@@ -89,7 +89,7 @@ const GlobalArgsSchema = z.object({
   DomainIdentifier: z.string().regex(new RegExp("^dzd[-_][a-zA-Z0-9_-]{1,36}$"))
     .describe(
       "The ID of the Amazon DataZone domain in which this project is created.",
-    ),
+    ).optional(),
   DomainUnitId: z.string().regex(new RegExp("^[a-z0-9_\\-]+$")).describe(
     "The ID of the domain unit.",
   ).optional(),
@@ -99,7 +99,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   Name: z.string().min(1).max(64).regex(new RegExp("^[\\w -]+$")).describe(
     "The name of the Amazon DataZone project.",
-  ),
+  ).optional(),
   ProjectProfileId: z.string().regex(new RegExp("^[a-zA-Z0-9_-]{1,36}$"))
     .describe("The project profile ID.").optional(),
   ProjectProfileVersion: z.string().describe(
@@ -206,7 +206,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataZone Project. Registered at `@swamp/aws/datazone/project`. */
 export const model = {
   type: "@swamp/aws/datazone/project",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -289,6 +289,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -306,6 +311,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DomainIdentifier", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

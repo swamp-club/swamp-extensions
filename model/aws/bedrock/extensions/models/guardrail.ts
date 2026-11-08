@@ -197,10 +197,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   BlockedInputMessaging: z.string().min(1).max(500).describe(
     "Messaging for when violations are detected in text",
-  ),
+  ).optional(),
   BlockedOutputsMessaging: z.string().min(1).max(500).describe(
     "Messaging for when violations are detected in text",
-  ),
+  ).optional(),
   AutomatedReasoningPolicyConfig: z.object({
     ConfidenceThreshold: z.number().min(0).max(1).describe(
       "The confidence threshold for triggering guardrail actions based on Automated Reasoning policy violations.",
@@ -251,7 +251,7 @@ const GlobalArgsSchema = z.object({
   ).describe("The KMS key with which the guardrail was encrypted at rest")
     .optional(),
   Name: z.string().min(1).max(50).regex(new RegExp("^[0-9a-zA-Z-_]+$"))
-    .describe("Name of the guardrail"),
+    .describe("Name of the guardrail").optional(),
   SensitiveInformationPolicyConfig: z.object({
     PiiEntitiesConfig: z.array(PiiEntityConfigSchema).describe(
       "List of entities.",
@@ -442,7 +442,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock Guardrail. Registered at `@swamp/aws/bedrock/guardrail`. */
 export const model = {
   type: "@swamp/aws/bedrock/guardrail",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -504,6 +504,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -521,6 +526,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "BlockedInputMessaging",
+          "BlockedOutputsMessaging",
+          "Name",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

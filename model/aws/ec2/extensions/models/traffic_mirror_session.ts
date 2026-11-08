@@ -61,19 +61,19 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   NetworkInterfaceId: z.string().describe(
     "The ID of the source network interface.",
-  ),
+  ).optional(),
   TrafficMirrorTargetId: z.string().describe(
     "The ID of a Traffic Mirror target.",
-  ),
+  ).optional(),
   TrafficMirrorFilterId: z.string().describe(
     "The ID of a Traffic Mirror filter.",
-  ),
+  ).optional(),
   PacketLength: z.number().int().describe(
     "The number of bytes in each packet to mirror.",
   ).optional(),
   SessionNumber: z.number().int().describe(
     "The session number determines the order in which sessions are evaluated when an interface is used by multiple sessions. The first session with a matching filter is the one that mirrors the packets.",
-  ),
+  ).optional(),
   VirtualNetworkId: z.number().int().describe(
     "The VXLAN ID for the Traffic Mirror session.",
   ).optional(),
@@ -157,7 +157,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 TrafficMirrorSession. Registered at `@swamp/aws/ec2/traffic-mirror-session`. */
 export const model = {
   type: "@swamp/aws/ec2/traffic-mirror-session",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -219,6 +219,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -236,6 +241,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "NetworkInterfaceId",
+          "SessionNumber",
+          "TrafficMirrorFilterId",
+          "TrafficMirrorTargetId",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

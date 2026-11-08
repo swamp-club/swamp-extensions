@@ -65,19 +65,20 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:[a-z0-9-]+:storagegateway:[a-z0-9-]+:[0-9]{12}:gateway/.+$",
     ),
-  ).describe("The ARN of the S3 File Gateway that hosts the share."),
+  ).describe("The ARN of the S3 File Gateway that hosts the share.").optional(),
   Role: z.string().min(20).max(2048).regex(
     new RegExp(
       "^arn:(aws(|-cn|-us-gov|-iso[A-Za-z0-9_-]*|-eusc)):iam::([0-9]+):role/(\\S+)$",
     ),
   ).describe(
     "The ARN of the IAM role the gateway assumes when it accesses the S3 location.",
-  ),
+  ).optional(),
   LocationARN: z.string().min(16).max(1400).regex(
     new RegExp(
       "^(arn:[a-z0-9-]+:s3:[a-z0-9-]*:[0-9]*:.+|[0-9a-zA-Z][0-9a-zA-Z.\\-]{1,61}-s3alias)$",
     ),
-  ).describe("The ARN of the S3 bucket, or bucket prefix, the share exposes."),
+  ).describe("The ARN of the S3 bucket, or bucket prefix, the share exposes.")
+    .optional(),
   BucketRegion: z.string().min(1).max(25).describe(
     "The Region of the S3 bucket, required when the bucket is reached through a VPC endpoint.",
   ).optional(),
@@ -340,10 +341,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for StorageGateway SMBFileShare. Registered at `@swamp/aws/storagegateway/smbfile-share`. */
 export const model = {
   type: "@swamp/aws/storagegateway/smbfile-share",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -364,6 +370,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["GatewayARN", "LocationARN", "Role"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -79,16 +79,16 @@ const GlobalArgsSchema = z.object({
         "(^arn:aws(-[^:]+)?:bedrock:[a-z0-9-]{1,20}::foundation-model/[a-z0-9-]{1,63}[.]{1}([a-z0-9-]{1,63}[.]){0,2}[a-z0-9-]{1,63}([:][a-z0-9-]{1,63}){0,2})|(^arn:aws(|-us-gov|-cn|-iso|-iso-b):bedrock:(|[0-9a-z-]{0,20}):(|[0-9]{12}):(inference-profile|application-inference-profile)/[a-zA-Z0-9-:.]+)$",
       ),
     ).describe("Arn of underlying model which are added in the Prompt Router."),
-  }).describe("Model configuration"),
+  }).describe("Model configuration").optional(),
   Models: z.array(PromptRouterTargetModelSchema).describe(
     "List of model configuration",
-  ),
+  ).optional(),
   PromptRouterName: z.string().min(1).max(64).regex(
     new RegExp("^([0-9a-zA-Z][ _-]?)+$"),
-  ).describe("Name of the Prompt Router."),
+  ).describe("Name of the Prompt Router.").optional(),
   RoutingCriteria: z.object({
     ResponseQualityDifference: z.number().min(0).max(100),
-  }).describe("Represents the criteria used for routing requests."),
+  }).describe("Represents the criteria used for routing requests.").optional(),
   Tags: z.array(TagSchema).describe("List of Tags").optional(),
 });
 
@@ -158,7 +158,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock IntelligentPromptRouter. Registered at `@swamp/aws/bedrock/intelligent-prompt-router`. */
 export const model = {
   type: "@swamp/aws/bedrock/intelligent-prompt-router",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -220,6 +220,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -237,6 +242,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "FallbackModel",
+          "Models",
+          "PromptRouterName",
+          "RoutingCriteria",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

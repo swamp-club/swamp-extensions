@@ -103,13 +103,13 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "Defines the layout structure and field organization for the case interface. Specifies which fields appear in the top panel and More Info tab, and their display order.",
-  ),
+  ).optional(),
   DomainId: z.string().min(1).max(500).describe(
     "The unique identifier of the Cases domain.",
   ).optional(),
   Name: z.string().min(1).max(100).regex(new RegExp("^.*[\\S]$")).describe(
     "A descriptive name for the layout. Must be unique within the Cases domain and should clearly indicate the layout's purpose and field organization.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe("The tags that you attach to this layout.")
     .optional(),
 });
@@ -171,7 +171,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Cases Layout. Registered at `@swamp/aws/cases/layout`. */
 export const model = {
   type: "@swamp/aws/cases/layout",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -233,6 +233,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -250,6 +255,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Content", "Name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -69,7 +69,7 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:(aws[a-zA-Z-]*):mediaconnect:[a-z0-9-]+:[0-9]{12}:flow:[a-zA-Z0-9-]+:[a-zA-Z0-9_-]+$",
     ),
-  ).describe("The ARN of the flow."),
+  ).describe("The ARN of the flow.").optional(),
   Decryption: z.object({
     Algorithm: z.enum(["aes128", "aes192", "aes256"]).describe(
       "The type of algorithm that is used for the encryption (such as aes128, aes192, or aes256).",
@@ -118,7 +118,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Description: z.string().describe(
     "A description for the source. This value is not used or seen outside of the current AWS Elemental MediaConnect account.",
-  ),
+  ).optional(),
   GatewayBridgeSource: z.object({
     BridgeArn: z.string().regex(
       new RegExp(
@@ -142,7 +142,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   MinLatency: z.number().int().describe("The minimum latency in milliseconds.")
     .optional(),
-  Name: z.string().describe("The name of the source."),
+  Name: z.string().describe("The name of the source.").optional(),
   Protocol: z.enum([
     "zixi-push",
     "rtp-fec",
@@ -354,7 +354,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaConnect FlowSource. Registered at `@swamp/aws/mediaconnect/flow-source`. */
 export const model = {
   type: "@swamp/aws/mediaconnect/flow-source",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -416,6 +416,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -433,6 +438,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Description", "FlowArn", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

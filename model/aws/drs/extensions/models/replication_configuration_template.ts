@@ -76,7 +76,8 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   StagingAreaSubnetId: z.string().max(255).regex(
     new RegExp("^subnet-[0-9a-fA-F]{8,}$"),
-  ).describe("The subnet to be used by the replication staging area."),
+  ).describe("The subnet to be used by the replication staging area.")
+    .optional(),
   AssociateDefaultSecurityGroup: z.boolean().describe(
     "Whether to associate the default Elastic Disaster Recovery Security group with the Replication Configuration Template.",
   ).optional(),
@@ -84,7 +85,7 @@ const GlobalArgsSchema = z.object({
     z.string().max(255).regex(new RegExp("^sg-[0-9a-fA-F]{8,}$")),
   ).describe(
     "The security group IDs that will be used by the replication server.",
-  ),
+  ).optional(),
   ReplicationServerInstanceType: z.string().max(255).describe(
     "The instance type to be used for the replication server.",
   ).optional(),
@@ -96,14 +97,14 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   EbsEncryption: z.enum(["DEFAULT", "CUSTOM", "NONE"]).describe(
     "The type of EBS encryption to be used during replication.",
-  ),
+  ).optional(),
   EbsEncryptionKeyArn: z.string().min(20).max(2048).regex(
     new RegExp("^arn:.{16,2044}$"),
   ).describe("The ARN of the EBS encryption key to be used during replication.")
     .optional(),
   BandwidthThrottling: z.number().int().min(0).describe(
     "Configure bandwidth throttling for the outbound data transfer rate of the Source Server in Mbps.",
-  ),
+  ).optional(),
   DataPlaneRouting: z.enum(["PRIVATE_IP", "PUBLIC_IP"]).describe(
     "The data plane routing mechanism that will be used for replication.",
   ).optional(),
@@ -112,10 +113,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   StagingAreaTags: z.record(z.string(), z.string().max(256)).describe(
     "A set of tags to be associated with all resources created in the replication staging area: EC2 replication server, EBS volumes, EBS snapshots, etc.",
-  ),
+  ).optional(),
   PitPolicy: z.array(PITPolicyRuleSchema).describe(
     "The Point in time (PIT) policy to manage snapshots taken during replication.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "A set of tags to be associated with the Replication Configuration Template resource.",
   ).optional(),
@@ -229,7 +230,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DRS ReplicationConfigurationTemplate. Registered at `@swamp/aws/drs/replication-configuration-template`. */
 export const model = {
   type: "@swamp/aws/drs/replication-configuration-template",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -238,6 +239,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -258,6 +264,19 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "BandwidthThrottling",
+          "EbsEncryption",
+          "PitPolicy",
+          "ReplicationServersSecurityGroupsIDs",
+          "StagingAreaSubnetId",
+          "StagingAreaTags",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

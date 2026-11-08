@@ -96,7 +96,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ApiId: z.string().describe(
     "Unique AWS AppSync GraphQL API identifier where this data source will be created.",
-  ),
+  ).optional(),
   Description: z.string().describe("The description of the data source.")
     .optional(),
   DynamoDBConfig: z.object({
@@ -136,7 +136,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().describe(
     "Friendly name for you to identify your AppSync data source after creation.",
-  ),
+  ).optional(),
   OpenSearchServiceConfig: z.object({
     AwsRegion: z.string().describe("The AWS Region."),
     Endpoint: z.string().describe("The endpoint."),
@@ -156,7 +156,7 @@ const GlobalArgsSchema = z.object({
   ServiceRoleArn: z.string().describe(
     "The AWS Identity and Access Management service role ARN for the data source. The system assumes this role when accessing the data source.",
   ).optional(),
-  Type: z.string().describe("The type of the data source."),
+  Type: z.string().describe("The type of the data source.").optional(),
   MetricsConfig: z.enum(["DISABLED", "ENABLED"]).optional(),
 });
 
@@ -293,7 +293,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppSync DataSource. Registered at `@swamp/aws/appsync/data-source`. */
 export const model = {
   type: "@swamp/aws/appsync/data-source",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -355,6 +355,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -372,6 +377,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ApiId", "Name", "Type"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

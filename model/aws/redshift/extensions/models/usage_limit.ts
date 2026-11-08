@@ -63,19 +63,19 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ClusterIdentifier: z.string().describe(
     "The identifier of the cluster that you want to limit usage.",
-  ),
+  ).optional(),
   FeatureType: z.enum([
     "spectrum",
     "concurrency-scaling",
     "cross-region-datasharing",
     "extra-compute-for-automatic-optimization",
-  ]).describe("The Amazon Redshift feature that you want to limit."),
+  ]).describe("The Amazon Redshift feature that you want to limit.").optional(),
   LimitType: z.enum(["time", "data-scanned"]).describe(
     "The type of limit. Depending on the feature type, this can be based on a time duration or data size. If FeatureType is spectrum, then LimitType must be data-scanned. If FeatureType is concurrency-scaling, then LimitType must be time. If FeatureType is cross-region-datasharing, then LimitType must be data-scanned.",
-  ),
+  ).optional(),
   Amount: z.number().describe(
     "The limit amount. If time-based, this amount is in minutes. If data-based, this amount is in terabytes (TB). The value must be a positive number.",
-  ),
+  ).optional(),
   Period: z.enum(["daily", "weekly", "monthly"]).describe(
     "The time period that the amount applies to. A weekly period begins on Sunday. The default is monthly.",
   ).optional(),
@@ -148,7 +148,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Redshift UsageLimit. Registered at `@swamp/aws/redshift/usage-limit`. */
 export const model = {
   type: "@swamp/aws/redshift/usage-limit",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -157,6 +157,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -177,6 +182,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Amount",
+          "ClusterIdentifier",
+          "FeatureType",
+          "LimitType",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

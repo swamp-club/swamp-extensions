@@ -67,7 +67,7 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   Enabled: z.boolean().optional(),
-  Name: z.string(),
+  Name: z.string().optional(),
   NotificationSettings: z.array(NotificationSettingSchema).optional(),
   Source: z.object({
     SourceType: z.enum(["AWS_ACM_PCA", "CERTIFICATE_BUNDLE"]),
@@ -75,7 +75,7 @@ const GlobalArgsSchema = z.object({
       X509CertificateData: z.string().optional(),
       AcmPcaArn: z.string().optional(),
     }),
-  }),
+  }).optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
@@ -135,7 +135,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RolesAnywhere TrustAnchor. Registered at `@swamp/aws/rolesanywhere/trust-anchor`. */
 export const model = {
   type: "@swamp/aws/rolesanywhere/trust-anchor",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -197,6 +197,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -214,6 +219,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "Source"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

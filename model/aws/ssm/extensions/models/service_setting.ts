@@ -56,10 +56,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   SettingId: z.string().min(1).max(1000).describe(
     "The ID of the service setting, such as /ssm/parameter-store/high-throughput-enabled.",
-  ),
+  ).optional(),
   SettingValue: z.string().min(1).max(4096).describe(
     "The value of the service setting.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -106,7 +106,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SSM ServiceSetting. Registered at `@swamp/aws/ssm/service-setting`. */
 export const model = {
   type: "@swamp/aws/ssm/service-setting",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -128,6 +128,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -145,6 +150,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["SettingId", "SettingValue"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

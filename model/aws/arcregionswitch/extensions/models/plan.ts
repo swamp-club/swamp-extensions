@@ -557,15 +557,16 @@ const GlobalArgsSchema = z.object({
   Description: z.string().optional(),
   ExecutionRole: z.string().regex(
     new RegExp("^arn:aws[a-zA-Z0-9-]*:iam::[0-9]{12}:role/.+$"),
-  ),
+  ).optional(),
   Name: z.string().min(1).max(32).regex(
     new RegExp("^[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,30}[a-zA-Z0-9])?$"),
-  ),
+  ).optional(),
   PrimaryRegion: z.string().regex(new RegExp("^[a-z]{2}-[a-z-]+-\\d+$"))
     .optional(),
-  RecoveryApproach: z.enum(["activeActive", "activePassive"]),
+  RecoveryApproach: z.enum(["activeActive", "activePassive"]).optional(),
   RecoveryTimeObjectiveMinutes: z.number().min(1).max(10080).optional(),
-  Regions: z.array(z.string().regex(new RegExp("^[a-z]{2}-[a-z-]+-\\d+$"))),
+  Regions: z.array(z.string().regex(new RegExp("^[a-z]{2}-[a-z-]+-\\d+$")))
+    .optional(),
   ReportConfiguration: z.object({
     ReportOutput: z.array(z.object({
       S3Configuration: S3ReportOutputConfigurationSchema.optional(),
@@ -574,7 +575,7 @@ const GlobalArgsSchema = z.object({
   ServiceQuotaChecksEnabled: z.boolean().optional(),
   Tags: z.record(z.string(), z.string().min(0).max(256)).optional(),
   Triggers: z.array(TriggerSchema).optional(),
-  Workflows: z.array(WorkflowSchema),
+  Workflows: z.array(WorkflowSchema).optional(),
   Route53HealthChecks: z.object({
     HealthCheckIds: z.array(z.string()).optional(),
     RecordNames: z.array(z.string()).optional(),
@@ -672,7 +673,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ARCRegionSwitch Plan. Registered at `@swamp/aws/arcregionswitch/plan`. */
 export const model = {
   type: "@swamp/aws/arcregionswitch/plan",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -744,6 +745,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -761,6 +767,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ExecutionRole",
+          "Name",
+          "RecoveryApproach",
+          "Regions",
+          "Workflows",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

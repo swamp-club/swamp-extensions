@@ -60,7 +60,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ActionOnFailure: z.string().describe(
     "This specifies what action to take when the cluster step fails. Possible values are CANCEL_AND_WAIT and CONTINUE.",
-  ),
+  ).optional(),
   HadoopJarStep: z.object({
     Args: z.array(z.string()).optional(),
     Jar: z.string(),
@@ -68,11 +68,11 @@ const GlobalArgsSchema = z.object({
     StepProperties: z.array(KeyValueSchema).optional(),
   }).describe(
     "The HadoopJarStepConfig property type specifies a job flow step consisting of a JAR file whose main function will be executed. The main function submits a job for the cluster to execute as a step on the master node, and then waits for the job to finish or fail before executing subsequent steps.",
-  ),
+  ).optional(),
   JobFlowId: z.string().describe(
     "A string that uniquely identifies the cluster (job flow).",
-  ),
-  Name: z.string().describe("The name of the cluster step."),
+  ).optional(),
+  Name: z.string().describe("The name of the cluster step.").optional(),
   LogUri: z.string().describe(
     "The Amazon S3 destination URI for log publishing. When omitted, EMR falls back to cluster-level logging behavior.",
   ).optional(),
@@ -146,7 +146,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EMR Step. Registered at `@swamp/aws/emr/step`. */
 export const model = {
   type: "@swamp/aws/emr/step",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -208,6 +208,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -225,6 +230,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ActionOnFailure",
+          "HadoopJarStep",
+          "JobFlowId",
+          "Name",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

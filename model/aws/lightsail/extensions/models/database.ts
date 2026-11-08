@@ -92,16 +92,16 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   RelationalDatabaseBlueprintId: z.string().min(1).max(255).describe(
     "The blueprint ID for your new database. A blueprint describes the major engine version of a database.",
-  ),
+  ).optional(),
   RelationalDatabaseBundleId: z.string().min(1).max(255).describe(
     "The bundle ID for your new database. A bundle describes the performance specifications for your database.",
-  ),
+  ).optional(),
   MasterDatabaseName: z.string().min(1).max(255).describe(
     "The name of the database to create when the Lightsail database resource is created. For MySQL, if this parameter isn't specified, no database is created in the database resource. For PostgreSQL, if this parameter isn't specified, a database named postgres is created in the database resource.",
-  ),
+  ).optional(),
   MasterUsername: z.string().min(1).max(63).describe(
     "The name for the master user.",
-  ),
+  ).optional(),
   MasterUserPassword: z.string().min(1).max(63).describe(
     'The password for the master user. The password can include any printable ASCII character except "/", """, or "@". It cannot contain spaces.',
   ).optional(),
@@ -225,7 +225,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lightsail Database. Registered at `@swamp/aws/lightsail/database`. */
 export const model = {
   type: "@swamp/aws/lightsail/database",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -287,6 +287,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -304,6 +309,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "MasterDatabaseName",
+          "MasterUsername",
+          "RelationalDatabaseBlueprintId",
+          "RelationalDatabaseBundleId",
+          "RelationalDatabaseName",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

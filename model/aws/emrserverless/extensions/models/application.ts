@@ -205,8 +205,8 @@ const GlobalArgsSchema = z.object({
     .describe("User friendly Application name.").optional(),
   ReleaseLabel: z.string().min(1).max(64).regex(
     new RegExp("^[A-Za-z0-9._/-]+$"),
-  ).describe("EMR release label."),
-  Type: z.string().describe("The type of the application"),
+  ).describe("EMR release label.").optional(),
+  Type: z.string().describe("The type of the application").optional(),
   InitialCapacity: z.array(InitialCapacityConfigKeyValuePairSchema).describe(
     "Initial capacity initialized when an Application is started.",
   ).optional(),
@@ -520,7 +520,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EMRServerless Application. Registered at `@swamp/aws/emrserverless/application`. */
 export const model = {
   type: "@swamp/aws/emrserverless/application",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -592,6 +592,11 @@ export const model = {
       description: "Added: RuntimeConfiguration",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -609,6 +614,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ReleaseLabel", "Type"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

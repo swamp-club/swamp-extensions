@@ -61,12 +61,11 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   VocabularyFilterName: z.string().min(1).max(200).regex(
     new RegExp("^[0-9a-zA-Z._-]+$"),
-  ).describe(
-    "A unique name, chosen by you, for your custom vocabulary filter.",
-  ),
+  ).describe("A unique name, chosen by you, for your custom vocabulary filter.")
+    .optional(),
   LanguageCode: z.string().describe(
     "The language code that represents the language of the entries in your vocabulary filter.",
-  ),
+  ).optional(),
   Words: z.array(z.string().min(1).max(256)).describe(
     "Use this parameter if you want to create your custom vocabulary filter by including all desired terms, as comma-separated values, within your request.",
   ).optional(),
@@ -151,7 +150,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Transcribe VocabularyFilter. Registered at `@swamp/aws/transcribe/vocabulary-filter`. */
 export const model = {
   type: "@swamp/aws/transcribe/vocabulary-filter",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -173,6 +172,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -190,6 +194,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["LanguageCode", "VocabularyFilterName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

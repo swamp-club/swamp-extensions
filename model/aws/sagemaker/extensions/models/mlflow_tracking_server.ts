@@ -75,10 +75,11 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "The Amazon Resource Name (ARN) of an IAM role that enables Amazon SageMaker to perform tasks on behalf of the customer.",
-  ),
+  ).optional(),
   ArtifactStoreUri: z.string().min(1).max(2048).regex(
     new RegExp("^s3:\\/\\/([^\\/]+)\\/?(.*)$"),
-  ).describe("The Amazon S3 URI for MLFlow Tracking Server artifacts."),
+  ).describe("The Amazon S3 URI for MLFlow Tracking Server artifacts.")
+    .optional(),
   AutomaticModelRegistration: z.boolean().describe(
     "A flag to enable Automatic SageMaker Model Registration.",
   ).optional(),
@@ -163,7 +164,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker MlflowTrackingServer. Registered at `@swamp/aws/sagemaker/mlflow-tracking-server`. */
 export const model = {
   type: "@swamp/aws/sagemaker/mlflow-tracking-server",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -225,6 +226,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -242,6 +248,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ArtifactStoreUri", "RoleArn", "TrackingServerName"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

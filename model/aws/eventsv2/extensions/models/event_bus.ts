@@ -71,7 +71,7 @@ const GlobalArgsSchema = z.object({
     new RegExp("^[A-Za-z0-9][\\.\\-_A-Za-z0-9]*$"),
   ).describe(
     "The name of the event bus. The first character must be alphanumeric; the remaining characters may also include '.', '-', and '_'.",
-  ),
+  ).optional(),
   Description: z.string().max(512).regex(
     new RegExp("^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]*(?![\\s\\S])"),
   ).describe(
@@ -170,7 +170,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EventsV2 EventBus. Registered at `@swamp/aws/eventsv2/event-bus`. */
 export const model = {
   type: "@swamp/aws/eventsv2/event-bus",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -179,6 +179,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -199,6 +204,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

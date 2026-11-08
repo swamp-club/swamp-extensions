@@ -59,7 +59,7 @@ const GlobalArgsSchema = z.object({
     "ANTHROPIC_CLAUDE_TEXT_COMPLETIONS",
     "MESSAGES",
     "TEXT_COMPLETIONS",
-  ]),
+  ]).optional(),
   AssistantId: z.string().regex(
     new RegExp(
       "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$|^arn:[a-z-]*?:wisdom:[a-z0-9-]*?:[0-9]{12}:[a-z-]*?/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}(?:/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}){0,2}$",
@@ -68,12 +68,12 @@ const GlobalArgsSchema = z.object({
   Description: z.string().min(1).max(255).regex(
     new RegExp("^[a-zA-Z0-9\\s_.,-]+"),
   ).optional(),
-  ModelId: z.string().min(1).max(2048),
+  ModelId: z.string().min(1).max(2048).optional(),
   Name: z.string().min(1).max(255).regex(new RegExp("^[a-zA-Z0-9\\s_.,-]+"))
     .optional(),
   Tags: z.record(z.string(), z.string().min(1).max(256)).optional(),
-  TemplateConfiguration: z.record(z.string(), z.unknown()),
-  TemplateType: z.enum(["TEXT"]),
+  TemplateConfiguration: z.record(z.string(), z.unknown()).optional(),
+  TemplateType: z.enum(["TEXT"]).optional(),
   Type: z.enum([
     "ANSWER_GENERATION",
     "INTENT_LABELING_GENERATION",
@@ -87,7 +87,7 @@ const GlobalArgsSchema = z.object({
     "ORCHESTRATION",
     "NOTE_TAKING",
     "CASE_SUMMARIZATION",
-  ]),
+  ]).optional(),
 });
 
 const StateSchema = z.object({
@@ -169,7 +169,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Wisdom AIPrompt. Registered at `@swamp/aws/wisdom/aiprompt`. */
 export const model = {
   type: "@swamp/aws/wisdom/aiprompt",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -236,6 +236,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -253,6 +258,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ApiFormat",
+          "ModelId",
+          "TemplateConfiguration",
+          "TemplateType",
+          "Type",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

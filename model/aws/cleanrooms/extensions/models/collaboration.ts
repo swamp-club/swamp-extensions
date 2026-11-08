@@ -119,7 +119,7 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^(?!\\s*$)[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDBFF-\\uDC00\\uDFFF\\t]*$",
     ),
-  ),
+  ).optional(),
   CreatorMemberAbilities: z.array(
     z.enum(["CAN_QUERY", "CAN_RUN_JOB", "CAN_RECEIVE_RESULTS"]),
   ).optional(),
@@ -138,15 +138,15 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^(?!\\s*$)[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDBFF-\\uDC00\\uDFFF\\t\\r\\n]*$",
     ),
-  ),
+  ).optional(),
   Members: z.array(MemberSpecificationSchema).optional(),
   Name: z.string().min(1).max(100).regex(
     new RegExp(
       "^(?!\\s*$)[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDBFF-\\uDC00\\uDFFF\\t]*$",
     ),
-  ),
+  ).optional(),
   JobLogStatus: z.enum(["ENABLED", "DISABLED"]).optional(),
-  QueryLogStatus: z.enum(["ENABLED", "DISABLED"]),
+  QueryLogStatus: z.enum(["ENABLED", "DISABLED"]).optional(),
   AnalyticsEngine: z.enum(["CLEAN_ROOMS_SQL", "SPARK"]).optional(),
   CreatorPaymentConfiguration: z.object({
     JobCompute: JobComputePaymentConfigSchema.optional(),
@@ -340,7 +340,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CleanRooms Collaboration. Registered at `@swamp/aws/cleanrooms/collaboration`. */
 export const model = {
   type: "@swamp/aws/cleanrooms/collaboration",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -402,6 +402,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -419,6 +424,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "CreatorDisplayName",
+          "Description",
+          "Name",
+          "QueryLogStatus",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

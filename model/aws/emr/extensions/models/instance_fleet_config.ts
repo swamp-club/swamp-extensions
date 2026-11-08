@@ -184,11 +184,12 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   InstanceFleetType: z.string().describe(
     "The node type that the instance fleet hosts.",
-  ),
+  ).optional(),
   TargetOnDemandCapacity: z.number().int().describe(
     "The target capacity of On-Demand units for the instance fleet, which determines how many On-Demand instances to provision.",
   ).optional(),
-  ClusterId: z.string().describe("The unique identifier of the EMR cluster."),
+  ClusterId: z.string().describe("The unique identifier of the EMR cluster.")
+    .optional(),
   TargetSpotCapacity: z.number().int().describe(
     "The target capacity of Spot units for the instance fleet, which determines how many Spot instances to provision.",
   ).optional(),
@@ -294,7 +295,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EMR InstanceFleetConfig. Registered at `@swamp/aws/emr/instance-fleet-config`. */
 export const model = {
   type: "@swamp/aws/emr/instance-fleet-config",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -308,6 +309,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -328,6 +334,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ClusterId", "InstanceFleetType"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

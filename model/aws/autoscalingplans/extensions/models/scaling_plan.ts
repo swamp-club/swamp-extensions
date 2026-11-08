@@ -181,10 +181,10 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "A CloudFormation stack or a set of tags. You can create one scaling plan per application source. The ApplicationSource property must be present to ensure interoperability with the AWS Auto Scaling console.",
-  ),
+  ).optional(),
   ScalingInstructions: z.array(ScalingInstructionSchema).describe(
     "The scaling instructions.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -240,10 +240,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AutoScalingPlans ScalingPlan. Registered at `@swamp/aws/autoscalingplans/scaling-plan`. */
 export const model = {
   type: "@swamp/aws/autoscalingplans/scaling-plan",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -264,6 +269,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ApplicationSource", "ScalingInstructions"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

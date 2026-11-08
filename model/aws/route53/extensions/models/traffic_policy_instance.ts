@@ -57,21 +57,21 @@ const GlobalArgsSchema = z.object({
   HostedZoneId: z.string().max(32).regex(new RegExp("^[A-Z0-9]{1,32}$"))
     .describe(
       "The ID of the hosted zone that Amazon Route 53 creates the resource record sets in. The bare ID as Route 53 returns it, without a /hostedzone/ prefix.",
-    ),
+    ).optional(),
   Name: z.string().max(1024).regex(new RegExp("^[^A-Z\\s]+\\.$")).describe(
     "The domain name, or subdomain name, for which Amazon Route 53 answers DNS queries by using the resource record sets it creates for this traffic policy instance. Must be lower-case and end with a trailing dot, which is the form Route 53 returns: Route 53 normalizes DNS names, so admitting another form would neither round-trip through Read nor guarantee that a change to this property changes the resource's identity.",
-  ),
+  ).optional(),
   TTL: z.number().int().min(0).max(2147483647).describe(
     "The TTL that Amazon Route 53 assigns to all of the resource record sets that it creates in the specified hosted zone.",
-  ),
+  ).optional(),
   TrafficPolicyId: z.string().min(1).max(36).regex(
     new RegExp("^[0-9a-f-]{1,36}$"),
   ).describe(
     "The ID of the traffic policy that Amazon Route 53 uses to create resource record sets in the specified hosted zone. Lower-case, as Route 53 returns it.",
-  ),
+  ).optional(),
   TrafficPolicyVersion: z.number().int().min(1).max(1000).describe(
     "The version of the traffic policy that Amazon Route 53 uses to create resource record sets in the specified hosted zone.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -133,7 +133,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Route53 TrafficPolicyInstance. Registered at `@swamp/aws/route53/traffic-policy-instance`. */
 export const model = {
   type: "@swamp/aws/route53/traffic-policy-instance",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -142,6 +142,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -162,6 +167,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "HostedZoneId",
+          "Name",
+          "TTL",
+          "TrafficPolicyId",
+          "TrafficPolicyVersion",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

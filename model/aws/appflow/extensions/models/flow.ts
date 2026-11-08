@@ -743,7 +743,7 @@ const GlobalArgsSchema = z.object({
     TriggerProperties: ScheduledTriggerPropertiesSchema.describe(
       "Details required based on the type of trigger",
     ).optional(),
-  }).describe("Trigger settings of the flow."),
+  }).describe("Trigger settings of the flow.").optional(),
   FlowStatus: z.enum(["Active", "Suspended", "Draft"]).describe(
     "Flow activation status for Scheduled- and Event-triggered flows",
   ).optional(),
@@ -784,11 +784,11 @@ const GlobalArgsSchema = z.object({
     IncrementalPullConfig: IncrementalPullConfigSchema.describe(
       "Configuration for scheduled incremental data pull",
     ).optional(),
-  }).describe("Configurations of Source connector of the flow."),
+  }).describe("Configurations of Source connector of the flow.").optional(),
   DestinationFlowConfigList: z.array(DestinationFlowConfigSchema).describe(
     "List of Destination connectors of the flow.",
-  ),
-  Tasks: z.array(TaskSchema).describe("List of tasks for the flow."),
+  ).optional(),
+  Tasks: z.array(TaskSchema).describe("List of tasks for the flow.").optional(),
   Tags: z.array(TagSchema).describe("List of Tags.").optional(),
   MetadataCatalogConfig: z.object({
     GlueDataCatalog: GlueDataCatalogSchema.describe(
@@ -919,7 +919,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppFlow Flow. Registered at `@swamp/aws/appflow/flow`. */
 export const model = {
   type: "@swamp/aws/appflow/flow",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -981,6 +981,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -998,6 +1003,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "DestinationFlowConfigList",
+          "FlowName",
+          "SourceFlowConfig",
+          "Tasks",
+          "TriggerConfig",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

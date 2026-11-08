@@ -80,7 +80,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Category: z.string().describe(
     "The category of the custom action, such as a build action or a test action.",
-  ),
+  ).optional(),
   ConfigurationProperties: z.array(ConfigurationPropertiesSchema).describe(
     "The configuration properties for the custom action.",
   ).optional(),
@@ -93,7 +93,7 @@ const GlobalArgsSchema = z.object({
     ),
   }).describe(
     "The details of the input artifact for the action, such as its commit ID.",
-  ),
+  ).optional(),
   OutputArtifactDetails: z.object({
     MaximumCount: z.number().int().describe(
       "The maximum number of artifacts allowed for the action type.",
@@ -103,10 +103,10 @@ const GlobalArgsSchema = z.object({
     ),
   }).describe(
     "The details of the output artifact of the action, such as its commit ID.",
-  ),
+  ).optional(),
   Provider: z.string().describe(
     "The provider of the service used in the custom action, such as AWS CodeDeploy.",
-  ),
+  ).optional(),
   Settings: z.object({
     EntityUrlTemplate: z.string().describe(
       "The URL returned to the AWS CodePipeline console that provides a deep link to the resources of the external system, such as the configuration page for an AWS CodeDeploy deployment group. This link is provided as part of the action display in the pipeline.",
@@ -124,7 +124,8 @@ const GlobalArgsSchema = z.object({
     .optional(),
   Tags: z.array(TagSchema).describe("Any tags assigned to the custom action.")
     .optional(),
-  Version: z.string().describe("The version identifier of the custom action."),
+  Version: z.string().describe("The version identifier of the custom action.")
+    .optional(),
 });
 
 const StateSchema = z.object({
@@ -227,7 +228,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CodePipeline CustomActionType. Registered at `@swamp/aws/codepipeline/custom-action-type`. */
 export const model = {
   type: "@swamp/aws/codepipeline/custom-action-type",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -289,6 +290,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -306,6 +312,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Category",
+          "InputArtifactDetails",
+          "OutputArtifactDetails",
+          "Provider",
+          "Version",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

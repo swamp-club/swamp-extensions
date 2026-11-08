@@ -60,7 +60,7 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "The Amazon Resource Name (ARN) of the function associated with the Function URL.",
-  ),
+  ).optional(),
   Qualifier: z.string().min(1).max(128).regex(
     new RegExp("((?!^[0-9]+$)([a-zA-Z0-9-_]+))"),
   ).describe(
@@ -68,7 +68,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AuthType: z.enum(["AWS_IAM", "NONE"]).describe(
     "Can be either AWS_IAM if the requests are authorized via IAM, or NONE if no authorization is configured on the Function URL.",
-  ),
+  ).optional(),
   InvokeMode: z.enum(["BUFFERED", "RESPONSE_STREAM"]).describe(
     "The invocation mode for the function's URL. Set to BUFFERED if you want to buffer responses before returning them to the client. Set to RESPONSE_STREAM if you want to stream responses, allowing faster time to first byte and larger response payload sizes. If not set, defaults to BUFFERED.",
   ).optional(),
@@ -174,7 +174,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda Url. Registered at `@swamp/aws/lambda/url`. */
 export const model = {
   type: "@swamp/aws/lambda/url",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -236,6 +236,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -253,6 +258,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AuthType", "TargetFunctionArn"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

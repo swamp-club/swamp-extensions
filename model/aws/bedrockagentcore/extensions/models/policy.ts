@@ -66,11 +66,12 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   PolicyEngineId: z.string().min(12).max(59).regex(
     new RegExp("^[A-Za-z][A-Za-z0-9_]*-[a-z0-9_]{10}$"),
-  ).describe("The identifier of the policy engine which contains this policy."),
+  ).describe("The identifier of the policy engine which contains this policy.")
+    .optional(),
   Name: z.string().min(1).max(48).regex(new RegExp("^[A-Za-z][A-Za-z0-9_]*$"))
     .describe(
       "The customer-assigned immutable name for the policy. Must be unique within the policy engine.",
-    ),
+    ).optional(),
   Definition: z.object({
     Cedar: CedarPolicySchema.describe(
       "A Cedar policy statement within the AgentCore Policy system.",
@@ -80,7 +81,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "The definition structure for policies. Encapsulates different policy formats.",
-  ),
+  ).optional(),
   Description: z.string().min(1).max(4096).describe(
     "A human-readable description of the policy's purpose and functionality.",
   ).optional(),
@@ -168,7 +169,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Policy. Registered at `@swamp/aws/bedrockagentcore/policy`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/policy",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -235,6 +236,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -252,6 +258,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Definition", "Name", "PolicyEngineId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

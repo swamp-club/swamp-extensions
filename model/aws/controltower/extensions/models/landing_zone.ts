@@ -59,8 +59,8 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Manifest: z.unknown(),
-  Version: z.string().min(3).max(10).regex(new RegExp("\\d+.\\d+")),
+  Manifest: z.unknown().optional(),
+  Version: z.string().min(3).max(10).regex(new RegExp("\\d+.\\d+")).optional(),
   RemediationTypes: z.array(z.enum(["INHERITANCE_DRIFT"])).optional(),
   Tags: z.array(TagSchema).optional(),
 });
@@ -110,7 +110,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ControlTower LandingZone. Registered at `@swamp/aws/controltower/landing-zone`. */
 export const model = {
   type: "@swamp/aws/controltower/landing-zone",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -177,6 +177,11 @@ export const model = {
       description: "Added: Manifest",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -194,6 +199,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Manifest", "Version"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

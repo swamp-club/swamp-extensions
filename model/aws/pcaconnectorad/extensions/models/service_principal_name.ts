@@ -57,12 +57,12 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:[\\w-]+:pca-connector-ad:[\\w-]+:[0-9]+:connector(\\/[\\w-]+)$",
     ),
-  ),
+  ).optional(),
   DirectoryRegistrationArn: z.string().min(5).max(200).regex(
     new RegExp(
       "^arn:[\\w-]+:pca-connector-ad:[\\w-]+:[0-9]+:directory-registration(\\/[\\w-]+)$",
     ),
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -109,7 +109,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for PCAConnectorAD ServicePrincipalName. Registered at `@swamp/aws/pcaconnectorad/service-principal-name`. */
 export const model = {
   type: "@swamp/aws/pcaconnectorad/service-principal-name",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -176,6 +176,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -193,6 +198,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ConnectorArn", "DirectoryRegistrationArn"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

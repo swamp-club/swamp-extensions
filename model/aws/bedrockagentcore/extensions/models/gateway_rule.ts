@@ -187,7 +187,7 @@ const GlobalArgsSchema = z.object({
       StaticRoute: StaticRouteSchema.optional(),
       WeightedRoute: WeightedRouteSchema.optional(),
     }).optional(),
-  })),
+  })).optional(),
   Conditions: z.array(z.object({
     MatchPrincipals: MatchPrincipalsSchema.optional(),
     MatchPaths: MatchPathsSchema.optional(),
@@ -197,7 +197,7 @@ const GlobalArgsSchema = z.object({
   GatewayIdentifier: z.string().regex(
     new RegExp("^([0-9a-z][-]?){1,100}-[0-9a-z]{10}$"),
   ).optional(),
-  Priority: z.number().min(1).max(1000000),
+  Priority: z.number().min(1).max(1000000).optional(),
   System: z.object({
     ManagedBy: z.string(),
   }).optional(),
@@ -284,7 +284,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore GatewayRule. Registered at `@swamp/aws/bedrockagentcore/gateway-rule`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/gateway-rule",
-  version: "2026.10.30.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -316,6 +316,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -333,6 +338,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Actions", "Priority"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

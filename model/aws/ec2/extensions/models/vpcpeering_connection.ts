@@ -66,10 +66,10 @@ const GlobalArgsSchema = z.object({
   PeerRoleArn: z.string().describe(
     "The Amazon Resource Name (ARN) of the VPC peer role for the peering connection in another AWS account. You can update this property. To manage PeerVpcPeeringConnectionOptions on a peering connection with another AWS account, the role must allow ec2:DescribeVpcPeeringConnections and ec2:ModifyVpcPeeringConnectionOptions.",
   ).optional(),
-  VpcId: z.string().describe("The ID of the VPC."),
+  VpcId: z.string().describe("The ID of the VPC.").optional(),
   PeerVpcId: z.string().describe(
     "The ID of the VPC with which you are creating the VPC peering connection. You must specify this parameter in the request.",
-  ),
+  ).optional(),
   AssumeRoleRegion: z.string().describe(
     "The Region code to use when calling Security Token Service (STS) to assume the PeerRoleArn, if provided. You can update this property.",
   ).optional(),
@@ -139,7 +139,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 VPCPeeringConnection. Registered at `@swamp/aws/ec2/vpcpeering-connection`. */
 export const model = {
   type: "@swamp/aws/ec2/vpcpeering-connection",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -206,6 +206,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -223,6 +228,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["PeerVpcId", "VpcId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

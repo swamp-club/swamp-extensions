@@ -64,10 +64,10 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  PrefixListName: z.string().min(1).max(255).describe("Name of Prefix List."),
-  AddressFamily: z.enum(["IPv4", "IPv6"]).describe(
-    "Ip Version of Prefix List.",
-  ),
+  PrefixListName: z.string().min(1).max(255).describe("Name of Prefix List.")
+    .optional(),
+  AddressFamily: z.enum(["IPv4", "IPv6"]).describe("Ip Version of Prefix List.")
+    .optional(),
   MaxEntries: z.number().int().min(1).describe("Max Entries of Prefix List.")
     .optional(),
   Tags: z.array(TagSchema).describe("Tags for Prefix List").optional(),
@@ -123,7 +123,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 PrefixList. Registered at `@swamp/aws/ec2/prefix-list`. */
 export const model = {
   type: "@swamp/aws/ec2/prefix-list",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -185,6 +185,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -202,6 +207,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AddressFamily", "PrefixListName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

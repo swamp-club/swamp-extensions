@@ -61,7 +61,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(100).regex(
     new RegExp("^([0-9a-zA-Z][_-]?){1,100}$"),
-  ).describe("The name of the retrieval instruction."),
+  ).describe("The name of the retrieval instruction.").optional(),
   Instruction: z.object({
     RetrievalGuidance: z.string().min(1).describe(
       "How to interpret and decompose the question, and what to prioritise when searching.",
@@ -77,7 +77,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "The reviewed content this instruction serves — what AgenticRetrieveStream resolves while status is ACTIVE. Absent until the first create review passes. Always present on a numbered version.",
-  ),
+  ).optional(),
   Description: z.string().min(1).max(200).describe(
     "A description of the retrieval instruction. On a numbered version, the description of that version.",
   ).optional(),
@@ -173,10 +173,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock RetrievalInstruction. Registered at `@swamp/aws/bedrock/retrieval-instruction`. */
 export const model = {
   type: "@swamp/aws/bedrock/retrieval-instruction",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -197,6 +202,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Instruction", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

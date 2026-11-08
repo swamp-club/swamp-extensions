@@ -55,13 +55,14 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   WorkspaceInstanceId: z.string().regex(
     new RegExp("^wsinst-[0-9a-zA-Z]{8,63}$"),
-  ).describe("ID of the workspace instance to associate with the volume"),
+  ).describe("ID of the workspace instance to associate with the volume")
+    .optional(),
   VolumeId: z.string().regex(new RegExp("^vol-[0-9a-zA-Z]{1,63}$")).describe(
     "ID of the volume to attach to the workspace instance",
-  ),
+  ).optional(),
   Device: z.string().max(32).describe(
     "The device name for the volume attachment",
-  ),
+  ).optional(),
   DisassociateMode: z.enum(["FORCE", "NO_FORCE"]).describe(
     "Mode to use when disassociating the volume",
   ).optional(),
@@ -116,7 +117,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for WorkspacesInstances VolumeAssociation. Registered at `@swamp/aws/workspacesinstances/volume-association`. */
 export const model = {
   type: "@swamp/aws/workspacesinstances/volume-association",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -178,6 +179,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -195,6 +201,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Device", "VolumeId", "WorkspaceInstanceId"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

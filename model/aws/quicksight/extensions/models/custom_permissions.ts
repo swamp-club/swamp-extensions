@@ -61,7 +61,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   CustomPermissionsName: z.string().min(1).max(64).regex(
     new RegExp("^[a-zA-Z0-9+=,.@_-]+$"),
-  ),
+  ).optional(),
   Capabilities: z.object({
     PublishWithoutApproval: z.enum(["DENY", "ALLOW"]).optional(),
     InboundEmailTrigger: z.enum(["DENY", "ALLOW"]).optional(),
@@ -532,7 +532,8 @@ const GlobalArgsSchema = z.object({
     SalesforceAction: z.enum(["DENY", "ALLOW"]).optional(),
     ShareNotionAction: z.enum(["DENY", "ALLOW"]).optional(),
   }).optional(),
-  AwsAccountId: z.string().min(12).max(12).regex(new RegExp("^[0-9]{12}$")),
+  AwsAccountId: z.string().min(12).max(12).regex(new RegExp("^[0-9]{12}$"))
+    .optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
@@ -1505,7 +1506,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight CustomPermissions. Registered at `@swamp/aws/quicksight/custom-permissions`. */
 export const model = {
   type: "@swamp/aws/quicksight/custom-permissions",
-  version: "2026.10.28.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -1577,6 +1578,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -1594,6 +1600,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AwsAccountId", "CustomPermissionsName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

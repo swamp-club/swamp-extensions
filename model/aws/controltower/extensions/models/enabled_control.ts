@@ -70,12 +70,12 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ControlIdentifier: z.string().min(20).max(2048).regex(
     new RegExp("^arn:aws[0-9a-zA-Z_\\-:\\/]+$"),
-  ).describe("Arn of the control."),
+  ).describe("Arn of the control.").optional(),
   TargetIdentifier: z.string().min(20).max(2048).regex(
     new RegExp("^arn:aws[0-9a-zA-Z_\\-:\\/]+$"),
   ).describe(
     "Arn for Organizational unit to which the control needs to be applied",
-  ),
+  ).optional(),
   Parameters: z.array(EnabledControlParameterSchema).describe(
     "Parameters to configure the enabled control behavior.",
   ).optional(),
@@ -134,7 +134,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ControlTower EnabledControl. Registered at `@swamp/aws/controltower/enabled-control`. */
 export const model = {
   type: "@swamp/aws/controltower/enabled-control",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -196,6 +196,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -213,6 +218,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ControlIdentifier", "TargetIdentifier"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

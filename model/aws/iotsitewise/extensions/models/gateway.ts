@@ -85,7 +85,8 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  GatewayName: z.string().describe("A unique, friendly name for the gateway."),
+  GatewayName: z.string().describe("A unique, friendly name for the gateway.")
+    .optional(),
   GatewayPlatform: z.object({
     GreengrassV2: GreengrassV2Schema.describe(
       "A gateway that runs on AWS IoT Greengrass V2.",
@@ -95,7 +96,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "The gateway's platform. You can only specify one platform in a gateway.",
-  ),
+  ).optional(),
   GatewayVersion: z.string().describe(
     "The version of the gateway you want to create.",
   ).optional(),
@@ -170,7 +171,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTSiteWise Gateway. Registered at `@swamp/aws/iotsitewise/gateway`. */
 export const model = {
   type: "@swamp/aws/iotsitewise/gateway",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -232,6 +233,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -249,6 +255,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["GatewayName", "GatewayPlatform"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

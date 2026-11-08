@@ -179,7 +179,7 @@ const GlobalArgsSchema = z.object({
   DomainIdentifier: z.string().regex(new RegExp("^dzd[-_][a-zA-Z0-9_-]{1,36}$"))
     .describe(
       "The ID of the Amazon DataZone domain where the data source is created.",
-    ),
+    ).optional(),
   EnableSetting: z.enum(["ENABLED", "DISABLED"]).describe(
     "Specifies whether the data source is enabled.",
   ).optional(),
@@ -197,10 +197,11 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Configuration of the data source. It can be set to either glueRunConfiguration or redshiftRunConfiguration.",
   ).optional(),
-  Name: z.string().min(1).max(256).describe("The name of the data source."),
+  Name: z.string().min(1).max(256).describe("The name of the data source.")
+    .optional(),
   ProjectIdentifier: z.string().describe(
     "The identifier of the Amazon DataZone project in which you want to add the data source.",
-  ),
+  ).optional(),
   PublishOnImport: z.boolean().describe(
     "Specifies whether the assets that this data source creates in the inventory are to be also automatically published to the catalog.",
   ).optional(),
@@ -220,7 +221,8 @@ const GlobalArgsSchema = z.object({
       ),
     ).describe("The schedule of the data source runs.").optional(),
   }).describe("The schedule of the data source runs.").optional(),
-  Type: z.string().min(1).max(256).describe("The type of the data source."),
+  Type: z.string().min(1).max(256).describe("The type of the data source.")
+    .optional(),
 });
 
 const StateSchema = z.object({
@@ -344,7 +346,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataZone DataSource. Registered at `@swamp/aws/datazone/data-source`. */
 export const model = {
   type: "@swamp/aws/datazone/data-source",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -406,6 +408,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -423,6 +430,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "DomainIdentifier",
+          "Name",
+          "ProjectIdentifier",
+          "Type",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

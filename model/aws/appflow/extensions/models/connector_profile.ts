@@ -554,10 +554,10 @@ const GlobalArgsSchema = z.object({
     "CustomConnector",
   ]).describe(
     "List of Saas providers that need connector profile to be created",
-  ),
+  ).optional(),
   ConnectionMode: z.enum(["Public", "Private"]).describe(
     "Mode in which data transfer should be enabled. Private connection mode is currently enabled for Salesforce, Snowflake, Trendmicro and Singular",
-  ),
+  ).optional(),
   ConnectorProfileConfig: z.object({
     ConnectorProfileProperties: ConnectorProfilePropertiesSchema.describe(
       "Connector specific properties needed to create connector profile - currently not needed for Amplitude, Trendmicro, Googleanalytics and Singular",
@@ -658,7 +658,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppFlow ConnectorProfile. Registered at `@swamp/aws/appflow/connector-profile`. */
 export const model = {
   type: "@swamp/aws/appflow/connector-profile",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -720,6 +720,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -737,6 +742,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ConnectionMode",
+          "ConnectorProfileName",
+          "ConnectorType",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

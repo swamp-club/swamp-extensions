@@ -74,7 +74,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   VerifiedAccessGroupId: z.string().describe(
     "The ID of the AWS Verified Access group.",
-  ),
+  ).optional(),
   SecurityGroupIds: z.array(z.string()).describe(
     "The IDs of the security groups for the endpoint.",
   ).optional(),
@@ -125,7 +125,7 @@ const GlobalArgsSchema = z.object({
   }).describe("The options for cidr type endpoint.").optional(),
   EndpointType: z.string().describe(
     "The type of AWS Verified Access endpoint. Incoming application requests will be sent to an IP address, load balancer or a network interface depending on the endpoint type specified.The type of AWS Verified Access endpoint. Incoming application requests will be sent to an IP address, load balancer or a network interface depending on the endpoint type specified.",
-  ),
+  ).optional(),
   EndpointDomainPrefix: z.string().describe(
     "A custom identifier that gets prepended to a DNS name that is generated for the endpoint.",
   ).optional(),
@@ -134,7 +134,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AttachmentType: z.string().describe(
     "The type of attachment used to provide connectivity between the AWS Verified Access endpoint and the application.",
-  ),
+  ).optional(),
   ApplicationDomain: z.string().describe(
     "The DNS name for users to reach your application.",
   ).optional(),
@@ -330,7 +330,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 VerifiedAccessEndpoint. Registered at `@swamp/aws/ec2/verified-access-endpoint`. */
 export const model = {
   type: "@swamp/aws/ec2/verified-access-endpoint",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -397,6 +397,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -414,6 +419,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AttachmentType",
+          "EndpointType",
+          "VerifiedAccessGroupId",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

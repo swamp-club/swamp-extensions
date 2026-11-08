@@ -55,11 +55,12 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   WorkspaceId: z.string().min(1).max(128).regex(
     new RegExp("[a-zA-Z_0-9][a-zA-Z_\\-0-9]*[a-zA-Z0-9]+"),
-  ).describe("The ID of the workspace."),
-  SyncSource: z.string().min(1).max(128).describe("The source of the SyncJob."),
+  ).describe("The ID of the workspace.").optional(),
+  SyncSource: z.string().min(1).max(128).describe("The source of the SyncJob.")
+    .optional(),
   SyncRole: z.string().min(20).max(2048).regex(
     new RegExp("arn:((aws)|(aws-cn)|(aws-us-gov)):iam::[0-9]{12}:role/.*"),
-  ).describe("The IAM Role that execute SyncJob."),
+  ).describe("The IAM Role that execute SyncJob.").optional(),
   Tags: z.record(z.string(), z.string().min(1).max(256)).describe(
     "A key-value pair to associate with a resource.",
   ).optional(),
@@ -116,7 +117,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTTwinMaker SyncJob. Registered at `@swamp/aws/iottwinmaker/sync-job`. */
 export const model = {
   type: "@swamp/aws/iottwinmaker/sync-job",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -178,6 +179,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -195,6 +201,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["SyncRole", "SyncSource", "WorkspaceId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

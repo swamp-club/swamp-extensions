@@ -178,13 +178,14 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Type: z.string().describe("The type of the certificate authority."),
+  Type: z.string().describe("The type of the certificate authority.")
+    .optional(),
   KeyAlgorithm: z.string().describe(
     "Public key algorithm and size, in bits, of the key pair that your CA creates when it issues a certificate.",
-  ),
+  ).optional(),
   SigningAlgorithm: z.string().describe(
     "Algorithm your CA uses to sign certificate requests.",
-  ),
+  ).optional(),
   Subject: z.object({
     Country: z.string().optional(),
     Organization: z.string().optional(),
@@ -205,7 +206,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "Structure that contains X.500 distinguished name information for your CA.",
-  ),
+  ).optional(),
   RevocationConfiguration: z.object({
     CrlConfiguration: CrlConfigurationSchema.describe(
       "Your certificate authority can create and maintain a certificate revocation list (CRL). A CRL contains information about certificates that have been revoked.",
@@ -338,7 +339,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ACMPCA CertificateAuthority. Registered at `@swamp/aws/acmpca/certificate-authority`. */
 export const model = {
   type: "@swamp/aws/acmpca/certificate-authority",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -400,6 +401,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -417,6 +423,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["KeyAlgorithm", "SigningAlgorithm", "Subject", "Type"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

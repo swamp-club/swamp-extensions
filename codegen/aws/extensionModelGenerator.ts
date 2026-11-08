@@ -89,6 +89,12 @@ export interface AwsExtensionModelInput {
   modelMethods?: ParsedModelMethods;
   /** Domain property names from splitAwsProperties — used for credential field collision checks */
   domainPropertyNames: string[];
+  /**
+   * Properties the create request requires. Most are optional in
+   * GlobalArgsSchema so other methods can run without them; create checks
+   * them before any API call.
+   */
+  createRequiredProperties?: string[];
 }
 
 /**
@@ -426,6 +432,19 @@ export function generateAwsExtensionModel(
       `      execute: async (_args: Record<string, never>, context: any) => {`,
     );
     lines.push(`        const g = context.globalArgs;`);
+    // Create-only required fields are optional in GlobalArgsSchema so other
+    // methods can run without them; enforce them here before any API call.
+    const createRequired = [...(input.createRequiredProperties ?? [])].sort();
+    if (createRequired.length > 0) {
+      lines.push(
+        `        const missing = ${
+          JSON.stringify(createRequired)
+        }.filter((k) => g[k] === undefined);`,
+      );
+      lines.push(
+        `        if (missing.length > 0) throw new Error("create requires global arguments: " + missing.join(", "));`,
+      );
+    }
     lines.push(`        const credentials = _buildCredentials(g);`);
     lines.push(`        const desiredState: Record<string, unknown> = {};`);
     lines.push(`        for (const [key, value] of Object.entries(g)) {`);

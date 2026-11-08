@@ -80,7 +80,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(300).regex(new RegExp("^[^\\\\]*$")).describe(
     "The name of the framework.",
-  ),
+  ).optional(),
   Description: z.string().min(1).max(1000).regex(
     new RegExp("^[\\w\\W\\s\\S]*$"),
   ).describe("The description of the framework.").optional(),
@@ -91,7 +91,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ControlSets: z.array(ControlSetSchema).describe(
     "The control sets that are associated with the framework.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe("The tags associated with the framework.")
     .optional(),
 });
@@ -156,7 +156,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AuditManager AssessmentFramework. Registered at `@swamp/aws/auditmanager/assessment-framework`. */
 export const model = {
   type: "@swamp/aws/auditmanager/assessment-framework",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -178,6 +178,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -195,6 +200,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ControlSets", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

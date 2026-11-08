@@ -348,7 +348,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Stages: z.array(StageDeclarationSchema).describe(
     "Represents information about a stage and its definition.",
-  ),
+  ).optional(),
   ExecutionMode: z.enum(["QUEUED", "SUPERSEDED", "PARALLEL"]).describe(
     "The method that the pipeline will use to handle multiple executions. The default mode is SUPERSEDED.",
   ).optional(),
@@ -362,7 +362,7 @@ const GlobalArgsSchema = z.object({
     new RegExp("arn:aws(-[\\w]+)*:iam::[0-9]{12}:role/.*"),
   ).describe(
     "The Amazon Resource Name (ARN) for CodePipeline to use to either perform actions with no actionRoleArn, or to use to assume roles for actions with an actionRoleArn",
-  ),
+  ).optional(),
   Name: z.string().describe("The name of the pipeline.").optional(),
   Variables: z.array(VariableDeclarationSchema).describe(
     "A list that defines the pipeline variables for a pipeline resource. Variable names can have alphanumeric and underscore characters, and the values must match [A-Za-z0-9@\\-_]+.",
@@ -476,7 +476,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CodePipeline Pipeline. Registered at `@swamp/aws/codepipeline/pipeline`. */
 export const model = {
   type: "@swamp/aws/codepipeline/pipeline",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -548,6 +548,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -565,6 +570,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["RoleArn", "Stages"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

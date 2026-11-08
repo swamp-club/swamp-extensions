@@ -223,7 +223,7 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   AgentRuntimeName: z.string().regex(new RegExp("[a-zA-Z][a-zA-Z0-9_]{0,47}"))
-    .describe("Name for a resource"),
+    .describe("Name for a resource").optional(),
   Description: z.string().min(1).max(1200).describe(
     "Description of the resource",
   ).optional(),
@@ -232,10 +232,10 @@ const GlobalArgsSchema = z.object({
     CodeConfiguration: CodeConfigurationSchema.describe(
       "Representation of a code configuration",
     ).optional(),
-  }).describe("The artifact of the agent"),
+  }).describe("The artifact of the agent").optional(),
   RoleArn: z.string().regex(
     new RegExp("arn:aws(-[^:]+)?:iam::([0-9]{12})?:role/.+"),
-  ).describe("Amazon Resource Name (ARN) of an IAM role"),
+  ).describe("Amazon Resource Name (ARN) of an IAM role").optional(),
   NetworkConfiguration: z.object({
     NetworkMode: z.enum(["PUBLIC", "VPC"]).describe(
       "Network mode configuration type",
@@ -439,7 +439,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Runtime. Registered at `@swamp/aws/bedrockagentcore/runtime`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/runtime",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -536,6 +536,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -553,6 +558,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AgentRuntimeArtifact", "AgentRuntimeName", "RoleArn"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -162,7 +162,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   DefaultExpirationDays: z.number().int().min(1).max(1098).describe(
     "The default number of days until the data within the domain expires.",
-  ),
+  ).optional(),
   Matching: z.object({
     Enabled: z.boolean().describe(
       "The flag that enables the matching process of duplicate profiles.",
@@ -370,7 +370,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CustomerProfiles Domain. Registered at `@swamp/aws/customerprofiles/domain`. */
 export const model = {
   type: "@swamp/aws/customerprofiles/domain",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -432,6 +432,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -449,6 +454,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DefaultExpirationDays", "DomainName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -64,13 +64,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(100).regex(new RegExp("^\\S[\\w.-]*$")).describe(
     "Name of the repository to be associated.",
-  ),
+  ).optional(),
   Type: z.enum([
     "CodeCommit",
     "Bitbucket",
     "GitHubEnterpriseServer",
     "S3Bucket",
-  ]).describe("The type of repository to be associated."),
+  ]).describe("The type of repository to be associated.").optional(),
   Owner: z.string().min(1).max(100).regex(new RegExp("^\\S(.*\\S)?$")).describe(
     "The owner of the repository. For a Bitbucket repository, this is the username for the account that owns the repository.",
   ).optional(),
@@ -151,7 +151,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CodeGuruReviewer RepositoryAssociation. Registered at `@swamp/aws/codegurureviewer/repository-association`. */
 export const model = {
   type: "@swamp/aws/codegurureviewer/repository-association",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -213,6 +213,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -230,6 +235,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "Type"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -227,12 +227,12 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().regex(new RegExp("^[a-zA-Z0-9._-]{1,200}$")).describe(
     "The name of the rule.",
-  ),
+  ).optional(),
   InstanceArn: z.string().regex(
     new RegExp(
       "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*$",
     ),
-  ).describe("The Amazon Resource Name (ARN) of the instance."),
+  ).describe("The Amazon Resource Name (ARN) of the instance.").optional(),
   TriggerEventSource: z.object({
     EventSourceName: z.enum([
       "OnEmailAnalysisAvailable",
@@ -259,8 +259,8 @@ const GlobalArgsSchema = z.object({
     ).describe(
       "The Amazon Resource Name (ARN) of the integration association. IntegrationAssociationArn is required if TriggerEventSource is one of the following values: OnZendeskTicketCreate | OnZendeskTicketStatusUpdate | OnSalesforceCaseCreate",
     ).optional(),
-  }).describe("The event source to trigger the rule."),
-  Function: z.string().describe("The conditions of the rule."),
+  }).describe("The event source to trigger the rule.").optional(),
+  Function: z.string().describe("The conditions of the rule.").optional(),
   Actions: z.object({
     AssignContactCategoryActions: z.array(z.record(z.string(), z.unknown()))
       .describe(
@@ -284,10 +284,11 @@ const GlobalArgsSchema = z.object({
     SubmitAutoEvaluationActions: z.array(SubmitAutoEvaluationActionSchema)
       .optional(),
     AssignSlaActions: z.array(AssignSlaActionSchema).optional(),
-  }).describe("A list of actions to be run when the rule is triggered."),
+  }).describe("A list of actions to be run when the rule is triggered.")
+    .optional(),
   PublishStatus: z.enum(["DRAFT", "PUBLISHED"]).describe(
     "The publish status of the rule. *Allowed values*: DRAFT | PUBLISHED",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     'The tags used to organize, track, or control access for this resource. For example, { "tags": {"key1":"value1", "key2":"value2"} }.',
   ).optional(),
@@ -414,7 +415,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect Rule. Registered at `@swamp/aws/connect/rule`. */
 export const model = {
   type: "@swamp/aws/connect/rule",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -501,6 +502,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -518,6 +524,19 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Actions",
+          "Function",
+          "InstanceArn",
+          "Name",
+          "PublishStatus",
+          "TriggerEventSource",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

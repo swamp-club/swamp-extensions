@@ -60,14 +60,14 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   Name: z.string().min(3).max(64).regex(new RegExp("^[a-z0-9]+(-[a-z0-9]+)*$"))
-    .describe("The name of the space."),
+    .describe("The name of the space.").optional(),
   DomainId: z.string().regex(new RegExp("^d-[0-9a-z]{1,25}$")).describe(
     "The identifier of the domain the space belongs to.",
-  ),
+  ).optional(),
   DataAccessRoleArn: z.string().min(1).max(2048).regex(new RegExp("^arn:.+$"))
     .describe(
       "The Amazon Resource Name (ARN) of the IAM role the space uses to access observability data.",
-    ),
+    ).optional(),
   AgentCoreEvaluationRoleArn: z.string().min(1).max(2048).regex(
     new RegExp("^arn:.+$"),
   ).describe(
@@ -167,7 +167,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudWatch Space. Registered at `@swamp/aws/cloudwatch/space`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/space",
-  version: "2026.10.27.1",
+  version: "2026.11.08.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -184,6 +191,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DataAccessRoleArn", "DomainId", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

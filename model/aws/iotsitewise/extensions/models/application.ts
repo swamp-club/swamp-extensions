@@ -60,10 +60,11 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   WorkspaceName: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
-    .describe("The name of the workspace that the application belongs to."),
+    .describe("The name of the workspace that the application belongs to.")
+    .optional(),
   Name: z.string().min(1).max(256).regex(
     new RegExp("^[A-Za-z0-9](?:[A-Za-z0-9 ._()\\-]*[A-Za-z0-9._()\\-])?$"),
-  ).describe("The name of the application."),
+  ).describe("The name of the application.").optional(),
   Description: z.string().min(1).max(2048).regex(
     new RegExp("^[^\\u0000-\\u001F\\u007F]+$"),
   ).describe("A description of the application.").optional(),
@@ -138,7 +139,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTSiteWise Application. Registered at `@swamp/aws/iotsitewise/application`. */
 export const model = {
   type: "@swamp/aws/iotsitewise/application",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -147,6 +148,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -167,6 +173,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "WorkspaceName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -56,7 +56,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Account: z.string().regex(new RegExp("^\\d{12}$")).describe(
     "The target AWS account ID to grant or revoke access for.",
-  ),
+  ).optional(),
   Force: z.boolean().describe(
     "Indicates whether to force the revoke action. If true, the Redshift-managed VPC endpoints associated with the endpoint authorization are also deleted.",
   ).optional(),
@@ -66,7 +66,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   ClusterIdentifier: z.string().regex(
     new RegExp("^(?=^[a-z][a-z0-9]*(-[a-z0-9]+)*$).{1,63}$"),
-  ).describe("The cluster identifier."),
+  ).describe("The cluster identifier.").optional(),
 });
 
 const StateSchema = z.object({
@@ -126,7 +126,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Redshift EndpointAuthorization. Registered at `@swamp/aws/redshift/endpoint-authorization`. */
 export const model = {
   type: "@swamp/aws/redshift/endpoint-authorization",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -188,6 +188,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -205,6 +210,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Account", "ClusterIdentifier"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

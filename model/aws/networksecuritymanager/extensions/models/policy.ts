@@ -80,17 +80,18 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   PolicyName: z.string().min(1).max(128).regex(
     new RegExp("^[a-zA-Z0-9][a-zA-Z0-9 _.:/=+\\-@]*$"),
-  ).describe("The name of the policy."),
+  ).describe("The name of the policy.").optional(),
   PolicyDescription: z.string().max(256).regex(
     new RegExp("^[a-zA-Z0-9 _.:/=+\\-@]*$"),
   ).describe("A description of the policy.").optional(),
-  Priority: z.number().int().min(1).describe("The priority of the policy."),
+  Priority: z.number().int().min(1).describe("The priority of the policy.")
+    .optional(),
   AssociatedTemplateAndRuleList: z.array(AssociatedTemplateAndRuleSchema)
     .describe("List of templates and rules associated with this policy.")
     .optional(),
   FirewallType: z.enum(["WAF", "SHIELD_ADVANCED"]).describe(
     "The type of firewall.",
-  ),
+  ).optional(),
   PolicyConfiguration: z.object({
     RemediationEnabled: z.boolean().describe(
       "Controls automatic remediation of non-compliant resources.",
@@ -101,7 +102,7 @@ const GlobalArgsSchema = z.object({
     WafConfig: WafConfigSchema.describe(
       "WAF-specific policy settings. Populated only for WAF firewall type policies.",
     ).optional(),
-  }).describe("Configuration settings for policy behavior."),
+  }).describe("Configuration settings for policy behavior.").optional(),
   Tags: z.array(TagSchema).describe("The tags associated with the policy.")
     .optional(),
 });
@@ -182,7 +183,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkSecurityManager Policy. Registered at `@swamp/aws/networksecuritymanager/policy`. */
 export const model = {
   type: "@swamp/aws/networksecuritymanager/policy",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -191,6 +192,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -211,6 +217,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "FirewallType",
+          "PolicyConfiguration",
+          "PolicyName",
+          "Priority",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

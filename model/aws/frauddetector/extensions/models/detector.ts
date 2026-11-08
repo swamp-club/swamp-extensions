@@ -182,7 +182,7 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   DetectorId: z.string().min(1).max(64).regex(new RegExp("^[0-9a-z_-]+$"))
-    .describe("The ID of the detector"),
+    .describe("The ID of the detector").optional(),
   DetectorVersionStatus: z.enum(["DRAFT", "ACTIVE"]).describe(
     "The desired detector version status for the detector",
   ).optional(),
@@ -192,7 +192,7 @@ const GlobalArgsSchema = z.object({
   Description: z.string().min(1).max(128).describe(
     "The description of the detector.",
   ).optional(),
-  Rules: z.array(RuleSchema),
+  Rules: z.array(RuleSchema).optional(),
   EventType: z.object({
     Name: z.string().min(1).max(64).regex(new RegExp("^[0-9a-z_-]+$")).describe(
       "The name for the event type",
@@ -206,7 +206,7 @@ const GlobalArgsSchema = z.object({
     EventVariables: z.array(EventVariableSchema).optional(),
     Labels: z.array(LabelSchema).optional(),
     EntityTypes: z.array(EntityTypeSchema).optional(),
-  }).describe("The event type to associate this detector with."),
+  }).describe("The event type to associate this detector with.").optional(),
   AssociatedModels: z.array(ModelSchema).describe(
     "The models to associate with this detector.",
   ).optional(),
@@ -296,7 +296,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for FraudDetector Detector. Registered at `@swamp/aws/frauddetector/detector`. */
 export const model = {
   type: "@swamp/aws/frauddetector/detector",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -358,6 +358,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -375,6 +380,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DetectorId", "EventType", "Rules"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

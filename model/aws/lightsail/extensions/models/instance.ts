@@ -131,10 +131,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   BundleId: z.string().min(1).max(255).describe(
     "The bundle of specification information for your virtual private server (or instance), including the pricing plan (e.g., micro_1_0).",
-  ),
+  ).optional(),
   BlueprintId: z.string().min(1).max(255).describe(
     "The ID for a virtual private server image (e.g., app_wordpress_4_4 or app_lamp_7_0). Use the get blueprints operation to return a list of available images (or blueprints).",
-  ),
+  ).optional(),
   AddOns: z.array(AddOnSchema).describe(
     "An array of objects representing the add-ons to enable for the new instance.",
   ).optional(),
@@ -243,7 +243,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lightsail Instance. Registered at `@swamp/aws/lightsail/instance`. */
 export const model = {
   type: "@swamp/aws/lightsail/instance",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -310,6 +310,11 @@ export const model = {
       description: "Added: AvailabilityZone",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -327,6 +332,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["BlueprintId", "BundleId", "InstanceName"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -120,10 +120,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   MetricTransformations: z.array(MetricTransformationSchema).describe(
     "The metric transformations.",
-  ),
+  ).optional(),
   FilterPattern: z.string().max(1024).describe(
     "A filter pattern for extracting metric data out of ingested log events. For more information, see [Filter and Pattern Syntax](https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/FilterAndPatternSyntax.html).",
-  ),
+  ).optional(),
   EmitSystemFieldDimensions: z.array(z.string()).describe(
     "The list of system fields that are emitted as additional dimensions in the generated metrics. Returns the emitSystemFieldDimensions value if it was specified when the metric filter was created.",
   ).optional(),
@@ -131,7 +131,7 @@ const GlobalArgsSchema = z.object({
     new RegExp("^[.\\-_/#A-Za-z0-9]{1,512}"),
   ).describe(
     "The name of an existing log group that you want to associate with this metric filter.",
-  ),
+  ).optional(),
   ApplyOnTransformedLogs: z.boolean().describe(
     "This parameter is valid only for log groups that have an active log transformer. For more information about log transformers, see [PutTransformer](https://docs.aws.amazon.com/AmazonCloudWatchLogs/latest/APIReference/API_PutTransformer.html). If this value is true, the metric filter is applied on the transformed version of the log events instead of the original ingested log events.",
   ).optional(),
@@ -200,7 +200,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Logs MetricFilter. Registered at `@swamp/aws/logs/metric-filter`. */
 export const model = {
   type: "@swamp/aws/logs/metric-filter",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -262,6 +262,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -279,6 +284,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "FilterPattern",
+          "LogGroupName",
+          "MetricTransformations",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

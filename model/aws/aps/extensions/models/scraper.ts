@@ -99,7 +99,7 @@ const GlobalArgsSchema = z.object({
     ConfigurationBlob: z.string().describe(
       "Prometheus compatible scrape configuration in base64 encoded blob format",
     ).optional(),
-  }).describe("Scraper configuration"),
+  }).describe("Scraper configuration").optional(),
   RoleConfiguration: z.object({
     SourceRoleArn: z.string().describe("IAM Role in source account").optional(),
     TargetRoleArn: z.string().describe("IAM Role in the target account")
@@ -121,7 +121,7 @@ const GlobalArgsSchema = z.object({
       SubnetIds: z.array(z.string().regex(new RegExp("^subnet-[0-9a-z]+$")))
         .describe("List of subnet IDs"),
     }).describe("Configuration for VPC metrics source").optional(),
-  }).describe("Scraper metrics source"),
+  }).describe("Scraper metrics source").optional(),
   Destination: z.object({
     AmpConfiguration: z.object({
       WorkspaceArn: z.string().regex(
@@ -137,7 +137,7 @@ const GlobalArgsSchema = z.object({
         ),
       ).describe("ARN of a CloudWatch dataset"),
     }).describe("Configuration for CloudWatch metrics destination").optional(),
-  }).describe("Scraper metrics destination"),
+  }).describe("Scraper metrics destination").optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -265,7 +265,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for APS Scraper. Registered at `@swamp/aws/aps/scraper`. */
 export const model = {
   type: "@swamp/aws/aps/scraper",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -332,6 +332,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -349,6 +354,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Destination", "ScrapeConfiguration", "Source"].filter(
+          (k) => g[k] === undefined,
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

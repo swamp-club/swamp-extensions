@@ -61,17 +61,17 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(256).regex(
     new RegExp("^[a-zA-Z0-9](-*[a-zA-Z0-9]){0,255}$"),
-  ).describe("The name of the MLflow App."),
+  ).describe("The name of the MLflow App.").optional(),
   ArtifactStoreUri: z.string().min(0).max(1024).regex(
     new RegExp("(https|s3)://([^/]+)/?(.*)"),
   ).describe(
     "The S3 URI for a general purpose bucket to use as the MLflow App artifact store.",
-  ),
+  ).optional(),
   RoleArn: z.string().min(20).max(2048).regex(
     new RegExp("arn:aws[a-z\\-]*:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+"),
   ).describe(
     "The Amazon Resource Name (ARN) for an IAM role in your account that the MLflow App uses to access the artifact store in Amazon S3.",
-  ),
+  ).optional(),
   ModelRegistrationMode: z.enum([
     "AutoModelRegistrationEnabled",
     "AutoModelRegistrationDisabled",
@@ -157,7 +157,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker MlflowApp. Registered at `@swamp/aws/sagemaker/mlflow-app`. */
 export const model = {
   type: "@swamp/aws/sagemaker/mlflow-app",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.06.15.1",
@@ -184,6 +184,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -201,6 +206,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ArtifactStoreUri", "Name", "RoleArn"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

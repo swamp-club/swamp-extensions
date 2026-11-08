@@ -68,17 +68,18 @@ const GlobalArgsSchema = z.object({
   Tags: z.array(TagSchema).describe(
     "An arbitrary set of tags (key-value pairs) for this cleanrooms privacy budget template.",
   ).optional(),
-  AutoRefresh: z.enum(["CALENDAR_MONTH", "NONE"]),
-  PrivacyBudgetType: z.enum(["DIFFERENTIAL_PRIVACY", "ACCESS_BUDGET"]),
+  AutoRefresh: z.enum(["CALENDAR_MONTH", "NONE"]).optional(),
+  PrivacyBudgetType: z.enum(["DIFFERENTIAL_PRIVACY", "ACCESS_BUDGET"])
+    .optional(),
   Parameters: z.object({
     Epsilon: z.number().int().min(1).max(20).optional(),
     UsersNoisePerQuery: z.number().int().min(10).max(100).optional(),
     BudgetParameters: z.array(BudgetParameterSchema).optional(),
     ResourceArn: z.string().max(200).optional(),
-  }),
+  }).optional(),
   MembershipIdentifier: z.string().min(36).max(36).regex(
     new RegExp("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"),
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -143,7 +144,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CleanRooms PrivacyBudgetTemplate. Registered at `@swamp/aws/cleanrooms/privacy-budget-template`. */
 export const model = {
   type: "@swamp/aws/cleanrooms/privacy-budget-template",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -210,6 +211,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -227,6 +233,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AutoRefresh",
+          "MembershipIdentifier",
+          "Parameters",
+          "PrivacyBudgetType",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

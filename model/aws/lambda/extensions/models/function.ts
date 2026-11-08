@@ -266,14 +266,13 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "The code for the function. You can define your function code in multiple ways: For.zip deployment packages, you can specify the S3 location of the.zip file in the S3Bucket, S3Key, and S3ObjectVersion properties. For.zip deployment packages, you can alternatively define the function code inline in the ZipFile property. This method works only for Node.js and Python functions. For container images, specify the URI of your container image in the ECR registry in the ImageUri property.",
-  ),
+  ).optional(),
   Role: z.string().regex(
     new RegExp(
       "^arn:(aws[a-zA-Z-]*)?:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$",
     ),
-  ).describe(
-    "The Amazon Resource Name (ARN) of the function's execution role.",
-  ),
+  ).describe("The Amazon Resource Name (ARN) of the function's execution role.")
+    .optional(),
   LoggingConfig: z.object({
     LogFormat: z.enum(["Text", "JSON"]).describe(
       "The format in which Lambda sends your function's application and system logs to CloudWatch. Select between plain text and structured JSON.",
@@ -654,7 +653,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda Function. Registered at `@swamp/aws/lambda/function`. */
 export const model = {
   type: "@swamp/aws/lambda/function",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -771,6 +770,11 @@ export const model = {
       description: "Added: SnapStart",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -788,6 +792,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Code", "Role"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

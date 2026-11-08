@@ -164,8 +164,8 @@ const GlobalArgsSchema = z.object({
   Description: z.string().min(0).max(255).describe(
     "The description of the MatchingWorkflow",
   ).optional(),
-  InputSourceConfig: z.array(InputSourceSchema),
-  OutputSourceConfig: z.array(OutputSourceSchema),
+  InputSourceConfig: z.array(InputSourceSchema).optional(),
+  OutputSourceConfig: z.array(OutputSourceSchema).optional(),
   ResolutionTechniques: z.object({
     ResolutionType: z.enum(["RULE_MATCHING", "ML_MATCHING", "PROVIDER"])
       .optional(),
@@ -175,12 +175,12 @@ const GlobalArgsSchema = z.object({
     EnableRealTimeMatching: z.boolean().describe(
       "Enables the workflow to use real-time matching. Can only be set on creation for RULE_MATCHING workflows that define RuleConditionProperties.",
     ).optional(),
-  }),
+  }).optional(),
   RoleArn: z.string().regex(
     new RegExp(
       "^arn:(aws|aws-us-gov|aws-cn):iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$",
     ),
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).optional(),
   IncrementalRunConfig: z.object({
     IncrementalRunType: z.enum(["IMMEDIATE"]),
@@ -263,7 +263,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EntityResolution MatchingWorkflow. Registered at `@swamp/aws/entityresolution/matching-workflow`. */
 export const model = {
   type: "@swamp/aws/entityresolution/matching-workflow",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -340,6 +340,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -357,6 +362,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "InputSourceConfig",
+          "OutputSourceConfig",
+          "ResolutionTechniques",
+          "RoleArn",
+          "WorkflowName",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

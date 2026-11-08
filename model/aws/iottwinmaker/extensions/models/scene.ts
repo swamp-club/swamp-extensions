@@ -56,7 +56,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   SceneId: z.string().min(1).max(128).regex(
     new RegExp("[a-zA-Z_0-9][a-zA-Z_\\-0-9]*[a-zA-Z0-9]+"),
-  ).describe("The ID of the scene."),
+  ).describe("The ID of the scene.").optional(),
   Description: z.string().min(0).max(512).describe(
     "The description of the scene.",
   ).optional(),
@@ -64,13 +64,13 @@ const GlobalArgsSchema = z.object({
     new RegExp("[sS]3://[A-Za-z0-9._/-]+"),
   ).describe(
     "The relative path that specifies the location of the content definition file.",
-  ),
+  ).optional(),
   Tags: z.record(z.string(), z.string().min(1).max(256)).describe(
     "A key-value pair to associate with a resource.",
   ).optional(),
   WorkspaceId: z.string().min(1).max(128).regex(
     new RegExp("[a-zA-Z_0-9][a-zA-Z_\\-0-9]*[a-zA-Z0-9]+"),
-  ).describe("The ID of the scene."),
+  ).describe("The ID of the scene.").optional(),
   Capabilities: z.array(z.string().min(0).max(256).regex(new RegExp(".*")))
     .describe("A list of capabilities that the scene uses to render.")
     .optional(),
@@ -145,7 +145,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTTwinMaker Scene. Registered at `@swamp/aws/iottwinmaker/scene`. */
 export const model = {
   type: "@swamp/aws/iottwinmaker/scene",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -207,6 +207,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -224,6 +229,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ContentLocation", "SceneId", "WorkspaceId"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -56,13 +56,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   TemplateName: z.string().min(3).max(100).regex(
     new RegExp("^[A-Za-z0-9-_.,:/()@!&?#+''\\s]+$"),
-  ).describe("The name of the review template."),
+  ).describe("The name of the review template.").optional(),
   Description: z.string().min(3).max(250).regex(
     new RegExp("^[A-Za-z0-9-_.,:/()@!&?#+''\\s]+$"),
-  ).describe("The review template description."),
+  ).describe("The review template description.").optional(),
   Lenses: z.array(z.string().min(1).max(128)).describe(
     "The lenses applied to the review template.",
-  ),
+  ).optional(),
   Notes: z.string().min(0).max(2084).describe(
     "The notes associated with the review template.",
   ).optional(),
@@ -132,7 +132,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for WellArchitected ReviewTemplate. Registered at `@swamp/aws/wellarchitected/review-template`. */
 export const model = {
   type: "@swamp/aws/wellarchitected/review-template",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -154,6 +154,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -171,6 +176,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Description", "Lenses", "TemplateName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

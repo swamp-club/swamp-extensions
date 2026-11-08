@@ -63,9 +63,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AcceleratorArn: z.string().describe(
     "The Amazon Resource Name (ARN) of the accelerator.",
-  ),
-  PortRanges: z.array(PortRangeSchema),
-  Protocol: z.enum(["TCP", "UDP"]).describe("The protocol for the listener."),
+  ).optional(),
+  PortRanges: z.array(PortRangeSchema).optional(),
+  Protocol: z.enum(["TCP", "UDP"]).describe("The protocol for the listener.")
+    .optional(),
   ClientAffinity: z.enum(["NONE", "SOURCE_IP"]).describe(
     "Client affinity lets you direct all requests from a user to the same endpoint.",
   ).optional(),
@@ -117,7 +118,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GlobalAccelerator Listener. Registered at `@swamp/aws/globalaccelerator/listener`. */
 export const model = {
   type: "@swamp/aws/globalaccelerator/listener",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -179,6 +180,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -196,6 +202,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AcceleratorArn", "PortRanges", "Protocol"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

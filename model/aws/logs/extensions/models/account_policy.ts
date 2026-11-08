@@ -55,17 +55,17 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   PolicyName: z.string().min(1).max(256).regex(new RegExp("^[^:*]{1,256}$"))
-    .describe("The name of the account policy"),
+    .describe("The name of the account policy").optional(),
   PolicyDocument: z.string().min(1).max(30720).describe(
     "The body of the policy document you want to use for this topic. You can only add one policy per PolicyType. The policy must be in JSON string format. Length Constraints: Maximum length of 30720",
-  ),
+  ).optional(),
   PolicyType: z.enum([
     "DATA_PROTECTION_POLICY",
     "SUBSCRIPTION_FILTER_POLICY",
     "FIELD_INDEX_POLICY",
     "TRANSFORMER_POLICY",
     "METRIC_EXTRACTION_POLICY",
-  ]).describe("Type of the policy."),
+  ]).describe("Type of the policy.").optional(),
   Scope: z.enum(["ALL"]).describe("Scope for policy application").optional(),
   SelectionCriteria: z.string().describe(
     "Log group selection criteria to apply policy only to a subset of log groups. SelectionCriteria string can be up to 25KB and cloudwatchlogs determines the length of selectionCriteria by using its UTF-8 bytes",
@@ -126,7 +126,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Logs AccountPolicy. Registered at `@swamp/aws/logs/account-policy`. */
 export const model = {
   type: "@swamp/aws/logs/account-policy",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -188,6 +188,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -205,6 +210,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["PolicyDocument", "PolicyName", "PolicyType"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

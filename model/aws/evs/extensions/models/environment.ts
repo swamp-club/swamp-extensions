@@ -88,12 +88,12 @@ const GlobalArgsSchema = z.object({
   KmsKeyId: z.string().optional(),
   VpcId: z.string().min(12).max(21).regex(
     new RegExp("^vpc-[a-f0-9]{8}([a-f0-9]{9})?$"),
-  ),
+  ).optional(),
   ServiceAccessSubnetId: z.string().min(15).max(24).regex(
     new RegExp("^subnet-[a-f0-9]{8}([a-f0-9]{9})?$"),
-  ),
-  VcfVersion: z.enum(["VCF-5.2.1", "VCF-5.2.2", "SELF_DEPLOYED"]),
-  TermsAccepted: z.boolean(),
+  ).optional(),
+  VcfVersion: z.enum(["VCF-5.2.1", "VCF-5.2.2", "SELF_DEPLOYED"]).optional(),
+  TermsAccepted: z.boolean().optional(),
   LicenseInfo: z.object({
     SolutionKey: z.string().regex(
       new RegExp(
@@ -308,7 +308,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EVS Environment. Registered at `@swamp/aws/evs/environment`. */
 export const model = {
   type: "@swamp/aws/evs/environment",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -385,6 +385,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -402,6 +407,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ServiceAccessSubnetId",
+          "TermsAccepted",
+          "VcfVersion",
+          "VpcId",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

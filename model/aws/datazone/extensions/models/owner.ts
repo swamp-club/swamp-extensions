@@ -54,16 +54,16 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   DomainIdentifier: z.string().regex(new RegExp("^dzd[-_][a-zA-Z0-9_-]{1,36}$"))
-    .describe(
-      "The ID of the domain in which you want to add the entity owner.",
-    ),
+    .describe("The ID of the domain in which you want to add the entity owner.")
+    .optional(),
   EntityIdentifier: z.string().describe(
     "The ID of the entity to which you want to add an owner.",
-  ),
-  EntityType: z.enum(["DOMAIN_UNIT"]).describe("The type of an entity."),
+  ).optional(),
+  EntityType: z.enum(["DOMAIN_UNIT"]).describe("The type of an entity.")
+    .optional(),
   Owner: z.record(z.string(), z.unknown()).describe(
     "The owner that you want to add to the entity.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -115,7 +115,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataZone Owner. Registered at `@swamp/aws/datazone/owner`. */
 export const model = {
   type: "@swamp/aws/datazone/owner",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -182,6 +182,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -199,6 +204,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "DomainIdentifier",
+          "EntityIdentifier",
+          "EntityType",
+          "Owner",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -94,7 +94,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   PrivateConnectionName: z.string().describe(
     "A unique name for the private connection within your account.",
-  ),
+  ).optional(),
   Mode: z.object({
     ServiceManaged: ServiceManagedSchema.describe(
       "The configuration for a service-managed private connection, where the service manages the resource gateway lifecycle.",
@@ -180,10 +180,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecurityAgent PrivateConnection. Registered at `@swamp/aws/securityagent/private-connection`. */
 export const model = {
   type: "@swamp/aws/securityagent/private-connection",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -204,6 +209,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["PrivateConnectionName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

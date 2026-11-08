@@ -90,7 +90,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   DataAccessRoleArn: z.string().min(20).max(2048).regex(
     new RegExp("arn:aws(-[^:]+)?:iam::[0-9]{12}:role/.+"),
-  ),
+  ).optional(),
   InputDataConfig: z.object({
     AugmentedManifests: z.array(AugmentedManifestsListItemSchema).optional(),
     DataFormat: z.enum(["COMPREHEND_CSV", "AUGMENTED_MANIFEST"]).optional(),
@@ -107,21 +107,21 @@ const GlobalArgsSchema = z.object({
     TestS3Uri: z.string().max(1024).regex(
       new RegExp("s3://[a-z0-9][\\.\\-a-z0-9]{1,61}[a-z0-9](/.*)?"),
     ).optional(),
-  }),
+  }).optional(),
   OutputDataConfig: z.object({
     KmsKeyId: z.string().min(1).max(2048).optional(),
     S3Uri: z.string().max(1024).regex(
       new RegExp("s3://[a-z0-9][\\.\\-a-z0-9]{1,61}[a-z0-9](/.*)?"),
     ).optional(),
   }).optional(),
-  LanguageCode: z.enum(["en", "es", "fr", "it", "de", "pt"]),
+  LanguageCode: z.enum(["en", "es", "fr", "it", "de", "pt"]).optional(),
   ModelKmsKeyId: z.string().min(1).max(2048).optional(),
   ModelPolicy: z.string().min(1).max(20000).regex(
     new RegExp("[\\u0009\\u000A\\u000D\\u0020-\\u00FF]+"),
   ).optional(),
   DocumentClassifierName: z.string().min(1).max(63).regex(
     new RegExp("^[a-zA-Z0-9](-*[a-zA-Z0-9])*$"),
-  ),
+  ).optional(),
   Mode: z.enum(["MULTI_CLASS", "MULTI_LABEL"]).optional(),
   Tags: z.array(TagSchema).optional(),
   VersionName: z.string().min(1).max(63).regex(
@@ -246,7 +246,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Comprehend DocumentClassifier. Registered at `@swamp/aws/comprehend/document-classifier`. */
 export const model = {
   type: "@swamp/aws/comprehend/document-classifier",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -308,6 +308,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -325,6 +330,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "DataAccessRoleArn",
+          "DocumentClassifierName",
+          "InputDataConfig",
+          "LanguageCode",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -56,7 +56,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ResourceArn: z.string().regex(
     new RegExp("^arn:[a-z-]+:[a-z0-9-]+:(([a-z]+-)+[0-9])?:([0-9]{12})?:.+$"),
-  ).describe("The Amazon Resource Name (ARN) of the Data Source."),
+  ).describe("The Amazon Resource Name (ARN) of the Data Source.").optional(),
   WithFederation: z.boolean().describe(
     "Allows Lake Formation to assume a role to access tables in a federated database.",
   ).optional(),
@@ -65,7 +65,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   UseServiceLinkedRole: z.boolean().describe(
     "Designates a trusted caller, an IAM principal, by registering this caller with the Data Catalog.",
-  ),
+  ).optional(),
   RoleArn: z.string().regex(new RegExp("^arn:[a-z-]+:iam::([0-9]{12})?:.+$"))
     .describe("The IAM role that registered a resource.").optional(),
 });
@@ -122,7 +122,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for LakeFormation Resource. Registered at `@swamp/aws/lakeformation/resource`. */
 export const model = {
   type: "@swamp/aws/lakeformation/resource",
-  version: "2026.11.04.1",
+  version: "2026.11.08.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -139,6 +146,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ResourceArn", "UseServiceLinkedRole"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

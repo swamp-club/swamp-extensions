@@ -74,10 +74,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Engine: z.string().min(1).max(35).describe(
     "The database engine to use for your custom engine version (CEV). Valid values: custom-oracle-ee custom-oracle-ee-cdb sqlserver-dev-ee sqlserver-ee sqlserver-se",
-  ),
+  ).optional(),
   EngineVersion: z.string().min(1).max(60).describe(
     "The name of your CEV. The name format is major version.customized_string. For example, a valid CEV name is 19.my_cev1. This setting is required for RDS Custom for Oracle, but optional for Amazon RDS. The combination of Engine and EngineVersion is unique per customer per Region. *Constraints:* Minimum length is 1. Maximum length is 60. *Pattern:* ^[a-z0-9_.-]{1,60$ }",
-  ),
+  ).optional(),
   KMSKeyId: z.string().min(1).max(2048).describe(
     "The AWS KMS key identifier for an encrypted CEV. A symmetric encryption KMS key is required for RDS Custom, but optional for Amazon RDS. If you have an existing symmetric encryption KMS key in your account, you can use it with RDS Custom. No further action is necessary. If you don't already have a symmetric encryption KMS key in your account, follow the instructions in [Creating a symmetric encryption KMS key](https://docs.aws.amazon.com/kms/latest/developerguide/create-keys.html#create-symmetric-cmk) in the *Key Management Service Developer Guide*. You can choose the same symmetric encryption key when you create a CEV and a DB instance, or choose different keys.",
   ).optional(),
@@ -193,7 +193,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RDS CustomDBEngineVersion. Registered at `@swamp/aws/rds/custom-dbengine-version`. */
 export const model = {
   type: "@swamp/aws/rds/custom-dbengine-version",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -270,6 +270,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -287,6 +292,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Engine", "EngineVersion"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

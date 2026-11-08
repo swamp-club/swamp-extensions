@@ -61,11 +61,11 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   DeviceArn: z.string().min(1).max(256).describe(
     "The Amazon Resource Name (ARN) of the quantum device to apply the spending limit to.",
-  ),
+  ).optional(),
   SpendingLimit: z.string().min(1).regex(new RegExp("^\\d+(\\.\\d{1,2})?$"))
     .describe(
       "The maximum amount that can be spent on the specified device, in USD.",
-    ),
+    ).optional(),
   TimePeriod: z.object({
     StartAt: z.string().describe(
       "The start date and time for the spending limit period, in ISO 8601 format.",
@@ -143,7 +143,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Braket SpendingLimit. Registered at `@swamp/aws/braket/spending-limit`. */
 export const model = {
   type: "@swamp/aws/braket/spending-limit",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.23.1",
@@ -190,6 +190,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -207,6 +212,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DeviceArn", "SpendingLimit"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

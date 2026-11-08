@@ -68,10 +68,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   JobQueue: z.string().describe(
     "The AWS Batch job queue associated with the quota share. This can be the job queue name or ARN. A job queue must be in the `VALID` state before you can associate it with a quota share.",
-  ),
+  ).optional(),
   CapacityLimits: z.array(QuotaShareCapacityLimitSchema).describe(
     "A list that specifies the quantity and type of compute capacity allocated to the quota share.",
-  ),
+  ).optional(),
   ResourceSharingConfiguration: z.object({
     Strategy: z.enum(["RESERVE", "LEND", "LEND_AND_BORROW"]).describe(
       "The resource sharing strategy for the quota share. The `RESERVE` strategy allows a quota share to reserve idle capacity for itself. `LEND` configures the share to lend its idle capacity to another share in need of capacity. The `LEND_AND_BORROW` strategy configures the share to borrow idle capacity from an underutilized share, as well as lend to another share.",
@@ -81,12 +81,13 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "Specifies whether a quota share reserves, lends, or both lends and borrows idle compute capacity.",
-  ),
+  ).optional(),
   PreemptionConfiguration: z.object({
     InSharePreemption: z.enum(["ENABLED", "DISABLED"]).describe(
       "Specifies whether jobs within a quota share can be preempted by another, higher priority job in the same quota share.",
     ),
-  }).describe("Specifies the preemption behavior for jobs in a quota share."),
+  }).describe("Specifies the preemption behavior for jobs in a quota share.")
+    .optional(),
   State: z.enum(["ENABLED", "DISABLED"]).describe(
     "The state of the quota share. If the quota share is `ENABLED`, it is able to accept jobs. If the quota share is `DISABLED`, new jobs won't be accepted but jobs already submitted can finish. The default state is `ENABLED`.",
   ).optional(),
@@ -171,7 +172,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Batch QuotaShare. Registered at `@swamp/aws/batch/quota-share`. */
 export const model = {
   type: "@swamp/aws/batch/quota-share",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -243,6 +244,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -260,6 +266,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "CapacityLimits",
+          "JobQueue",
+          "PreemptionConfiguration",
+          "ResourceSharingConfiguration",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

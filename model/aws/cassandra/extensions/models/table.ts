@@ -105,14 +105,14 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   KeyspaceName: z.string().regex(new RegExp("^[a-zA-Z0-9][a-zA-Z0-9_]{1,47}$"))
-    .describe("Name for Cassandra keyspace"),
+    .describe("Name for Cassandra keyspace").optional(),
   TableName: z.string().regex(new RegExp("^[a-zA-Z0-9][a-zA-Z0-9_]{1,47}$"))
     .describe("Name for Cassandra table").optional(),
   RegularColumns: z.array(ColumnSchema).describe("Non-key columns of the table")
     .optional(),
   PartitionKeyColumns: z.array(ColumnSchema).describe(
     "Partition key columns of the table",
-  ),
+  ).optional(),
   ClusteringKeyColumns: z.array(ClusteringKeyColumnSchema).describe(
     "Clustering key columns of the table",
   ).optional(),
@@ -309,7 +309,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Cassandra Table. Registered at `@swamp/aws/cassandra/table`. */
 export const model = {
   type: "@swamp/aws/cassandra/table",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -371,6 +371,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -388,6 +393,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["KeyspaceName", "PartitionKeyColumns"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

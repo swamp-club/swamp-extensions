@@ -64,7 +64,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   BranchName: z.string().min(1).max(255).describe(
     "The name for a branch that is part of an Amplify app.",
-  ),
+  ).optional(),
   Description: z.string().max(1000).describe("The description for a webhook.")
     .optional(),
   Tags: z.array(TagSchema).describe("Tags for the webhook.").optional(),
@@ -118,7 +118,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Amplify Webhook. Registered at `@swamp/aws/amplify/webhook`. */
 export const model = {
   type: "@swamp/aws/amplify/webhook",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -127,6 +127,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -147,6 +152,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["BranchName"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

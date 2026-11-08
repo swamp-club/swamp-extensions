@@ -66,7 +66,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().regex(new RegExp("^[ a-zA-Z0-9_:-]{1,256}$")).describe(
     "A name used to identify a mission profile.",
-  ),
+  ).optional(),
   ContactPrePassDurationSeconds: z.number().int().describe(
     "Pre-pass time needed before the contact.",
   ).optional(),
@@ -75,7 +75,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   MinimumViableContactDurationSeconds: z.number().int().describe(
     "Visibilities with shorter duration than the specified minimum viable contact duration will be ignored when searching for available contacts.",
-  ),
+  ).optional(),
   StreamsKmsKey: z.object({
     KmsKeyArn: z.string().regex(
       new RegExp("^(arn:(aws[a-zA-Z-]*)?:[a-z0-9-.]+:.*)|()$"),
@@ -96,10 +96,10 @@ const GlobalArgsSchema = z.object({
   ).describe(
     "ARN of a Config resource of type TelemetrySinkConfig used for telemetry data sink configuration.",
   ).optional(),
-  DataflowEdges: z.array(DataflowEdgeSchema),
+  DataflowEdges: z.array(DataflowEdgeSchema).optional(),
   TrackingConfigArn: z.string().regex(
     new RegExp("^(arn:(aws[a-zA-Z-]*)?:[a-z0-9-.]+:.*)|()$"),
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
@@ -189,7 +189,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GroundStation MissionProfile. Registered at `@swamp/aws/groundstation/mission-profile`. */
 export const model = {
   type: "@swamp/aws/groundstation/mission-profile",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -251,6 +251,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -268,6 +273,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "DataflowEdges",
+          "MinimumViableContactDurationSeconds",
+          "Name",
+          "TrackingConfigArn",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

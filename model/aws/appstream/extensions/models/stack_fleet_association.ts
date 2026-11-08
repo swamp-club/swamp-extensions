@@ -56,10 +56,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   FleetName: z.string().describe(
     "The name of the fleet. To associate a fleet with a stack, you must specify a dependency on the fleet resource.",
-  ),
+  ).optional(),
   StackName: z.string().describe(
     "The name of the stack. To associate a fleet with a stack, you must specify a dependency on the stack resource.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -102,7 +102,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppStream StackFleetAssociation. Registered at `@swamp/aws/appstream/stack-fleet-association`. */
 export const model = {
   type: "@swamp/aws/appstream/stack-fleet-association",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -116,6 +116,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -136,6 +141,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["FleetName", "StackName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

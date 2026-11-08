@@ -87,18 +87,19 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(256).regex(
     new RegExp("^[^\\s\\x00]( *[^\\s\\x00])*$"),
-  ).describe("The name of the network migration definition."),
+  ).describe("The name of the network migration definition.").optional(),
   Description: z.string().min(0).max(600).regex(new RegExp("^[^\\x00]*$"))
     .describe("A description of the network migration definition.").optional(),
   SourceConfigurations: z.array(SourceConfigurationSchema).describe(
     "A list of source configurations for the network migration.",
-  ),
+  ).optional(),
   TargetS3Configuration: z.object({
     S3Bucket: z.string().regex(new RegExp("^[a-zA-Z0-9.\\-_]{1,255}$"))
       .describe("The name of the S3 bucket for target artifacts."),
     S3BucketOwner: z.string().min(12).max(12).regex(new RegExp("[0-9]{12,}"))
       .describe("The AWS account ID of the S3 bucket owner."),
-  }).describe("The S3 configuration for storing the target network artifacts."),
+  }).describe("The S3 configuration for storing the target network artifacts.")
+    .optional(),
   TargetNetwork: z.object({
     Topology: z.enum(["ISOLATED_VPC", "HUB_AND_SPOKE"]).describe(
       "The network topology type for the target environment.",
@@ -123,7 +124,7 @@ const GlobalArgsSchema = z.object({
       .optional(),
   }).describe(
     "The target network configuration including topology and CIDR ranges.",
-  ),
+  ).optional(),
   TargetDeployment: z.enum(["SINGLE_ACCOUNT", "MULTI_ACCOUNT"]).describe(
     "The target deployment configuration for the migrated network.",
   ).optional(),
@@ -238,7 +239,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MGN NetworkMigrationDefinition. Registered at `@swamp/aws/mgn/network-migration-definition`. */
 export const model = {
   type: "@swamp/aws/mgn/network-migration-definition",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -247,6 +248,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -267,6 +273,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Name",
+          "SourceConfigurations",
+          "TargetNetwork",
+          "TargetS3Configuration",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

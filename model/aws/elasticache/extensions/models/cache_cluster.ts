@@ -96,7 +96,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   CacheNodeType: z.string().describe(
     "The compute and memory capacity of the nodes in the node group (shard).",
-  ),
+  ).optional(),
   CacheParameterGroupName: z.string().describe(
     "The name of the parameter group to associate with this cluster.",
   ).optional(),
@@ -117,7 +117,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   NumCacheNodes: z.number().int().describe(
     "The number of cache nodes that the cache cluster should have.",
-  ),
+  ).optional(),
   SnapshotName: z.string().describe(
     "The name of a Redis snapshot from which to restore data into the new node group (shard).",
   ).optional(),
@@ -130,7 +130,7 @@ const GlobalArgsSchema = z.object({
   ClusterName: z.string().describe("A name for the cache cluster.").optional(),
   Engine: z.string().describe(
     "The name of the cache engine to be used for this cluster.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "A list of tags to be added to this resource.",
   ).optional(),
@@ -301,7 +301,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ElastiCache CacheCluster. Registered at `@swamp/aws/elasticache/cache-cluster`. */
 export const model = {
   type: "@swamp/aws/elasticache/cache-cluster",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.06.06.1",
@@ -343,6 +343,11 @@ export const model = {
       description: "Added: Port",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -360,6 +365,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["CacheNodeType", "Engine", "NumCacheNodes"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

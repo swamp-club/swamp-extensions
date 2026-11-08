@@ -102,16 +102,16 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Description: z.string().max(512).describe(
     "A description for the experiment template.",
-  ),
+  ).optional(),
   Targets: z.record(z.string(), ExperimentTemplateTargetSchema).describe(
     "The targets for the experiment.",
-  ),
+  ).optional(),
   Actions: z.record(z.string(), ExperimentTemplateActionSchema).describe(
     "The actions for the experiment.",
   ).optional(),
   StopConditions: z.array(ExperimentTemplateStopConditionSchema).describe(
     "One or more stop conditions.",
-  ),
+  ).optional(),
   LogConfiguration: z.object({
     CloudWatchLogsConfiguration: z.object({
       LogGroupArn: z.string().min(20).max(2048),
@@ -124,7 +124,7 @@ const GlobalArgsSchema = z.object({
   }).optional(),
   RoleArn: z.string().max(1224).describe(
     "The Amazon Resource Name (ARN) of an IAM role that grants the AWS FIS service permission to perform service actions on your behalf.",
-  ),
+  ).optional(),
   Tags: z.record(z.string(), z.string().max(256)).optional(),
   ExperimentOptions: z.object({
     AccountTargeting: z.enum(["multi-account", "single-account"]).describe(
@@ -262,7 +262,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for FIS ExperimentTemplate. Registered at `@swamp/aws/fis/experiment-template`. */
 export const model = {
   type: "@swamp/aws/fis/experiment-template",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -329,6 +329,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -346,6 +351,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Description", "RoleArn", "StopConditions", "Targets"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -60,13 +60,13 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "The managed notification configuration ARN, against which the account contact association will be created",
-  ),
+  ).optional(),
   ContactIdentifier: z.enum([
     "ACCOUNT_PRIMARY",
     "ACCOUNT_ALTERNATE_SECURITY",
     "ACCOUNT_ALTERNATE_OPERATIONS",
     "ACCOUNT_ALTERNATE_BILLING",
-  ]).describe("This unique identifier for Contact"),
+  ]).describe("This unique identifier for Contact").optional(),
   IsSensitiveEventsSubscribed: z.boolean().describe(
     "Whether the account contact association is subscribed to sensitive events. Access to sensitive events is gated by the SubscribeSensitiveEvents virtual IAM action.",
   ).optional(),
@@ -124,7 +124,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 export const model = {
   type:
     "@swamp/aws/notifications/managed-notification-account-contact-association",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -191,6 +191,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -210,6 +215,15 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ContactIdentifier",
+          "ManagedNotificationConfigurationArn",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

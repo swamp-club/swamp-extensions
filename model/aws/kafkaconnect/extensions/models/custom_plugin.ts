@@ -73,11 +73,13 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Name: z.string().min(1).max(128).describe("The name of the custom plugin."),
+  Name: z.string().min(1).max(128).describe("The name of the custom plugin.")
+    .optional(),
   Description: z.string().max(1024).describe(
     "A summary description of the custom plugin.",
   ).optional(),
-  ContentType: z.enum(["JAR", "ZIP"]).describe("The type of the plugin file."),
+  ContentType: z.enum(["JAR", "ZIP"]).describe("The type of the plugin file.")
+    .optional(),
   FileDescription: z.object({
     FileMd5: z.string().describe(
       "The hex-encoded MD5 checksum of the custom plugin file. You can use it to validate the file.",
@@ -90,7 +92,7 @@ const GlobalArgsSchema = z.object({
     S3Location: S3LocationSchema.describe(
       "The S3 bucket Amazon Resource Name (ARN), file key, and object version of the plugin file stored in Amazon S3.",
     ),
-  }).describe("Information about the location of a custom plugin."),
+  }).describe("Information about the location of a custom plugin.").optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -164,7 +166,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for KafkaConnect CustomPlugin. Registered at `@swamp/aws/kafkaconnect/custom-plugin`. */
 export const model = {
   type: "@swamp/aws/kafkaconnect/custom-plugin",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -226,6 +228,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -243,6 +250,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ContentType", "Location", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

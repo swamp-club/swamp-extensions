@@ -55,17 +55,17 @@ const GlobalArgsSchema = z.object({
     SSEEnabled: z.boolean().optional(),
   }).optional(),
   Description: z.string().min(1).max(255).optional(),
-  ReplicationFactor: z.number().int(),
+  ReplicationFactor: z.number().int().optional(),
   ParameterGroupName: z.string().min(1).max(255).optional(),
   AvailabilityZones: z.array(z.string()).optional(),
-  IAMRoleARN: z.string().min(1).max(255),
+  IAMRoleARN: z.string().min(1).max(255).optional(),
   SubnetGroupName: z.string().min(1).max(255).optional(),
   PreferredMaintenanceWindow: z.string().min(1).max(255).optional(),
   ClusterEndpointEncryptionType: z.string().min(1).max(255).optional(),
   NotificationTopicARN: z.string().min(1).max(255).optional(),
   SecurityGroupIds: z.array(z.string()).optional(),
   NetworkType: z.string().min(4).max(10).optional(),
-  NodeType: z.string().min(1).max(50),
+  NodeType: z.string().min(1).max(50).optional(),
   ClusterName: z.string().min(1).max(20).optional(),
   Tags: z.record(z.string(), z.unknown()).optional(),
 });
@@ -138,7 +138,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DAX Cluster. Registered at `@swamp/aws/dax/cluster`. */
 export const model = {
   type: "@swamp/aws/dax/cluster",
-  version: "2026.11.04.1",
+  version: "2026.11.08.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -155,6 +162,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["IAMRoleARN", "NodeType", "ReplicationFactor"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

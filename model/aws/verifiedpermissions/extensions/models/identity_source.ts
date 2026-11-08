@@ -102,7 +102,7 @@ const GlobalArgsSchema = z.object({
   Configuration: z.object({
     CognitoUserPoolConfiguration: CognitoUserPoolConfigurationSchema.optional(),
     OpenIdConnectConfiguration: OpenIdConnectConfigurationSchema.optional(),
-  }),
+  }).optional(),
   Details: z.object({
     ClientIds: z.array(z.string().min(1).max(255).regex(new RegExp("^.*$")))
       .optional(),
@@ -115,9 +115,8 @@ const GlobalArgsSchema = z.object({
       .optional(),
     OpenIdIssuer: z.enum(["COGNITO"]).optional(),
   }).optional(),
-  PolicyStoreId: z.string().min(1).max(200).regex(
-    new RegExp("^[a-zA-Z0-9-]*$"),
-  ),
+  PolicyStoreId: z.string().min(1).max(200).regex(new RegExp("^[a-zA-Z0-9-]*$"))
+    .optional(),
   PrincipalEntityType: z.string().min(1).max(200).regex(new RegExp("^.*$"))
     .optional(),
 });
@@ -187,7 +186,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for VerifiedPermissions IdentitySource. Registered at `@swamp/aws/verifiedpermissions/identity-source`. */
 export const model = {
   type: "@swamp/aws/verifiedpermissions/identity-source",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -249,6 +248,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -266,6 +270,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Configuration", "PolicyStoreId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

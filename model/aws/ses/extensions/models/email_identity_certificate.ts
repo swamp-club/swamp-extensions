@@ -56,17 +56,17 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   EmailIdentity: z.string().min(1).max(320).describe(
     "The email identity that owns the sender the certificate is associated with.",
-  ),
+  ).optional(),
   FromAddress: z.string().min(1).max(320).describe(
     "The sender the certificate signs for. For an email address identity this is the identity itself.",
-  ),
+  ).optional(),
   CertificateArn: z.string().min(20).max(2048).regex(
     new RegExp(
       "^arn:aws[a-z0-9-]*:acm:[a-z0-9-]+:\\d{12}:certificate/[^\\s]+$",
     ),
   ).describe(
     "The ARN of the AWS Certificate Manager certificate to associate with the sender.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -117,7 +117,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SES EmailIdentityCertificate. Registered at `@swamp/aws/ses/email-identity-certificate`. */
 export const model = {
   type: "@swamp/aws/ses/email-identity-certificate",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -126,6 +126,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -146,6 +151,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["CertificateArn", "EmailIdentity", "FromAddress"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -67,18 +67,18 @@ const GlobalArgsSchema = z.object({
     new RegExp("^[\\u0021-\\u007E]+$"),
   ).describe("A textual description for the agreement.").optional(),
   ServerId: z.string().min(19).max(19).regex(new RegExp("^s-([0-9a-f]{17})$"))
-    .describe("A unique identifier for the server."),
+    .describe("A unique identifier for the server.").optional(),
   LocalProfileId: z.string().min(19).max(19).regex(
     new RegExp("^p-([0-9a-f]{17})$"),
-  ).describe("A unique identifier for the local profile."),
+  ).describe("A unique identifier for the local profile.").optional(),
   PartnerProfileId: z.string().min(19).max(19).regex(
     new RegExp("^p-([0-9a-f]{17})$"),
-  ).describe("A unique identifier for the partner profile."),
+  ).describe("A unique identifier for the partner profile.").optional(),
   BaseDirectory: z.string().max(1024).regex(new RegExp("^(|/.*)$")).describe(
     "Specifies the base directory for the agreement.",
   ).optional(),
   AccessRole: z.string().min(20).max(2048).regex(new RegExp("arn:.*role/.*"))
-    .describe("Specifies the access role for the agreement."),
+    .describe("Specifies the access role for the agreement.").optional(),
   Status: z.enum(["ACTIVE", "INACTIVE"]).describe(
     "Specifies the status of the agreement.",
   ).optional(),
@@ -210,7 +210,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Transfer Agreement. Registered at `@swamp/aws/transfer/agreement`. */
 export const model = {
   type: "@swamp/aws/transfer/agreement",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -272,6 +272,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -289,6 +294,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AccessRole",
+          "LocalProfileId",
+          "PartnerProfileId",
+          "ServerId",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

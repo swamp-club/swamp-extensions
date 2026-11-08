@@ -180,14 +180,14 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   S3BucketName: z.string().describe(
     "Specifies the name of the Amazon S3 bucket designated for publishing log files. See Amazon S3 Bucket Naming Requirements.",
-  ),
+  ).optional(),
   EnableLogFileValidation: z.boolean().describe(
     "Specifies whether log file validation is enabled. The default is false.",
   ).optional(),
   Tags: z.array(TagSchema).optional(),
   IsLogging: z.boolean().describe(
     "Whether the CloudTrail is currently logging AWS API calls.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -289,7 +289,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudTrail Trail. Registered at `@swamp/aws/cloudtrail/trail`. */
 export const model = {
   type: "@swamp/aws/cloudtrail/trail",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -361,6 +361,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -378,6 +383,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["IsLogging", "S3BucketName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -77,10 +77,10 @@ const GlobalArgsSchema = z.object({
       .optional(),
   }).describe(
     "S3 bucket and an ecryption key id (if available) to store outputs for the fleet",
-  ),
+  ).optional(),
   RoleArn: z.string().min(20).max(2048).regex(
     new RegExp("^arn:aws[a-z\\-]*:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$"),
-  ).describe("Role associated with the device fleet"),
+  ).describe("Role associated with the device fleet").optional(),
   Tags: z.array(TagSchema).describe("Associate tags with the resource")
     .optional(),
 });
@@ -144,7 +144,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker DeviceFleet. Registered at `@swamp/aws/sagemaker/device-fleet`. */
 export const model = {
   type: "@swamp/aws/sagemaker/device-fleet",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -201,6 +201,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -218,6 +223,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DeviceFleetName", "OutputConfig", "RoleArn"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

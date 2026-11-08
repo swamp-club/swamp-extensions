@@ -55,13 +55,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   GroupIpAddress: z.string().describe(
     "The IP address assigned to the transit gateway multicast group.",
-  ),
+  ).optional(),
   TransitGatewayMulticastDomainId: z.string().describe(
     "The ID of the transit gateway multicast domain.",
-  ),
+  ).optional(),
   NetworkInterfaceId: z.string().describe(
     "The ID of the transit gateway attachment.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -115,7 +115,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 TransitGatewayMulticastGroupMember. Registered at `@swamp/aws/ec2/transit-gateway-multicast-group-member`. */
 export const model = {
   type: "@swamp/aws/ec2/transit-gateway-multicast-group-member",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -177,6 +177,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -194,6 +199,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "GroupIpAddress",
+          "NetworkInterfaceId",
+          "TransitGatewayMulticastDomainId",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

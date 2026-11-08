@@ -63,13 +63,13 @@ const GlobalArgsSchema = z.object({
   ),
   TimeUnit: z.enum(["HOURLY", "DAILY", "MONTHLY"]).describe(
     "The granularity of the line items in the report.",
-  ),
+  ).optional(),
   Format: z.enum(["textORcsv", "Parquet"]).describe(
     "The format that AWS saves the report in.",
-  ),
+  ).optional(),
   Compression: z.enum(["ZIP", "GZIP", "Parquet"]).describe(
     "The compression format that AWS uses for the report.",
-  ),
+  ).optional(),
   AdditionalSchemaElements: z.array(
     z.enum([
       "RESOURCES",
@@ -80,25 +80,25 @@ const GlobalArgsSchema = z.object({
     "A list of strings that indicate additional content that Amazon Web Services includes in the report, such as individual resource IDs.",
   ).optional(),
   S3Bucket: z.string().min(1).max(256).regex(new RegExp("[A-Za-z0-9_\\.\\-]+"))
-    .describe("The S3 bucket where AWS delivers the report."),
+    .describe("The S3 bucket where AWS delivers the report.").optional(),
   S3Prefix: z.string().min(1).max(256).regex(
     new RegExp("[0-9A-Za-z!\\-_.*\\'()/]*"),
   ).describe(
     "The prefix that AWS adds to the report name when AWS delivers the report. Your prefix can't include spaces.",
-  ),
+  ).optional(),
   S3Region: z.string().describe(
     "The region of the S3 bucket that AWS delivers the report into.",
-  ),
+  ).optional(),
   AdditionalArtifacts: z.array(z.enum(["REDSHIFT", "QUICKSIGHT", "ATHENA"]))
     .describe(
       "A list of manifests that you want Amazon Web Services to create for this report.",
     ).optional(),
   RefreshClosedReports: z.boolean().describe(
     "Whether you want Amazon Web Services to update your reports after they have been finalized if Amazon Web Services detects charges related to previous months. These charges can include refunds, credits, or support fees.",
-  ),
+  ).optional(),
   ReportVersioning: z.enum(["CREATE_NEW_REPORT", "OVERWRITE_REPORT"]).describe(
     "Whether you want Amazon Web Services to overwrite the previous version of each report or to deliver the report in addition to the previous versions.",
-  ),
+  ).optional(),
   BillingViewArn: z.string().min(1).max(128).regex(
     new RegExp(
       "(arn:aws(-cn)?:billing::[0-9]{12}:billingview/)?[a-zA-Z0-9_\\+=\\.\\-@].{1,30}",
@@ -204,7 +204,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CUR ReportDefinition. Registered at `@swamp/aws/cur/report-definition`. */
 export const model = {
   type: "@swamp/aws/cur/report-definition",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -266,6 +266,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -283,6 +288,22 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Compression",
+          "Format",
+          "RefreshClosedReports",
+          "ReportName",
+          "ReportVersioning",
+          "S3Bucket",
+          "S3Prefix",
+          "S3Region",
+          "TimeUnit",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

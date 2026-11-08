@@ -78,7 +78,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   DomainName: z.string().describe(
     "The fully qualified domain name (FQDN), such as www.example.com, with which you want to secure an ACM certificate",
-  ),
+  ).optional(),
   DomainValidationOptions: z.array(DomainValidationOptionSchema).describe(
     "Domain information that domain name registrars use to verify your identity.",
   ).optional(),
@@ -275,7 +275,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CertificateManager Certificate. Registered at `@swamp/aws/certificatemanager/certificate`. */
 export const model = {
   type: "@swamp/aws/certificatemanager/certificate",
-  version: "2026.11.02.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.14.1",
@@ -317,6 +317,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -334,6 +339,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DomainName"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

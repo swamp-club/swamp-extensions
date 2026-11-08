@@ -83,11 +83,12 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "([-a-zA-Z0-9._]*)|(arn:[^:]*:[^:]*:[^:]*:[^:]*:project/[-a-zA-Z0-9._]*)",
     ),
-  ),
-  Name: z.string().min(1).max(127).regex(new RegExp("[-a-zA-Z0-9._]*")),
+  ).optional(),
+  Name: z.string().min(1).max(127).regex(new RegExp("[-a-zA-Z0-9._]*"))
+    .optional(),
   Description: z.string().min(0).max(160).optional(),
   EvaluationStrategy: z.enum(["ALL_RULES", "DEFAULT_VARIATION"]).optional(),
-  Variations: z.array(VariationObjectSchema),
+  Variations: z.array(VariationObjectSchema).optional(),
   DefaultVariation: z.string().min(1).max(127).regex(
     new RegExp("[-a-zA-Z0-9._]*"),
   ).optional(),
@@ -155,7 +156,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Evidently Feature. Registered at `@swamp/aws/evidently/feature`. */
 export const model = {
   type: "@swamp/aws/evidently/feature",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -212,6 +213,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -229,6 +235,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "Project", "Variations"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

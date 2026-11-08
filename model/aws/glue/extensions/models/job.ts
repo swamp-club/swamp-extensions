@@ -70,7 +70,7 @@ const GlobalArgsSchema = z.object({
     .optional(),
   Role: z.string().describe(
     "The name or Amazon Resource Name (ARN) of the IAM role associated with this job.",
-  ),
+  ).optional(),
   DefaultArguments: z.record(z.string(), z.unknown()).describe(
     "The default arguments for this job, specified as name-value pairs.",
   ).optional(),
@@ -113,7 +113,7 @@ const GlobalArgsSchema = z.object({
     ScriptLocation: z.string().describe(
       "Specifies the Amazon Simple Storage Service (Amazon S3) path to a script that executes a job",
     ).optional(),
-  }).describe("The code that executes a job."),
+  }).describe("The code that executes a job.").optional(),
   GlueVersion: z.string().describe(
     "Glue version determines the versions of Apache Spark and Python that AWS Glue supports.",
   ).optional(),
@@ -308,7 +308,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue Job. Registered at `@swamp/aws/glue/job`. */
 export const model = {
   type: "@swamp/aws/glue/job",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -375,6 +375,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -392,6 +397,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Command", "Role"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

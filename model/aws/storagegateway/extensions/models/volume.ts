@@ -63,15 +63,16 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   GatewayARN: z.string().min(50).max(500).describe(
     "The Amazon Resource Name (ARN) of the gateway on which to create the volume.",
-  ),
+  ).optional(),
   TargetName: z.string().min(1).max(200).regex(new RegExp("^[-\\.;a-z0-9]+$"))
     .describe(
       "The name of the iSCSI target used by an initiator to connect to a volume and used as a suffix for the target ARN.",
-    ),
+    ).optional(),
   NetworkInterfaceId: z.string().describe(
     "The network interface of the gateway on which to expose the iSCSI target. Only IPv4 addresses are accepted.",
-  ),
-  VolumeSizeInBytes: z.number().describe("The size of the volume in bytes."),
+  ).optional(),
+  VolumeSizeInBytes: z.number().describe("The size of the volume in bytes.")
+    .optional(),
   SnapshotId: z.string().regex(
     new RegExp("^snap-([0-9A-Fa-f]{8}|[0-9A-Fa-f]{17})$"),
   ).describe(
@@ -177,7 +178,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for StorageGateway Volume. Registered at `@swamp/aws/storagegateway/volume`. */
 export const model = {
   type: "@swamp/aws/storagegateway/volume",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -186,6 +187,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -206,6 +212,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "GatewayARN",
+          "NetworkInterfaceId",
+          "TargetName",
+          "VolumeSizeInBytes",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

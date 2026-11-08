@@ -65,7 +65,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   WorkforceName: z.string().min(1).max(63).regex(
     new RegExp("^[a-zA-Z0-9]([a-zA-Z0-9\\-]){0,62}$"),
-  ).describe("The name of the private workforce."),
+  ).describe("The name of the private workforce.").optional(),
   CognitoConfig: z.object({
     ClientId: z.string().describe(
       "The client ID for your Amazon Cognito user pool.",
@@ -273,7 +273,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker Workforce. Registered at `@swamp/aws/sagemaker/workforce`. */
 export const model = {
   type: "@swamp/aws/sagemaker/workforce",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -295,6 +295,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -312,6 +317,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["WorkforceName"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

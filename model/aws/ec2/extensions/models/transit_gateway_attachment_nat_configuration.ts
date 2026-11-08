@@ -66,13 +66,14 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   TransitGatewayAttachmentId: z.string().regex(
     new RegExp("^tgw-attach-[0-9a-f]{8,34}$"),
-  ).describe("The ID of the transit gateway attachment to configure NAT on."),
+  ).describe("The ID of the transit gateway attachment to configure NAT on.")
+    .optional(),
   NatGatewayRules: z.array(NatRuleSchema).describe(
     "The complete set of NAT rules for the attachment. Updating this property replaces the entire rule set: rules omitted from the new value are removed.",
-  ),
+  ).optional(),
   NatGatewaySupport: z.enum(["enable", "disable"]).describe(
     "Whether NAT gateway support is enabled on the attachment. Set to disable to stage NAT rules without activating them; the rules are retained and become active when this is later set to enable.",
-  ),
+  ).optional(),
   NatSystemRouteSupport: z.enum(["enable", "disable"]).describe(
     "Whether routes for the NAT CIDRs are installed into the transit gateway route tables associated with the attachment. Whether this is configurable depends on the attachment; where the value is forced, supplying the opposite value is rejected. Omitting this property leaves the setting to the service: on a new configuration the service applies the attachment's default, but on an attachment where the value is configurable it keeps the value already in effect rather than reverting to that default. Removing this property from a template, or deleting this resource, therefore leaves the setting at its last value rather than restoring the default, and a resource later created on the same attachment without this property inherits that value.",
   ).optional(),
@@ -128,10 +129,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 TransitGatewayAttachmentNatConfiguration. Registered at `@swamp/aws/ec2/transit-gateway-attachment-nat-configuration`. */
 export const model = {
   type: "@swamp/aws/ec2/transit-gateway-attachment-nat-configuration",
-  version: "2026.10.23.2",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.23.2",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -153,6 +159,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "NatGatewayRules",
+          "NatGatewaySupport",
+          "TransitGatewayAttachmentId",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

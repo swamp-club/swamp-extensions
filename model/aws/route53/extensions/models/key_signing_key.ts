@@ -56,16 +56,16 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   HostedZoneId: z.string().regex(new RegExp("^[A-Z0-9]{1,32}$")).describe(
     "The unique string (ID) used to identify a hosted zone.",
-  ),
+  ).optional(),
   Status: z.enum(["ACTIVE", "INACTIVE"]).describe(
     "A string specifying the initial status of the key signing key (KSK). You can set the value to ACTIVE or INACTIVE.",
-  ),
+  ).optional(),
   Name: z.string().regex(new RegExp("^[a-zA-Z0-9_]{3,128}$")).describe(
     "An alphanumeric string used to identify a key signing key (KSK). Name must be unique for each key signing key in the same hosted zone.",
-  ),
+  ).optional(),
   KeyManagementServiceArn: z.string().min(1).max(256).describe(
     "The Amazon resource name (ARN) for a customer managed key (CMK) in AWS Key Management Service (KMS). The KeyManagementServiceArn must be unique for each key signing key (KSK) in a single hosted zone.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -116,7 +116,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Route53 KeySigningKey. Registered at `@swamp/aws/route53/key-signing-key`. */
 export const model = {
   type: "@swamp/aws/route53/key-signing-key",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -178,6 +178,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -195,6 +200,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "HostedZoneId",
+          "KeyManagementServiceArn",
+          "Name",
+          "Status",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

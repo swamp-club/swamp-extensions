@@ -703,7 +703,12 @@ The interface is strategy-agnostic. Three patterns are supported:
    `npmImports`, and whichever capabilities apply
    (`sourceFile`/`functionExport`/ `stateFields` for enrichState, `listMethod`,
    `customMethods`)
-3. Create source files (`enrich.ts`, `list.enrich.ts`, `methods.ts`) as needed
+3. Create source files (`enrich.ts`, `list.enrich.ts`, `methods.ts`) as needed.
+   If a custom method reads a global argument that CloudFormation requires (from
+   the merged global and method arguments), list it in `requiredGlobalArgs` so
+   it stays required in GlobalArgsSchema (see "Required fields in
+   GlobalArgsSchema"). Generation fails if a listed name is not a writable
+   property.
 4. Add the import to `codegen/aws/enrichments/index.ts`
 5. Run `deno check` on the source files to verify they type-check
 6. Run `deno task generate:aws <service>` and verify the output
@@ -1011,8 +1016,43 @@ Used for create/update arguments. Preserves all CloudFormation constraints:
 - `integer` → `z.number().int()`
 - Nested objects with typed properties and per-field optionality
 
-Required fields (from `cfSchema.required`) are non-optional; everything else
-gets `.optional()`.
+Top-level fields are optional except the few a non-create method reads (see
+below). Nested objects keep their own `required` lists unchanged.
+
+### Required fields in GlobalArgsSchema
+
+swamp checks the whole GlobalArgsSchema in `swamp model create` with any
+`--global-arg` and in `swamp workflow validate`. If every field the create
+request needs were required there, a model set up only for `get`, `list`,
+`delete` or `sync` would be rejected unless it was given placeholder create
+values (for example `RouteTableId` on `ec2/route`). So `pipeline.ts` splits
+CloudFormation's top-level `required` list in two:
+
+- **`createRequiredProperties`** — `cfSchema.required` limited to properties the
+  model sends (read-only properties are never checked).
+- **`globalArgsRequiredProperties`** — the subset that stays required in
+  GlobalArgsSchema because a non-create method reads it from the global
+  arguments:
+  - the writable naming field (section 6), which `update` and `sync` use to find
+    stored state;
+  - the globals an enrichment lists in `requiredGlobalArgs` (section 8a),
+    because custom methods receive the global arguments merged with their own.
+
+The synthetic `name` field and the credential fields are unaffected. Only the
+reduced top-level list is passed to `codegen/shared/zodGenerator.ts`; nested
+objects read their own `required` lists, so their output is the same.
+
+`create` enforces the full create-required list itself: before it builds
+credentials or calls CloudControl, it throws
+`create requires global arguments: <names>` (sorted) for any that are unset. A
+missing create argument is therefore reported when `create` runs, not when the
+model is created or the workflow is validated. This matches the GCP and
+DigitalOcean providers.
+
+`update` needs no such check. It reads the live resource from CloudControl and
+sends a JSON patch (section 7), so a required field it is not given keeps its
+current value. The full-replacement (PUT) check the GCP and DigitalOcean
+providers emit does not apply to AWS.
 
 ### StateSchema — simplified response parsing
 

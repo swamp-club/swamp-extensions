@@ -55,10 +55,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ResourceShareArn: z.string().describe(
     "Specifies the [Amazon Resource Name (ARN)](https://docs.aws.amazon.com/general/latest/gr/aws-arns-and-namespaces.html) of the resource share.",
-  ),
+  ).optional(),
   SourceId: z.string().describe(
     "Specifies the ID of the source account to associate with the resource share.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -105,7 +105,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RAM SourceAssociation. Registered at `@swamp/aws/ram/source-association`. */
 export const model = {
   type: "@swamp/aws/ram/source-association",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -114,6 +114,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -134,6 +139,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ResourceShareArn", "SourceId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -99,7 +99,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   EngineFamily: z.enum(["MYSQL", "POSTGRESQL", "SQLSERVER"]).describe(
     "The kinds of databases that the proxy can connect to.",
-  ),
+  ).optional(),
   IdleClientTimeout: z.number().int().describe(
     "The number of seconds that a connection to the proxy can be inactive before the proxy disconnects it.",
   ).optional(),
@@ -108,7 +108,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   RoleArn: z.string().describe(
     "The Amazon Resource Name (ARN) of the IAM role that the proxy uses to access secrets in AWS Secrets Manager.",
-  ),
+  ).optional(),
   Tags: z.array(TagFormatSchema).describe(
     "An optional set of key-value pairs to associate arbitrary data of your choosing with the proxy.",
   ).optional(),
@@ -120,7 +120,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   VpcSubnetIds: z.array(z.string()).describe(
     "VPC subnet IDs to associate with the new proxy.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -209,7 +209,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RDS DBProxy. Registered at `@swamp/aws/rds/dbproxy`. */
 export const model = {
   type: "@swamp/aws/rds/dbproxy",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -271,6 +271,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -288,6 +293,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "DBProxyName",
+          "EngineFamily",
+          "RoleArn",
+          "VpcSubnetIds",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -61,12 +61,12 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(63).regex(
     new RegExp("^[a-zA-Z0-9][a-zA-Z0-9\\-_]*$"),
-  ).describe("The name for the event tracker."),
+  ).describe("The name for the event tracker.").optional(),
   DatasetGroupArn: z.string().max(256).regex(
     new RegExp("^arn:([a-z\\d-]+):personalize:.*:.*:.+$"),
   ).describe(
     "The Amazon Resource Name (ARN) of the dataset group that receives the event data.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "A list of tags to apply to the event tracker.",
   ).optional(),
@@ -120,7 +120,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Personalize EventTracker. Registered at `@swamp/aws/personalize/event-tracker`. */
 export const model = {
   type: "@swamp/aws/personalize/event-tracker",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -142,6 +142,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -159,6 +164,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DatasetGroupArn", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -63,13 +63,13 @@ const GlobalArgsSchema = z.object({
   ),
   DBProxyName: z.string().max(64).regex(new RegExp("[0-z]*")).describe(
     "The identifier for the proxy. This name must be unique for all proxies owned by your AWS account in the specified AWS Region.",
-  ),
+  ).optional(),
   VpcSecurityGroupIds: z.array(z.string()).describe(
     "VPC security group IDs to associate with the new DB proxy endpoint.",
   ).optional(),
   VpcSubnetIds: z.array(z.string()).describe(
     "VPC subnet IDs to associate with the new DB proxy endpoint.",
-  ),
+  ).optional(),
   EndpointNetworkType: z.enum(["IPV4", "IPV6", "DUAL"]).describe(
     "The network type of the DB proxy endpoint. The network type determines the IP version that the proxy endpoint supports.",
   ).optional(),
@@ -144,7 +144,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RDS DBProxyEndpoint. Registered at `@swamp/aws/rds/dbproxy-endpoint`. */
 export const model = {
   type: "@swamp/aws/rds/dbproxy-endpoint",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -206,6 +206,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -223,6 +228,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DBProxyEndpointName", "DBProxyName", "VpcSubnetIds"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

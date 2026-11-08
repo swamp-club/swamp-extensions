@@ -115,12 +115,12 @@ const GlobalArgsSchema = z.object({
     new RegExp("^[A-Za-z0-9][\\.\\-_A-Za-z0-9]*$"),
   ).describe(
     "The name of the subscriber. The first character must be alphanumeric; the remaining characters may also include '.', '-', and '_'.",
-  ),
+  ).optional(),
   EventBusArn: z.string().min(1).max(1011).regex(
     new RegExp(
       "^arn:aws(-[a-z0-9]+)*:events:[a-z][a-z0-9]*(-[a-z0-9]+)*:([0-9]{12}):event-busv2\\/[A-Za-z0-9][\\.\\-_A-Za-z0-9]{0,255}\\/[a-z0-9]{25}$",
     ),
-  ).describe("The ARN of the event bus this subscriber belongs to."),
+  ).describe("The ARN of the event bus this subscriber belongs to.").optional(),
   InvokeConfiguration: z.object({
     TargetArn: z.string().min(1).max(1600).regex(new RegExp("^arn:")).describe(
       "The Amazon Resource Name (ARN) of the target that the subscriber invokes. For universal service integration targets, use the form arn:{partition}:events:::aws-sdk:{service}:{apiAction}.",
@@ -266,7 +266,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "Configuration for how the subscriber invokes its target, including the target ARN, the IAM role used to invoke it, and, optionally, the target-specific parameters object that matches the target type.",
-  ),
+  ).optional(),
   FilterConfiguration: z.object({
     Filters: z.array(FilterSchema).describe(
       "The list of filters, 1-50 entries. An event must match every filter to be delivered.",
@@ -734,7 +734,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EventsV2 Subscriber. Registered at `@swamp/aws/eventsv2/subscriber`. */
 export const model = {
   type: "@swamp/aws/eventsv2/subscriber",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -748,6 +748,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -768,6 +773,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["EventBusArn", "InvokeConfiguration", "Name"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

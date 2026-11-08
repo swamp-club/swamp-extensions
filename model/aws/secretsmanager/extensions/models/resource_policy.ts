@@ -56,10 +56,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   SecretId: z.string().min(1).max(2048).describe(
     "The ARN or name of the secret to attach the resource-based policy.",
-  ),
+  ).optional(),
   ResourcePolicy: z.record(z.string(), z.unknown()).describe(
     "A JSON-formatted string for an AWS resource-based policy.",
-  ),
+  ).optional(),
   BlockPublicPolicy: z.boolean().describe(
     "Specifies whether to block resource-based policies that allow broad access to the secret.",
   ).optional(),
@@ -111,7 +111,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecretsManager ResourcePolicy. Registered at `@swamp/aws/secretsmanager/resource-policy`. */
 export const model = {
   type: "@swamp/aws/secretsmanager/resource-policy",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -183,6 +183,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -200,6 +205,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ResourcePolicy", "SecretId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

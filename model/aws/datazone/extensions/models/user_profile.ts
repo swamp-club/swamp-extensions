@@ -57,14 +57,14 @@ const GlobalArgsSchema = z.object({
   DomainIdentifier: z.string().regex(new RegExp("^dzd[-_][a-zA-Z0-9_-]{1,36}$"))
     .describe(
       "The identifier of the Amazon DataZone domain in which the user profile would be created.",
-    ),
+    ).optional(),
   Status: z.enum(["ASSIGNED", "NOT_ASSIGNED", "ACTIVATED", "DEACTIVATED"])
     .describe("The status of the user profile.").optional(),
   UserIdentifier: z.string().regex(
     new RegExp(
       "(^([0-9a-f]{10}-|)[A-Fa-f0-9]{8}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{4}-[A-Fa-f0-9]{12}$|^[a-zA-Z_0-9+=,.@-]+$|^arn:aws:iam::\\d{12}:.+$)",
     ),
-  ).describe("The ID of the user."),
+  ).describe("The ID of the user.").optional(),
   UserType: z.enum(["IAM_USER", "IAM_ROLE", "SSO_USER", "IAM_ROLE_SESSION"])
     .describe("The type of the user.").optional(),
   SessionName: z.string().min(2).max(64).describe(
@@ -140,7 +140,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataZone UserProfile. Registered at `@swamp/aws/datazone/user-profile`. */
 export const model = {
   type: "@swamp/aws/datazone/user-profile",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -207,6 +207,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -224,6 +229,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DomainIdentifier", "UserIdentifier"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

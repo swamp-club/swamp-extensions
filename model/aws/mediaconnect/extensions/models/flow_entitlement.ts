@@ -59,11 +59,12 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  FlowArn: z.string().describe("The ARN of the flow."),
+  FlowArn: z.string().describe("The ARN of the flow.").optional(),
   DataTransferSubscriberFeePercent: z.number().int().describe(
     "Percentage from 0-100 of the data transfer cost to be billed to the subscriber.",
   ).optional(),
-  Description: z.string().describe("A description of the entitlement."),
+  Description: z.string().describe("A description of the entitlement.")
+    .optional(),
   Encryption: z.object({
     Algorithm: z.enum(["aes128", "aes192", "aes256"]).describe(
       "The type of algorithm that is used for the encryption (such as aes128, aes192, or aes256).",
@@ -106,10 +107,10 @@ const GlobalArgsSchema = z.object({
   EntitlementStatus: z.enum(["ENABLED", "DISABLED"]).describe(
     "An indication of whether the entitlement is enabled.",
   ).optional(),
-  Name: z.string().describe("The name of the entitlement."),
+  Name: z.string().describe("The name of the entitlement.").optional(),
   Subscribers: z.array(z.string()).describe(
     "The AWS account IDs that you want to share your content with. The receiving accounts (subscribers) will be allowed to create their own flow using your content as the source.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "Key-value pairs that can be used to tag and organize this flow entitlement.",
   ).optional(),
@@ -221,7 +222,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaConnect FlowEntitlement. Registered at `@swamp/aws/mediaconnect/flow-entitlement`. */
 export const model = {
   type: "@swamp/aws/mediaconnect/flow-entitlement",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -283,6 +284,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -300,6 +306,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Description", "FlowArn", "Name", "Subscribers"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

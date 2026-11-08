@@ -62,7 +62,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ApiId: z.string().describe(
     "The APSYlong GraphQL API to which you want to attach this resolver.",
-  ),
+  ).optional(),
   CachingConfig: z.object({
     CachingKeys: z.array(z.string()).describe(
       "The caching keys for a resolver that has caching activated. Valid values are entries from the $context.arguments, $context.source, and $context.identity maps.",
@@ -79,7 +79,7 @@ const GlobalArgsSchema = z.object({
     .optional(),
   FieldName: z.string().describe(
     "The GraphQL field on a type that invokes the resolver.",
-  ),
+  ).optional(),
   Kind: z.string().describe(
     "The resolver type. *UNIT*: A UNIT resolver type. A UNIT resolver is the default resolver type. You can use a UNIT resolver to run a GraphQL query against a single data source. *PIPELINE*: A PIPELINE resolver type. You can use a PIPELINE resolver to invoke a series of Function objects in a serial manner. You can use a pipeline resolver to run a GraphQL query against multiple data sources.",
   ).optional(),
@@ -124,7 +124,8 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "The SyncConfig for a resolver attached to a versioned data source.",
   ).optional(),
-  TypeName: z.string().describe("The GraphQL type that invokes this resolver."),
+  TypeName: z.string().describe("The GraphQL type that invokes this resolver.")
+    .optional(),
   MetricsConfig: z.enum(["ENABLED", "DISABLED"]).describe(
     "Enables or disables enhanced resolver metrics for specified resolvers. Note that MetricsConfig won't be used unless the resolverLevelMetricsBehavior value is set to PER_RESOLVER_METRICS. If the resolverLevelMetricsBehavior is set to FULL_REQUEST_RESOLVER_METRICS instead, MetricsConfig will be ignored. However, you can still set its value.",
   ).optional(),
@@ -261,7 +262,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppSync Resolver. Registered at `@swamp/aws/appsync/resolver`. */
 export const model = {
   type: "@swamp/aws/appsync/resolver",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -323,6 +324,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -340,6 +346,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ApiId", "FieldName", "TypeName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

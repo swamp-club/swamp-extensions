@@ -111,7 +111,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ClusterId: z.string().describe(
     "The ID of the cluster of the compute node group.",
-  ),
+  ).optional(),
   SpotOptions: z.object({
     AllocationStrategy: z.enum([
       "lowest-price",
@@ -136,7 +136,7 @@ const GlobalArgsSchema = z.object({
   }).describe("Additional options related to the Slurm scheduler.").optional(),
   SubnetIds: z.array(z.string()).describe(
     "The list of subnet IDs where instances are provisioned by the compute node group. The subnets must be in the same VPC as the cluster.",
-  ),
+  ).optional(),
   Name: z.string().describe("The name that identifies the compute node group.")
     .optional(),
   NodeLifecycleActions: z.object({
@@ -158,10 +158,10 @@ const GlobalArgsSchema = z.object({
     ),
   }).describe(
     "Specifies the boundaries of the compute node group auto scaling.",
-  ),
+  ).optional(),
   InstanceConfigs: z.array(InstanceConfigSchema).describe(
     "A list of EC2 instance configurations that AWS PCS can provision in the compute node group.",
-  ),
+  ).optional(),
   PurchaseOption: z.enum([
     "ONDEMAND",
     "SPOT",
@@ -192,7 +192,7 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "The Amazon Resource Name (ARN) of the IAM instance profile used to pass an IAM role when launching EC2 instances. The role contained in your instance profile must have pcs:RegisterComputeNodeGroupInstance permissions attached to provision instances correctly.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -346,7 +346,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for PCS ComputeNodeGroup. Registered at `@swamp/aws/pcs/compute-node-group`. */
 export const model = {
   type: "@swamp/aws/pcs/compute-node-group",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -443,6 +443,11 @@ export const model = {
       description: "Added: Tags",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -460,6 +465,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ClusterId",
+          "IamInstanceProfileArn",
+          "InstanceConfigs",
+          "ScalingConfiguration",
+          "SubnetIds",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

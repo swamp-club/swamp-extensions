@@ -93,11 +93,12 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:[a-z0-9-\\.]{1,63}:[a-z0-9-\\.]{0,63}:[a-z0-9-\\.]{0,63}:[a-z0-9-\\.]{0,63}:[^/].{0,1023}$",
     ),
-  ).describe("The ARN of the app instance."),
-  Name: z.string().min(1).max(256).describe("The name of the channel flow."),
+  ).describe("The ARN of the app instance.").optional(),
+  Name: z.string().min(1).max(256).describe("The name of the channel flow.")
+    .optional(),
   Processors: z.array(ProcessorSchema).describe(
     "Information about the processor Lambda functions.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe("The tags for the channel flow.")
     .optional(),
 });
@@ -155,7 +156,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Chime ChannelFlow. Registered at `@swamp/aws/chime/channel-flow`. */
 export const model = {
   type: "@swamp/aws/chime/channel-flow",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.14.1",
@@ -164,6 +165,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -184,6 +190,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AppInstanceArn", "Name", "Processors"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

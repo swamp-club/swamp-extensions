@@ -171,12 +171,8 @@ const GlobalArgsSchema = z.object({
   AuthorizerConfiguration: z.object({
     CustomJWTAuthorizer: CustomJWTAuthorizerConfigurationSchema.optional(),
   }).optional(),
-  AuthorizerType: z.enum([
-    "CUSTOM_JWT",
-    "AWS_IAM",
-    "NONE",
-    "AUTHENTICATE_ONLY",
-  ]),
+  AuthorizerType: z.enum(["CUSTOM_JWT", "AWS_IAM", "NONE", "AUTHENTICATE_ONLY"])
+    .optional(),
   Description: z.string().min(1).max(200).optional(),
   ExceptionLevel: z.enum(["DEBUG"]).optional(),
   InterceptorConfigurations: z.array(GatewayInterceptorConfigurationSchema)
@@ -186,7 +182,7 @@ const GlobalArgsSchema = z.object({
       "^arn:(aws(-[a-z]+)*):kms:[a-zA-Z0-9-]*:[0-9]{12}:key/[a-zA-Z0-9-]{36}$",
     ),
   ).optional(),
-  Name: z.string().regex(new RegExp("^([0-9a-zA-Z][-]?){1,48}$")),
+  Name: z.string().regex(new RegExp("^([0-9a-zA-Z][-]?){1,48}$")).optional(),
   PolicyEngineConfiguration: z.object({
     Arn: z.string().min(1).max(170).regex(
       new RegExp(
@@ -201,7 +197,7 @@ const GlobalArgsSchema = z.object({
   ProtocolType: z.enum(["MCP"]).optional(),
   RoleArn: z.string().min(1).max(2048).regex(
     new RegExp("^arn:aws(-[^:]+)?:iam::([0-9]{12})?:role/.+$"),
-  ),
+  ).optional(),
   Tags: z.record(
     z.string(),
     z.string().min(0).max(256).regex(new RegExp("^[a-zA-Z0-9\\s._:/=+@-]*$")),
@@ -320,7 +316,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Gateway. Registered at `@swamp/aws/bedrockagentcore/gateway`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/gateway",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.03.31.1",
@@ -442,6 +438,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -459,6 +460,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AuthorizerType", "Name", "RoleArn"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -63,19 +63,18 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   FunctionName: z.string().min(1).max(256).describe(
     "The name of the web function this endpoint belongs to. The length constraint applies only to the full ARN. If you specify only the function name, it is limited to 64 characters in length.",
-  ),
-  EndpointName: z.string().min(1).max(256).describe(
-    "The name of the endpoint.",
-  ),
+  ).optional(),
+  EndpointName: z.string().min(1).max(256).describe("The name of the endpoint.")
+    .optional(),
   Description: z.string().min(0).max(256).describe(
     "A description of the endpoint.",
   ).optional(),
   EndpointType: z.enum(["HomeRegion", "MultiRegion", "PerRegion"]).describe(
     "The type of the endpoint.",
-  ),
+  ).optional(),
   AuthType: z.enum(["ApplicationManaged", "IamAuth"]).describe(
     "The authentication type for the endpoint.",
-  ),
+  ).optional(),
   RevisionWeights: z.array(RevisionWeightSchema).describe(
     "List of revision routing entries. 1 or 2 entries. With 1 entry, weight must be 100. With 2 entries, weights must sum to 100.",
   ).optional(),
@@ -187,7 +186,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda WebFunctionEndpoint. Registered at `@swamp/aws/lambda/web-function-endpoint`. */
 export const model = {
   type: "@swamp/aws/lambda/web-function-endpoint",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -196,6 +195,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -216,6 +220,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AuthType",
+          "EndpointName",
+          "EndpointType",
+          "FunctionName",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

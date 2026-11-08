@@ -61,27 +61,27 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   TeamId: z.string().min(36).max(36).regex(
     new RegExp("^[0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}$"),
-  ).describe("The id of the Microsoft Teams team"),
+  ).describe("The id of the Microsoft Teams team").optional(),
   TeamsChannelId: z.string().min(1).max(256).regex(
     new RegExp(
       "^([a-zA-Z0-9-_=+/.,])*%3[aA]([a-zA-Z0-9-_=+/.,])*%40([a-zA-Z0-9-_=+/.,])*$",
     ),
-  ).describe("The id of the Microsoft Teams channel"),
+  ).describe("The id of the Microsoft Teams channel").optional(),
   TeamsChannelName: z.string().min(1).max(256).regex(new RegExp("^(.*)$"))
     .describe("The name of the Microsoft Teams channel").optional(),
   TeamsTenantId: z.string().min(36).max(36).regex(
     new RegExp("^[0-9A-Fa-f]{8}(?:-[0-9A-Fa-f]{4}){3}-[0-9A-Fa-f]{12}$"),
-  ).describe("The id of the Microsoft Teams tenant"),
+  ).describe("The id of the Microsoft Teams tenant").optional(),
   ConfigurationName: z.string().min(1).max(128).regex(
     new RegExp("^[A-Za-z0-9-_]+$"),
-  ).describe("The name of the configuration"),
+  ).describe("The name of the configuration").optional(),
   IamRoleArn: z.string().regex(
     new RegExp(
       "^arn:(aws[a-zA-Z-]*)?:[A-Za-z0-9][A-Za-z0-9_/.-]{0,62}:[A-Za-z0-9_/.-]{0,63}:[A-Za-z0-9_/.-]{0,63}:[A-Za-z0-9][A-Za-z0-9:_/+=,@.-]{0,1023}$",
     ),
   ).describe(
     "The ARN of the IAM role that defines the permissions for AWS Chatbot",
-  ),
+  ).optional(),
   SnsTopicArns: z.array(
     z.string().regex(
       new RegExp(
@@ -222,7 +222,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Chatbot MicrosoftTeamsChannelConfiguration. Registered at `@swamp/aws/chatbot/microsoft-teams-channel-configuration`. */
 export const model = {
   type: "@swamp/aws/chatbot/microsoft-teams-channel-configuration",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -284,6 +284,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -301,6 +306,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ConfigurationName",
+          "IamRoleArn",
+          "TeamId",
+          "TeamsChannelId",
+          "TeamsTenantId",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

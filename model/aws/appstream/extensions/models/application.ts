@@ -53,19 +53,19 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Name: z.string(),
+  Name: z.string().optional(),
   DisplayName: z.string().optional(),
   Description: z.string().optional(),
-  LaunchPath: z.string(),
+  LaunchPath: z.string().optional(),
   LaunchParameters: z.string().optional(),
   WorkingDirectory: z.string().optional(),
-  InstanceFamilies: z.array(z.string()),
+  InstanceFamilies: z.array(z.string()).optional(),
   IconS3Location: z.object({
     S3Bucket: z.string(),
     S3Key: z.string(),
-  }),
-  AppBlockArn: z.string(),
-  Platforms: z.array(z.string()),
+  }).optional(),
+  AppBlockArn: z.string().optional(),
+  Platforms: z.array(z.string()).optional(),
   Tags: z.array(z.object({
     Key: z.string().optional(),
     Value: z.string().optional(),
@@ -149,7 +149,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppStream Application. Registered at `@swamp/aws/appstream/application`. */
 export const model = {
   type: "@swamp/aws/appstream/application",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -206,6 +206,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -223,6 +228,19 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AppBlockArn",
+          "IconS3Location",
+          "InstanceFamilies",
+          "LaunchPath",
+          "Name",
+          "Platforms",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

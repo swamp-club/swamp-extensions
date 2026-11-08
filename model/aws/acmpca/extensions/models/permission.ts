@@ -54,13 +54,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Actions: z.array(z.string()).describe(
     "The actions that the specified AWS service principal can use. Actions IssueCertificate, GetCertificate and ListPermissions must be provided.",
-  ),
+  ).optional(),
   CertificateAuthorityArn: z.string().describe(
     "The Amazon Resource Name (ARN) of the Private Certificate Authority that grants the permission.",
-  ),
+  ).optional(),
   Principal: z.string().describe(
     "The AWS service or identity that receives the permission. At this time, the only valid principal is acm.amazonaws.com.",
-  ),
+  ).optional(),
   SourceAccount: z.string().describe("The ID of the calling account.")
     .optional(),
 });
@@ -112,7 +112,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ACMPCA Permission. Registered at `@swamp/aws/acmpca/permission`. */
 export const model = {
   type: "@swamp/aws/acmpca/permission",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -169,6 +169,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -186,6 +191,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Actions", "CertificateAuthorityArn", "Principal"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

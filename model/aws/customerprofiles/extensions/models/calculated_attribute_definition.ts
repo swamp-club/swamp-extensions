@@ -138,10 +138,10 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   DomainName: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
-    .describe("The unique name of the domain."),
+    .describe("The unique name of the domain.").optional(),
   CalculatedAttributeName: z.string().min(1).max(255).regex(
     new RegExp("^[a-zA-Z_][a-zA-Z_0-9-]*$"),
-  ).describe("The unique name of the calculated attribute."),
+  ).describe("The unique name of the calculated attribute.").optional(),
   DisplayName: z.string().min(1).max(255).regex(
     new RegExp("^[a-zA-Z_][a-zA-Z_0-9-\\s]*$"),
   ).describe("The display name of the calculated attribute.").optional(),
@@ -157,7 +157,7 @@ const GlobalArgsSchema = z.object({
     ),
   }).describe(
     "Mathematical expression and a list of attribute items specified in that expression.",
-  ),
+  ).optional(),
   Filter: z.object({
     Include: z.enum(["ALL", "ANY", "NONE"]).describe(
       "Define whether to include or exclude objects for Calculated Attributed calculation that fit the filter groups criteria.",
@@ -192,7 +192,7 @@ const GlobalArgsSchema = z.object({
     "MAX_OCCURRENCE",
   ]).describe(
     "The aggregation operation to perform for the calculated attribute.",
-  ),
+  ).optional(),
   UseHistoricalData: z.boolean().describe(
     "Whether to use historical data for the calculated attribute.",
   ).optional(),
@@ -338,7 +338,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CustomerProfiles CalculatedAttributeDefinition. Registered at `@swamp/aws/customerprofiles/calculated-attribute-definition`. */
 export const model = {
   type: "@swamp/aws/customerprofiles/calculated-attribute-definition",
-  version: "2026.11.06.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -415,6 +415,11 @@ export const model = {
       description: "Added: Filter",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -433,6 +438,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AttributeDetails",
+          "CalculatedAttributeName",
+          "DomainName",
+          "Statistic",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

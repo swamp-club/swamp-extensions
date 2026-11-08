@@ -80,8 +80,10 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:[a-z-]*?:wisdom:[a-z0-9-]*?:[0-9]{12}:[a-z-]*?/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}(?:/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}){0,2}$",
     ),
-  ).describe("The Amazon Resource Name (ARN) of the knowledge base."),
-  Name: z.string().min(1).max(100).describe("The name of the quick response."),
+  ).describe("The Amazon Resource Name (ARN) of the knowledge base.")
+    .optional(),
+  Name: z.string().min(1).max(100).describe("The name of the quick response.")
+    .optional(),
   Channels: z.array(z.enum(["Chat", "Email"])).describe(
     "The Amazon Connect contact channels this quick response applies to.",
   ).optional(),
@@ -89,7 +91,7 @@ const GlobalArgsSchema = z.object({
     Content: z.string().min(1).max(4000).describe(
       "The content of the quick response.",
     ).optional(),
-  }).describe("The container of quick response content."),
+  }).describe("The container of quick response content.").optional(),
   Contents: z.object({
     Markdown: QuickResponseContentProviderSchema.describe(
       "The container of quick response content.",
@@ -234,7 +236,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Wisdom QuickResponse. Registered at `@swamp/aws/wisdom/quick-response`. */
 export const model = {
   type: "@swamp/aws/wisdom/quick-response",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -301,6 +303,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -318,6 +325,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Content", "KnowledgeBaseArn", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

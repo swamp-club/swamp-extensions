@@ -79,29 +79,29 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   FarmId: z.string().regex(new RegExp("^farm-[0-9a-f]{32}$")).describe(
     "The farm ID.",
-  ),
+  ).optional(),
   DisplayName: z.string().min(1).max(100).describe(
     "The display name of the budget.",
-  ),
+  ).optional(),
   Description: z.string().min(0).max(100).describe(
     "The description of the budget.",
   ).optional(),
   ApproximateDollarLimit: z.number().min(0.01).describe(
     "The dollar limit based on consumed usage.",
-  ),
+  ).optional(),
   UsageTrackingResource: z.object({
     QueueId: z.string().regex(new RegExp("^queue-[0-9a-f]{32}$")).describe(
       "The queue ID.",
     ),
-  }).describe("The usage details of the allotted budget."),
+  }).describe("The usage details of the allotted budget.").optional(),
   Actions: z.array(BudgetActionToAddSchema).describe(
     "The budget actions to specify what happens when the budget runs out.",
-  ),
+  ).optional(),
   Schedule: z.object({
     Fixed: FixedBudgetScheduleSchema.describe(
       "The details of a fixed budget schedule.",
     ),
-  }).describe("The start and end time of the budget."),
+  }).describe("The start and end time of the budget.").optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -182,7 +182,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Deadline Budget. Registered at `@swamp/aws/deadline/budget`. */
 export const model = {
   type: "@swamp/aws/deadline/budget",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -191,6 +191,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -211,6 +216,19 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Actions",
+          "ApproximateDollarLimit",
+          "DisplayName",
+          "FarmId",
+          "Schedule",
+          "UsageTrackingResource",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

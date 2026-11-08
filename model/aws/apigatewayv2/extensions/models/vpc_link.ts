@@ -56,14 +56,14 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   SubnetIds: z.array(z.string()).describe(
     "A list of subnet IDs to include in the VPC link.",
-  ),
+  ).optional(),
   SecurityGroupIds: z.array(z.string()).describe(
     "A list of security group IDs for the VPC link.",
   ).optional(),
   Tags: z.record(z.string(), z.string()).describe(
     "The collection of tags. Each tag element is associated with a given resource.",
   ).optional(),
-  Name: z.string().describe("The name of the VPC link."),
+  Name: z.string().describe("The name of the VPC link.").optional(),
 });
 
 const StateSchema = z.object({
@@ -113,7 +113,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApiGatewayV2 VpcLink. Registered at `@swamp/aws/apigatewayv2/vpc-link`. */
 export const model = {
   type: "@swamp/aws/apigatewayv2/vpc-link",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -175,6 +175,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -192,6 +197,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "SubnetIds"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -310,7 +310,7 @@ const GlobalArgsSchema = z.object({
     SourceEndpoint: SourceEndpointRouterOutputConfigurationSchema.describe(
       "Configuration settings for a router output that is represented by a source endpoint.",
     ).optional(),
-  }).describe("The configuration settings for a router output."),
+  }).describe("The configuration settings for a router output.").optional(),
   FabricConfiguration: z.object({
     RecoveryLatencyMode: z.enum(["BALANCED", "LOW_LATENCY"]),
   }).describe("The fabric configuration settings for the router output.")
@@ -327,12 +327,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   MaximumBitrate: z.number().int().describe(
     "The maximum bitrate for the router output.",
-  ),
-  Name: z.string().min(1).max(128).describe("The name of the router output."),
+  ).optional(),
+  Name: z.string().min(1).max(128).describe("The name of the router output.")
+    .optional(),
   RegionName: z.string().describe(
     "The Amazon Web Services Region for the router output. Defaults to the current region if not specified.",
   ).optional(),
-  RoutingScope: z.enum(["REGIONAL", "GLOBAL"]),
+  RoutingScope: z.enum(["REGIONAL", "GLOBAL"]).optional(),
   Tags: z.array(TagSchema).describe(
     "Key-value pairs that can be used to tag this router output.",
   ).optional(),
@@ -342,7 +343,7 @@ const GlobalArgsSchema = z.object({
     "OUTPUT_20",
     "OUTPUT_500",
     "OUTPUT_250",
-  ]),
+  ]).optional(),
 });
 
 const StateSchema = z.object({
@@ -457,7 +458,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaConnect RouterOutput. Registered at `@swamp/aws/mediaconnect/router-output`. */
 export const model = {
   type: "@swamp/aws/mediaconnect/router-output",
-  version: "2026.10.30.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -549,6 +550,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -566,6 +572,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Configuration",
+          "MaximumBitrate",
+          "Name",
+          "RoutingScope",
+          "Tier",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

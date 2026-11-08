@@ -170,7 +170,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(64).regex(
     new RegExp("^[a-zA-Z0-9][a-zA-Z0-9_\\-\\.\\/]*$"),
-  ).describe("The name of the registry."),
+  ).describe("The name of the registry.").optional(),
   AutoDetectionScope: z.enum(["ORGANIZATION"]).describe(
     "The source from which resources are detected. ORGANIZATION sources resources from all member accounts of an AWS Organization.",
   ).optional(),
@@ -286,7 +286,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AgentRegistry Registry. Registered at `@swamp/aws/agentregistry/registry`. */
 export const model = {
   type: "@swamp/aws/agentregistry/registry",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.03.1",
@@ -301,6 +301,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -321,6 +326,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

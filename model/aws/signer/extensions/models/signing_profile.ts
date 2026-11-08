@@ -66,7 +66,7 @@ const GlobalArgsSchema = z.object({
     Type: z.enum(["DAYS", "MONTHS", "YEARS"]).optional(),
   }).describe("Signature validity period of the profile.").optional(),
   PlatformId: z.enum(["AWSLambda-SHA384-ECDSA", "Notation-OCI-SHA384-ECDSA"])
-    .describe("The ID of the target signing platform."),
+    .describe("The ID of the target signing platform.").optional(),
   Tags: z.array(TagSchema).describe(
     "A list of tags associated with the signing profile.",
   ).optional(),
@@ -123,7 +123,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Signer SigningProfile. Registered at `@swamp/aws/signer/signing-profile`. */
 export const model = {
   type: "@swamp/aws/signer/signing-profile",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -185,6 +185,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -202,6 +207,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["PlatformId"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

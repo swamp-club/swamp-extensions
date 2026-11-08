@@ -71,11 +71,11 @@ const GlobalArgsSchema = z.object({
     ),
   RoleArn: z.string().min(20).max(2048).describe(
     "The ARN of the role that allows IoT to write to Cloudwatch logs.",
-  ),
+  ).optional(),
   DefaultLogLevel: z.enum(["ERROR", "WARN", "INFO", "DEBUG", "DISABLED"])
     .describe(
       "The log level to use. Valid values are: ERROR, WARN, INFO, DEBUG, or DISABLED.",
-    ),
+    ).optional(),
   EventConfigurations: z.array(EventConfigurationSchema).describe(
     "Configurations for event-based logging that specifies which event types to log and their logging settings. Overrides account-level logging for the specified event",
   ).optional(),
@@ -130,7 +130,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoT Logging. Registered at `@swamp/aws/iot/logging`. */
 export const model = {
   type: "@swamp/aws/iot/logging",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -192,6 +192,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -209,6 +214,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AccountId", "DefaultLogLevel", "RoleArn"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

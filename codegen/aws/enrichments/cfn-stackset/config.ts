@@ -2,6 +2,8 @@ import type { AwsEnrichment } from "../types.ts";
 
 export const enrichment: AwsEnrichment = {
   cfTypeName: "AWS::CloudFormation::StackSet",
+  // The custom methods read StackSetName from the global arguments.
+  requiredGlobalArgs: ["StackSetName"],
   npmImports: {
     "@aws-sdk/client-cloudformation":
       "npm:@aws-sdk/client-cloudformation@3.1161.0",

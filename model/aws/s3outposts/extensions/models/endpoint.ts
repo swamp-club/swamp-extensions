@@ -54,15 +54,17 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   OutpostId: z.string().regex(new RegExp("^(op-[a-f0-9]{17}|\\d{12}|ec2)$"))
-    .describe("The id of the customer outpost on which the bucket resides."),
+    .describe("The id of the customer outpost on which the bucket resides.")
+    .optional(),
   SecurityGroupId: z.string().min(1).max(100).regex(
     new RegExp("^sg-([0-9a-f]{8}|[0-9a-f]{17})$"),
-  ).describe("The ID of the security group to use with the endpoint."),
+  ).describe("The ID of the security group to use with the endpoint.")
+    .optional(),
   SubnetId: z.string().min(1).max(100).regex(
     new RegExp("^subnet-([0-9a-f]{8}|[0-9a-f]{17})$"),
   ).describe(
     "The ID of the subnet in the selected VPC. The subnet must belong to the Outpost.",
-  ),
+  ).optional(),
   AccessType: z.enum(["CustomerOwnedIp", "Private"]).describe(
     "The type of access for the on-premise network connectivity for the Outpost endpoint. To access endpoint from an on-premises network, you must specify the access type and provide the customer owned Ipv4 pool.",
   ).optional(),
@@ -162,7 +164,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for S3Outposts Endpoint. Registered at `@swamp/aws/s3outposts/endpoint`. */
 export const model = {
   type: "@swamp/aws/s3outposts/endpoint",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -224,6 +226,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -241,6 +248,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["OutpostId", "SecurityGroupId", "SubnetId"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

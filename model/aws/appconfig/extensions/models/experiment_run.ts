@@ -69,13 +69,13 @@ const GlobalArgsSchema = z.object({
   }).describe("Treatment overrides for specific entities.").optional(),
   ApplicationIdentifier: z.string().min(1).max(2048).describe(
     "The application name or ID used to create the experiment run.",
-  ),
+  ).optional(),
   ExperimentDefinitionIdentifier: z.string().min(1).max(2048).describe(
     "The experiment definition name or ID used to create the experiment run.",
-  ),
+  ).optional(),
   ExposurePercentage: z.number().min(0).max(100).describe(
     "Percentage of traffic exposed to the experiment (0-100).",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "Tags to associate with the experiment run.",
   ).optional(),
@@ -147,7 +147,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppConfig ExperimentRun. Registered at `@swamp/aws/appconfig/experiment-run`. */
 export const model = {
   type: "@swamp/aws/appconfig/experiment-run",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -156,6 +156,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -176,6 +181,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ApplicationIdentifier",
+          "ExperimentDefinitionIdentifier",
+          "ExposurePercentage",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

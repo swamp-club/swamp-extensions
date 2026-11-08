@@ -74,16 +74,16 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   EndPoints: z.array(EndPointSchema).describe(
     "Contains information about the Amazon Kinesis data stream where you are sending real-time log data for this real-time log configuration.",
-  ),
+  ).optional(),
   Fields: z.array(z.string()).describe(
     "A list of fields that are included in each real-time log record. In an API response, the fields are provided in the same order in which they are sent to the Amazon Kinesis data stream. For more information about fields, see [Real-time log configuration fields](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/real-time-logs.html#understand-real-time-log-config-fields) in the *Amazon CloudFront Developer Guide*.",
-  ),
+  ).optional(),
   Name: z.string().describe(
     "The unique name of this real-time log configuration.",
-  ),
+  ).optional(),
   SamplingRate: z.number().min(1).max(100).describe(
     "The sampling rate for this real-time log configuration. The sampling rate determines the percentage of viewer requests that are represented in the real-time log data. The sampling rate is an integer between 1 and 100, inclusive.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -135,7 +135,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFront RealtimeLogConfig. Registered at `@swamp/aws/cloudfront/realtime-log-config`. */
 export const model = {
   type: "@swamp/aws/cloudfront/realtime-log-config",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -197,6 +197,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -214,6 +219,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["EndPoints", "Fields", "Name", "SamplingRate"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

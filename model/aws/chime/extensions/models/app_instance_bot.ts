@@ -93,7 +93,7 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:[a-z0-9-\\.]{1,63}:[a-z0-9-\\.]{0,63}:[a-z0-9-\\.]{0,63}:[a-z0-9-\\.]{0,63}:[^/].{0,1023}$",
     ),
-  ).describe("The ARN of the AppInstance."),
+  ).describe("The ARN of the AppInstance.").optional(),
   Name: z.string().min(0).max(256).regex(
     new RegExp(
       "^[\\u0009\\u000A\\u000D\\u0020-\\u007E\\u0085\\u00A0-\\uD7FF\\uE000-\\uFFFD\\u10000-\\u10FFFF]*$",
@@ -106,7 +106,7 @@ const GlobalArgsSchema = z.object({
     Lex: LexConfigurationSchema.describe(
       "The configuration for an Amazon Lex V2 bot.",
     ),
-  }).describe("A structure that contains configuration data."),
+  }).describe("A structure that contains configuration data.").optional(),
   Tags: z.array(TagSchema).describe("The tags assigned to the AppInstanceBot.")
     .optional(),
 });
@@ -173,7 +173,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Chime AppInstanceBot. Registered at `@swamp/aws/chime/app-instance-bot`. */
 export const model = {
   type: "@swamp/aws/chime/app-instance-bot",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.06.06.1",
@@ -215,6 +215,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -232,6 +237,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AppInstanceArn", "Configuration"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

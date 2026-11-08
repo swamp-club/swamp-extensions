@@ -72,9 +72,9 @@ const GlobalArgsSchema = z.object({
     new RegExp("^[a-zA-Z][a-zA-Z0-9]*(-[a-zA-Z0-9]+)*$"),
   ).describe(
     "The name of the backup. Must be unique within the account and region.",
-  ),
+  ).optional(),
   DbResourceId: z.string().min(3).max(64).regex(new RegExp("^[a-zA-Z0-9]+$"))
-    .describe("The id of the DB instance or DB cluster to back up."),
+    .describe("The id of the DB instance or DB cluster to back up.").optional(),
   RetentionDays: z.number().int().min(1).max(3650).describe(
     "The number of days to retain the backup. Valid values are 1 to 3650.",
   ).optional(),
@@ -231,10 +231,15 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Timestream InfluxDBBackup. Registered at `@swamp/aws/timestream/influx-dbbackup`. */
 export const model = {
   type: "@swamp/aws/timestream/influx-dbbackup",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -255,6 +260,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DbResourceId", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -58,10 +58,10 @@ const GlobalArgsSchema = z.object({
     "AWS_CONFIG_SLREC",
     "AWS_INTEGRATION",
     "EXTERNAL_AGENT",
-  ]).describe("The type of integration. Immutable after creation."),
+  ]).describe("The type of integration. Immutable after creation.").optional(),
   Name: z.string().min(1).max(256).describe(
     "The customer-supplied name of the integration. Unique per account.",
-  ),
+  ).optional(),
   RoleArn: z.string().min(1).max(2048).describe(
     "IAM role ARN the integration assumes. Required for AWS_INTEGRATION (a valid, service-assumable IAM role ARN). Not used by AWS_CONFIG_SLREC or EXTERNAL_AGENT.",
   ).optional(),
@@ -160,7 +160,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudWatch Integration. Registered at `@swamp/aws/cloudwatch/integration`. */
 export const model = {
   type: "@swamp/aws/cloudwatch/integration",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -169,6 +169,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -189,6 +194,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["IntegrationType", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

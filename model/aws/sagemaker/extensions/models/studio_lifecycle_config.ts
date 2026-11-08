@@ -60,12 +60,13 @@ const GlobalArgsSchema = z.object({
     "KernelGateway",
     "CodeEditor",
     "JupyterLab",
-  ]).describe("The App type that the Lifecycle Configuration is attached to."),
+  ]).describe("The App type that the Lifecycle Configuration is attached to.")
+    .optional(),
   StudioLifecycleConfigContent: z.string().min(1).max(16384).regex(
     new RegExp("[\\S\\s]+"),
   ).describe(
     "The content of your Amazon SageMaker Studio Lifecycle Configuration script. This content must be base64 encoded.",
-  ),
+  ).optional(),
   StudioLifecycleConfigName: z.string().min(1).max(63).regex(
     new RegExp("^[a-zA-Z0-9](-*[a-zA-Z0-9]){0,62}"),
   ).describe(
@@ -131,7 +132,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker StudioLifecycleConfig. Registered at `@swamp/aws/sagemaker/studio-lifecycle-config`. */
 export const model = {
   type: "@swamp/aws/sagemaker/studio-lifecycle-config",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -193,6 +194,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -210,6 +216,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "StudioLifecycleConfigAppType",
+          "StudioLifecycleConfigContent",
+          "StudioLifecycleConfigName",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

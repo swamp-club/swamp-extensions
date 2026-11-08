@@ -480,7 +480,8 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Title: z.string().min(1).max(128).describe("A title of the evaluation form."),
+  Title: z.string().min(1).max(128).describe("A title of the evaluation form.")
+    .optional(),
   Description: z.string().max(1024).describe(
     "The description of the evaluation form. *Length Constraints*: Minimum length of 0. Maximum length of 1024.",
   ).optional(),
@@ -488,10 +489,10 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:aws[-a-z0-9]*:connect:[-a-z0-9]*:[0-9]{12}:instance/[-a-zA-Z0-9]*$",
     ),
-  ).describe("The identifier of the Amazon Connect instance."),
+  ).describe("The identifier of the Amazon Connect instance.").optional(),
   Items: z.array(EvaluationFormBaseItemSchema).describe(
     "Items that are part of the evaluation form. The total number of sections and questions must not exceed 100 each. Questions must be contained in a section. *Minimum size*: 1 *Maximum size*: 100",
-  ),
+  ).optional(),
   ScoringStrategy: z.object({
     Mode: z.enum(["QUESTION_ONLY", "SECTION_ONLY", "POINTS_BASED"]).describe(
       "The scoring mode of the evaluation form. *Allowed values*: QUESTION_ONLY | SECTION_ONLY",
@@ -507,7 +508,7 @@ const GlobalArgsSchema = z.object({
     .optional(),
   Status: z.enum(["DRAFT", "ACTIVE"]).describe(
     "The status of the evaluation form. *Allowed values*: DRAFT | ACTIVE",
-  ),
+  ).optional(),
   TargetConfiguration: z.object({
     ContactInteractionType: z.enum(["AGENT", "AUTOMATED", "CUSTOMER"]).describe(
       "The contact interaction type for this evaluation form.",
@@ -679,7 +680,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect EvaluationForm. Registered at `@swamp/aws/connect/evaluation-form`. */
 export const model = {
   type: "@swamp/aws/connect/evaluation-form",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -776,6 +777,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -793,6 +799,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["InstanceArn", "Items", "Status", "Title"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

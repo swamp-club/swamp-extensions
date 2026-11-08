@@ -113,9 +113,10 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  CollectionEndpoint: z.string().describe("The endpoint for the collection."),
+  CollectionEndpoint: z.string().describe("The endpoint for the collection.")
+    .optional(),
   IndexName: z.string().regex(new RegExp("^(?![_-])[a-z][a-z0-9_-]*$"))
-    .describe("The name of the OpenSearch Serverless index."),
+    .describe("The name of the OpenSearch Serverless index.").optional(),
   Settings: z.object({
     Index: z.object({
       RefreshInterval: z.string().describe(
@@ -240,7 +241,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for OpenSearchServerless Index. Registered at `@swamp/aws/opensearchserverless/index`. */
 export const model = {
   type: "@swamp/aws/opensearchserverless/index",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -312,6 +313,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -329,6 +335,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["CollectionEndpoint", "IndexName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

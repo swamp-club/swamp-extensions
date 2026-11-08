@@ -61,12 +61,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Description: z.string().max(512).regex(new RegExp("^.*$")).optional(),
   FirewallArn: z.string().min(1).max(256).regex(new RegExp("^(arn:aws.*)$"))
-    .describe("A resource ARN."),
-  VpcId: z.string().min(1).max(128).regex(new RegExp("^vpc-[0-9a-f]+$")),
+    .describe("A resource ARN.").optional(),
+  VpcId: z.string().min(1).max(128).regex(new RegExp("^vpc-[0-9a-f]+$"))
+    .optional(),
   SubnetMapping: z.object({
     SubnetId: z.string().describe("A SubnetId."),
     IPAddressType: z.string().describe("A IPAddressType").optional(),
-  }),
+  }).optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
@@ -123,7 +124,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkFirewall VpcEndpointAssociation. Registered at `@swamp/aws/networkfirewall/vpc-endpoint-association`. */
 export const model = {
   type: "@swamp/aws/networkfirewall/vpc-endpoint-association",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -185,6 +186,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -202,6 +208,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["FirewallArn", "SubnetMapping", "VpcId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

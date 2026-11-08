@@ -67,7 +67,7 @@ const GlobalArgsSchema = z.object({
     new RegExp("^[a-zA-Z0-9](-*[a-zA-Z0-9])*$"),
   ).describe(
     "The name of the endpoint. The name must be unique within the AWS Region and account.",
-  ),
+  ).optional(),
   ModelArn: z.string().max(256).regex(
     new RegExp(
       "^arn:aws(-[^:]+)?:comprehend:[a-zA-Z0-9-]*:[0-9]{12}:entity-recognizer/[a-zA-Z0-9](-*[a-zA-Z0-9])*(/version/[a-zA-Z0-9](-*[a-zA-Z0-9])*)?$",
@@ -77,7 +77,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   DesiredInferenceUnits: z.number().int().min(1).describe(
     "The desired number of inference units to be used by the model. Each inference unit represents throughput of 100 characters per second.",
-  ),
+  ).optional(),
   DataAccessRoleArn: z.string().min(20).max(2048).regex(
     new RegExp("^arn:aws(-[^:]+)?:iam::[0-9]{12}:role/.+$"),
   ).describe(
@@ -168,7 +168,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Comprehend EntityRecognizerEndpoint. Registered at `@swamp/aws/comprehend/entity-recognizer-endpoint`. */
 export const model = {
   type: "@swamp/aws/comprehend/entity-recognizer-endpoint",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -177,6 +177,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -197,6 +202,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DesiredInferenceUnits", "EndpointName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

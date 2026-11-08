@@ -61,20 +61,21 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(256).regex(new RegExp("^[a-zA-Z0-9]+")).describe(
     "A name for the PartnerApp.",
-  ),
+  ).optional(),
   Type: z.enum([
     "lakera-guard",
     "comet",
     "deepchecks-llm-evaluation",
     "fiddler",
-  ]).describe("The type of PartnerApp."),
+  ]).describe("The type of PartnerApp.").optional(),
   ExecutionRoleArn: z.string().min(20).max(2048).regex(
     new RegExp("^arn:aws[a-z\\-]*:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$"),
-  ).describe("The execution role for the user."),
+  ).describe("The execution role for the user.").optional(),
   KmsKeyId: z.string().max(2048).regex(new RegExp(".*")).describe(
     "The AWS KMS customer managed key used to encrypt the data associated with the PartnerApp.",
   ).optional(),
-  Tier: z.string().min(1).max(64).describe("The tier of the PartnerApp."),
+  Tier: z.string().min(1).max(64).describe("The tier of the PartnerApp.")
+    .optional(),
   EnableIamSessionBasedIdentity: z.boolean().describe(
     "Enables IAM Session based Identity for PartnerApp.",
   ).optional(),
@@ -95,7 +96,7 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "A collection of settings that specify the maintenance schedule for the PartnerApp.",
   ).optional(),
-  AuthType: z.enum(["IAM"]).describe("The Auth type of PartnerApp."),
+  AuthType: z.enum(["IAM"]).describe("The Auth type of PartnerApp.").optional(),
   MaintenanceConfig: z.object({
     MaintenanceWindowStart: z.string().max(9).regex(
       new RegExp("(Mon|Tue|Wed|Thu|Fri|Sat|Sun):([01]\\d|2[0-3]):([0-5]\\d)"),
@@ -214,7 +215,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker PartnerApp. Registered at `@swamp/aws/sagemaker/partner-app`. */
 export const model = {
   type: "@swamp/aws/sagemaker/partner-app",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -276,6 +277,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -293,6 +299,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AuthType", "ExecutionRoleArn", "Name", "Tier", "Type"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

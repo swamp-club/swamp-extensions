@@ -93,7 +93,7 @@ const GlobalArgsSchema = z.object({
     "TR31_V2_VISA_PIN_VERIFICATION_KEY",
   ]).optional(),
   Enabled: z.boolean().optional(),
-  Exportable: z.boolean(),
+  Exportable: z.boolean().optional(),
   KeyAttributes: z.object({
     KeyUsage: z.enum([
       "TR31_B0_BASE_DERIVATION_KEY",
@@ -145,7 +145,7 @@ const GlobalArgsSchema = z.object({
       "ECC_NIST_P521",
     ]),
     KeyModesOfUse: KeyModesOfUseSchema,
-  }),
+  }).optional(),
   KeyCheckValueAlgorithm: z.enum(["CMAC", "ANSI_X9_24", "HMAC", "SHA_1"])
     .optional(),
   Policy: z.string().min(1).max(20480).regex(
@@ -292,7 +292,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for PaymentCryptography Key. Registered at `@swamp/aws/paymentcryptography/key`. */
 export const model = {
   type: "@swamp/aws/paymentcryptography/key",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -364,6 +364,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -381,6 +386,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Exportable", "KeyAttributes"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

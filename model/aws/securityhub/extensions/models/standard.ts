@@ -66,7 +66,7 @@ const GlobalArgsSchema = z.object({
   StandardsArn: z.string().regex(new RegExp("arn:aws\\S*:securityhub:\\S"))
     .describe(
       "The ARN of the standard that you want to enable. To view a list of available ASH standards and their ARNs, use the [DescribeStandards](https://docs.aws.amazon.com/securityhub/1.0/APIReference/API_DescribeStandards.html) API operation.",
-    ),
+    ).optional(),
   DisabledStandardsControls: z.array(StandardsControlSchema).describe(
     "Specifies which controls are to be disabled in a standard. *Maximum*: 100",
   ).optional(),
@@ -114,7 +114,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SecurityHub Standard. Registered at `@swamp/aws/securityhub/standard`. */
 export const model = {
   type: "@swamp/aws/securityhub/standard",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -176,6 +176,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -193,6 +198,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["StandardsArn"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -141,12 +141,13 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$",
     ),
-  ).describe("The Amazon Web Services Supply Chain instance identifier."),
+  ).describe("The Amazon Web Services Supply Chain instance identifier.")
+    .optional(),
   Name: z.string().min(1).max(256).regex(new RegExp("^[A-Za-z0-9-]+$"))
-    .describe("The name of the DataIntegrationFlow."),
+    .describe("The name of the DataIntegrationFlow.").optional(),
   Sources: z.array(DataIntegrationFlowSourceSchema).describe(
     "The source configurations for the DataIntegrationFlow.",
-  ),
+  ).optional(),
   Transformation: z.object({
     TransformationType: z.enum(["SQL", "NONE"]).describe(
       "The transformation type.",
@@ -154,13 +155,13 @@ const GlobalArgsSchema = z.object({
     SqlTransformation: SqlTransformationConfigurationSchema.describe(
       "The SQL transformation configuration parameters.",
     ).optional(),
-  }).describe("The DataIntegrationFlow transformation parameters."),
+  }).describe("The DataIntegrationFlow transformation parameters.").optional(),
   Target: z.object({
     TargetType: z.enum(["DATASET"]).describe("The target type."),
     DatasetTarget: DatasetTargetConfigurationSchema.describe(
       "The dataset target configuration parameters.",
     ).optional(),
-  }).describe("The DataIntegrationFlow target parameters."),
+  }).describe("The DataIntegrationFlow target parameters.").optional(),
   Tags: z.array(TagSchema).describe("The tags for the DataIntegrationFlow.")
     .optional(),
 });
@@ -239,7 +240,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SCN DataIntegrationFlow. Registered at `@swamp/aws/scn/data-integration-flow`. */
 export const model = {
   type: "@swamp/aws/scn/data-integration-flow",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -248,6 +249,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -268,6 +274,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "InstanceId",
+          "Name",
+          "Sources",
+          "Target",
+          "Transformation",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -86,12 +86,14 @@ const GlobalArgsSchema = z.object({
     ).describe(
       "The ARN of the KMS key used to encrypt the S3 Table Integration",
     ).optional(),
-  }).describe("Encryption configuration for the S3 Table Integration"),
+  }).describe("Encryption configuration for the S3 Table Integration")
+    .optional(),
   RoleArn: z.string().min(1).max(1011).regex(
     new RegExp(
       "^arn:aws([a-z0-9\\-]+)?:([a-zA-Z0-9\\-]+):([a-z0-9\\-]+)?:([0-9]{12})?:(.+)$",
     ),
-  ).describe("The ARN of the role used to access the S3 Table Integration"),
+  ).describe("The ARN of the role used to access the S3 Table Integration")
+    .optional(),
   LogSources: z.array(LogSourceSchema).describe(
     "The CloudWatch Logs data sources to associate with the S3 Table Integration",
   ).optional(),
@@ -165,7 +167,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ObservabilityAdmin S3TableIntegration. Registered at `@swamp/aws/observabilityadmin/s3table-integration`. */
 export const model = {
   type: "@swamp/aws/observabilityadmin/s3table-integration",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -227,6 +229,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -244,6 +251,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Encryption", "RoleArn"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

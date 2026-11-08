@@ -73,7 +73,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Configuration: z.object({
     Body: z.string().min(1).max(24000),
-  }),
+  }).optional(),
   Name: z.string().min(3).max(28).regex(new RegExp("[a-z][a-z0-9\\-]+"))
     .optional(),
   Pipeline: z.object({
@@ -192,7 +192,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ObservabilityAdmin TelemetryPipelines. Registered at `@swamp/aws/observabilityadmin/telemetry-pipelines`. */
 export const model = {
   type: "@swamp/aws/observabilityadmin/telemetry-pipelines",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -206,6 +206,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -226,6 +231,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Configuration"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -238,13 +238,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   CertificateAuthorityArn: z.string().describe(
     "The Amazon Resource Name (ARN) for the private CA issues the certificate.",
-  ),
+  ).optional(),
   CertificateSigningRequest: z.string().min(1).describe(
     "The certificate signing request (CSR) for the certificate.",
-  ),
+  ).optional(),
   SigningAlgorithm: z.string().describe(
     "The name of the algorithm that will be used to sign the certificate to be issued. This parameter should not be confused with the SigningAlgorithm parameter used to sign a CSR in the CreateCertificateAuthority action. The specified signing algorithm family (RSA or ECDSA) must match the algorithm family of the CA's secret key.",
-  ),
+  ).optional(),
   TemplateArn: z.string().describe(
     "Specifies a custom configuration template to use when issuing a certificate. If this parameter is not provided, PCAshort defaults to the EndEntityCertificate/V1 template. For more information about PCAshort templates, see [Using Templates](https://docs.aws.amazon.com/privateca/latest/userguide/UsingTemplates.html).",
   ).optional(),
@@ -255,7 +255,8 @@ const GlobalArgsSchema = z.object({
     Type: z.string().describe(
       "Specifies whether the Value parameter represents days, months, or years.",
     ),
-  }).describe("The period of time during which the certificate will be valid."),
+  }).describe("The period of time during which the certificate will be valid.")
+    .optional(),
   ValidityNotBefore: z.object({
     Value: z.number().describe(
       "A long integer interpreted according to the value of Type, below.",
@@ -359,7 +360,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ACMPCA Certificate. Registered at `@swamp/aws/acmpca/certificate`. */
 export const model = {
   type: "@swamp/aws/acmpca/certificate",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -416,6 +417,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -433,6 +439,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "CertificateAuthorityArn",
+          "CertificateSigningRequest",
+          "SigningAlgorithm",
+          "Validity",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

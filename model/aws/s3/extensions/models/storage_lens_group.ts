@@ -134,7 +134,7 @@ const GlobalArgsSchema = z.object({
     Or: OrSchema.describe(
       "The Storage Lens group will include objects that match any of the specified filter values.",
     ).optional(),
-  }).describe("Sets the Storage Lens Group filter."),
+  }).describe("Sets the Storage Lens Group filter.").optional(),
   Tags: z.array(TagSchema).describe(
     "A set of tags (key-value pairs) for this Amazon S3 Storage Lens Group.",
   ).optional(),
@@ -212,7 +212,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for S3 StorageLensGroup. Registered at `@swamp/aws/s3/storage-lens-group`. */
 export const model = {
   type: "@swamp/aws/s3/storage-lens-group",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -274,6 +274,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -291,6 +296,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Filter", "Name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

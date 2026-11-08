@@ -100,38 +100,39 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   Name: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9-_]+$"))
-    .describe("Unique name for the MicroVM image within the account."),
+    .describe("Unique name for the MicroVM image within the account.")
+    .optional(),
   BaseImageArn: z.string().min(1).max(2048).regex(new RegExp("^[^\\s]+$"))
-    .describe("ARN of the base MicroVM image."),
+    .describe("ARN of the base MicroVM image.").optional(),
   BaseImageVersion: z.string().min(1).max(2048).regex(new RegExp("^[^\\s]+$"))
-    .describe("Specific version of the base MicroVM image to use."),
+    .describe("Specific version of the base MicroVM image to use.").optional(),
   BuildRoleArn: z.string().regex(
     new RegExp(
       "^arn:aws[a-zA-Z-]*:iam::\\d{12}:role/?[a-zA-Z_0-9+=,.@\\-_/]+$",
     ),
-  ).describe("ARN of the IAM build role."),
+  ).describe("ARN of the IAM build role.").optional(),
   Description: z.string().describe(
     "Human-readable description of the MicroVM image and its purpose.",
-  ),
+  ).optional(),
   CodeArtifact: z.object({
     Uri: z.string().min(1).max(2048).regex(new RegExp("^[^\\s]+$")),
-  }).describe("Code artifact for the active MicroVM image."),
+  }).describe("Code artifact for the active MicroVM image.").optional(),
   Logging: z.object({
     Disabled: z.boolean().optional(),
     CloudWatch: CloudWatchLoggingSchema.optional(),
-  }).describe("Configuration for MicroVM image logging."),
-  EgressNetworkConnectors: z.array(z.string()),
-  CpuConfigurations: z.array(CpuConfigurationSchema),
-  Resources: z.array(ResourcesSchema),
-  AdditionalOsCapabilities: z.array(z.enum(["ALL"])),
+  }).describe("Configuration for MicroVM image logging.").optional(),
+  EgressNetworkConnectors: z.array(z.string()).optional(),
+  CpuConfigurations: z.array(CpuConfigurationSchema).optional(),
+  Resources: z.array(ResourcesSchema).optional(),
+  AdditionalOsCapabilities: z.array(z.enum(["ALL"])).optional(),
   Hooks: z.object({
     Port: z.number().int().min(1).max(65535).optional(),
     MicrovmHooks: MicrovmHooksSchema.optional(),
     MicrovmImageHooks: MicrovmImageHooksSchema.optional(),
-  }),
+  }).optional(),
   EnvironmentVariables: z.array(EnvironmentVariableSchema).describe(
     "Environment variables to set in the container during the snapshot build.",
-  ),
+  ).optional(),
   KmsKeyIdentifier: z.string().min(1).max(2048).regex(
     new RegExp(
       "^(arn:aws[a-z-]*:kms:[a-z0-9-]+:[0-9]{12}:(key|alias)/[a-zA-Z0-9:/_-]+|alias/[a-zA-Z0-9:/_-]+|[a-zA-Z0-9-]+)$",
@@ -250,7 +251,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lambda MicrovmImage. Registered at `@swamp/aws/lambda/microvm-image`. */
 export const model = {
   type: "@swamp/aws/lambda/microvm-image",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -277,6 +278,11 @@ export const model = {
       description: "Added: KmsKeyIdentifier",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -294,6 +300,26 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AdditionalOsCapabilities",
+          "BaseImageArn",
+          "BaseImageVersion",
+          "BuildRoleArn",
+          "CodeArtifact",
+          "CpuConfigurations",
+          "Description",
+          "EgressNetworkConnectors",
+          "EnvironmentVariables",
+          "Hooks",
+          "Logging",
+          "Name",
+          "Resources",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

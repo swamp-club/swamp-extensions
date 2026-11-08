@@ -66,12 +66,12 @@ const GlobalArgsSchema = z.object({
   DataFilter: z.string().max(2048).optional(),
   IntegrationName: z.string().min(1).max(128).describe(
     "The name of the integration.",
-  ),
+  ).optional(),
   Description: z.string().max(1000).optional(),
   SourceArn: z.string().max(512).regex(new RegExp("arn:aws:.*:.*:[0-9]+:.*"))
     .describe(
       "The Amazon Resource Name (ARN) of the database to use as the source for replication",
-    ),
+    ).optional(),
   IntegrationConfig: z.object({
     ContinuousSync: z.boolean().describe(
       "Enables continuous synchronization for on-demand data extractions.",
@@ -89,7 +89,7 @@ const GlobalArgsSchema = z.object({
   TargetArn: z.string().max(512).regex(new RegExp("arn:aws:.*:.*:[0-9]+:.*"))
     .describe(
       "The Amazon Resource Name (ARN) of the Glue data warehouse to use as the target for replication",
-    ),
+    ).optional(),
   AdditionalEncryptionContext: z.record(
     z.string(),
     z.string().min(0).max(131072),
@@ -185,7 +185,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue Integration. Registered at `@swamp/aws/glue/integration`. */
 export const model = {
   type: "@swamp/aws/glue/integration",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -252,6 +252,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -269,6 +274,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["IntegrationName", "SourceArn", "TargetArn"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

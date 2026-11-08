@@ -68,7 +68,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(1024).regex(new RegExp(".*\\S.*")).describe(
     "A descriptive label that is associated with an alias. Alias names do not need to be unique.",
-  ),
+  ).optional(),
   RoutingStrategy: z.object({
     Message: z.string().describe(
       "The message text to be used with a terminal routing strategy. If you specify TERMINAL for the Type property, you must specify this property.",
@@ -82,7 +82,7 @@ const GlobalArgsSchema = z.object({
     ),
   }).describe(
     "A routing configuration that specifies where traffic is directed for this alias, such as to a fleet or to a message.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -153,7 +153,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GameLift Alias. Registered at `@swamp/aws/gamelift/alias`. */
 export const model = {
   type: "@swamp/aws/gamelift/alias",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -215,6 +215,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -232,6 +237,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "RoutingStrategy"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

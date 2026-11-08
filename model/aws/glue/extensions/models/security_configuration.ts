@@ -75,7 +75,8 @@ const GlobalArgsSchema = z.object({
     CloudWatchEncryption: CloudWatchEncryptionSchema.describe(
       "The encryption configuration for Amazon CloudWatch.",
     ).optional(),
-  }).describe("The encryption configuration for the security configuration."),
+  }).describe("The encryption configuration for the security configuration.")
+    .optional(),
   Name: z.string().describe("The name for the security configuration."),
 });
 
@@ -130,7 +131,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue SecurityConfiguration. Registered at `@swamp/aws/glue/security-configuration`. */
 export const model = {
   type: "@swamp/aws/glue/security-configuration",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -152,6 +153,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -169,6 +175,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["EncryptionConfiguration", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

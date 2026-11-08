@@ -212,7 +212,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ApplicationName: z.string().describe(
     "The name of an existing CodeDeploy application to associate this deployment group with.",
-  ),
+  ).optional(),
   DeploymentStyle: z.object({
     DeploymentOption: z.string().describe(
       "Indicates whether to route deployment traffic behind a load balancer.",
@@ -225,7 +225,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ServiceRoleArn: z.string().describe(
     "A service role Amazon Resource Name (ARN) that grants CodeDeploy permission to make calls to AWS services on your behalf. For more information, see 'Create a Service Role for AWS CodeDeploy' in the AWS CodeDeploy User Guide.",
-  ),
+  ).optional(),
   BlueGreenDeploymentConfiguration: z.object({
     GreenFleetProvisioningOption: GreenFleetProvisioningOptionSchema.describe(
       "Information about how instances are provisioned for a replacement environment in a blue/green deployment.",
@@ -543,7 +543,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CodeDeploy DeploymentGroup. Registered at `@swamp/aws/codedeploy/deployment-group`. */
 export const model = {
   type: "@swamp/aws/codedeploy/deployment-group",
-  version: "2026.10.27.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -610,6 +610,11 @@ export const model = {
       description: "Added: Ec2DeploymentOptions",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -627,6 +632,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ApplicationName", "ServiceRoleArn"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

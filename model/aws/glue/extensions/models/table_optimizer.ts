@@ -107,11 +107,11 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   DatabaseName: z.string().describe(
     "The name of the database. For Hive compatibility, this is folded to lowercase when it is stored.",
-  ),
+  ).optional(),
   TableName: z.string().describe(
     "The table name. For Hive compatibility, this must be entirely lowercase.",
-  ),
-  Type: z.string().describe("The type of table optimizer."),
+  ).optional(),
+  Type: z.string().describe("The type of table optimizer.").optional(),
   TableOptimizerConfiguration: z.object({
     Enabled: z.boolean().describe("Whether the table optimization is enabled."),
     RetentionConfiguration: RetentionConfigurationSchema.describe(
@@ -130,8 +130,9 @@ const GlobalArgsSchema = z.object({
     CompactionConfiguration: CompactionConfigurationSchema.describe(
       "The configuration for a compaction optimizer. This configuration defines how data files in your table will be compacted to improve query performance and reduce storage costs.",
     ).optional(),
-  }).describe("Specifies configuration details of a table optimizer."),
-  CatalogId: z.string().describe("The catalog ID of the table"),
+  }).describe("Specifies configuration details of a table optimizer.")
+    .optional(),
+  CatalogId: z.string().describe("The catalog ID of the table").optional(),
 });
 
 const StateSchema = z.object({
@@ -207,7 +208,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue TableOptimizer. Registered at `@swamp/aws/glue/table-optimizer`. */
 export const model = {
   type: "@swamp/aws/glue/table-optimizer",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -229,6 +230,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -246,6 +252,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "CatalogId",
+          "DatabaseName",
+          "TableName",
+          "TableOptimizerConfiguration",
+          "Type",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

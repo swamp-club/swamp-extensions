@@ -81,13 +81,13 @@ const GlobalArgsSchema = z.object({
   BundleName: z.string().regex(new RegExp("^[a-zA-Z][a-zA-Z0-9_]{0,99}$"))
     .describe(
       "The name for the configuration bundle. Names must be unique within your account.",
-    ),
+    ).optional(),
   Description: z.string().min(1).max(500).regex(new RegExp("^.+$")).describe(
     "The description for the configuration bundle.",
   ).optional(),
   Components: z.record(z.string(), ComponentConfigurationSchema).describe(
     "A map of component identifiers to their configurations.",
-  ),
+  ).optional(),
   BranchName: z.string().min(1).max(128).regex(
     new RegExp("^[a-zA-Z][a-zA-Z0-9_/-]{0,127}$"),
   ).describe("The branch name for version tracking.").optional(),
@@ -239,7 +239,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore ConfigurationBundle. Registered at `@swamp/aws/bedrockagentcore/configuration-bundle`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/configuration-bundle",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.06.15.2",
@@ -271,6 +271,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -288,6 +293,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["BundleName", "Components"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

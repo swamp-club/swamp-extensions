@@ -113,7 +113,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Priority: z.number().int().describe(
     "The priority of the task in the maintenance window. The lower the number, the higher the priority. Tasks that have the same priority are scheduled in parallel.",
-  ),
+  ).optional(),
   MaxConcurrency: z.string().describe(
     "The maximum number of targets this task can be run for, in parallel.",
   ).optional(),
@@ -123,7 +123,7 @@ const GlobalArgsSchema = z.object({
   Name: z.string().describe("The task name.").optional(),
   TaskArn: z.string().describe(
     "The resource that the task uses during execution.",
-  ),
+  ).optional(),
   TaskInvocationParameters: z.object({
     MaintenanceWindowStepFunctionsParameters:
       MaintenanceWindowStepFunctionsParametersSchema.optional(),
@@ -138,11 +138,11 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   WindowId: z.string().describe(
     "The ID of the maintenance window where the task is registered.",
-  ),
+  ).optional(),
   TaskParameters: z.record(z.string(), z.unknown()).describe(
     "The parameters to pass to the task when it runs.",
   ).optional(),
-  TaskType: z.string().describe("The type of task."),
+  TaskType: z.string().describe("The type of task.").optional(),
   CutoffBehavior: z.string().describe(
     "The specification for whether tasks should continue to run after the cutoff time specified in the maintenance windows is reached.",
   ).optional(),
@@ -263,7 +263,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SSM MaintenanceWindowTask. Registered at `@swamp/aws/ssm/maintenance-window-task`. */
 export const model = {
   type: "@swamp/aws/ssm/maintenance-window-task",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -330,6 +330,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -347,6 +352,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Priority", "TaskArn", "TaskType", "WindowId"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

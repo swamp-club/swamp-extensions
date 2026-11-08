@@ -63,10 +63,10 @@ const GlobalArgsSchema = z.object({
     new RegExp("^[a-zA-Z][a-zA-Z0-9]*(-[a-zA-Z0-9]+)*$"),
   ).describe(
     "The identifier for the DB snapshot. Must contain from 1 to 255 letters, numbers, or hyphens. First character must be a letter. Can't end with a hyphen or contain two consecutive hyphens.",
-  ),
+  ).optional(),
   DBInstanceIdentifier: z.string().describe(
     "The identifier of the DB instance that you want to create the snapshot of.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "The tags to be assigned to the DB snapshot.",
   ).optional(),
@@ -140,7 +140,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RDS DBSnapshot. Registered at `@swamp/aws/rds/dbsnapshot`. */
 export const model = {
   type: "@swamp/aws/rds/dbsnapshot",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -149,6 +149,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -169,6 +174,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DBInstanceIdentifier", "DBSnapshotIdentifier"].filter(
+          (k) => g[k] === undefined,
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

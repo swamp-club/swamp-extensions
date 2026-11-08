@@ -317,7 +317,7 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   Name: z.string().min(1).max(128).regex(new RegExp("^[a-zA-Z0-9\\-_]+$"))
-    .describe("The name of the OAuth2 credential provider"),
+    .describe("The name of the OAuth2 credential provider").optional(),
   CredentialProviderVendor: z.enum([
     "GoogleOauth2",
     "GithubOauth2",
@@ -344,7 +344,7 @@ const GlobalArgsSchema = z.object({
     "FusionAuthOauth2",
     "Auth0Oauth2",
     "CognitoOauth2",
-  ]).describe("The vendor of the OAuth2 credential provider"),
+  ]).describe("The vendor of the OAuth2 credential provider").optional(),
   Oauth2ProviderConfigInput: z.object({
     CustomOauth2ProviderConfig: CustomOauth2ProviderConfigInputSchema.describe(
       "Input configuration for a custom OAuth2 provider",
@@ -573,7 +573,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore OAuth2CredentialProvider. Registered at `@swamp/aws/bedrockagentcore/oauth2credential-provider`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/oauth2credential-provider",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.23.1",
@@ -645,6 +645,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -662,6 +667,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["CredentialProviderVendor", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

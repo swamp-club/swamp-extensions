@@ -230,7 +230,7 @@ const GlobalArgsSchema = z.object({
     .describe("The tunnel options for the VPN connection.").optional(),
   CustomerGatewayId: z.string().describe(
     "The ID of the customer gateway at your end of the VPN connection.",
-  ),
+  ).optional(),
   OutsideIpAddressType: z.string().describe(
     "The type of IP address assigned to the outside interface of the customer gateway device. Valid values: PrivateIpv4 | PublicIpv4 | Ipv6 Default: PublicIpv4",
   ).optional(),
@@ -243,7 +243,7 @@ const GlobalArgsSchema = z.object({
   TransitGatewayId: z.string().describe(
     "The ID of the transit gateway associated with the VPN connection. You must specify either TransitGatewayId or VpnGatewayId, but not both.",
   ).optional(),
-  Type: z.string().describe("The type of VPN connection."),
+  Type: z.string().describe("The type of VPN connection.").optional(),
   TunnelBandwidth: z.enum(["standard", "large"]).describe(
     "The desired bandwidth specification for the VPN tunnel, used when creating or modifying VPN connection options to set the tunnel's throughput capacity. standard supports up to 1.25 Gbps per tunnel, while large supports up to 5 Gbps per tunnel. The default value is standard. Existing VPN connections without a bandwidth setting will automatically default to standard.",
   ).optional(),
@@ -374,7 +374,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 VPNConnection. Registered at `@swamp/aws/ec2/vpnconnection`. */
 export const model = {
   type: "@swamp/aws/ec2/vpnconnection",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -446,6 +446,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -463,6 +468,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["CustomerGatewayId", "Type"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

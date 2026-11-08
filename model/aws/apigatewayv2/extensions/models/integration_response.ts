@@ -66,9 +66,10 @@ const GlobalArgsSchema = z.object({
   ContentHandlingStrategy: z.string().describe(
     "Supported only for WebSocket APIs. Specifies how to handle response payload content type conversions. Supported values are CONVERT_TO_BINARY and CONVERT_TO_TEXT, with the following behaviors: CONVERT_TO_BINARY: Converts a response payload from a Base64-encoded string to the corresponding binary blob. CONVERT_TO_TEXT: Converts a response payload from a binary blob to a Base64-encoded string. If this property is not defined, the response payload will be passed through from the integration response to the route response or method response without modification.",
   ).optional(),
-  IntegrationId: z.string().describe("The integration ID."),
-  IntegrationResponseKey: z.string().describe("The integration response key."),
-  ApiId: z.string().describe("The API identifier."),
+  IntegrationId: z.string().describe("The integration ID.").optional(),
+  IntegrationResponseKey: z.string().describe("The integration response key.")
+    .optional(),
+  ApiId: z.string().describe("The API identifier.").optional(),
 });
 
 const StateSchema = z.object({
@@ -127,7 +128,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApiGatewayV2 IntegrationResponse. Registered at `@swamp/aws/apigatewayv2/integration-response`. */
 export const model = {
   type: "@swamp/aws/apigatewayv2/integration-response",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -194,6 +195,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -211,6 +217,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ApiId", "IntegrationId", "IntegrationResponseKey"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

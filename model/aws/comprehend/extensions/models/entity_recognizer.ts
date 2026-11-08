@@ -136,7 +136,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   RecognizerName: z.string().max(63).regex(
     new RegExp("^[a-zA-Z0-9](-*[a-zA-Z0-9])*$"),
-  ).describe("The name given to the entity recognizer."),
+  ).describe("The name given to the entity recognizer.").optional(),
   VersionName: z.string().max(63).regex(
     new RegExp("^[a-zA-Z0-9](-*[a-zA-Z0-9])*$"),
   ).describe("The version name given to the entity recognizer.").optional(),
@@ -144,7 +144,7 @@ const GlobalArgsSchema = z.object({
     new RegExp("^arn:aws(-[^:]+)?:iam::[0-9]{12}:role/.+$"),
   ).describe(
     "The Amazon Resource Name (ARN) of the IAM role that grants Amazon Comprehend read access to your input data.",
-  ),
+  ).optional(),
   LanguageCode: z.enum([
     "en",
     "es",
@@ -160,7 +160,7 @@ const GlobalArgsSchema = z.object({
     "zh-TW",
   ]).describe(
     "The language of the input documents. All documents must be in the same language.",
-  ),
+  ).optional(),
   InputDataConfig: z.object({
     DataFormat: z.enum(["COMPREHEND_CSV", "AUGMENTED_MANIFEST"]).describe(
       "The format of your training data.",
@@ -182,7 +182,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "Specifies the format and location of the input data. The S3 bucket containing the input data must be located in the same Region as the entity recognizer being created.",
-  ),
+  ).optional(),
   VolumeKmsKeyId: z.string().max(2048).regex(new RegExp("^\\p{ASCII}+$", "u"))
     .describe(
       "ID for the AWS KMS key that Amazon Comprehend uses to encrypt data on the storage volume attached to the ML compute instance(s).",
@@ -344,7 +344,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Comprehend EntityRecognizer. Registered at `@swamp/aws/comprehend/entity-recognizer`. */
 export const model = {
   type: "@swamp/aws/comprehend/entity-recognizer",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -353,6 +353,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -373,6 +378,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "DataAccessRoleArn",
+          "InputDataConfig",
+          "LanguageCode",
+          "RecognizerName",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

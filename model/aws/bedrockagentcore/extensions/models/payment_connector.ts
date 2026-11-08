@@ -67,13 +67,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   PaymentManagerId: z.string().regex(
     new RegExp("^([0-9a-z][-]?){1,100}-[0-9a-z]{10}$"),
-  ).describe("The identifier of the parent payment manager"),
+  ).describe("The identifier of the parent payment manager").optional(),
   ConnectorName: z.string().regex(new RegExp("^[a-zA-Z][a-zA-Z0-9_]{0,47}$"))
-    .describe("The name of the payment connector"),
+    .describe("The name of the payment connector").optional(),
   Description: z.string().min(1).max(4096).regex(
     new RegExp("^[a-zA-Z0-9\\s]+$"),
   ).describe("A description of the payment connector").optional(),
-  ConnectorType: z.enum(["CoinbaseCDP", "StripePrivy"]),
+  ConnectorType: z.enum(["CoinbaseCDP", "StripePrivy"]).optional(),
   ProvisionMode: z.enum(["MANUAL", "QUICK_CREATE"]).describe(
     "The provision mode for creating the connector. MANUAL requires CredentialProviderConfigurations; QUICK_CREATE orchestrates OAuth consent and credential provisioning.",
   ).optional(),
@@ -147,7 +147,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore PaymentConnector. Registered at `@swamp/aws/bedrockagentcore/payment-connector`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/payment-connector",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.06.06.1",
@@ -189,6 +189,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -206,6 +211,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ConnectorName", "ConnectorType", "PaymentManagerId"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

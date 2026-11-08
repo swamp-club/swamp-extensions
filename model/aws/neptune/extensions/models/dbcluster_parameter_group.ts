@@ -62,13 +62,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Description: z.string().describe(
     "Provides the customer-specified description for this DB cluster parameter group.",
-  ),
+  ).optional(),
   Family: z.string().describe(
     "Must be neptune1 for engine versions prior to 1.2.0.0, or neptune1.2 for engine version 1.2.0.0 and higher.",
-  ),
+  ).optional(),
   Parameters: z.record(z.string(), z.unknown()).describe(
     "An array of parameters to be modified. A maximum of 20 parameters can be modified in a single request.",
-  ),
+  ).optional(),
   Name: z.string().describe(
     "Provides the name of the DB cluster parameter group.",
   ).optional(),
@@ -128,7 +128,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Neptune DBClusterParameterGroup. Registered at `@swamp/aws/neptune/dbcluster-parameter-group`. */
 export const model = {
   type: "@swamp/aws/neptune/dbcluster-parameter-group",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -195,6 +195,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -212,6 +217,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Description", "Family", "Parameters"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

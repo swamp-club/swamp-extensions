@@ -66,10 +66,10 @@ const GlobalArgsSchema = z.object({
   IdentityProviderDetails: z.record(
     z.string(),
     z.string().min(0).max(131072).regex(new RegExp("^[\\s\\S]*$")),
-  ),
+  ).optional(),
   IdentityProviderName: z.string().min(1).max(32).regex(
     new RegExp("^[^_][\\p{L}\\p{M}\\p{S}\\p{N}\\p{P}][^_]+$", "u"),
-  ),
+  ).optional(),
   IdentityProviderType: z.enum([
     "SAML",
     "Facebook",
@@ -77,7 +77,7 @@ const GlobalArgsSchema = z.object({
     "LoginWithAmazon",
     "SignInWithApple",
     "OIDC",
-  ]),
+  ]).optional(),
   PortalArn: z.string().min(20).max(2048).regex(
     new RegExp(
       "^arn:[\\w+=\\/,.@-]+:[a-zA-Z0-9\\-]+:[a-zA-Z0-9\\-]*:[a-zA-Z0-9]{1,12}:[a-zA-Z]+(\\/[a-fA-F0-9\\-]{36})+$",
@@ -145,7 +145,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for WorkSpacesWeb IdentityProvider. Registered at `@swamp/aws/workspacesweb/identity-provider`. */
 export const model = {
   type: "@swamp/aws/workspacesweb/identity-provider",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -207,6 +207,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -224,6 +229,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "IdentityProviderDetails",
+          "IdentityProviderName",
+          "IdentityProviderType",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -88,7 +88,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "A structure that contains information about where and how to deliver your reports, specifically your Amazon S3 bucket name, S3 key prefix, and the formats of your reports.",
-  ),
+  ).optional(),
   ReportSetting: z.object({
     ReportTemplate: z.string().describe(
       "Identifies the report template for the report. Reports are built using a report template. The report templates are: `BACKUP_JOB_REPORT | COPY_JOB_REPORT | RESTORE_JOB_REPORT`",
@@ -107,7 +107,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "Identifies the report template for the report. Reports are built using a report template.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -203,7 +203,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Backup ReportPlan. Registered at `@swamp/aws/backup/report-plan`. */
 export const model = {
   type: "@swamp/aws/backup/report-plan",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -265,6 +265,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -282,6 +287,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ReportDeliveryChannel", "ReportSetting"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

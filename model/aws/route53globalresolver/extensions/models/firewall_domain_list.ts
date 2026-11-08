@@ -61,9 +61,9 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(64).regex(
     new RegExp("(?!^[0-9]+$)([a-zA-Z0-9-_' ']+)"),
-  ),
+  ).optional(),
   Description: z.string().min(1).max(256).optional(),
-  GlobalResolverId: z.string().min(1).max(64),
+  GlobalResolverId: z.string().min(1).max(64).optional(),
   Domains: z.array(z.string().min(1).max(255)).describe(
     "An inline list of domains to use for this domain list.",
   ).optional(),
@@ -133,7 +133,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Route53GlobalResolver FirewallDomainList. Registered at `@swamp/aws/route53globalresolver/firewall-domain-list`. */
 export const model = {
   type: "@swamp/aws/route53globalresolver/firewall-domain-list",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -195,6 +195,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -212,6 +217,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["GlobalResolverId", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

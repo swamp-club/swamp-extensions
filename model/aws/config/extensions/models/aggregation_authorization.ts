@@ -65,10 +65,10 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AuthorizedAccountId: z.string().regex(new RegExp("^\\d{12}$")).describe(
     "The 12-digit account ID of the account authorized to aggregate data.",
-  ),
+  ).optional(),
   AuthorizedAwsRegion: z.string().min(1).max(64).describe(
     "The region authorized to collect aggregated data.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "The tags for the AggregationAuthorization.",
   ).optional(),
@@ -119,7 +119,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Config AggregationAuthorization. Registered at `@swamp/aws/config/aggregation-authorization`. */
 export const model = {
   type: "@swamp/aws/config/aggregation-authorization",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -181,6 +181,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -198,6 +203,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AuthorizedAccountId", "AuthorizedAwsRegion"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

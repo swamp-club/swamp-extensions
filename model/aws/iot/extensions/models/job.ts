@@ -116,10 +116,10 @@ const GlobalArgsSchema = z.object({
   JobId: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9_-]+$"))
     .describe(
       "A job identifier which must be unique for your AWS account. We recommend using a UUID. Alpha-numeric characters, '-' and '_' are valid for use here.",
-    ),
+    ).optional(),
   Targets: z.array(z.string().min(0).max(2048)).describe(
     "A list of things and thing groups to which the job should be sent.",
-  ),
+  ).optional(),
   DocumentSource: z.string().min(1).max(1350).describe(
     "An S3 link, or S3 object URL, to the job document. The link is an Amazon S3 object URL and is required if you don't specify a value for document.",
   ).optional(),
@@ -354,7 +354,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoT Job. Registered at `@swamp/aws/iot/job`. */
 export const model = {
   type: "@swamp/aws/iot/job",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -376,6 +376,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -393,6 +398,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["JobId", "Targets"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

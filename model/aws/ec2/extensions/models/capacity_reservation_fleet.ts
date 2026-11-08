@@ -49,13 +49,13 @@ const TagSpecificationSchema = z.object({
 });
 
 const InstanceTypeSpecificationSchema = z.object({
-  InstanceType: z.string().optional(),
-  InstancePlatform: z.string().optional(),
-  Weight: z.number().optional(),
-  AvailabilityZone: z.string().optional(),
-  AvailabilityZoneId: z.string().optional(),
-  EbsOptimized: z.boolean().optional(),
   Priority: z.number().int().min(0).max(999).optional(),
+  AvailabilityZoneId: z.string().optional(),
+  AvailabilityZone: z.string().optional(),
+  InstancePlatform: z.string().optional(),
+  InstanceType: z.string().optional(),
+  Weight: z.number().optional(),
+  EbsOptimized: z.boolean().optional(),
 });
 
 const GlobalArgsSchema = z.object({
@@ -74,30 +74,30 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  AllocationStrategy: z.string().optional(),
+  Tenancy: z.enum(["default"]).optional(),
+  TotalTargetCapacity: z.number().int().min(1).max(25000).optional(),
   TagSpecifications: z.array(TagSpecificationSchema).optional(),
+  RemoveEndDate: z.boolean().optional(),
+  EndDate: z.string().optional(),
+  AllocationStrategy: z.string().optional(),
+  NoRemoveEndDate: z.boolean().optional(),
   InstanceTypeSpecifications: z.array(InstanceTypeSpecificationSchema)
     .optional(),
-  TotalTargetCapacity: z.number().int().min(1).max(25000).optional(),
-  EndDate: z.string().optional(),
   InstanceMatchCriteria: z.enum(["open"]).optional(),
-  Tenancy: z.enum(["default"]).optional(),
-  RemoveEndDate: z.boolean().optional(),
-  NoRemoveEndDate: z.boolean().optional(),
 });
 
 const StateSchema = z.object({
-  AllocationStrategy: z.string().optional(),
+  Tenancy: z.string().optional(),
+  TotalTargetCapacity: z.number().optional(),
+  CapacityReservationFleetId: z.string(),
   TagSpecifications: z.array(TagSpecificationSchema).optional(),
+  RemoveEndDate: z.boolean().optional(),
+  EndDate: z.string().optional(),
+  AllocationStrategy: z.string().optional(),
+  NoRemoveEndDate: z.boolean().optional(),
   InstanceTypeSpecifications: z.array(InstanceTypeSpecificationSchema)
     .optional(),
-  TotalTargetCapacity: z.number().optional(),
-  EndDate: z.string().optional(),
   InstanceMatchCriteria: z.string().optional(),
-  CapacityReservationFleetId: z.string(),
-  Tenancy: z.string().optional(),
-  RemoveEndDate: z.boolean().optional(),
-  NoRemoveEndDate: z.boolean().optional(),
 }).passthrough();
 
 type StateData = z.infer<typeof StateSchema>;
@@ -108,16 +108,16 @@ const InputsSchema = z.object({
   secretAccessKey: z.string().meta({ sensitive: true }).optional(),
   sessionToken: z.string().meta({ sensitive: true }).optional(),
   region: z.string().optional(),
-  AllocationStrategy: z.string().optional(),
+  Tenancy: z.enum(["default"]).optional(),
+  TotalTargetCapacity: z.number().int().min(1).max(25000).optional(),
   TagSpecifications: z.array(TagSpecificationSchema).optional(),
+  RemoveEndDate: z.boolean().optional(),
+  EndDate: z.string().optional(),
+  AllocationStrategy: z.string().optional(),
+  NoRemoveEndDate: z.boolean().optional(),
   InstanceTypeSpecifications: z.array(InstanceTypeSpecificationSchema)
     .optional(),
-  TotalTargetCapacity: z.number().int().min(1).max(25000).optional(),
-  EndDate: z.string().optional(),
   InstanceMatchCriteria: z.enum(["open"]).optional(),
-  Tenancy: z.enum(["default"]).optional(),
-  RemoveEndDate: z.boolean().optional(),
-  NoRemoveEndDate: z.boolean().optional(),
 });
 
 const _credentialKeys = new Set([
@@ -139,7 +139,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 CapacityReservationFleet. Registered at `@swamp/aws/ec2/capacity-reservation-fleet`. */
 export const model = {
   type: "@swamp/aws/ec2/capacity-reservation-fleet",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -203,6 +203,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

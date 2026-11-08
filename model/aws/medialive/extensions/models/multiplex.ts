@@ -69,7 +69,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AvailabilityZones: z.array(z.string()).describe(
     "A list of availability zones for the multiplex.",
-  ),
+  ).optional(),
   Destinations: z.array(MultiplexOutputDestinationSchema).describe(
     "A list of the multiplex output destinations.",
   ).optional(),
@@ -83,8 +83,8 @@ const GlobalArgsSchema = z.object({
     ),
     TransportStreamReservedBitrate: z.number().int().min(0).max(100000000)
       .describe("Transport stream reserved bit rate.").optional(),
-  }).describe("Configuration for a multiplex event."),
-  Name: z.string().describe("Name of multiplex."),
+  }).describe("Configuration for a multiplex event.").optional(),
+  Name: z.string().describe("Name of multiplex.").optional(),
   Tags: z.array(TagsSchema).describe("A collection of key-value pairs.")
     .optional(),
 });
@@ -156,7 +156,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaLive Multiplex. Registered at `@swamp/aws/medialive/multiplex`. */
 export const model = {
   type: "@swamp/aws/medialive/multiplex",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -218,6 +218,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -235,6 +240,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AvailabilityZones", "MultiplexSettings", "Name"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

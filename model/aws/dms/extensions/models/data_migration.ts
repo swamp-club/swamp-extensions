@@ -86,13 +86,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ServiceAccessRoleArn: z.string().min(1).max(300).describe(
     "The property describes Amazon Resource Name (ARN) of the service access role.",
-  ),
+  ).optional(),
   MigrationProjectIdentifier: z.string().min(1).max(255).describe(
     "The property describes an identifier for the migration project. It is used for describing/deleting/modifying can be name/arn",
-  ),
+  ).optional(),
   DataMigrationType: z.enum(["full-load", "cdc", "full-load-and-cdc"]).describe(
     "The property describes the type of migration.",
-  ),
+  ).optional(),
   DataMigrationSettings: z.object({
     CloudwatchLogsEnabled: z.boolean().describe(
       "The property specifies whether to enable the CloudWatch log.",
@@ -192,7 +192,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DMS DataMigration. Registered at `@swamp/aws/dms/data-migration`. */
 export const model = {
   type: "@swamp/aws/dms/data-migration",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -259,6 +259,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -276,6 +281,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "DataMigrationType",
+          "MigrationProjectIdentifier",
+          "ServiceAccessRoleArn",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

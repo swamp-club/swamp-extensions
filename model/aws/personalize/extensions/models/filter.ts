@@ -61,13 +61,14 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(63).regex(
     new RegExp("^[a-zA-Z0-9][a-zA-Z0-9\\-_]*$"),
-  ).describe("The name of the filter."),
+  ).describe("The name of the filter.").optional(),
   DatasetGroupArn: z.string().max(256).regex(
     new RegExp("arn:([a-z\\d-]+):personalize:.*:.*:.+"),
-  ).describe("The ARN of the dataset group that the filter belongs to."),
+  ).describe("The ARN of the dataset group that the filter belongs to.")
+    .optional(),
   FilterExpression: z.string().min(1).max(2500).describe(
     "The filter expression that defines which items are included or excluded from recommendations.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe("Tags to associate with the filter.")
     .optional(),
 });
@@ -124,7 +125,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Personalize Filter. Registered at `@swamp/aws/personalize/filter`. */
 export const model = {
   type: "@swamp/aws/personalize/filter",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -133,6 +134,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -153,6 +159,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DatasetGroupArn", "FilterExpression", "Name"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

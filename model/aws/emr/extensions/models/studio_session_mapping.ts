@@ -56,21 +56,21 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   IdentityName: z.string().describe(
     "The name of the user or group. For more information, see UserName and DisplayName in the AWS SSO Identity Store API Reference. Either IdentityName or IdentityId must be specified.",
-  ),
+  ).optional(),
   IdentityType: z.enum(["USER", "GROUP"]).describe(
     "Specifies whether the identity to map to the Studio is a user or a group.",
-  ),
+  ).optional(),
   SessionPolicyArn: z.string().regex(
     new RegExp(
       "^arn:aws(-(cn|us-gov|iso-f|iso-e))?:iam::([0-9]{12})?:policy\\/[^.]+$",
     ),
   ).describe(
     "The Amazon Resource Name (ARN) for the session policy that will be applied to the user or group. Session policies refine Studio user permissions without the need to use multiple IAM user roles.",
-  ),
+  ).optional(),
   StudioId: z.string().min(4).max(256).regex(new RegExp("^es-[0-9A-Z]+"))
     .describe(
       "The ID of the Amazon EMR Studio to which the user or group will be mapped.",
-    ),
+    ).optional(),
 });
 
 const StateSchema = z.object({
@@ -126,7 +126,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EMR StudioSessionMapping. Registered at `@swamp/aws/emr/studio-session-mapping`. */
 export const model = {
   type: "@swamp/aws/emr/studio-session-mapping",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -188,6 +188,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -205,6 +210,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "IdentityName",
+          "IdentityType",
+          "SessionPolicyArn",
+          "StudioId",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

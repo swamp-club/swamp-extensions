@@ -128,19 +128,19 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   InfrastructureRoleArn: z.string().describe(
     "The ARN of the IAM role that ECS uses to manage infrastructure for the gateway.",
-  ),
+  ).optional(),
   Configuration: z.object({
     HostSharedAlb: HostSharedAlbConfigurationSchema.describe(
       "The host shared ALB configuration for the gateway.",
     ),
-  }).describe("The configuration for the gateway."),
+  }).describe("The configuration for the gateway.").optional(),
   PropagateTags: z.enum(["NONE", "GATEWAY"]).describe(
     "Specifies whether to propagate the tags from the gateway to other resources.",
   ).optional(),
   GatewayName: z.string().min(1).max(255).regex(new RegExp("^[a-zA-Z0-9-]+$"))
     .describe(
       "The name of the gateway. Up to 255 letters (uppercase and lowercase), numbers, and hyphens are allowed.",
-    ),
+    ).optional(),
   DeletionProtection: z.boolean().describe(
     "Whether deletion protection is enabled for the gateway.",
   ).optional(),
@@ -215,7 +215,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ECS Gateway. Registered at `@swamp/aws/ecs/gateway`. */
 export const model = {
   type: "@swamp/aws/ecs/gateway",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.23.1",
@@ -224,6 +224,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -244,6 +249,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Configuration",
+          "GatewayName",
+          "InfrastructureRoleArn",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

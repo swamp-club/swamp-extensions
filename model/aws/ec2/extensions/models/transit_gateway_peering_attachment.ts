@@ -69,12 +69,13 @@ const GlobalArgsSchema = z.object({
     Code: z.string().describe("The status code.").optional(),
   }).describe("The status of the transit gateway peering attachment.")
     .optional(),
-  TransitGatewayId: z.string().describe("The ID of the transit gateway."),
+  TransitGatewayId: z.string().describe("The ID of the transit gateway.")
+    .optional(),
   PeerTransitGatewayId: z.string().describe(
     "The ID of the peer transit gateway.",
-  ),
-  PeerAccountId: z.string().describe("The ID of the peer account"),
-  PeerRegion: z.string().describe("Peer Region"),
+  ).optional(),
+  PeerAccountId: z.string().describe("The ID of the peer account").optional(),
+  PeerRegion: z.string().describe("Peer Region").optional(),
   Tags: z.array(TagSchema).describe(
     "The tags for the transit gateway peering attachment.",
   ).optional(),
@@ -140,7 +141,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EC2 TransitGatewayPeeringAttachment. Registered at `@swamp/aws/ec2/transit-gateway-peering-attachment`. */
 export const model = {
   type: "@swamp/aws/ec2/transit-gateway-peering-attachment",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -202,6 +203,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -219,6 +225,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "PeerAccountId",
+          "PeerRegion",
+          "PeerTransitGatewayId",
+          "TransitGatewayId",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

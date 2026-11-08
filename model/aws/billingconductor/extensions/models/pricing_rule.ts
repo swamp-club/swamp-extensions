@@ -76,15 +76,15 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   Name: z.string().min(1).max(128).regex(new RegExp("[a-zA-Z0-9_\\+=\\.\\-@]+"))
-    .describe("Pricing rule name"),
+    .describe("Pricing rule name").optional(),
   Description: z.string().max(1024).describe("Pricing rule description")
     .optional(),
   Scope: z.enum(["GLOBAL", "SERVICE", "BILLING_ENTITY", "SKU"]).describe(
     "A term used to categorize the granularity of a Pricing Rule.",
-  ),
+  ).optional(),
   Type: z.enum(["MARKUP", "DISCOUNT", "TIERING"]).describe(
     "One of MARKUP, DISCOUNT or TIERING that describes the behaviour of the pricing rule.",
-  ),
+  ).optional(),
   ModifierPercentage: z.number().min(0).describe(
     "Pricing rule modifier percentage",
   ).optional(),
@@ -195,7 +195,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BillingConductor PricingRule. Registered at `@swamp/aws/billingconductor/pricing-rule`. */
 export const model = {
   type: "@swamp/aws/billingconductor/pricing-rule",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -262,6 +262,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -279,6 +284,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "Scope", "Type"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

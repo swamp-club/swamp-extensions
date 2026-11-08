@@ -82,25 +82,25 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  BudgetName: z.string(),
-  NotificationType: z.enum(["ACTUAL", "FORECASTED"]),
+  BudgetName: z.string().optional(),
+  NotificationType: z.enum(["ACTUAL", "FORECASTED"]).optional(),
   ActionType: z.enum([
     "APPLY_IAM_POLICY",
     "APPLY_SCP_POLICY",
     "RUN_SSM_DOCUMENTS",
-  ]),
+  ]).optional(),
   ActionThreshold: z.object({
     Value: z.number(),
     Type: z.enum(["PERCENTAGE", "ABSOLUTE_VALUE"]),
-  }),
-  ExecutionRoleArn: z.string(),
+  }).optional(),
+  ExecutionRoleArn: z.string().optional(),
   ApprovalModel: z.enum(["AUTOMATIC", "MANUAL"]).optional(),
-  Subscribers: z.array(SubscriberSchema),
+  Subscribers: z.array(SubscriberSchema).optional(),
   Definition: z.object({
     IamActionDefinition: IamActionDefinitionSchema.optional(),
     ScpActionDefinition: ScpActionDefinitionSchema.optional(),
     SsmActionDefinition: SsmActionDefinitionSchema.optional(),
-  }),
+  }).optional(),
   ResourceTags: z.array(ResourceTagSchema).optional(),
 });
 
@@ -173,7 +173,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Budgets BudgetsAction. Registered at `@swamp/aws/budgets/budgets-action`. */
 export const model = {
   type: "@swamp/aws/budgets/budgets-action",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -235,6 +235,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -252,6 +257,20 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ActionThreshold",
+          "ActionType",
+          "BudgetName",
+          "Definition",
+          "ExecutionRoleArn",
+          "NotificationType",
+          "Subscribers",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

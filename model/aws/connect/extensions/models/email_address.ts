@@ -75,13 +75,13 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:(aws|aws-us-gov):connect:[a-z]{2}-[a-z]+-[0-9]{1}:[0-9]{1,20}:instance/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$",
     ),
-  ).describe("The identifier of the Amazon Connect instance."),
+  ).describe("The identifier of the Amazon Connect instance.").optional(),
   Description: z.string().min(1).max(250).regex(
     new RegExp("(^[\\S].*[\\S]$)|(^[\\S]$)"),
   ).describe("A description for the email address.").optional(),
   EmailAddress: z.string().min(1).max(255).regex(
     new RegExp("([^\\s@]+@[^\\s@]+\\.[^\\s@]+)"),
-  ).describe("Email address to be created for this instance"),
+  ).describe("Email address to be created for this instance").optional(),
   DisplayName: z.string().min(0).max(256).regex(
     new RegExp("(^[\\S].*[\\S]$)|(^[\\S]$)"),
   ).describe("The display name for the email address.").optional(),
@@ -148,7 +148,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Connect EmailAddress. Registered at `@swamp/aws/connect/email-address`. */
 export const model = {
   type: "@swamp/aws/connect/email-address",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -210,6 +210,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -227,6 +232,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["EmailAddress", "InstanceArn"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

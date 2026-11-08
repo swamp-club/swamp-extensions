@@ -59,7 +59,7 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Name: z.string().min(1).max(64).describe("The name of the host."),
+  Name: z.string().min(1).max(64).describe("The name of the host.").optional(),
   ProviderType: z.enum([
     "Bitbucket",
     "GitHub",
@@ -69,10 +69,10 @@ const GlobalArgsSchema = z.object({
     "AzureDevOps",
   ]).describe(
     "The name of the installed provider to be associated with your connection.",
-  ),
+  ).optional(),
   ProviderEndpoint: z.string().min(1).max(512).describe(
     "The endpoint of the infrastructure where your provider type is installed.",
-  ),
+  ).optional(),
   VpcConfiguration: z.object({
     VpcId: z.string().min(12).max(21).regex(new RegExp("^vpc-\\w{8}(\\w{9})?$"))
       .describe(
@@ -174,7 +174,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CodeConnections Host. Registered at `@swamp/aws/codeconnections/host`. */
 export const model = {
   type: "@swamp/aws/codeconnections/host",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -183,6 +183,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -203,6 +208,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "ProviderEndpoint", "ProviderType"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

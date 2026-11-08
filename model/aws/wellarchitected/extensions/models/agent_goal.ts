@@ -60,7 +60,7 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "The Amazon Resource Name (ARN) of the parent Agent Profile that owns this goal. Pass `!Ref` of the parent AWS::WellArchitected::AgentProfile to flow its ARN here.",
-  ),
+  ).optional(),
   Pillars: z.array(
     z.enum([
       "COST_OPTIMIZATION",
@@ -69,10 +69,11 @@ const GlobalArgsSchema = z.object({
       "PERFORMANCE",
       "OPERATIONAL_EXCELLENCE",
     ]),
-  ).describe("The list of Well-Architected pillars this goal targets."),
+  ).describe("The list of Well-Architected pillars this goal targets.")
+    .optional(),
   Title: z.string().min(1).max(1000).regex(
     new RegExp("^(?:(?!\\$\\{[a-zA-Z]+:)[\\P{C}])+$"),
-  ).describe("The title of the Agent Goal."),
+  ).describe("The title of the Agent Goal.").optional(),
   Description: z.string().min(1).max(4000).regex(
     new RegExp("^(?:(?!\\$\\{[a-zA-Z]+:)[\\P{C}])+$"),
   ).describe("A description of the Agent Goal.").optional(),
@@ -143,7 +144,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for WellArchitected AgentGoal. Registered at `@swamp/aws/wellarchitected/agent-goal`. */
 export const model = {
   type: "@swamp/aws/wellarchitected/agent-goal",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -173,6 +174,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -190,6 +196,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Pillars", "ProfileArn", "Title"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

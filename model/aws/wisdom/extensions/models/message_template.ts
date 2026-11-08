@@ -325,12 +325,12 @@ const GlobalArgsSchema = z.object({
     ),
   ).describe(
     "The Amazon Resource Name (ARN) of the knowledge base to which the message template belongs.",
-  ),
+  ).optional(),
   Name: z.string().min(1).max(255).regex(new RegExp("^[a-zA-Z0-9\\\\s_.,-]+"))
-    .describe("The name of the message template."),
+    .describe("The name of the message template.").optional(),
   ChannelSubtype: z.enum(["EMAIL", "SMS"]).describe(
     "The channel subtype this message template applies to.",
-  ),
+  ).optional(),
   Content: z.object({
     EmailMessageTemplateContent: EmailMessageTemplateContentSchema.describe(
       "The content of message template that applies to email channel subtype.",
@@ -338,7 +338,7 @@ const GlobalArgsSchema = z.object({
     SmsMessageTemplateContent: SmsMessageTemplateContentSchema.describe(
       "The content of message template that applies to SMS channel subtype.",
     ).optional(),
-  }).describe("The content of the message template."),
+  }).describe("The content of the message template.").optional(),
   Description: z.string().min(1).max(255).regex(
     new RegExp("^[a-zA-Z0-9\\\\s_.,-]+"),
   ).describe("The description of the message template.").optional(),
@@ -496,7 +496,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Wisdom MessageTemplate. Registered at `@swamp/aws/wisdom/message-template`. */
 export const model = {
   type: "@swamp/aws/wisdom/message-template",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -558,6 +558,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -575,6 +580,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ChannelSubtype",
+          "Content",
+          "KnowledgeBaseArn",
+          "Name",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

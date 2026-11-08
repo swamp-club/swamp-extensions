@@ -54,26 +54,26 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   ConfigurationProfileId: z.string().regex(new RegExp("[a-z0-9]{4,7}"))
-    .describe("The configuration profile ID."),
+    .describe("The configuration profile ID.").optional(),
   Description: z.string().min(0).max(1024).describe(
     "A description of the hosted configuration version.",
   ).optional(),
   ContentType: z.string().min(1).max(255).describe(
     "A standard MIME type describing the format of the configuration content.",
-  ),
+  ).optional(),
   LatestVersionNumber: z.number().int().describe(
     "An optional locking token used to prevent race conditions from overwriting configuration updates when creating a new version. To ensure your data is not overwritten when creating multiple hosted configuration versions in rapid succession, specify the version number of the latest hosted configuration version.",
   ).optional(),
   Content: z.string().describe(
     "The content of the configuration or the configuration data.",
-  ),
+  ).optional(),
   VersionLabel: z.string().min(0).max(64).regex(new RegExp("^$|.*[^0-9].*"))
     .describe(
       "A user-defined label for an AWS AppConfig hosted configuration version.",
     ).optional(),
   ApplicationId: z.string().regex(new RegExp("[a-z0-9]{4,7}")).describe(
     "The application ID.",
-  ),
+  ).optional(),
 });
 
 const StateSchema = z.object({
@@ -137,7 +137,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppConfig HostedConfigurationVersion. Registered at `@swamp/aws/appconfig/hosted-configuration-version`. */
 export const model = {
   type: "@swamp/aws/appconfig/hosted-configuration-version",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -199,6 +199,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -216,6 +221,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ApplicationId",
+          "ConfigurationProfileId",
+          "Content",
+          "ContentType",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

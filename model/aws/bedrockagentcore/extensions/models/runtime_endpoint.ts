@@ -56,10 +56,11 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AgentRuntimeId: z.string().regex(
     new RegExp("^[a-zA-Z][a-zA-Z0-9_]{0,99}-[a-zA-Z0-9]{10}$"),
-  ).describe("The ID of the parent Agent Runtime (required for creation)"),
+  ).describe("The ID of the parent Agent Runtime (required for creation)")
+    .optional(),
   Name: z.string().min(1).max(48).regex(
     new RegExp("^[a-zA-Z][a-zA-Z0-9_]{0,47}$"),
-  ).describe("The name of the Agent Runtime Endpoint"),
+  ).describe("The name of the Agent Runtime Endpoint").optional(),
   AgentRuntimeVersion: z.string().regex(new RegExp("^([1-9][0-9]{0,4})$"))
     .describe("The version of the AgentCore Runtime to use for the endpoint.")
     .optional(),
@@ -135,7 +136,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore RuntimeEndpoint. Registered at `@swamp/aws/bedrockagentcore/runtime-endpoint`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/runtime-endpoint",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -197,6 +198,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -214,6 +220,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AgentRuntimeId", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

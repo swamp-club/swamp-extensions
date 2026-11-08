@@ -124,17 +124,17 @@ const GlobalArgsSchema = z.object({
     Allowlist: z.array(CookieSpecificationSchema),
     Blocklist: z.array(CookieSpecificationSchema).optional(),
   }).optional(),
-  CopyAllowed: z.enum(["Disabled", "Enabled"]),
+  CopyAllowed: z.enum(["Disabled", "Enabled"]).optional(),
   CustomerManagedKey: z.string().min(20).max(2048).regex(
     new RegExp(
       "^arn:[\\w+=\\/,.@-]+:kms:[a-zA-Z0-9\\-]*:[a-zA-Z0-9]{1,12}:key\\/[a-zA-Z0-9-]+$",
     ),
   ).optional(),
   DisconnectTimeoutInMinutes: z.number().min(1).max(600).optional(),
-  DownloadAllowed: z.enum(["Disabled", "Enabled"]),
+  DownloadAllowed: z.enum(["Disabled", "Enabled"]).optional(),
   IdleDisconnectTimeoutInMinutes: z.number().min(0).max(60).optional(),
-  PasteAllowed: z.enum(["Disabled", "Enabled"]),
-  PrintAllowed: z.enum(["Disabled", "Enabled"]),
+  PasteAllowed: z.enum(["Disabled", "Enabled"]).optional(),
+  PrintAllowed: z.enum(["Disabled", "Enabled"]).optional(),
   Tags: z.array(TagSchema).optional(),
   ToolbarConfiguration: z.object({
     ToolbarType: z.enum(["Floating", "Docked"]).optional(),
@@ -153,7 +153,7 @@ const GlobalArgsSchema = z.object({
       "size800X600",
     ]).optional(),
   }).optional(),
-  UploadAllowed: z.enum(["Disabled", "Enabled"]),
+  UploadAllowed: z.enum(["Disabled", "Enabled"]).optional(),
   DeepLinkAllowed: z.enum(["Disabled", "Enabled"]).optional(),
   WebAuthnAllowed: z.enum(["Disabled", "Enabled"]).optional(),
 });
@@ -289,7 +289,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for WorkSpacesWeb UserSettings. Registered at `@swamp/aws/workspacesweb/user-settings`. */
 export const model = {
   type: "@swamp/aws/workspacesweb/user-settings",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -351,6 +351,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -368,6 +373,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "CopyAllowed",
+          "DownloadAllowed",
+          "PasteAllowed",
+          "PrintAllowed",
+          "UploadAllowed",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

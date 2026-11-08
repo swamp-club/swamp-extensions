@@ -116,12 +116,13 @@ const GlobalArgsSchema = z.object({
     new RegExp("^(?!aws\\.)[A-Za-z0-9][\\.\\-_A-Za-z0-9]*$"),
   ).describe(
     "The name of the event source. The first character must be alphanumeric; the remaining characters may also include '.', '-', and '_'. Names cannot begin with the reserved aws. prefix.",
-  ),
+  ).optional(),
   EventBusArn: z.string().min(1).max(1011).regex(
     new RegExp(
       "^arn:aws(-[a-z0-9]+)*:events:[a-z][a-z0-9]*(-[a-z0-9]+)*:([0-9]{12}):event-busv2\\/[A-Za-z0-9][\\.\\-_A-Za-z0-9]{0,255}\\/[a-z0-9]{25}$",
     ),
-  ).describe("The ARN of the custom event bus the event source forwards onto."),
+  ).describe("The ARN of the custom event bus the event source forwards onto.")
+    .optional(),
   Configuration: z.object({
     AwsServiceEventsConfiguration: AwsServiceEventsConfigurationSchema.describe(
       "Configuration for forwarding a single AWS service's events.",
@@ -131,7 +132,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "The event source configuration. Specify exactly one of AwsServiceEventsConfiguration or PartnerEventsConfiguration.",
-  ),
+  ).optional(),
   Description: z.string().max(512).regex(
     new RegExp("^[^\\u0000-\\u001F\\u007F-\\u009F\\u2028\\u2029]*(?![\\s\\S])"),
   ).describe(
@@ -214,7 +215,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EventsV2 EventSource. Registered at `@swamp/aws/eventsv2/event-source`. */
 export const model = {
   type: "@swamp/aws/eventsv2/event-source",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -228,6 +229,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -248,6 +254,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Configuration", "EventBusArn", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

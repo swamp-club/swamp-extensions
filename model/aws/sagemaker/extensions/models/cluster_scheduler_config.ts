@@ -69,12 +69,12 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(63).regex(
     new RegExp("^[a-zA-Z0-9](-*[a-zA-Z0-9]){0,62}$"),
-  ).describe("Name for the cluster policy."),
+  ).describe("Name for the cluster policy.").optional(),
   ClusterArn: z.string().max(256).regex(
     new RegExp(
       "^arn:aws[a-z\\-]*:sagemaker:[a-z0-9\\-]*:[0-9]{12}:cluster/[a-z0-9]{12}$",
     ),
-  ).describe("ARN of the cluster."),
+  ).describe("ARN of the cluster.").optional(),
   Description: z.string().max(1024).regex(
     new RegExp("^[\\p{L}\\p{M}\\p{Z}\\p{S}\\p{N}\\p{P}]*$", "u"),
   ).describe("Description of the cluster policy.").optional(),
@@ -88,7 +88,7 @@ const GlobalArgsSchema = z.object({
     IdleResourceSharing: z.enum(["Enabled", "Disabled"]).describe(
       "Configuration for sharing idle compute resources across entities.",
     ).optional(),
-  }).describe("Cluster policy configuration."),
+  }).describe("Cluster policy configuration.").optional(),
   Tags: z.array(TagSchema).describe("Tags of the cluster policy.").optional(),
 });
 
@@ -161,7 +161,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker ClusterSchedulerConfig. Registered at `@swamp/aws/sagemaker/cluster-scheduler-config`. */
 export const model = {
   type: "@swamp/aws/sagemaker/cluster-scheduler-config",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -170,6 +170,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -190,6 +195,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ClusterArn", "Name", "SchedulerConfig"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

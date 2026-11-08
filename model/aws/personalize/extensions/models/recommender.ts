@@ -70,17 +70,17 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(63).regex(
     new RegExp("^[a-zA-Z0-9][a-zA-Z0-9\\-_]*$"),
-  ).describe("The name of the recommender."),
+  ).describe("The name of the recommender.").optional(),
   DatasetGroupArn: z.string().max(256).regex(
     new RegExp("arn:([a-z\\d-]+):personalize:.*:.*:.+"),
   ).describe(
     "The ARN of the Domain dataset group that the recommender is created for.",
-  ),
+  ).optional(),
   RecipeArn: z.string().max(256).regex(
     new RegExp("arn:([a-z\\d-]+):personalize:.*:.*:.+"),
   ).describe(
     "The ARN of the recipe (Domain dataset group use case) that the recommender uses.",
-  ),
+  ).optional(),
   RecommenderConfig: z.object({
     ItemExplorationConfig: z.record(z.string(), z.string().max(1000)).describe(
       "Specifies the exploration configuration hyperparameters.",
@@ -174,7 +174,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Personalize Recommender. Registered at `@swamp/aws/personalize/recommender`. */
 export const model = {
   type: "@swamp/aws/personalize/recommender",
-  version: "2026.10.27.1",
+  version: "2026.11.08.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -191,6 +198,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DatasetGroupArn", "Name", "RecipeArn"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

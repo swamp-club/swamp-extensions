@@ -61,16 +61,16 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ReplicationConfigIdentifier: z.string().describe(
     "A unique identifier of replication configuration",
-  ),
+  ).optional(),
   SourceEndpointArn: z.string().describe(
     "The Amazon Resource Name (ARN) of the source endpoint for this AWS DMS Serverless replication configuration",
-  ),
+  ).optional(),
   TargetEndpointArn: z.string().describe(
     "The Amazon Resource Name (ARN) of the target endpoint for this AWS DMS Serverless replication configuration",
-  ),
+  ).optional(),
   ReplicationType: z.enum(["full-load", "full-load-and-cdc", "cdc"]).describe(
     "The type of AWS DMS Serverless replication to provision using this replication configuration",
-  ),
+  ).optional(),
   ComputeConfig: z.object({
     AvailabilityZone: z.string().optional(),
     DnsNameServers: z.string().optional(),
@@ -83,7 +83,7 @@ const GlobalArgsSchema = z.object({
     VpcSecurityGroupIds: z.array(z.string()).optional(),
   }).describe(
     "Configuration parameters for provisioning a AWS DMS Serverless replication",
-  ),
+  ).optional(),
   ReplicationSettings: z.record(z.string(), z.unknown()).describe(
     "JSON settings for Servereless replications that are provisioned using this replication configuration",
   ).optional(),
@@ -95,7 +95,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   TableMappings: z.record(z.string(), z.unknown()).describe(
     "JSON table mappings for AWS DMS Serverless replications that are provisioned using this replication configuration",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "Contains a map of the key-value pairs for the resource tag or tags assigned to the dataset.",
   ).optional(),
@@ -194,7 +194,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DMS ReplicationConfig. Registered at `@swamp/aws/dms/replication-config`. */
 export const model = {
   type: "@swamp/aws/dms/replication-config",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -261,6 +261,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -278,6 +283,19 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ComputeConfig",
+          "ReplicationConfigIdentifier",
+          "ReplicationType",
+          "SourceEndpointArn",
+          "TableMappings",
+          "TargetEndpointArn",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

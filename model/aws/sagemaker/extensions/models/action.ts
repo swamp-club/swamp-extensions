@@ -67,14 +67,14 @@ const GlobalArgsSchema = z.object({
     new RegExp("^[a-zA-Z0-9](-*[a-zA-Z0-9]){0,119}$"),
   ).describe(
     "The name of the action. Must be unique to your account in an AWS Region.",
-  ),
-  ActionType: z.string().max(256).describe("The action type."),
+  ).optional(),
+  ActionType: z.string().max(256).describe("The action type.").optional(),
   Source: z.object({
     SourceUri: z.string().min(1).max(2048).describe("The URI of the source."),
     SourceType: z.string().max(256).describe("The type of the source.")
       .optional(),
     SourceId: z.string().max(256).describe("The ID of the source.").optional(),
-  }).describe("The source type, ID, and URI."),
+  }).describe("The source type, ID, and URI.").optional(),
   Description: z.string().max(3072).describe("The description of the action.")
     .optional(),
   Status: z.enum([
@@ -192,7 +192,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker Action. Registered at `@swamp/aws/sagemaker/action`. */
 export const model = {
   type: "@swamp/aws/sagemaker/action",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -214,6 +214,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -231,6 +236,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ActionName", "ActionType", "Source"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

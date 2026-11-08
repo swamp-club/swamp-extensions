@@ -537,12 +537,11 @@ const GlobalArgsSchema = z.object({
     UnhealthyNodeReplacement: z.boolean().describe(
       "Indicates whether Amazon EMR should gracefully replace core nodes that have degraded within the cluster.",
     ).optional(),
-  }).describe(
-    "A specification of the number and type of Amazon EC2 instances.",
-  ),
+  }).describe("A specification of the number and type of Amazon EC2 instances.")
+    .optional(),
   JobFlowRole: z.string().describe(
     "Also called instance profile and EC2 role. An IAM role for an EMR cluster. The EC2 instances of the cluster assume this role. The default role is EMR_EC2_DefaultRole. In order to use the default role, you must have already created it using the CLI or console",
-  ),
+  ).optional(),
   KerberosAttributes: z.object({
     ADDomainJoinPassword: z.string().describe(
       "The Active Directory password for ADDomainJoinUser.",
@@ -574,7 +573,7 @@ const GlobalArgsSchema = z.object({
     ComputeLimits: ComputeLimitsSchema.optional(),
   }).describe("The specified managed scaling policy for an Amazon EMR cluster.")
     .optional(),
-  Name: z.string().describe("The name of the job flow."),
+  Name: z.string().describe("The name of the job flow.").optional(),
   ReleaseLabel: z.string().describe(
     "The Amazon EMR release label, which determines the version of open-source application packages installed on the cluster. Release labels are in the form emr-x.x.x, where x.x.x is an Amazon EMR release version such as emr-5.14.0.",
   ).optional(),
@@ -592,7 +591,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ServiceRole: z.string().describe(
     "The IAM role that Amazon EMR assumes in order to access AWS resources on your behalf.",
-  ),
+  ).optional(),
   StepConcurrencyLevel: z.number().int().describe(
     "Specifies the number of steps that can be executed concurrently.",
   ).optional(),
@@ -878,7 +877,14 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EMR Cluster. Registered at `@swamp/aws/emr/cluster`. */
 export const model = {
   type: "@swamp/aws/emr/cluster",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
+  upgrades: [
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+  ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
   resources: {
@@ -895,6 +901,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Instances", "JobFlowRole", "Name", "ServiceRole"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

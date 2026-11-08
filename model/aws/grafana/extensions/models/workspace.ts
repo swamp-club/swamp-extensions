@@ -92,7 +92,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AuthenticationProviders: z.array(z.enum(["AWS_SSO", "SAML"])).describe(
     "List of authentication providers to enable.",
-  ),
+  ).optional(),
   SamlConfiguration: z.object({
     IdpMetadata: IdpMetadataSchema.describe(
       "IdP Metadata used to configure SAML authentication in Grafana.",
@@ -138,13 +138,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AccountAccessType: z.enum(["CURRENT_ACCOUNT", "ORGANIZATION"]).describe(
     "These enums represent valid account access types. Specifically these enums determine whether the workspace can access AWS resources in the AWS account only, or whether it can also access resources in other accounts in the same organization. If the value CURRENT_ACCOUNT is used, a workspace role ARN must be provided. If the value is ORGANIZATION, a list of organizational units must be provided.",
-  ),
+  ).optional(),
   OrganizationRoleName: z.string().min(1).max(2048).describe(
     "The name of an IAM role that already exists to use with AWS Organizations to access AWS data sources and notification channels in other accounts in an organization.",
   ).optional(),
   PermissionType: z.enum(["CUSTOMER_MANAGED", "SERVICE_MANAGED"]).describe(
     "These enums represent valid permission types to use when creating or configuring a Grafana workspace. The SERVICE_MANAGED permission type means the Managed Grafana service will create a workspace IAM role on your behalf. The CUSTOMER_MANAGED permission type means that the customer is expected to provide an IAM role that the Grafana workspace can use to query data sources.",
-  ),
+  ).optional(),
   StackSetName: z.string().describe(
     "The name of the AWS CloudFormation stack set to use to generate IAM roles to be used for this workspace.",
   ).optional(),
@@ -350,7 +350,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Grafana Workspace. Registered at `@swamp/aws/grafana/workspace`. */
 export const model = {
   type: "@swamp/aws/grafana/workspace",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -417,6 +417,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -434,6 +439,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AccountAccessType",
+          "AuthenticationProviders",
+          "PermissionType",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

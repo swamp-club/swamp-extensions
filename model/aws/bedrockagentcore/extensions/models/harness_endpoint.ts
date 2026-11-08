@@ -65,11 +65,11 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   HarnessId: z.string().regex(
     new RegExp("^[a-zA-Z][a-zA-Z0-9_]{0,39}-[a-zA-Z0-9]{10}$"),
-  ).describe("The ID of the harness that the endpoint belongs to."),
+  ).describe("The ID of the harness that the endpoint belongs to.").optional(),
   EndpointName: z.string().regex(new RegExp("^[a-zA-Z][a-zA-Z0-9_]{0,47}$"))
     .describe(
       "The name of the endpoint. Must start with a letter and contain only alphanumeric characters and underscores.",
-    ),
+    ).optional(),
   TargetVersion: z.string().min(1).max(5).regex(
     new RegExp("^([1-9][0-9]{0,4})$"),
   ).describe(
@@ -144,7 +144,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore HarnessEndpoint. Registered at `@swamp/aws/bedrockagentcore/harness-endpoint`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/harness-endpoint",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -166,6 +166,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -183,6 +188,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["EndpointName", "HarnessId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

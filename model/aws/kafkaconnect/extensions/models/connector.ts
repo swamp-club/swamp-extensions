@@ -179,36 +179,37 @@ const GlobalArgsSchema = z.object({
     ProvisionedCapacity: ProvisionedCapacitySchema.describe(
       "Details about a fixed capacity allocated to a connector.",
     ).optional(),
-  }).describe("Information about the capacity allocated to the connector."),
+  }).describe("Information about the capacity allocated to the connector.")
+    .optional(),
   ConnectorConfiguration: z.record(z.string(), z.string()).describe(
     "The configuration for the connector.",
-  ),
+  ).optional(),
   ConnectorDescription: z.string().max(1024).describe(
     "A summary description of the connector.",
   ).optional(),
   ConnectorName: z.string().min(1).max(128).describe(
     "The name of the connector.",
-  ),
+  ).optional(),
   KafkaCluster: z.object({
     ApacheKafkaCluster: ApacheKafkaClusterSchema.describe(
       "Details of how to connect to an Apache Kafka cluster.",
     ),
-  }).describe("Details of how to connect to the Kafka cluster."),
+  }).describe("Details of how to connect to the Kafka cluster.").optional(),
   KafkaClusterClientAuthentication: z.object({
     AuthenticationType: z.enum(["NONE", "IAM"]).describe(
       "The type of client authentication used to connect to the Kafka cluster. Value NONE means that no client authentication is used.",
     ),
-  }).describe(
-    "Details of the client authentication used by the Kafka cluster.",
-  ),
+  }).describe("Details of the client authentication used by the Kafka cluster.")
+    .optional(),
   KafkaClusterEncryptionInTransit: z.object({
     EncryptionType: z.enum(["PLAINTEXT", "TLS"]).describe(
       "The type of encryption in transit to the Kafka cluster.",
     ),
-  }).describe("Details of encryption in transit to the Kafka cluster."),
+  }).describe("Details of encryption in transit to the Kafka cluster.")
+    .optional(),
   KafkaConnectVersion: z.string().describe(
     "The version of Kafka Connect. It has to be compatible with both the Kafka cluster's version and the plugins.",
-  ),
+  ).optional(),
   NetworkType: z.enum(["IPV4", "DUAL"]).describe(
     "The network type of the Connector.",
   ).optional(),
@@ -221,12 +222,12 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Plugins: z.array(PluginSchema).describe(
     "List of plugins to use with the connector.",
-  ),
+  ).optional(),
   ServiceExecutionRoleArn: z.string().regex(
     new RegExp("arn:(aws|aws-us-gov|aws-cn|aws-eusc):iam:.*"),
   ).describe(
     "The Amazon Resource Name (ARN) of the IAM role used by the connector to access Amazon S3 objects and other external resources.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "A collection of tags associated with a resource",
   ).optional(),
@@ -374,7 +375,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for KafkaConnect Connector. Registered at `@swamp/aws/kafkaconnect/connector`. */
 export const model = {
   type: "@swamp/aws/kafkaconnect/connector",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -441,6 +442,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -458,6 +464,22 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Capacity",
+          "ConnectorConfiguration",
+          "ConnectorName",
+          "KafkaCluster",
+          "KafkaClusterClientAuthentication",
+          "KafkaClusterEncryptionInTransit",
+          "KafkaConnectVersion",
+          "Plugins",
+          "ServiceExecutionRoleArn",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

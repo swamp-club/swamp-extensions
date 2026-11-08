@@ -54,8 +54,8 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Name: z.string().describe("The name of the workflow."),
-  Version: z.string().describe("The version of the workflow."),
+  Name: z.string().describe("The name of the workflow.").optional(),
+  Version: z.string().describe("The version of the workflow.").optional(),
   Description: z.string().describe("The description of the workflow.")
     .optional(),
   ChangeDescription: z.string().describe(
@@ -63,7 +63,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Type: z.enum(["BUILD", "TEST", "DISTRIBUTION"]).describe(
     "The type of the workflow denotes whether the workflow is used to build, test, or distribute.",
-  ),
+  ).optional(),
   Data: z.string().min(1).max(16000).describe("The data of the workflow.")
     .optional(),
   Uri: z.string().describe("The uri of the workflow.").optional(),
@@ -142,7 +142,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ImageBuilder Workflow. Registered at `@swamp/aws/imagebuilder/workflow`. */
 export const model = {
   type: "@swamp/aws/imagebuilder/workflow",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -204,6 +204,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -221,6 +226,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "Type", "Version"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

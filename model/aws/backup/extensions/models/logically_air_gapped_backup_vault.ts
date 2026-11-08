@@ -53,8 +53,8 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AccessPolicy: z.record(z.string(), z.unknown()).optional(),
   BackupVaultName: z.string().regex(new RegExp("^[a-zA-Z0-9\\-\\_]{2,50}$")),
-  MinRetentionDays: z.number().int(),
-  MaxRetentionDays: z.number().int(),
+  MinRetentionDays: z.number().int().optional(),
+  MaxRetentionDays: z.number().int().optional(),
   BackupVaultTags: z.record(z.string(), z.string()).optional(),
   Notifications: z.object({
     BackupVaultEvents: z.array(z.string()),
@@ -122,7 +122,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Backup LogicallyAirGappedBackupVault. Registered at `@swamp/aws/backup/logically-air-gapped-backup-vault`. */
 export const model = {
   type: "@swamp/aws/backup/logically-air-gapped-backup-vault",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -194,6 +194,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -211,6 +216,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "BackupVaultName",
+          "MaxRetentionDays",
+          "MinRetentionDays",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

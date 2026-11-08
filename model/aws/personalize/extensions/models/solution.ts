@@ -92,13 +92,14 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(63).regex(
     new RegExp("^[a-zA-Z0-9][a-zA-Z0-9\\-_]*"),
-  ).describe("The name for the solution"),
+  ).describe("The name for the solution").optional(),
   EventType: z.string().max(256).describe(
     "When your have multiple event types (using an EVENT_TYPE schema field), this parameter specifies which event type (for example, 'click' or 'like') is used for training the model. If you do not provide an eventType, Amazon Personalize will use all interactions for training with equal weight regardless of type.",
   ).optional(),
   DatasetGroupArn: z.string().max(256).regex(
     new RegExp("arn:([a-z\\d-]+):personalize:.*:.*:.+"),
-  ).describe("The ARN of the dataset group that provides the training data."),
+  ).describe("The ARN of the dataset group that provides the training data.")
+    .optional(),
   PerformAutoML: z.boolean().describe(
     "Whether to perform automated machine learning (AutoML). The default is false. For this case, you must specify recipeArn.",
   ).optional(),
@@ -328,7 +329,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Personalize Solution. Registered at `@swamp/aws/personalize/solution`. */
 export const model = {
   type: "@swamp/aws/personalize/solution",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -395,6 +396,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -412,6 +418,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DatasetGroupArn", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

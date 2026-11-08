@@ -157,12 +157,14 @@ const GlobalArgsSchema = z.object({
   }).describe(
     "Settings governing the Compaction maintenance action. Contains details about the compaction settings for an Iceberg table.",
   ).optional(),
-  Namespace: z.string().describe("The namespace that the table belongs to."),
-  TableName: z.string().describe("The name for the table."),
+  Namespace: z.string().describe("The namespace that the table belongs to.")
+    .optional(),
+  TableName: z.string().describe("The name for the table.").optional(),
   TableBucketARN: z.string().describe(
     "The Amazon Resource Name (ARN) of the specified table bucket.",
-  ),
-  OpenTableFormat: z.enum(["ICEBERG"]).describe("Format of the table."),
+  ).optional(),
+  OpenTableFormat: z.enum(["ICEBERG"]).describe("Format of the table.")
+    .optional(),
   IcebergMetadata: z.object({
     IcebergSchema: IcebergSchemaSchema.describe(
       "Schema definition for flat tables with primitive types only. Mutually exclusive with IcebergSchemaV2.",
@@ -321,7 +323,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for S3Tables Table. Registered at `@swamp/aws/s3tables/table`. */
 export const model = {
   type: "@swamp/aws/s3tables/table",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -388,6 +390,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -405,6 +412,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Namespace",
+          "OpenTableFormat",
+          "TableBucketARN",
+          "TableName",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

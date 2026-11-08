@@ -93,8 +93,8 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   DistributionId: z.string().describe(
     "The ID of the multi-tenant distribution.",
-  ),
-  Name: z.string().describe("The name of the distribution tenant."),
+  ).optional(),
+  Name: z.string().describe("The name of the distribution tenant.").optional(),
   Tags: z.array(TagSchema).describe(
     "A complex type that contains zero or more Tag elements.",
   ).optional(),
@@ -119,7 +119,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Domains: z.array(z.string()).describe(
     "The domains associated with the distribution tenant.",
-  ),
+  ).optional(),
   ManagedCertificateRequest: z.object({
     ValidationTokenHost: z.enum(["cloudfront", "self-hosted"]).describe(
       "Specify how the HTTP validation token will be served when requesting the CloudFront managed ACM certificate. For cloudfront, CloudFront will automatically serve the validation token. Choose this mode if you can point the domain's DNS to CloudFront immediately. For self-hosted, you serve the validation token from your existing infrastructure. Choose this mode when you need to maintain current traffic flow while your certificate is being issued. You can place the validation token at the well-known path on your existing web server, wait for ACM to validate and issue the certificate, and then update your DNS to point to CloudFront.",
@@ -238,7 +238,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFront DistributionTenant. Registered at `@swamp/aws/cloudfront/distribution-tenant`. */
 export const model = {
   type: "@swamp/aws/cloudfront/distribution-tenant",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -305,6 +305,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -322,6 +327,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DistributionId", "Domains", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

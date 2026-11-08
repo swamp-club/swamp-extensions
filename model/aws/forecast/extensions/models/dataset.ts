@@ -55,12 +55,12 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   DatasetName: z.string().min(1).max(63).regex(
     new RegExp("^[a-zA-Z][a-zA-Z0-9_]*"),
-  ).describe("A name for the dataset"),
+  ).describe("A name for the dataset").optional(),
   DatasetType: z.enum([
     "TARGET_TIME_SERIES",
     "RELATED_TIME_SERIES",
     "ITEM_METADATA",
-  ]).describe("The dataset type"),
+  ]).describe("The dataset type").optional(),
   DataFrequency: z.string().regex(
     new RegExp("^Y|M|W|D|H|30min|15min|10min|5min|1min$"),
   ).describe(
@@ -74,7 +74,7 @@ const GlobalArgsSchema = z.object({
     "WORK_FORCE",
     "WEB_TRAFFIC",
     "METRICS",
-  ]).describe("The domain associated with the dataset"),
+  ]).describe("The domain associated with the dataset").optional(),
   EncryptionConfig: z.object({
     KmsKeyArn: z.string().max(256).regex(
       new RegExp("arn:aws[-a-z]*:kms:.*:key/.*"),
@@ -97,7 +97,7 @@ const GlobalArgsSchema = z.object({
         "geolocation",
       ]).describe("Data type of the field").optional(),
     })).optional(),
-  }),
+  }).optional(),
   Tags: z.array(z.object({
     Key: z.string().min(1).max(128).describe(
       "The key name of the tag. You can specify a value that is 1 to 128 Unicode characters in length and cannot be prefixed with aws:. You can use any of the following characters: the set of Unicode letters, digits, whitespace, _,., /, =, +, and -.",
@@ -212,7 +212,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Forecast Dataset. Registered at `@swamp/aws/forecast/dataset`. */
 export const model = {
   type: "@swamp/aws/forecast/dataset",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -274,6 +274,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -291,6 +296,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DatasetName", "DatasetType", "Domain", "Schema"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

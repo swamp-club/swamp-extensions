@@ -65,9 +65,10 @@ const GlobalArgsSchema = z.object({
     "API_GATEWAY_API",
     "S3_DATA_ACCESS",
     "LAKE_FORMATION_DATA_PERMISSION",
-  ]).describe("The type of asset that is added to a data set."),
-  Description: z.string().describe("A description for the data set."),
-  Name: z.string().describe("The name of the data set."),
+  ]).describe("The type of asset that is added to a data set.").optional(),
+  Description: z.string().describe("A description for the data set.")
+    .optional(),
+  Name: z.string().describe("The name of the data set.").optional(),
   Tags: z.array(TagSchema).describe("Tags for the data set.").optional(),
 });
 
@@ -123,7 +124,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataExchange DataSet. Registered at `@swamp/aws/dataexchange/data-set`. */
 export const model = {
   type: "@swamp/aws/dataexchange/data-set",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -145,6 +146,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -162,6 +168,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AssetType", "Description", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

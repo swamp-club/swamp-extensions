@@ -186,10 +186,11 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   WorkspaceId: z.string().min(1).max(128).regex(
     new RegExp("[a-zA-Z_0-9][a-zA-Z_\\-0-9]*[a-zA-Z0-9]+"),
-  ).describe("The ID of the workspace that contains the component type."),
+  ).describe("The ID of the workspace that contains the component type.")
+    .optional(),
   ComponentTypeId: z.string().min(1).max(256).regex(
     new RegExp("[a-zA-Z_\\.\\-0-9:]+"),
-  ).describe("The ID of the component type."),
+  ).describe("The ID of the component type.").optional(),
   Description: z.string().min(0).max(512).describe(
     "The description of the component type.",
   ).optional(),
@@ -308,7 +309,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for IoTTwinMaker ComponentType. Registered at `@swamp/aws/iottwinmaker/component-type`. */
 export const model = {
   type: "@swamp/aws/iottwinmaker/component-type",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -380,6 +381,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -397,6 +403,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ComponentTypeId", "WorkspaceId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

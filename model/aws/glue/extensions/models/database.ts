@@ -86,7 +86,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   CatalogId: z.string().describe(
     "The AWS account ID for the account in which to create the catalog object.",
-  ),
+  ).optional(),
   DatabaseInput: z.object({
     LocationUri: z.string().describe(
       "The location of the database (for example, an HDFS path).",
@@ -108,7 +108,7 @@ const GlobalArgsSchema = z.object({
     Name: z.string().describe(
       "The name of the database. For hive compatibility, this is folded to lowercase when it is stored.",
     ).optional(),
-  }).describe("The metadata for the database."),
+  }).describe("The metadata for the database.").optional(),
   DatabaseName: z.string().describe(
     "The name of the database. For hive compatibility, this is folded to lowercase when it is store.",
   ).optional(),
@@ -184,7 +184,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue Database. Registered at `@swamp/aws/glue/database`. */
 export const model = {
   type: "@swamp/aws/glue/database",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -251,6 +251,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -268,6 +273,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["CatalogId", "DatabaseInput"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

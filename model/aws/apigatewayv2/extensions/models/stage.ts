@@ -74,11 +74,11 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   StageName: z.string().describe(
     "The stage name. Stage names can contain only alphanumeric characters, hyphens, and underscores, or be $default. Maximum length is 128 characters.",
-  ),
+  ).optional(),
   StageVariables: z.record(z.string(), z.unknown()).describe(
     "A map that defines the stage variables for a Stage. Variable names can have alphanumeric and underscore characters, and the values must match [A-Za-z0-9-._~:/?#&=,]+.",
   ).optional(),
-  ApiId: z.string().describe("The API identifier."),
+  ApiId: z.string().describe("The API identifier.").optional(),
   DefaultRouteSettings: z.object({
     LoggingLevel: z.string().optional(),
     DataTraceEnabled: z.boolean().optional(),
@@ -178,7 +178,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApiGatewayV2 Stage. Registered at `@swamp/aws/apigatewayv2/stage`. */
 export const model = {
   type: "@swamp/aws/apigatewayv2/stage",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.06.15.1",
@@ -205,6 +205,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -222,6 +227,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ApiId", "StageName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

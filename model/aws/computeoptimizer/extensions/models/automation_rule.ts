@@ -147,13 +147,13 @@ const GlobalArgsSchema = z.object({
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
   Name: z.string().min(0).max(128).regex(new RegExp("^[a-zA-Z0-9_-]*$"))
-    .describe("The name of the automation rule."),
+    .describe("The name of the automation rule.").optional(),
   Description: z.string().min(0).max(1024).regex(
     new RegExp("^[a-zA-Z0-9_\\-\\s@\\.]*$"),
   ).describe("The description of the automation rule.").optional(),
   RuleType: z.enum(["AccountRule", "OrganizationRule"]).describe(
     "The type of automation rule.",
-  ),
+  ).optional(),
   OrganizationConfiguration: z.object({
     RuleApplyOrder: z.enum(["BeforeAccountRules", "AfterAccountRules"])
       .describe("When the rule should be applied relative to account rules")
@@ -166,7 +166,8 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   RecommendedActionTypes: z.array(
     z.enum(["SnapshotAndDeleteUnattachedEbsVolume", "UpgradeEbsVolumeType"]),
-  ).describe("The types of recommended actions this rule will implement."),
+  ).describe("The types of recommended actions this rule will implement.")
+    .optional(),
   Priority: z.string().describe("Rule priority within its group").optional(),
   Schedule: z.object({
     ScheduleExpression: z.string().describe(
@@ -177,7 +178,7 @@ const GlobalArgsSchema = z.object({
     ExecutionWindowInMinutes: z.number().int().min(60).max(1440).describe(
       "Execution window duration in minutes",
     ).optional(),
-  }).describe("The schedule configuration for when the rule runs."),
+  }).describe("The schedule configuration for when the rule runs.").optional(),
   Criteria: z.object({
     Region: z.array(StringCriteriaConditionSchema).optional(),
     ResourceArn: z.array(StringCriteriaConditionSchema).optional(),
@@ -192,7 +193,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Status: z.enum(["Active", "Inactive"]).describe(
     "The status of the automation rule.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe("Tags associated with the automation rule.")
     .optional(),
 });
@@ -311,7 +312,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ComputeOptimizer AutomationRule. Registered at `@swamp/aws/computeoptimizer/automation-rule`. */
 export const model = {
   type: "@swamp/aws/computeoptimizer/automation-rule",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -373,6 +374,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -390,6 +396,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Name",
+          "RecommendedActionTypes",
+          "RuleType",
+          "Schedule",
+          "Status",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

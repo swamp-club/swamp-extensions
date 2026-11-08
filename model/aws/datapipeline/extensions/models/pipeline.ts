@@ -100,7 +100,7 @@ const GlobalArgsSchema = z.object({
     "Indicates whether to validate and start the pipeline or stop an active pipeline. By default, the value is set to true.",
   ).optional(),
   Description: z.string().describe("A description of the pipeline.").optional(),
-  Name: z.string().describe("The name of the pipeline."),
+  Name: z.string().describe("The name of the pipeline.").optional(),
   ParameterObjects: z.array(ParameterObjectSchema).describe(
     "The parameter objects used with the pipeline.",
   ).optional(),
@@ -172,7 +172,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataPipeline Pipeline. Registered at `@swamp/aws/datapipeline/pipeline`. */
 export const model = {
   type: "@swamp/aws/datapipeline/pipeline",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -234,6 +234,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -251,6 +256,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

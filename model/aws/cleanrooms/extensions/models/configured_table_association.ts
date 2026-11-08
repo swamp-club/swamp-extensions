@@ -99,7 +99,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ConfiguredTableIdentifier: z.string().min(36).max(36).regex(
     new RegExp("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"),
-  ),
+  ).optional(),
   Description: z.string().max(255).regex(
     new RegExp(
       "^[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDBFF-\\uDC00\\uDFFF\\t\\r\\n]*$",
@@ -107,11 +107,11 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   MembershipIdentifier: z.string().min(36).max(36).regex(
     new RegExp("[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"),
-  ),
+  ).optional(),
   Name: z.string().max(128).regex(
     new RegExp("^[a-zA-Z0-9_](([a-zA-Z0-9_ ]+-)*([a-zA-Z0-9_ ]+))?$"),
-  ),
-  RoleArn: z.string().min(32).max(512),
+  ).optional(),
+  RoleArn: z.string().min(32).max(512).optional(),
   ConfiguredTableAssociationAnalysisRules: z.array(
     ConfiguredTableAssociationAnalysisRuleSchema,
   ).optional(),
@@ -181,7 +181,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CleanRooms ConfiguredTableAssociation. Registered at `@swamp/aws/cleanrooms/configured-table-association`. */
 export const model = {
   type: "@swamp/aws/cleanrooms/configured-table-association",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -243,6 +243,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -260,6 +265,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ConfiguredTableIdentifier",
+          "MembershipIdentifier",
+          "Name",
+          "RoleArn",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

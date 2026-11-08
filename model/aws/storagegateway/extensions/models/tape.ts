@@ -63,14 +63,14 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   GatewayARN: z.string().min(50).max(500).describe(
     "The Amazon Resource Name (ARN) of the Tape Gateway that hosts the virtual tape.",
-  ),
+  ).optional(),
   TapeBarcode: z.string().min(5).max(16).regex(new RegExp("^[A-Z0-9]*$"))
     .describe(
       "The barcode that you want to assign to the virtual tape. Barcodes cannot be reused, even after a tape is deleted.",
     ).optional(),
   TapeSizeInBytes: z.number().min(1).describe(
     "The size, in bytes, of the virtual tape that you want to create.",
-  ),
+  ).optional(),
   KMSEncrypted: z.boolean().describe(
     "Set to true to use Amazon S3 server-side encryption with your own KMS key, or false to use a key managed by Amazon S3. Optional.",
   ).optional(),
@@ -165,7 +165,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for StorageGateway Tape. Registered at `@swamp/aws/storagegateway/tape`. */
 export const model = {
   type: "@swamp/aws/storagegateway/tape",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -174,6 +174,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -194,6 +199,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["GatewayARN", "TapeSizeInBytes"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

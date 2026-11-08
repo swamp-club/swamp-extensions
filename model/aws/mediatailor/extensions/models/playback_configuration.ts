@@ -133,7 +133,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AdDecisionServerUrl: z.string().describe(
     "The URL for the ad decision server (ADS). This includes the specification of static parameters and placeholders for dynamic parameters. AWS Elemental MediaTailor substitutes player-specific and session-specific parameters as needed when calling the ADS. Alternately, for testing you can provide a static VAST URL. The maximum length is 25,000 characters.",
-  ),
+  ).optional(),
   AvailSuppression: z.object({
     Mode: z.enum(["OFF", "BEHIND_LIVE_EDGE", "AFTER_LIVE_EDGE"]).describe(
       "Sets the ad suppression mode. By default, ad suppression is off and all ad breaks are filled with ads or slate. When Mode is set to BEHIND_LIVE_EDGE, ad suppression is active and MediaTailor won't fill ad breaks on or behind the ad suppression Value time in the manifest lookback window. When Mode is set to AFTER_LIVE_EDGE, ad suppression is active and MediaTailor won't fill ad breaks that are within the live edge plus the avail suppression value.",
@@ -237,7 +237,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   VideoContentSourceUrl: z.string().describe(
     "The URL prefix for the parent manifest for the stream, minus the asset ID. The maximum length is 512 characters.",
-  ),
+  ).optional(),
   AdDecisionServerConfiguration: z.object({
     HttpRequest: HttpRequestSchema.describe(
       "The configuration for the request to the Ad Decision Server URL.",
@@ -538,7 +538,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for MediaTailor PlaybackConfiguration. Registered at `@swamp/aws/mediatailor/playback-configuration`. */
 export const model = {
   type: "@swamp/aws/mediatailor/playback-configuration",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -621,6 +621,11 @@ export const model = {
       description: "Added: ConfigurationAliases",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -638,6 +643,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AdDecisionServerUrl", "Name", "VideoContentSourceUrl"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -67,7 +67,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   AcceptanceRequired: z.boolean().describe(
     "A flag that indicates whether a match that was created with this configuration must be accepted by the matched players",
-  ),
+  ).optional(),
   AcceptanceTimeoutSeconds: z.number().int().min(1).max(600).describe(
     "The length of time (in seconds) to wait for players to accept a proposed match, if acceptance is required.",
   ).optional(),
@@ -110,7 +110,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   RequestTimeoutSeconds: z.number().int().min(1).max(43200).describe(
     "The maximum duration, in seconds, that a matchmaking ticket can remain in process before timing out.",
-  ),
+  ).optional(),
   RuleSetArn: z.string().regex(
     new RegExp("^arn:.*:matchmakingruleset\\/[a-zA-Z0-9-\\.]*"),
   ).describe(
@@ -119,7 +119,7 @@ const GlobalArgsSchema = z.object({
   RuleSetName: z.string().max(128).regex(new RegExp("[a-zA-Z0-9-\\.]*"))
     .describe(
       "A unique identifier for the matchmaking rule set to use with this configuration.",
-    ),
+    ).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -232,7 +232,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GameLift MatchmakingConfiguration. Registered at `@swamp/aws/gamelift/matchmaking-configuration`. */
 export const model = {
   type: "@swamp/aws/gamelift/matchmaking-configuration",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -294,6 +294,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -311,6 +316,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AcceptanceRequired",
+          "Name",
+          "RequestTimeoutSeconds",
+          "RuleSetName",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

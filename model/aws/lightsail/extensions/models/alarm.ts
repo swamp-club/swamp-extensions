@@ -56,13 +56,13 @@ const GlobalArgsSchema = z.object({
   ),
   MonitoredResourceName: z.string().describe(
     "The name of the Lightsail resource that the alarm monitors.",
-  ),
+  ).optional(),
   MetricName: z.string().describe(
     "The name of the metric to associate with the alarm.",
-  ),
+  ).optional(),
   ComparisonOperator: z.string().describe(
     "The arithmetic operation to use when comparing the specified statistic to the threshold. The specified statistic value is used as the first operand.",
-  ),
+  ).optional(),
   ContactProtocols: z.array(z.string()).describe(
     "The contact protocols to use for the alarm, such as Email, SMS (text messaging), or both.",
   ).optional(),
@@ -71,7 +71,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   EvaluationPeriods: z.number().int().describe(
     'The number of most recent periods over which data is compared to the specified threshold. If you are setting an "M out of N" alarm, this value (evaluationPeriods) is the N.',
-  ),
+  ).optional(),
   NotificationEnabled: z.boolean().describe(
     "Indicates whether the alarm is enabled. Notifications are enabled by default if you don't specify this parameter.",
   ).optional(),
@@ -80,7 +80,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Threshold: z.number().describe(
     "The value against which the specified statistic is compared.",
-  ),
+  ).optional(),
   TreatMissingData: z.string().describe(
     "Sets how this alarm will handle missing data points.",
   ).optional(),
@@ -163,7 +163,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Lightsail Alarm. Registered at `@swamp/aws/lightsail/alarm`. */
 export const model = {
   type: "@swamp/aws/lightsail/alarm",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -225,6 +225,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -242,6 +247,19 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AlarmName",
+          "ComparisonOperator",
+          "EvaluationPeriods",
+          "MetricName",
+          "MonitoredResourceName",
+          "Threshold",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

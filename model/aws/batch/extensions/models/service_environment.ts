@@ -61,8 +61,8 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ServiceEnvironmentName: z.string().optional(),
   State: z.string().optional(),
-  ServiceEnvironmentType: z.string(),
-  CapacityLimits: z.array(CapacityLimitSchema),
+  ServiceEnvironmentType: z.string().optional(),
+  CapacityLimits: z.array(CapacityLimitSchema).optional(),
   Tags: z.record(z.string(), z.string()).describe(
     "A key-value pair to associate with a resource.",
   ).optional(),
@@ -113,7 +113,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Batch ServiceEnvironment. Registered at `@swamp/aws/batch/service-environment`. */
 export const model = {
   type: "@swamp/aws/batch/service-environment",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -175,6 +175,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -192,6 +197,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["CapacityLimits", "ServiceEnvironmentType"].filter((
+          k,
+        ) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

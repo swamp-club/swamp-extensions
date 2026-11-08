@@ -61,7 +61,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Description: z.string().describe("A description for the discoverer.")
     .optional(),
-  SourceArn: z.string().describe("The ARN of the event bus."),
+  SourceArn: z.string().describe("The ARN of the event bus.").optional(),
   CrossAccount: z.boolean().describe(
     "Defines whether event schemas from other accounts are discovered. Default is True.",
   ).optional(),
@@ -116,7 +116,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for EventSchemas Discoverer. Registered at `@swamp/aws/eventschemas/discoverer`. */
 export const model = {
   type: "@swamp/aws/eventschemas/discoverer",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -178,6 +178,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -195,6 +200,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["SourceArn"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

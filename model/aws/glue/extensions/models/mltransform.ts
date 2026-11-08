@@ -98,7 +98,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Role: z.string().describe(
     "The name or ARN of the IAM role with the required permissions.",
-  ),
+  ).optional(),
   GlueVersion: z.string().describe(
     "The version of AWS Glue this machine learning transform is compatible with.",
   ).optional(),
@@ -121,7 +121,8 @@ const GlobalArgsSchema = z.object({
     GlueTables: z.array(GlueTablesSchema).describe(
       "The database and table in the AWS Glue Data Catalog that is used for input or output data.",
     ).optional(),
-  }).describe("A list of AWS Glue table definitions used by the transform."),
+  }).describe("A list of AWS Glue table definitions used by the transform.")
+    .optional(),
   TransformParameters: z.object({
     TransformType: z.string().describe(
       "The type of machine learning transform.",
@@ -131,7 +132,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "The algorithm-specific parameters that are associated with the machine learning transform.",
-  ),
+  ).optional(),
   TransformEncryption: z.object({
     MLUserDataEncryption: MLUserDataEncryptionSchema.describe(
       "The encryption-at-rest settings of the transform that apply to accessing user data.",
@@ -253,7 +254,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue MLTransform. Registered at `@swamp/aws/glue/mltransform`. */
 export const model = {
   type: "@swamp/aws/glue/mltransform",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.14.1",
@@ -267,6 +268,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.25.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -287,6 +293,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["InputRecordTables", "Role", "TransformParameters"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

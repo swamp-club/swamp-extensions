@@ -176,7 +176,7 @@ const GlobalArgsSchema = z.object({
     AuthenticationConfiguration: AuthenticationConfigurationSchema.describe(
       "Authentication Configuration",
     ).optional(),
-  }).describe("Source Code configuration"),
+  }).describe("Source Code configuration").optional(),
   InstanceConfiguration: z.object({
     Cpu: z.string().min(3).max(9).regex(
       new RegExp("256|512|1024|2048|4096|(0.25|0.5|1|2|4) vCPU"),
@@ -390,7 +390,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for AppRunner Service. Registered at `@swamp/aws/apprunner/service`. */
 export const model = {
   type: "@swamp/aws/apprunner/service",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -452,6 +452,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -469,6 +474,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["SourceConfiguration"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

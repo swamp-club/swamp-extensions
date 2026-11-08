@@ -392,7 +392,7 @@ const GlobalArgsSchema = z.object({
   }).describe("Error information for the data source creation or update.")
     .optional(),
   FolderArns: z.array(z.string()).optional(),
-  Name: z.string().min(1).max(128),
+  Name: z.string().min(1).max(128).optional(),
   DataSourceParameters: z.object({
     S3TablesParameters: S3TablesParametersSchema.optional(),
     AuroraPostgreSqlParameters: AuroraPostgreSqlParametersSchema.describe(
@@ -513,7 +513,7 @@ const GlobalArgsSchema = z.object({
     "BOX",
     "GOOGLESHEETS",
     "ATLAN",
-  ]),
+  ]).optional(),
   VpcConnectionProperties: z.object({
     VpcConnectionArn: z.string().describe(
       "The Amazon Resource Name (ARN) for the VPC connection.",
@@ -799,7 +799,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight DataSource. Registered at `@swamp/aws/quicksight/data-source`. */
 export const model = {
   type: "@swamp/aws/quicksight/data-source",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -881,6 +881,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -898,6 +903,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "Type"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

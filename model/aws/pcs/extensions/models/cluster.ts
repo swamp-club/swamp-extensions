@@ -121,7 +121,8 @@ const GlobalArgsSchema = z.object({
     NetworkType: z.enum(["IPV4", "IPV6"]).describe(
       "The IP of the cluster (IPV4 or IPV6)",
     ).optional(),
-  }).describe("The networking configuration for the cluster's control plane."),
+  }).describe("The networking configuration for the cluster's control plane.")
+    .optional(),
   Scheduler: z.object({
     Type: z.enum(["SLURM"]).describe(
       "The software AWS PCS uses to manage cluster scaling and job scheduling.",
@@ -131,10 +132,10 @@ const GlobalArgsSchema = z.object({
     ),
   }).describe(
     "The cluster management and job scheduling software associated with the cluster.",
-  ),
+  ).optional(),
   Size: z.enum(["SMALL", "MEDIUM", "LARGE"]).describe(
     "The size of the cluster.",
-  ),
+  ).optional(),
   SlurmConfiguration: z.object({
     Accounting: AccountingSchema.describe(
       "The accounting configuration includes configurable settings for Slurm accounting.",
@@ -289,7 +290,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for PCS Cluster. Registered at `@swamp/aws/pcs/cluster`. */
 export const model = {
   type: "@swamp/aws/pcs/cluster",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -361,6 +362,11 @@ export const model = {
       description: "Added: Tags",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -378,6 +384,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Networking", "Scheduler", "Size"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

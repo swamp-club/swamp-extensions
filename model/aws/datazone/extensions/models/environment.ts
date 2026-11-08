@@ -75,7 +75,7 @@ const GlobalArgsSchema = z.object({
   DomainIdentifier: z.string().regex(new RegExp("^dzd[-_][a-zA-Z0-9_-]{1,36}$"))
     .describe(
       "The identifier of the Amazon DataZone domain in which the environment would be created.",
-    ),
+    ).optional(),
   EnvironmentBlueprintIdentifier: z.string().describe(
     "The identifier of the environment blueprint.",
   ).optional(),
@@ -97,11 +97,12 @@ const GlobalArgsSchema = z.object({
   EnvironmentRoleArn: z.string().describe(
     "Environment role arn for custom aws environment permissions",
   ).optional(),
-  Name: z.string().min(1).max(64).describe("The name of the environment."),
+  Name: z.string().min(1).max(64).describe("The name of the environment.")
+    .optional(),
   ProjectIdentifier: z.string().regex(new RegExp("^[a-zA-Z0-9_-]{1,36}$"))
     .describe(
       "The ID of the Amazon DataZone project in which the environment would be created.",
-    ),
+    ).optional(),
   UserParameters: z.array(EnvironmentParameterSchema).describe(
     "The user parameters of the Amazon DataZone environment.",
   ).optional(),
@@ -210,7 +211,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DataZone Environment. Registered at `@swamp/aws/datazone/environment`. */
 export const model = {
   type: "@swamp/aws/datazone/environment",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -272,6 +273,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -289,6 +295,13 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DomainIdentifier", "Name", "ProjectIdentifier"]
+          .filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

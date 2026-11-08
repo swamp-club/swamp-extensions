@@ -53,22 +53,22 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Actions: z.array(z.enum(["SHARE"])).describe(
     "List of governed actions a policy applies to.",
-  ),
+  ).optional(),
   ApplicableTo: z.object({
     Type: z.enum(["GROUP"]),
     GroupArns: z.array(z.string()).describe(
       "Required when type = GROUP. One or more group ARNs.",
     ).optional(),
-  }).describe("Scoping: who the policy applies to."),
+  }).describe("Scoping: who the policy applies to.").optional(),
   ApprovalGroups: z.array(z.string()).describe(
     "List of approval group ARNs (e.g. QuickSight group ARNs). At least one approval group is required.",
-  ),
+  ).optional(),
   AssetTypes: z.array(z.enum(["AGENT", "SPACE", "KNOWLEDGE_BASE", "FLOW"]))
     .describe(
       "List of asset types a policy applies to. At least one asset type is required.",
-    ),
+    ).optional(),
   Description: z.string().min(0).max(1024).optional(),
-  Name: z.string().min(1).max(256),
+  Name: z.string().min(1).max(256).optional(),
   PolicyId: z.string().min(1).max(64).regex(new RegExp("^[a-zA-Z0-9\\-_]+$")),
 });
 
@@ -136,7 +136,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for QuickSight ApprovalPolicy. Registered at `@swamp/aws/quicksight/approval-policy`. */
 export const model = {
   type: "@swamp/aws/quicksight/approval-policy",
-  version: "2026.10.27.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.08.17.1",
@@ -163,6 +163,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -180,6 +185,19 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Actions",
+          "ApplicableTo",
+          "ApprovalGroups",
+          "AssetTypes",
+          "Name",
+          "PolicyId",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

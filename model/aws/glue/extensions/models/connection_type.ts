@@ -378,7 +378,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ConnectionType: z.string().min(1).max(255).describe(
     "The name of the connection type. Must be prefixed with REST-.",
-  ),
+  ).optional(),
   IntegrationType: z.enum(["REST"]).describe(
     "The integration type for the connection. Currently only REST is supported.",
   ).optional(),
@@ -424,7 +424,8 @@ const GlobalArgsSchema = z.object({
     ).optional(),
     EntityConfigurations: z.record(z.string(), EntityConfigurationSchema)
       .describe("A map of entity configurations.").optional(),
-  }).describe("Configuration for HTTP request and response handling."),
+  }).describe("Configuration for HTTP request and response handling.")
+    .optional(),
   Tags: z.array(TagSchema).describe("Tags to assign to the connection type.")
     .optional(),
 });
@@ -536,7 +537,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue ConnectionType. Registered at `@swamp/aws/glue/connection-type`. */
 export const model = {
   type: "@swamp/aws/glue/connection-type",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.14.1",
@@ -545,6 +546,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -565,6 +571,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ConnectionType", "RestConfiguration"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

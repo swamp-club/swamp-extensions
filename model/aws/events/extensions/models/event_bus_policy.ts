@@ -78,7 +78,7 @@ const GlobalArgsSchema = z.object({
   StatementId: z.string().min(1).max(64).regex(new RegExp("[a-zA-Z0-9-_]+"))
     .describe(
       "An identifier string for the external account that you are granting permissions to",
-    ),
+    ).optional(),
   Statement: z.record(z.string(), z.unknown()).describe(
     "A JSON string that describes the permission policy statement. You can include a Policy parameter in the request instead of using the StatementId, Action, Principal, or Condition parameters.",
   ).optional(),
@@ -162,7 +162,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Events EventBusPolicy. Registered at `@swamp/aws/events/event-bus-policy`. */
 export const model = {
   type: "@swamp/aws/events/event-bus-policy",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -234,6 +234,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -251,6 +256,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["StatementId"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

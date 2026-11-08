@@ -74,12 +74,12 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Name: z.string().describe("Name of the license configuration."),
+  Name: z.string().describe("Name of the license configuration.").optional(),
   Description: z.string().describe("Description of the license configuration.")
     .optional(),
   LicenseCountingType: z.enum(["vCPU", "Instance", "Core", "Socket"]).describe(
     "Dimension used to track the license inventory.",
-  ),
+  ).optional(),
   LicenseCount: z.number().int().describe(
     "Number of licenses managed by the license configuration.",
   ).optional(),
@@ -174,7 +174,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for LicenseManager LicenseConfiguration. Registered at `@swamp/aws/licensemanager/license-configuration`. */
 export const model = {
   type: "@swamp/aws/licensemanager/license-configuration",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -183,6 +183,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -203,6 +208,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["LicenseCountingType", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -78,7 +78,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   FunctionCode: z.string().describe(
     "The function code. For more information about writing a CloudFront function, see [Writing function code for CloudFront Functions](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/writing-function-code.html) in the *Amazon CloudFront Developer Guide*.",
-  ),
+  ).optional(),
   FunctionConfig: z.object({
     Comment: z.string().describe(
       "A comment to describe the function. The comment cannot be longer than 128 characters.",
@@ -87,10 +87,9 @@ const GlobalArgsSchema = z.object({
     KeyValueStoreAssociations: z.array(KeyValueStoreAssociationSchema).describe(
       "The configuration for the key value store associations.",
     ).optional(),
-  }).describe(
-    "Contains configuration information about a CloudFront function.",
-  ),
-  Name: z.string().describe("A name to identify the function."),
+  }).describe("Contains configuration information about a CloudFront function.")
+    .optional(),
+  Name: z.string().describe("A name to identify the function.").optional(),
   Tags: z.array(TagSchema).describe(
     "A complex type that contains zero or more Tag elements.",
   ).optional(),
@@ -163,7 +162,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CloudFront Function. Registered at `@swamp/aws/cloudfront/function`. */
 export const model = {
   type: "@swamp/aws/cloudfront/function",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -240,6 +239,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -257,6 +261,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["FunctionCode", "FunctionConfig", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

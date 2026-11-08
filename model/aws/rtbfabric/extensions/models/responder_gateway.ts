@@ -74,20 +74,20 @@ const GlobalArgsSchema = z.object({
       "^(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)(?:\\.(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?))+$",
     ),
   ).optional(),
-  Port: z.number().int().min(1).max(65535),
+  Port: z.number().int().min(1).max(65535).optional(),
   GatewayType: z.enum(["EXTERNAL", "INTERNAL"]).optional(),
   ManagedEndpointConfiguration: z.record(z.string(), z.unknown()).optional(),
   SubnetIds: z.array(z.string()).describe(
     "The ID of one or more subnets in order to create a gateway.",
-  ),
+  ).optional(),
   SecurityGroupIds: z.array(z.string()).describe(
     "The ID of one or more security groups in order to create a gateway.",
-  ),
+  ).optional(),
   ListenerConfig: z.object({
     Protocols: z.array(z.enum(["HTTP", "HTTPS"])),
   }).optional(),
-  VpcId: z.string().min(5).max(50),
-  Protocol: z.enum(["HTTP", "HTTPS"]),
+  VpcId: z.string().min(5).max(50).optional(),
+  Protocol: z.enum(["HTTP", "HTTPS"]).optional(),
   Tags: z.array(TagSchema).describe("Tags to assign to the Responder Gateway.")
     .optional(),
   AcmCertificateArn: z.string().regex(
@@ -184,7 +184,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for RTBFabric ResponderGateway. Registered at `@swamp/aws/rtbfabric/responder-gateway`. */
 export const model = {
   type: "@swamp/aws/rtbfabric/responder-gateway",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -256,6 +256,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -273,6 +278,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "Port",
+          "Protocol",
+          "SecurityGroupIds",
+          "SubnetIds",
+          "VpcId",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

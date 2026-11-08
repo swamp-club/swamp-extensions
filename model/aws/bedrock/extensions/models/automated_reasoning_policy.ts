@@ -101,7 +101,8 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Name: z.string().min(1).max(256).regex(new RegExp("^[0-9a-zA-Z-_ ]+$")),
+  Name: z.string().min(1).max(256).regex(new RegExp("^[0-9a-zA-Z-_ ]+$"))
+    .optional(),
   Description: z.string().max(1024).regex(new RegExp("^[\\s\\S]+$")).optional(),
   PolicyDefinition: z.object({
     Version: z.string().describe("The policy format version.").optional(),
@@ -204,7 +205,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Bedrock AutomatedReasoningPolicy. Registered at `@swamp/aws/bedrock/automated-reasoning-policy`. */
 export const model = {
   type: "@swamp/aws/bedrock/automated-reasoning-policy",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -276,6 +277,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -293,6 +299,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

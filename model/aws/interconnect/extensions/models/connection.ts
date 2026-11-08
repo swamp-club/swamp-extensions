@@ -78,7 +78,7 @@ const GlobalArgsSchema = z.object({
       .optional(),
   }).describe(
     "The logical attachment point in your AWS network where the managed connection will be connected.",
-  ),
+  ).optional(),
   EnvironmentId: z.string().min(1).max(32).describe(
     "The ID of the environment for the connection. Required when creating a connection through AWS. Mutually exclusive with ActivationKey.",
   ).optional(),
@@ -209,7 +209,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Interconnect Connection. Registered at `@swamp/aws/interconnect/connection`. */
 export const model = {
   type: "@swamp/aws/interconnect/connection",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -281,6 +281,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -298,6 +303,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AttachPoint"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

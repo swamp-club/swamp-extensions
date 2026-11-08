@@ -554,7 +554,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().regex(new RegExp("^[a-zA-Z][a-zA-Z0-9_]{0,47}$")).describe(
     "Name of the Memory resource",
-  ),
+  ).optional(),
   Description: z.string().describe("Description of the Memory resource")
     .optional(),
   EncryptionKeyArn: z.string().regex(
@@ -569,7 +569,7 @@ const GlobalArgsSchema = z.object({
   ).describe("ARN format").optional(),
   EventExpiryDuration: z.number().int().min(3).max(365).describe(
     "Duration in days until memory events expire",
-  ),
+  ).optional(),
   MemoryStrategies: z.array(MemoryStrategySchema).describe(
     "List of memory strategies attached to this memory",
   ).optional(),
@@ -672,7 +672,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore Memory. Registered at `@swamp/aws/bedrockagentcore/memory`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/memory",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -759,6 +759,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -776,6 +781,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["EventExpiryDuration", "Name"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

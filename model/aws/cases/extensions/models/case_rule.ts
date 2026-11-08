@@ -128,7 +128,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   Name: z.string().min(1).max(100).regex(new RegExp("^.*[\\S]$")).describe(
     "A descriptive name for the case rule. Must be unique within the domain and should clearly indicate the rule's purpose (e.g., 'Priority Field Required for Urgent Cases').",
-  ),
+  ).optional(),
   Rule: z.object({
     Required: RequiredCaseRuleSchema.describe(
       "A required rule type, used to indicate whether a field is required.",
@@ -138,7 +138,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "Defines the rule behavior and conditions. Specifies the rule type and the conditions under which it applies. In the Amazon Connect admin website, this corresponds to case field conditions.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "The tags that you attach to this case rule.",
   ).optional(),
@@ -210,7 +210,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Cases CaseRule. Registered at `@swamp/aws/cases/case-rule`. */
 export const model = {
   type: "@swamp/aws/cases/case-rule",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -277,6 +277,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -294,6 +299,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Name", "Rule"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

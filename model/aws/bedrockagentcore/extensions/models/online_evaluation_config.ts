@@ -157,7 +157,7 @@ const GlobalArgsSchema = z.object({
     new RegExp("^[a-zA-Z][a-zA-Z0-9_]{0,47}$"),
   ).describe(
     "The name of the online evaluation configuration. Must be unique within your account.",
-  ),
+  ).optional(),
   Description: z.string().min(1).max(200).describe(
     "The description of the online evaluation configuration.",
   ).optional(),
@@ -167,12 +167,12 @@ const GlobalArgsSchema = z.object({
     ),
   }).describe(
     "The data source configuration that specifies CloudWatch log groups and service names to monitor.",
-  ),
+  ).optional(),
   EvaluationExecutionRoleArn: z.string().min(1).max(2048).regex(
     new RegExp("^arn:aws(-[^:]+)?:iam::([0-9]{12})?:role/.+$"),
   ).describe(
     "The Amazon Resource Name (ARN) of the IAM role that grants permissions for evaluation.",
-  ),
+  ).optional(),
   Evaluators: z.array(EvaluatorReferenceSchema).describe(
     "The list of evaluators to apply during online evaluation.",
   ).optional(),
@@ -188,7 +188,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "The evaluation rule that defines sampling configuration, filters, and session detection settings.",
-  ),
+  ).optional(),
   ExecutionStatus: z.enum(["ENABLED", "DISABLED"]).describe(
     "The execution status indicating whether the online evaluation is currently running.",
   ).optional(),
@@ -331,7 +331,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for BedrockAgentCore OnlineEvaluationConfig. Registered at `@swamp/aws/bedrockagentcore/online-evaluation-config`. */
 export const model = {
   type: "@swamp/aws/bedrockagentcore/online-evaluation-config",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.03.27.1",
@@ -423,6 +423,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -440,6 +445,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "DataSourceConfig",
+          "EvaluationExecutionRoleArn",
+          "OnlineEvaluationConfigName",
+          "Rule",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

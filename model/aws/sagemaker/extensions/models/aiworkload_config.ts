@@ -93,7 +93,7 @@ const GlobalArgsSchema = z.object({
     new RegExp("^[a-z0-9](-*[a-z0-9]){0,62}$"),
   ).describe(
     "The name of the AI workload configuration. The name must be unique within your AWS account in the current AWS Region. Only lowercase letters and digits are accepted: DeleteAIWorkloadConfig lowercases the name before looking it up, so a name containing an uppercase letter produces a configuration that can be created and read but never deleted.",
-  ),
+  ).optional(),
   DatasetConfig: z.object({
     InputDataConfig: z.array(AIWorkloadInputDataConfigSchema).describe(
       "An array of input data channel configurations for the workload.",
@@ -175,7 +175,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker AIWorkloadConfig. Registered at `@swamp/aws/sagemaker/aiworkload-config`. */
 export const model = {
   type: "@swamp/aws/sagemaker/aiworkload-config",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -184,6 +184,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -204,6 +209,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AIWorkloadConfigName"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

@@ -68,7 +68,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   DeviceFleetName: z.string().min(1).max(63).regex(
     new RegExp("^[a-zA-Z0-9](-*_*[a-zA-Z0-9])*$"),
-  ).describe("The name of the edge device fleet"),
+  ).describe("The name of the edge device fleet").optional(),
   Device: z.object({
     Description: z.string().min(1).max(40).regex(new RegExp("[\\S\\s]+"))
       .describe("Description of the device").optional(),
@@ -137,7 +137,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for SageMaker Device. Registered at `@swamp/aws/sagemaker/device`. */
 export const model = {
   type: "@swamp/aws/sagemaker/device",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.2",
@@ -199,6 +199,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -216,6 +221,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["DeviceFleetName"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

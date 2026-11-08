@@ -61,7 +61,7 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   ReportGeneratorName: z.string().min(1).max(100).describe(
     "Name of the report generator.",
-  ),
+  ).optional(),
   ReportType: z.array(
     z.enum([
       "LicenseConfigurationSummaryReport",
@@ -70,7 +70,7 @@ const GlobalArgsSchema = z.object({
     ]),
   ).describe(
     "Type of reports to generate. The report type determines the data reported on.",
-  ),
+  ).optional(),
   ReportContext: z.object({
     LicenseConfigurationArns: z.array(
       z.string().min(0).max(2048).regex(
@@ -98,7 +98,7 @@ const GlobalArgsSchema = z.object({
     ).optional(),
   }).describe(
     "Details of the license configurations and asset groups that this generator reports on.",
-  ),
+  ).optional(),
   ReportFrequency: z.object({
     Value: z.number().int().describe(
       "Number of times within the frequency period that a report is generated. The only supported value is 1.",
@@ -106,7 +106,7 @@ const GlobalArgsSchema = z.object({
     Period: z.enum(["DAY", "WEEK", "MONTH", "ONE_TIME"]).describe(
       "Time period between each report. The period can be daily, weekly, or monthly.",
     ).optional(),
-  }).describe("Details about how frequently reports are generated."),
+  }).describe("Details about how frequently reports are generated.").optional(),
   Description: z.string().describe("Description of the report generator.")
     .optional(),
   S3Location: z.object({
@@ -240,7 +240,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for LicenseManager ReportGenerator. Registered at `@swamp/aws/licensemanager/report-generator`. */
 export const model = {
   type: "@swamp/aws/licensemanager/report-generator",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -249,6 +249,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -269,6 +274,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "ReportContext",
+          "ReportFrequency",
+          "ReportGeneratorName",
+          "ReportType",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

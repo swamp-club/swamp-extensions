@@ -347,8 +347,8 @@ const GlobalArgsSchema = z.object({
     z.string().max(128).regex(
       new RegExp("^[a-z0-9_](([a-z0-9_ ]+-)*([a-z0-9_ ]+))?$"),
     ),
-  ),
-  AnalysisMethod: z.enum(["DIRECT_QUERY", "DIRECT_JOB", "MULTIPLE"]),
+  ).optional(),
+  AnalysisMethod: z.enum(["DIRECT_QUERY", "DIRECT_JOB", "MULTIPLE"]).optional(),
   SelectedAnalysisMethods: z.array(z.enum(["DIRECT_QUERY", "DIRECT_JOB"]))
     .optional(),
   Description: z.string().max(255).regex(
@@ -360,14 +360,14 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^(?!\\s*$)[\\u0020-\\uD7FF\\uE000-\\uFFFD\\uD800\\uDBFF-\\uDC00\\uDFFF\\t]*$",
     ),
-  ),
+  ).optional(),
   AnalysisRules: z.array(AnalysisRuleSchema).optional(),
   TableReference: z.object({
     Glue: GlueTableReferenceSchema.optional(),
     Snowflake: SnowflakeTableReferenceSchema.optional(),
     Athena: AthenaTableReferenceSchema.optional(),
     Databricks: DatabricksTableReferenceSchema.optional(),
-  }),
+  }).optional(),
 });
 
 const StateSchema = z.object({
@@ -445,7 +445,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for CleanRooms ConfiguredTable. Registered at `@swamp/aws/cleanrooms/configured-table`. */
 export const model = {
   type: "@swamp/aws/cleanrooms/configured-table",
-  version: "2026.10.29.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -517,6 +517,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -534,6 +539,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "AllowedColumns",
+          "AnalysisMethod",
+          "Name",
+          "TableReference",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

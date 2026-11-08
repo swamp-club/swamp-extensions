@@ -73,13 +73,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   MigrationType: z.enum(["full-load", "cdc", "full-load-and-cdc"]).describe(
     "The migration type.",
-  ),
+  ).optional(),
   TargetEndpointArn: z.string().describe(
     "An Amazon Resource Name (ARN) that uniquely identifies the target endpoint.",
-  ),
+  ).optional(),
   ReplicationInstanceArn: z.string().describe(
     "The Amazon Resource Name (ARN) of a replication instance.",
-  ),
+  ).optional(),
   TaskData: z.string().describe(
     "Supplemental information that the task requires to migrate the data for certain source and target endpoints.",
   ).optional(),
@@ -88,13 +88,13 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   TableMappings: z.string().describe(
     "The table mappings for the task, in JSON format.",
-  ),
+  ).optional(),
   ReplicationTaskIdentifier: z.string().regex(
     new RegExp("^[a-zA-Z][a-zA-Z0-9]*(?:-[a-zA-Z0-9]+)*$"),
   ).describe("An identifier for the replication task.").optional(),
   SourceEndpointArn: z.string().describe(
     "An Amazon Resource Name (ARN) that uniquely identifies the source endpoint.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).optional(),
 });
 
@@ -181,7 +181,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for DMS ReplicationTask. Registered at `@swamp/aws/dms/replication-task`. */
 export const model = {
   type: "@swamp/aws/dms/replication-task",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.10.13.1",
@@ -190,6 +190,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -210,6 +215,18 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "MigrationType",
+          "ReplicationInstanceArn",
+          "SourceEndpointArn",
+          "TableMappings",
+          "TargetEndpointArn",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

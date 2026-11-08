@@ -92,14 +92,14 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  Type: z.string().describe("The type of trigger that this is."),
+  Type: z.string().describe("The type of trigger that this is.").optional(),
   StartOnCreation: z.boolean().describe(
     "Set to true to start SCHEDULED and CONDITIONAL triggers when created. True is not supported for ON_DEMAND triggers.",
   ).optional(),
   Description: z.string().describe("A description of this trigger.").optional(),
   Actions: z.array(ActionSchema).describe(
     "The actions initiated by this trigger.",
-  ),
+  ).optional(),
   EventBatchingCondition: z.object({
     BatchSize: z.number().int().describe(
       "Number of events that must be received from Amazon EventBridge before EventBridge event trigger fires.",
@@ -215,7 +215,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Glue Trigger. Registered at `@swamp/aws/glue/trigger`. */
 export const model = {
   type: "@swamp/aws/glue/trigger",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -282,6 +282,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -299,6 +304,12 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Actions", "Type"].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

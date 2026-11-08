@@ -97,14 +97,14 @@ const GlobalArgsSchema = z.object({
   ).optional(),
   GameServerGroupName: z.string().min(1).max(128).regex(
     new RegExp("[a-zA-Z0-9-\\.]+"),
-  ).describe("An identifier for the new game server group."),
+  ).describe("An identifier for the new game server group.").optional(),
   GameServerProtectionPolicy: z.enum(["NO_PROTECTION", "FULL_PROTECTION"])
     .describe(
       "A flag that indicates whether instances in the game server group are protected from early termination.",
     ).optional(),
   InstanceDefinitions: z.array(InstanceDefinitionSchema).describe(
     "A set of EC2 instance types to use when creating instances in the group.",
-  ),
+  ).optional(),
   LaunchTemplate: z.object({
     LaunchTemplateId: z.string().describe(
       "A unique identifier for an existing EC2 launch template.",
@@ -128,7 +128,7 @@ const GlobalArgsSchema = z.object({
     new RegExp("^arn:.*:role\\/[\\w+=,.@-]+"),
   ).describe(
     "The Amazon Resource Name (ARN) for an IAM role that allows Amazon GameLift to access your EC2 Auto Scaling groups.",
-  ),
+  ).optional(),
   Tags: z.array(TagSchema).describe(
     "A list of labels to assign to the new game server group resource. Updating game server group tags with CloudFormation will not take effect. Please update this property using AWS GameLift APIs instead.",
   ).optional(),
@@ -251,7 +251,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for GameLift GameServerGroup. Registered at `@swamp/aws/gamelift/game-server-group`. */
 export const model = {
   type: "@swamp/aws/gamelift/game-server-group",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -313,6 +313,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -330,6 +335,16 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "GameServerGroupName",
+          "InstanceDefinitions",
+          "RoleArn",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

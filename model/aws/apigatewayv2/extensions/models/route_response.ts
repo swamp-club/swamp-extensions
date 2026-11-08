@@ -60,15 +60,15 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  RouteResponseKey: z.string().describe("The route response key."),
+  RouteResponseKey: z.string().describe("The route response key.").optional(),
   ResponseParameters: z.record(z.string(), ParameterConstraintsSchema).describe(
     "The route response parameters.",
   ).optional(),
-  RouteId: z.string().describe("The route ID."),
+  RouteId: z.string().describe("The route ID.").optional(),
   ModelSelectionExpression: z.string().describe(
     "The model selection expression for the route response. Supported only for WebSocket APIs.",
   ).optional(),
-  ApiId: z.string().describe("The API identifier."),
+  ApiId: z.string().describe("The API identifier.").optional(),
   ResponseModels: z.record(z.string(), z.unknown()).describe(
     "The response models for the route response.",
   ).optional(),
@@ -125,7 +125,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for ApiGatewayV2 RouteResponse. Registered at `@swamp/aws/apigatewayv2/route-response`. */
 export const model = {
   type: "@swamp/aws/apigatewayv2/route-response",
-  version: "2026.10.25.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -197,6 +197,11 @@ export const model = {
       description: "Added: ResponseParameters",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -214,6 +219,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["ApiId", "RouteId", "RouteResponseKey"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

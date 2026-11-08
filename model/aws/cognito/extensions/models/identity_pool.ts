@@ -83,7 +83,7 @@ const GlobalArgsSchema = z.object({
   SupportedLoginProviders: z.record(z.string(), z.unknown()).optional(),
   CognitoEvents: z.record(z.string(), z.unknown()).optional(),
   IdentityPoolName: z.string().optional(),
-  AllowUnauthenticatedIdentities: z.boolean(),
+  AllowUnauthenticatedIdentities: z.boolean().optional(),
   SamlProviderARNs: z.array(z.string()).optional(),
   OpenIdConnectProviderARNs: z.array(z.string()).optional(),
   AllowClassicFlow: z.boolean().optional(),
@@ -166,7 +166,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Cognito IdentityPool. Registered at `@swamp/aws/cognito/identity-pool`. */
 export const model = {
   type: "@swamp/aws/cognito/identity-pool",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -233,6 +233,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -250,6 +255,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["AllowUnauthenticatedIdentities"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

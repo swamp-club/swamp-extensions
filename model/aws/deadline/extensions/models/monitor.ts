@@ -63,12 +63,12 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  DisplayName: z.string().min(1).max(100),
+  DisplayName: z.string().min(1).max(100).optional(),
   IdentityCenterInstanceArn: z.string().regex(
     new RegExp(
       "^arn:(aws|aws-us-gov|aws-cn|aws-iso|aws-iso-b):sso:::instance/(sso)?ins-[a-zA-Z0-9-.]{16}$",
     ),
-  ),
+  ).optional(),
   IdentityCenterRegion: z.string().min(1).max(25).regex(
     new RegExp("^[a-z0-9-]+$"),
   ).describe(
@@ -78,8 +78,8 @@ const GlobalArgsSchema = z.object({
     new RegExp(
       "^arn:(aws[a-zA-Z-]*):iam::\\d{12}:role(/[!-.0-~]+)*/[\\w+=,.@-]+$",
     ),
-  ),
-  Subdomain: z.string().regex(new RegExp("^[a-z0-9-]{1,100}$")),
+  ).optional(),
+  Subdomain: z.string().regex(new RegExp("^[a-z0-9-]{1,100}$")).optional(),
   Tags: z.array(TagSchema).describe(
     "An array of key-value pairs to apply to this resource.",
   ).optional(),
@@ -147,7 +147,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for Deadline Monitor. Registered at `@swamp/aws/deadline/monitor`. */
 export const model = {
   type: "@swamp/aws/deadline/monitor",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -214,6 +214,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -231,6 +236,17 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = [
+          "DisplayName",
+          "IdentityCenterInstanceArn",
+          "RoleArn",
+          "Subdomain",
+        ].filter((k) => g[k] === undefined);
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {

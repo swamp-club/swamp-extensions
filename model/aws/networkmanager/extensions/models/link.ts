@@ -63,13 +63,14 @@ const GlobalArgsSchema = z.object({
   region: z.string().describe(
     "AWS region; overrides AWS_REGION / AWS_DEFAULT_REGION environment variables and ~/.aws/config profile region. Defaults to us-east-1.",
   ).optional(),
-  GlobalNetworkId: z.string().describe("The ID of the global network."),
-  SiteId: z.string().describe("The ID of the site"),
+  GlobalNetworkId: z.string().describe("The ID of the global network.")
+    .optional(),
+  SiteId: z.string().describe("The ID of the site").optional(),
   Bandwidth: z.object({
     DownloadSpeed: z.number().int().describe("Download speed in Mbps.")
       .optional(),
     UploadSpeed: z.number().int().describe("Upload speed in Mbps.").optional(),
-  }).describe("The Bandwidth for the link."),
+  }).describe("The Bandwidth for the link.").optional(),
   Provider: z.string().describe("The provider of the link.").optional(),
   Description: z.string().describe("The description of the link.").optional(),
   Tags: z.array(TagSchema).describe("The tags for the link.").optional(),
@@ -134,7 +135,7 @@ function _buildCredentials(g: Record<string, unknown>): AwsCredentials {
 /** Swamp extension model for NetworkManager Link. Registered at `@swamp/aws/networkmanager/link`. */
 export const model = {
   type: "@swamp/aws/networkmanager/link",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.04.01.1",
@@ -196,6 +197,11 @@ export const model = {
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.08.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   globalArguments: GlobalArgsSchema,
   inputsSchema: InputsSchema,
@@ -213,6 +219,14 @@ export const model = {
       arguments: z.object({}),
       execute: async (_args: Record<string, never>, context: any) => {
         const g = context.globalArgs;
+        const missing = ["Bandwidth", "GlobalNetworkId", "SiteId"].filter((k) =>
+          g[k] === undefined
+        );
+        if (missing.length > 0) {
+          throw new Error(
+            "create requires global arguments: " + missing.join(", "),
+          );
+        }
         const credentials = _buildCredentials(g);
         const desiredState: Record<string, unknown> = {};
         for (const [key, value] of Object.entries(g)) {
