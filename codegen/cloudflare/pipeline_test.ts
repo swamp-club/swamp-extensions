@@ -867,3 +867,560 @@ Deno.test("parseResources treats a variant without a type as an object", () => {
   assertEquals(data.variants?.map((v) => v.type), ["object", "object"]);
   assertEquals(data.variants?.[1].properties?.b.type, "number");
 });
+
+// --- Disjunctions inside a multi-member allOf (swamp-club#4436) ---
+
+/** zoneResourceSpec whose GET returns `result` as the given schema. */
+function zoneResourceSpecWithResult(body: unknown, result: unknown): OApiSpec {
+  const spec = zoneResourceSpec(body) as unknown as {
+    paths: Record<string, Record<string, unknown>>;
+  };
+  spec.paths["/zones/{zone_id}/dns_records/{dns_record_id}"].get = {
+    responses: {
+      "200": {
+        content: {
+          "application/json": {
+            schema: { type: "object", properties: { result } },
+          },
+        },
+      },
+    },
+  };
+  return spec as unknown as OApiSpec;
+}
+
+Deno.test("parseResources distributes a body disjunction over the other allOf members", () => {
+  const resource = parseResources(zoneResourceSpec({
+    allOf: [
+      {
+        oneOf: [
+          {
+            type: "object",
+            properties: { a: { type: "string" } },
+            required: ["a"],
+          },
+          {
+            type: "object",
+            properties: { b: { type: "integer" } },
+            required: ["b"],
+          },
+        ],
+      },
+      {
+        type: "object",
+        properties: { c: { type: "string" } },
+        required: ["c"],
+      },
+    ],
+  })).resources[0];
+
+  assertEquals(Object.keys(resource.createProperties).sort(), ["a", "b", "c"]);
+  assertEquals(resource.createProperties.b.type, "integer");
+  assertEquals(resource.createRequiredProperties, ["c"]);
+});
+
+Deno.test("parseResources keeps every scalar type of a disjunction inside a multi-member allOf", () => {
+  const value = parseResources(zoneResourceSpec({
+    type: "object",
+    properties: {
+      value: {
+        allOf: [
+          {
+            oneOf: [{ type: "string" }, { type: "number" }, {
+              type: "boolean",
+            }],
+          },
+          { description: "needle value" },
+        ],
+      },
+    },
+  })).resources[0].createProperties.value;
+
+  assertEquals(value.type, "union");
+  assertEquals(value.description, "needle value");
+  assertEquals(
+    (value.variants ?? []).map((v) => v.type).sort(),
+    ["boolean", "number", "string"],
+  );
+});
+
+Deno.test("parseResources drops disjunction branches the other allOf members contradict", () => {
+  // workers observability needle.value: string|number|boolean AND a string.
+  const value = parseResources(zoneResourceSpec({
+    type: "object",
+    properties: {
+      value: {
+        allOf: [
+          {
+            anyOf: [{ type: "string" }, { type: "number" }, {
+              type: "boolean",
+            }],
+          },
+          { type: "string", maxLength: 1000 },
+        ],
+      },
+    },
+  })).resources[0].createProperties.value;
+
+  assertEquals(value.type, "string");
+  assertEquals(value.variants, undefined);
+
+  // integer satisfies number: the integer branch survives a number member.
+  const n = parseResources(zoneResourceSpec({
+    type: "object",
+    properties: {
+      n: {
+        allOf: [
+          { oneOf: [{ type: "integer" }, { type: "string" }] },
+          { type: "number" },
+        ],
+      },
+    },
+  })).resources[0].createProperties.n;
+  assertEquals(n.type, "integer");
+});
+
+Deno.test("parseResources merges object branches distributed over an object allOf member", () => {
+  const prop = parseResources(zoneResourceSpec({
+    type: "object",
+    properties: {
+      settings: {
+        allOf: [
+          {
+            oneOf: [
+              {
+                type: "object",
+                properties: { x: { type: "string" } },
+                required: ["x"],
+              },
+              {
+                type: "object",
+                properties: { y: { type: "string" } },
+                required: ["y"],
+              },
+            ],
+          },
+          {
+            type: "object",
+            properties: { z: { type: "string" } },
+            required: ["z"],
+          },
+        ],
+      },
+    },
+  })).resources[0].createProperties.settings;
+
+  assertEquals(prop.type, "object");
+  assertEquals(Object.keys(prop.properties ?? {}).sort(), ["x", "y", "z"]);
+  assertEquals(prop.requiredProperties, ["z"]);
+
+  // A property both branches define with different object shapes is kept
+  // as variants, as for any other object disjunction.
+  const collide = parseResources(zoneResourceSpec({
+    type: "object",
+    properties: {
+      settings: {
+        allOf: [
+          {
+            oneOf: [
+              {
+                properties: {
+                  data: {
+                    type: "object",
+                    properties: { p: { type: "string" } },
+                  },
+                },
+              },
+              {
+                properties: {
+                  data: {
+                    type: "object",
+                    properties: { q: { type: "integer" } },
+                  },
+                },
+              },
+            ],
+          },
+          { type: "object", properties: { z: { type: "string" } } },
+        ],
+      },
+    },
+  })).resources[0].createProperties.settings;
+  assertEquals(collide.properties?.data.variants?.length, 2);
+});
+
+Deno.test("parseResources keeps response fields when the result allOf holds a disjunction", () => {
+  const result = {
+    allOf: [
+      {
+        oneOf: [
+          { type: "object", properties: { a: { type: "string" } } },
+          { type: "object", properties: { b: { type: "string" } } },
+        ],
+      },
+      {
+        type: "object",
+        properties: { id: { type: "string" }, name: { type: "string" } },
+      },
+    ],
+  };
+  const props = parseResources(zoneResourceSpecWithResult({
+    type: "object",
+    properties: { name: { type: "string" } },
+  }, result)).resources[0].resourceProperties;
+
+  assertEquals(Object.keys(props).sort(), ["a", "b", "id", "name"]);
+});
+
+Deno.test("parseResources keeps plain allOf members when a nested allOf holds a disjunction", () => {
+  const inner = {
+    allOf: [
+      {
+        oneOf: [
+          { type: "object", properties: { a: { type: "string" } } },
+          { type: "object", properties: { b: { type: "string" } } },
+        ],
+      },
+      { type: "object", properties: { p: { type: "string" } } },
+    ],
+  };
+  const nested = parseResources(zoneResourceSpec({
+    allOf: [inner, { type: "object", properties: { q: { type: "string" } } }],
+  })).resources[0].createProperties;
+  assertEquals(Object.keys(nested).sort(), ["a", "b", "p", "q"]);
+
+  // Two allOf members both define `cfg`; one definition is such an allOf.
+  const conjoined = parseResources(zoneResourceSpec({
+    allOf: [
+      { type: "object", properties: { cfg: inner } },
+      {
+        type: "object",
+        properties: {
+          cfg: { type: "object", properties: { r: { type: "string" } } },
+        },
+      },
+    ],
+  })).resources[0].createProperties.cfg;
+  assertEquals(
+    Object.keys(conjoined.properties ?? {}).sort(),
+    ["a", "b", "p", "r"],
+  );
+});
+
+Deno.test("parseResources distributes two disjunction members pairwise, with a cap", () => {
+  const prop = parseResources(zoneResourceSpec({
+    type: "object",
+    properties: {
+      v: {
+        allOf: [
+          { oneOf: [{ type: "string" }, { type: "integer" }] },
+          { anyOf: [{ type: "string" }, { type: "boolean" }] },
+        ],
+      },
+    },
+  })).resources[0].createProperties.v;
+  // string∧string survives; string∧boolean, integer∧string, integer∧boolean
+  // contradict.
+  assertEquals(prop.type, "string");
+
+  // 9 × 9 = 81 combinations exceeds the cap: today's merge (the last
+  // member's type) is kept rather than a huge product.
+  const nine = Array.from({ length: 9 }, (_, i) => ({
+    type: "object",
+    properties: { [`k${i}`]: { type: "string" } },
+  }));
+  const capped = parseResources(zoneResourceSpec({
+    type: "object",
+    properties: {
+      v: {
+        allOf: [
+          { oneOf: nine },
+          { oneOf: nine },
+          { type: "object", properties: { z: { type: "string" } } },
+        ],
+      },
+    },
+  })).resources[0].createProperties.v;
+  assertEquals(Object.keys(capped.properties ?? {}), ["z"]);
+});
+
+Deno.test("parseResources falls back to the plain merge when every disjunction branch is contradicted", () => {
+  const prop = parseResources(zoneResourceSpec({
+    type: "object",
+    properties: {
+      v: {
+        allOf: [
+          { oneOf: [{ type: "number" }, { type: "boolean" }] },
+          { type: "string", description: "only a string" },
+        ],
+      },
+    },
+  })).resources[0].createProperties.v;
+  assertEquals(prop.type, "string");
+  assertEquals(prop.description, "only a string");
+});
+
+Deno.test("parseResources keeps a disjunction member's own keywords in every branch", () => {
+  // {type: integer, oneOf: [...]}: the integer holds for each branch.
+  const n = parseResources(zoneResourceSpec({
+    type: "object",
+    properties: {
+      n: {
+        allOf: [
+          { type: "integer", oneOf: [{ minimum: 0 }, { maximum: -10 }] },
+          { description: "x" },
+        ],
+      },
+    },
+  })).resources[0].createProperties.n;
+  assertEquals(n.type, "integer");
+  assertEquals(n.description, "x");
+
+  // The member's own type also takes part in pruning.
+  const s = parseResources(zoneResourceSpec({
+    type: "object",
+    properties: {
+      s: {
+        allOf: [
+          { type: "string", oneOf: [{ type: "string" }, { type: "number" }] },
+          { description: "y" },
+        ],
+      },
+    },
+  })).resources[0].createProperties.s;
+  assertEquals(s.type, "string");
+});
+
+Deno.test("parseResources records the update body's own required fields", () => {
+  // dlp entries PUT: allOf[oneOf[custom {name, pattern, type}, predefined
+  // {type}], {enabled}]; only type and enabled are required in every branch.
+  const update = {
+    allOf: [
+      {
+        oneOf: [
+          {
+            type: "object",
+            properties: {
+              name: { type: "string" },
+              type: { type: "string", enum: ["custom"] },
+            },
+            required: ["name", "type"],
+          },
+          {
+            type: "object",
+            properties: { type: { type: "string", enum: ["predefined"] } },
+            required: ["type"],
+          },
+        ],
+      },
+      {
+        type: "object",
+        properties: { enabled: { type: "boolean" } },
+        required: ["enabled"],
+      },
+    ],
+  };
+  const op = (schema: unknown) => ({
+    requestBody: { content: { "application/json": { schema } } },
+  });
+  const resource = parseResources({
+    paths: {
+      "/zones/{zone_id}/dns_records": {
+        post: op({
+          type: "object",
+          properties: {
+            name: { type: "string" },
+            enabled: { type: "boolean" },
+          },
+          required: ["name", "enabled"],
+        }),
+      },
+      "/zones/{zone_id}/dns_records/{dns_record_id}": {
+        get: getOp({ id: { type: "string" } }),
+        put: op(update),
+        delete: {},
+      },
+    },
+  } as unknown as OApiSpec).resources[0];
+
+  assertEquals(resource.updateRequiredProperties?.sort(), ["enabled", "type"]);
+  assertEquals(resource.createRequiredProperties.sort(), ["enabled", "name"]);
+
+  // An update body that declares no `required` anywhere says nothing about
+  // what it needs: no list is recorded, so the create-required guard stays.
+  const undeclared = parseResources({
+    paths: {
+      "/zones/{zone_id}/dns_records": {
+        post: op({
+          type: "object",
+          properties: { name: { type: "string" } },
+          required: ["name"],
+        }),
+      },
+      "/zones/{zone_id}/dns_records/{dns_record_id}": {
+        get: getOp({ id: { type: "string" } }),
+        put: op({ type: "object", properties: { name: { type: "string" } } }),
+        delete: {},
+      },
+    },
+  } as unknown as OApiSpec).resources[0];
+  assertEquals(undeclared.updateRequiredProperties, undefined);
+  assertEquals(undeclared.createRequiredProperties, ["name"]);
+
+  const withPut = (putBody: unknown) =>
+    parseResources({
+      paths: {
+        "/zones/{zone_id}/dns_records": {
+          post: op({
+            type: "object",
+            properties: { name: { type: "string" }, x: { type: "string" } },
+            required: ["name"],
+          }),
+        },
+        "/zones/{zone_id}/dns_records/{dns_record_id}": {
+          get: getOp({ id: { type: "string" } }),
+          put: op(putBody),
+          delete: {},
+        },
+      },
+    } as unknown as OApiSpec).resources[0];
+
+  // Properties beside a oneOf of required lists: flattening keeps only the
+  // root list, so it is not the body's declared list.
+  assertEquals(
+    withPut({
+      type: "object",
+      properties: { name: { type: "string" }, x: { type: "string" } },
+      oneOf: [{ required: ["name"] }, { required: ["name", "x"] }],
+    }).updateRequiredProperties,
+    undefined,
+  );
+
+  // A disjunction body whose branches declare no required list declares none.
+  assertEquals(
+    withPut({
+      oneOf: [
+        { type: "object", properties: { name: { type: "string" } } },
+        { type: "object", properties: { x: { type: "string" } } },
+      ],
+    }).updateRequiredProperties,
+    undefined,
+  );
+
+  // Past the distribution cap the branches' lists are lost: not declared,
+  // even though the plain member declares one.
+  const nine = Array.from({ length: 9 }, (_, i) => ({
+    type: "object",
+    properties: { [`k${i}`]: { type: "string" } },
+    required: [`k${i}`],
+  }));
+  assertEquals(
+    withPut({
+      allOf: [
+        { oneOf: nine },
+        { oneOf: nine },
+        {
+          type: "object",
+          properties: { x: { type: "string" } },
+          required: ["x"],
+        },
+      ],
+    }).updateRequiredProperties,
+    undefined,
+  );
+});
+
+Deno.test("parseResources does not require a field only some distributed branches require", () => {
+  const resource = parseResources(zoneResourceSpec({
+    allOf: [
+      {
+        oneOf: [
+          {
+            type: "object",
+            properties: { name: { type: "string" }, kind: { type: "string" } },
+            required: ["name", "kind"],
+          },
+          { type: "object", properties: { kind: { type: "string" } } },
+        ],
+      },
+      { type: "object", properties: { enabled: { type: "boolean" } } },
+    ],
+  })).resources[0];
+  assertEquals(resource.createRequiredProperties, []);
+});
+
+// --- Circular schemas (swamp-club#4428) ---
+
+Deno.test("parseResources normalizes a self-referencing request body without overflowing", () => {
+  // deno-lint-ignore no-explicit-any
+  const node: any = {
+    type: "object",
+    properties: { name: { type: "string" } },
+  };
+  node.properties.child = node;
+  node.properties.children = { type: "array", items: node };
+
+  const props = parseResources(zoneResourceSpec(node)).resources[0]
+    .createProperties;
+
+  // The body is entered through extractRequestBody, so `child` is the first
+  // normalizeProperty visit of the node and its own `child` is the re-entry.
+  assertEquals(props.name.type, "string");
+  assertEquals(props.child.type, "object");
+  assertEquals(props.child.properties?.name.type, "string");
+  assertEquals(props.child.properties?.child.type, "object");
+  assertEquals(props.child.properties?.child.properties, undefined);
+  assertEquals(props.children.type, "array");
+  assertEquals(props.children.items?.type, "object");
+  assertEquals(
+    props.children.items?.properties?.children.items?.properties,
+    undefined,
+  );
+});
+
+Deno.test("parseResources terminates on a cycle reached through a distributed allOf branch", () => {
+  // deno-lint-ignore no-explicit-any
+  const node: any = {
+    allOf: [
+      {
+        oneOf: [
+          { type: "object", properties: { a: { type: "string" } } },
+          { type: "object", properties: { b: { type: "string" } } },
+        ],
+      },
+      { type: "object", properties: {} },
+    ],
+  };
+  node.allOf[0].oneOf[0].properties.next = node;
+  node.allOf[1].properties.self = node;
+
+  const props = parseResources(zoneResourceSpec({
+    type: "object",
+    properties: { root: node },
+  })).resources[0].createProperties;
+  assertEquals(props.root.type, "object");
+  assertEquals(
+    Object.keys(props.root.properties ?? {}).sort(),
+    ["a", "b", "next", "self"],
+  );
+});
+
+Deno.test("parseResources normalizes the loader's [Circular] marker as an untyped object", () => {
+  // fetchCloudflareSchema writes "[Circular]" where the spec loops back on an
+  // ancestor (filter groups, pipeline struct fields). It stands for that
+  // ancestor's schema, not a string, so it is untyped like an in-memory cycle.
+  const props = parseResources(zoneResourceSpec({
+    type: "object",
+    properties: {
+      loop: "[Circular]",
+      loops: { type: "array", items: "[Circular]" },
+      name: { type: "string" },
+      other: "not a marker",
+    },
+  })).resources[0].createProperties;
+  assertEquals(props.loop.type, "object");
+  assertEquals(props.loop.properties, undefined);
+  assertEquals(props.loops.items?.type, "object");
+  assertEquals(props.name.type, "string");
+  assertEquals(props.other.type, "string");
+});

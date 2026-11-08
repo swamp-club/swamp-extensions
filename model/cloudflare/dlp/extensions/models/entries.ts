@@ -39,17 +39,18 @@ import {
 
 const GlobalArgsSchema = z.object({
   account_id: z.string().describe("Cloudflare account ID"),
-  enabled: z.boolean().optional(),
   description: z.string().optional(),
   name: z.string().optional(),
   pattern: z.object({
     regex: z.string(),
     validation: z.string().optional(),
   }).optional(),
-  profile_id: z.string().optional(),
+  type: z.enum(["custom", "predefined", "integration"]).optional(),
   validator_ids: z.array(z.string()).describe(
     "Validators the new entry should reference, by id, at most 10.",
   ).optional(),
+  enabled: z.boolean().optional(),
+  profile_id: z.string().optional(),
   apiToken: z.string().meta({ sensitive: true }).describe(
     "Cloudflare API token; overrides the CLOUDFLARE_API_TOKEN environment variable. Wire with a vault.get(...) expression to source it from a vault.",
   ).optional(),
@@ -62,27 +63,53 @@ const GlobalArgsSchema = z.object({
 });
 
 const ResourceSchema = z.object({
+  created_at: z.string().optional(),
+  description: z.string().optional(),
+  enabled: z.boolean().optional(),
+  id: z.string(),
+  name: z.string().optional(),
+  pattern: z.object({
+    regex: z.string().optional(),
+    validation: z.string().optional(),
+  }).optional(),
+  profile_id: z.string().optional(),
+  updated_at: z.string().optional(),
+  validator_ids: z.array(z.string()).optional(),
+  type: z.string().optional(),
   upload_status: z.string().optional(),
+  confidence: z.object({
+    ai_context_available: z.boolean().optional(),
+    available: z.boolean().optional(),
+  }).optional(),
+  deprecated: z.boolean().optional(),
+  variant: z.object({
+    description: z.string().optional(),
+    topic_type: z.string().optional(),
+    type: z.string().optional(),
+  }).optional(),
+  case_sensitive: z.boolean().optional(),
+  secret: z.boolean().optional(),
+  word_list: z.array(z.string()).optional(),
   profiles: z.array(z.object({
     id: z.string().optional(),
     name: z.string().optional(),
   })).optional(),
-  id: z.string(),
 }).passthrough();
 
 type ResourceData = z.infer<typeof ResourceSchema>;
 
 const InputsSchema = z.object({
   account_id: z.string().optional(),
-  enabled: z.boolean().optional(),
   description: z.string().optional(),
   name: z.string().optional(),
   pattern: z.object({
     regex: z.string(),
     validation: z.string().optional(),
   }).optional(),
-  profile_id: z.string().optional(),
+  type: z.enum(["custom", "predefined", "integration"]).optional(),
   validator_ids: z.array(z.string()).optional(),
+  enabled: z.boolean().optional(),
+  profile_id: z.string().optional(),
   apiToken: z.string().meta({ sensitive: true }).optional(),
   apiKey: z.string().meta({ sensitive: true }).optional(),
   email: z.string().meta({ sensitive: true }).optional(),
@@ -91,7 +118,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Entries. Registered at `@swamp/cloudflare/dlp/entries`. */
 export const model = {
   type: "@swamp/cloudflare/dlp/entries",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -141,6 +168,11 @@ export const model = {
     {
       toVersion: "2026.10.23.1",
       description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
+      description: "Added: type",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -238,13 +270,14 @@ export const model = {
         const g = context.globalArgs;
         const endpoint = "/accounts/" + g.account_id + "/dlp/entries";
         const filters: [string, string][] = [];
-        if (g.enabled !== undefined) {
-          filters.push(["enabled", String(g.enabled)]);
-        }
         if (g.description !== undefined) {
           filters.push(["description", String(g.description)]);
         }
         if (g.name !== undefined) filters.push(["name", String(g.name)]);
+        if (g.type !== undefined) filters.push(["type", String(g.type)]);
+        if (g.enabled !== undefined) {
+          filters.push(["enabled", String(g.enabled)]);
+        }
         if (g.profile_id !== undefined) {
           filters.push(["profile_id", String(g.profile_id)]);
         }
@@ -368,8 +401,20 @@ export const model = {
         }
         const existing = JSON.parse(new TextDecoder().decode(content));
         const body: Record<string, unknown> = {};
+        if (g.description !== undefined) body.description = g.description;
+        if (g.name !== undefined) body.name = g.name;
+        if (g.pattern !== undefined) body.pattern = g.pattern;
+        if (g.type !== undefined) body.type = g.type;
+        if (g.validator_ids !== undefined) body.validator_ids = g.validator_ids;
         if (g.enabled !== undefined) body.enabled = g.enabled;
-        const unset = ["enabled"].filter((k) => body[k] === undefined);
+        const unset = [
+          "description",
+          "enabled",
+          "name",
+          "pattern",
+          "type",
+          "validator_ids",
+        ].filter((k) => body[k] === undefined);
         if (unset.length > 0) {
           const live = await read(endpoint, existing.id, {
             apiToken: g.apiToken,

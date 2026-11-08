@@ -83,6 +83,16 @@ serializeWithCycleDetection(root):
     ancestors.delete(value)                 // backtrack
 ```
 
+The `"[Circular]"` marker stands for the ancestor's schema, so the pipeline
+normalizes it as an untyped object (`z.record(z.string(), z.unknown())`), not as
+a string: workers observability filter groups nest themselves and pipelines
+`struct` fields contain fields, and a string there rejected every valid nested
+payload. A spec that is circular in memory (one built by hand or by a test)
+stops the same way: `normalizeProperty` tracks the schemas on its current path
+and turns the first repeat into an untyped object instead of overflowing the
+stack (swamp-club#4428). Only ancestors count, so a schema shared by sibling
+properties is normalized in full each time.
+
 ### Schema composition complexity
 
 | Pattern         | Count |
@@ -378,8 +388,36 @@ property keeps the later definition.
 An `allOf` whose only member is a `oneOf`/`anyOf` is that disjunction, so the
 disjunction is kept instead of being merged away (containers `durable_objects`
 was `allOf[oneOf[{namespace_id}, {class_name, script_name}]]` and used to
-generate as a string). A `oneOf`/`anyOf` inside a multi-member `allOf` is still
-dropped.
+generate as a string).
+
+A `oneOf`/`anyOf` inside a multi-member `allOf` is a union inside a conjunction,
+so the union is distributed over it (swamp-club#4436): each combination of
+branches (one per disjunction member, taken together with that member's own
+keywords, such as a `type` beside the `oneOf`) is merged with the other members,
+and a combination whose members declare incompatible types is dropped (`integer`
+satisfies `number`; a member without a type never conflicts, so a member that
+has only `properties` does not rule out a scalar branch). Workers observability
+`needle.value` is
+`allOf[anyOf[string, number, boolean], {type: string,
+maxLength: 1000}]`, so
+only the string survives. Then:
+
+- one survivor is the schema;
+- several object survivors merge like any object disjunction below (union of
+  fields, intersection of required, variants or a mixed-type union where a field
+  collides), which keeps the object-with-properties shape the request, response
+  and conjoined-property paths read: pipelines `SourceField` is eleven typed
+  branches over `{name, required, ...}`;
+- scalar or array survivors become a `oneOf`, normalized as a mixed-type union.
+  When survivors mix objects and scalars, callers that read only an object's
+  properties see none for that schema.
+
+The merge keeps only `properties`, `required`, `type` and `description` from
+each member, so a constraint on a plain member (`maxLength: 1000` above) is not
+carried into the result. With no disjunction member, more than 64 branch
+combinations, a node already being distributed further up (the dereferenced spec
+is circular), more than 8 nested distributions, or no survivor, the plain merge
+is used as before.
 
 **oneOf/anyOf** (disjunction): All branch properties are merged (union of
 fields), but required fields use **intersection** — only fields required in
@@ -433,10 +471,18 @@ methods"). The synthetic `name` stays required.
   can be stale, and sending it would silently revert changes made outside swamp
   since the last `get`/`sync`. Every create-required field in the update body is
   filled, and the update throws `update requires global arguments: <names>`
-  before the `PUT` when one is missing from the live resource too. A
-  create-required value can still be shaped differently from the request body;
-  set the field explicitly if Cloudflare rejects it. Which fields are copied is
-  decided at generation time by `liveFillFields` in
+  before the `PUT` when one is missing from the live resource too, unless the
+  update body's flattened schema (the one its properties come from) carries a
+  complete declared `required` list that leaves the field out: dlp entries
+  `pattern` is required by create and by the custom branch of the `PUT` body,
+  but not by predefined or integration entries, so updating one of those must
+  not demand it (swamp-club#4436). An update body that declares no `required` at
+  all says nothing about what it needs, so it keeps the create-required guard,
+  and so does one whose lists flattening cannot keep in full (properties beside
+  a `oneOf` of `required` lists, or a distribution that fell back to the plain
+  merge). A create-required value can still be shaped differently from the
+  request body; set the field explicitly if Cloudflare rejects it. Which fields
+  are copied is decided at generation time by `liveFillFields` in
   `codegen/shared/liveFill.ts`: a field is filled only when the `GET` response
   describes it with the same shape as the request body (same type, with integer
   and number treated alike, recursively for array items and shared object

@@ -62,10 +62,27 @@ const GlobalArgsSchema = z.object({
     .optional(),
   schema: z.object({
     fields: z.array(z.object({
+      type: z.enum([
+        "int32",
+        "int64",
+        "float32",
+        "float64",
+        "bool",
+        "string",
+        "binary",
+        "timestamp",
+        "json",
+        "struct",
+        "list",
+      ]),
       metadata_key: z.string().optional(),
       name: z.string(),
       required: z.boolean().optional(),
       sql_name: z.string().optional(),
+      unit: z.enum(["second", "millisecond", "microsecond", "nanosecond"])
+        .optional(),
+      fields: z.array(z.record(z.string(), z.unknown())).optional(),
+      items: z.record(z.string(), z.unknown()).optional(),
     })).optional(),
     inferred: z.boolean().optional(),
   }).describe("Defines the schema of the events in the data stream.")
@@ -104,10 +121,14 @@ const ResourceSchema = z.object({
   name: z.string().optional(),
   schema: z.object({
     fields: z.array(z.object({
+      type: z.string().optional(),
       metadata_key: z.string().optional(),
       name: z.string().optional(),
       required: z.boolean().optional(),
       sql_name: z.string().optional(),
+      unit: z.string().optional(),
+      fields: z.array(z.record(z.string(), z.unknown())).optional(),
+      items: z.record(z.string(), z.unknown()).optional(),
     })).optional(),
     inferred: z.boolean().optional(),
   }).optional(),
@@ -143,10 +164,27 @@ const InputsSchema = z.object({
   name: z.string().min(1).max(128).optional(),
   schema: z.object({
     fields: z.array(z.object({
+      type: z.enum([
+        "int32",
+        "int64",
+        "float32",
+        "float64",
+        "bool",
+        "string",
+        "binary",
+        "timestamp",
+        "json",
+        "struct",
+        "list",
+      ]),
       metadata_key: z.string().optional(),
       name: z.string(),
       required: z.boolean().optional(),
       sql_name: z.string().optional(),
+      unit: z.enum(["second", "millisecond", "microsecond", "nanosecond"])
+        .optional(),
+      fields: z.array(z.record(z.string(), z.unknown())).optional(),
+      items: z.record(z.string(), z.unknown()).optional(),
     })).optional(),
     inferred: z.boolean().optional(),
   }).optional(),
@@ -158,7 +196,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Streams. Registered at `@swamp/cloudflare/pipelines/streams`. */
 export const model = {
   type: "@swamp/cloudflare/pipelines/streams",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -212,6 +250,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

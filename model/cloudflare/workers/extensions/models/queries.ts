@@ -91,7 +91,7 @@ const GlobalArgsSchema = z.object({
     filterCombination: z.enum(["and", "or", "AND", "OR"]).optional(),
     filters: z.array(z.object({
       filterCombination: z.enum(["and", "or", "AND", "OR"]).optional(),
-      filters: z.array(z.string()).optional(),
+      filters: z.array(z.record(z.string(), z.unknown())).optional(),
       kind: z.enum(["group", "filter"]).optional(),
       key: z.string().optional(),
       operation: z.enum([
@@ -182,7 +182,7 @@ const ResourceSchema = z.object({
     filterCombination: z.string().optional(),
     filters: z.array(z.object({
       filterCombination: z.string().optional(),
-      filters: z.array(z.string()).optional(),
+      filters: z.array(z.record(z.string(), z.unknown())).optional(),
       kind: z.string().optional(),
       key: z.string().optional(),
       operation: z.string().optional(),
@@ -273,7 +273,7 @@ const InputsSchema = z.object({
     filterCombination: z.enum(["and", "or", "AND", "OR"]).optional(),
     filters: z.array(z.object({
       filterCombination: z.enum(["and", "or", "AND", "OR"]).optional(),
-      filters: z.array(z.string()).optional(),
+      filters: z.array(z.record(z.string(), z.unknown())).optional(),
       kind: z.enum(["group", "filter"]).optional(),
       key: z.string().optional(),
       operation: z.enum([
@@ -343,7 +343,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Queries. Registered at `@swamp/cloudflare/workers/queries`. */
 export const model = {
   type: "@swamp/cloudflare/workers/queries",
-  version: "2026.11.05.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.05.29.1",
@@ -407,6 +407,11 @@ export const model = {
     },
     {
       toVersion: "2026.11.05.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },

@@ -829,6 +829,55 @@ Deno.test("generateCloudflareExtensionModel - PUT update fills every unset field
   );
 });
 
+Deno.test("generateCloudflareExtensionModel - PUT update guards only create-required fields its own body requires", () => {
+  const code = generateCloudflareExtensionModel({
+    resource: createRequiredResource({
+      updateMethod: "PUT",
+      updateProperties: {
+        name: stringProp,
+        enabled: { type: "boolean" },
+        comment: stringProp,
+      },
+      // The PUT body requires only `enabled` (dlp entries: `name` is required
+      // by one branch only).
+      updateRequiredProperties: ["enabled"],
+      resourceProperties: {
+        id: stringProp,
+        name: stringProp,
+        comment: stringProp,
+      },
+    }),
+    extensionName: "@swamp/cloudflare",
+    version: "2026.01.01.1",
+  });
+  const update = code.slice(
+    code.indexOf("    update: {"),
+    code.indexOf("    delete: {"),
+  );
+  // `name` is still filled from the live resource when there ...
+  assertStringIncludes(
+    update,
+    `const unset = ["comment","enabled","name"].filter((k) => body[k] === undefined);`,
+  );
+  // ... but only `enabled` is demanded.
+  assertStringIncludes(
+    update,
+    `const missingForUpdate = ["enabled"].filter((k) => body[k] === undefined);`,
+  );
+
+  // A PUT body that requires none of them guards nothing.
+  const none = generateCloudflareExtensionModel({
+    resource: createRequiredResource({
+      updateMethod: "PUT",
+      updateProperties: { name: stringProp, enabled: { type: "boolean" } },
+      updateRequiredProperties: [],
+    }),
+    extensionName: "@swamp/cloudflare",
+    version: "2026.01.01.1",
+  });
+  assertEquals(none.includes("missingForUpdate"), false);
+});
+
 Deno.test("generateCloudflareExtensionModel - PATCH update does not fill or guard fields", () => {
   const code = generateCloudflareExtensionModel({
     resource: createRequiredResource({

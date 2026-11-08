@@ -210,6 +210,16 @@ export interface CloudflareResource {
    * field falls back when unset).
    */
   createRequiredProperties: string[];
+  /**
+   * Property names the PATCH/PUT body itself requires, set only when that body
+   * has its own properties and declares a `required` list somewhere in its
+   * composition. A PUT update then only insists on a create-required field
+   * this body requires too: a field only one of its branches requires (dlp
+   * entries `pattern`, custom entries only) must not block updating the rest.
+   * Many update bodies declare no `required` at all, which says nothing about
+   * what they need, so those keep the create-required guard.
+   */
+  updateRequiredProperties?: string[];
   /** Available CRUD handlers */
   handlers: {
     create: boolean;
@@ -899,6 +909,11 @@ interface OApiSchema {
   "x-swamp-variants"?: OApiSchema[];
   /** Internal: canonical members of a mixed-type union (see unionOf). */
   "x-swamp-union"?: OApiSchema[];
+  /**
+   * Internal: `required` here may miss lists the schema declares (branch
+   * lists a merge could not keep), so it cannot tell what the body needs.
+   */
+  "x-swamp-required-incomplete"?: boolean;
 }
 
 interface OApiParameter {
@@ -1203,10 +1218,12 @@ function buildResource(
   const hasUpdate = !!(idMethods.patch || idMethods.put);
   const updateMethod: "PATCH" | "PUT" = idMethods.patch ? "PATCH" : "PUT";
   let updateProps: Record<string, CloudflareProperty> = {};
+  let updateRequired: string[] | undefined;
   if (hasUpdate) {
     const updateOp = idMethods.patch ?? idMethods.put;
     const result = extractRequestBody(updateOp, spec);
     updateProps = result.properties;
+    if (result.requiredDeclared) updateRequired = result.required;
   }
 
   // Extract properties from GET response (with envelope unwrapping)
@@ -1273,6 +1290,9 @@ function buildResource(
     updateProperties: updateProps,
     resourceProperties: responseProps,
     createRequiredProperties,
+    ...(Object.keys(updateProps).length > 0 && updateRequired
+      ? { updateRequiredProperties: updateRequired }
+      : {}),
     handlers: {
       create: true,
       read: true,
@@ -1323,16 +1343,26 @@ function detectPagination(
 function extractRequestBody(
   operation: OApiOperation | undefined,
   spec: OApiSpec,
-): { properties: Record<string, CloudflareProperty>; required: string[] } {
+): {
+  properties: Record<string, CloudflareProperty>;
+  required: string[];
+  /**
+   * Whether `required` is the body's complete declared list: false when the
+   * body declares none, or when flattening could not keep every list it
+   * declares (see x-swamp-required-incomplete).
+   */
+  requiredDeclared: boolean;
+} {
+  const none = { properties: {}, required: [], requiredDeclared: false };
   const body = operation?.requestBody;
-  if (!body) return { properties: {}, required: [] };
+  if (!body) return none;
 
   const content = body.content?.["application/json"];
-  if (!content?.schema) return { properties: {}, required: [] };
+  if (!content?.schema) return none;
 
   const flattened = flattenSchema(content.schema, spec);
   if (!flattened.properties || Object.keys(flattened.properties).length === 0) {
-    return { properties: {}, required: [] };
+    return none;
   }
 
   const properties: Record<string, CloudflareProperty> = {};
@@ -1343,6 +1373,8 @@ function extractRequestBody(
   return {
     properties,
     required: flattened.required ?? [],
+    requiredDeclared: Array.isArray(flattened.required) &&
+      !flattened["x-swamp-required-incomplete"],
   };
 }
 
@@ -1356,8 +1388,13 @@ function flattenSchema(schema: OApiSchema, spec: OApiSpec): OApiSchema {
 
   const resolved = resolveSchema(schema, spec);
 
-  // Simple object with properties
-  if (resolved.properties) return resolved;
+  // Simple object with properties. A disjunction beside the properties
+  // (oneOf of required lists) is not flattened, so its lists are not kept.
+  if (resolved.properties) {
+    return resolved.oneOf || resolved.anyOf
+      ? { ...resolved, "x-swamp-required-incomplete": true }
+      : resolved;
+  }
 
   // anyOf or oneOf — merge all branch properties, intersect required
   if (resolved.anyOf || resolved.oneOf) {
@@ -1406,8 +1443,9 @@ function flattenDisjunction(
     }
   }
 
-  // Intersect required — only fields required in every branch
-  let required: string[] = [];
+  // Intersect required — only fields required in every branch. No branch
+  // declaring a list means the disjunction declares none.
+  let required: string[] | undefined;
   if (requiredSets.length > 0) {
     const intersection = new Set(requiredSets[0]);
     for (let i = 1; i < requiredSets.length; i++) {
@@ -1422,7 +1460,15 @@ function flattenDisjunction(
 
   if (Object.keys(allProps).length === 0) return {};
 
-  return { properties: allProps, required, type: "object" };
+  const incomplete = branches.some((b) =>
+    resolveSchema(b, spec)["x-swamp-required-incomplete"]
+  );
+  return {
+    properties: allProps,
+    ...(required ? { required } : {}),
+    type: "object",
+    ...(incomplete ? { "x-swamp-required-incomplete": true } : {}),
+  };
 }
 
 /**
@@ -1814,11 +1860,142 @@ function resolveSchema(schema: OApiSchema, spec: OApiSpec): OApiSchema {
       const inner = resolveSchema(schema.allOf[0], spec);
       if ((inner.oneOf || inner.anyOf) && !inner.properties) return inner;
     }
-    return mergeAllOf(schema.allOf, spec);
+    return distributeAllOf(schema, spec);
   }
 
   return schema;
 }
+
+/**
+ * Resolve a multi-member allOf. A oneOf/anyOf member is a union inside a
+ * conjunction, so the union is distributed over it: each combination of
+ * branches is merged with the other members, and a combination whose members
+ * declare incompatible types is dropped (workers observability needle.value
+ * is string|number|boolean AND a string, so a string). Surviving objects merge
+ * the way any object disjunction does (flattenDisjunction), which keeps the
+ * object-with-properties shape callers read; surviving scalars or arrays
+ * become a oneOf for the mixed-type union path. Without a disjunction member,
+ * past the product cap or the cycle guards, or when nothing survives, this is
+ * mergeAllOf, the behaviour before distribution.
+ */
+function distributeAllOf(node: OApiSchema, spec: OApiSpec): OApiSchema {
+  const allOf = node.allOf!;
+  // The dereferenced spec can be circular and merging builds fresh objects,
+  // so both the node identity and the nesting depth are guarded.
+  if (distributing.has(node) || distributing.size >= MAX_DISTRIBUTE_DEPTH) {
+    const merged = mergeAllOf(allOf, spec);
+    return allOf.some((m) => m?.oneOf || m?.anyOf || m?.$ref)
+      ? incompleteRequired(merged)
+      : merged;
+  }
+  distributing.add(node);
+  try {
+    const members = allOf.map((m) => resolveSchema(m, spec));
+    const branchesOf = members.map((m) =>
+      (m.oneOf || m.anyOf) && !m.properties
+        ? (m.oneOf ?? m.anyOf!).map((b) => resolveSchema(b, spec))
+        : null
+    );
+    if (branchesOf.every((b) => b === null)) return mergeAllOf(members, spec);
+
+    const combinations = branchesOf.reduce(
+      (n, b) => n * (b ? b.length : 1),
+      1,
+    );
+    if (combinations > MAX_DISTRIBUTED_BRANCHES) {
+      return incompleteRequired(mergeAllOf(members, spec));
+    }
+
+    // A disjunction member's own keywords (a type, a description beside the
+    // oneOf) hold for every branch, so each branch is taken together with them.
+    let combos: OApiSchema[][] = [[]];
+    branchesOf.forEach((branches, i) => {
+      const { oneOf: _o, anyOf: _a, ...own } = members[i];
+      const choices = branches ? branches.map((b) => [own, b]) : [[members[i]]];
+      combos = combos.flatMap((c) => choices.map((b) => [...c, ...b]));
+    });
+
+    const merged = combos
+      .map((combo) => {
+        const type = conjoinedType(combo);
+        if (type === null) return null;
+        const result = mergeAllOf(combo, spec);
+        if (type) result.type = type;
+        return result;
+      })
+      .filter((s): s is OApiSchema => s !== null);
+    // Once any combination declares required fields, one that declares none
+    // requires nothing, and must count so when flattenDisjunction intersects.
+    if (merged.some((s) => Array.isArray(s.required))) {
+      for (const s of merged) s.required ??= [];
+    }
+    // Nullability is not modelled: a null branch only counts when it is all
+    // that survives.
+    const typed = merged.filter((s) => s.type !== "null");
+    const survivors = typed.length > 0 ? typed : merged;
+
+    if (survivors.length === 0) {
+      return incompleteRequired(mergeAllOf(members, spec));
+    }
+    if (survivors.length === 1) return survivors[0];
+
+    const description = members.reduce<string | undefined>(
+      (d, m) => m.description ?? d,
+      undefined,
+    );
+    if (survivors.every((s) => s.type === "object" || s.properties)) {
+      const flattened = flattenDisjunction(survivors, spec);
+      if (!flattened.properties) {
+        return incompleteRequired(mergeAllOf(members, spec));
+      }
+      return description ? { ...flattened, description } : flattened;
+    }
+    return { oneOf: survivors, description };
+  } finally {
+    distributing.delete(node);
+  }
+}
+
+/**
+ * The type a conjunction of schemas declares: undefined when none declares
+ * one, the narrowest when they agree (integer satisfies number), null when
+ * they contradict. Untyped members (a description, properties alone) never
+ * contradict.
+ */
+function conjoinedType(members: OApiSchema[]): string | undefined | null {
+  let type: string | undefined;
+  for (const m of members) {
+    if (typeof m.type !== "string") continue;
+    if (!type || type === m.type) {
+      type = m.type;
+    } else if (type === "number" && m.type === "integer") {
+      type = "integer";
+    } else if (!(type === "integer" && m.type === "number")) {
+      return null;
+    }
+  }
+  return type;
+}
+
+/**
+ * A fallback merge of an allOf with a disjunction member keeps none of the
+ * branches' required lists, so its own list is incomplete.
+ */
+function incompleteRequired(schema: OApiSchema): OApiSchema {
+  return { ...schema, "x-swamp-required-incomplete": true };
+}
+
+/** allOf nodes distributeAllOf is currently resolving (cycle guard). */
+const distributing = new Set<OApiSchema>();
+
+/** Deepest chain of nested allOf distributions; only a cycle reaches it. */
+const MAX_DISTRIBUTE_DEPTH = 8;
+
+/**
+ * Most branch combinations an allOf is distributed into. Real Cloudflare
+ * allOfs hold one disjunction of a handful of branches.
+ */
+const MAX_DISTRIBUTED_BRANCHES = 64;
 
 function mergeAllOf(allOf: OApiSchema[], spec: OApiSpec): OApiSchema {
   const merged: OApiSchema = {};
@@ -1839,6 +2016,9 @@ function mergeAllOf(allOf: OApiSchema[], spec: OApiSpec): OApiSchema {
     }
     if (resolved.type) merged.type = resolved.type;
     if (resolved.description) merged.description = resolved.description;
+    if (resolved["x-swamp-required-incomplete"]) {
+      merged["x-swamp-required-incomplete"] = true;
+    }
   }
   return merged;
 }
@@ -1950,11 +2130,47 @@ function normalizeProperty(
   spec: OApiSpec,
 ): CloudflareProperty {
   if (!schema || typeof schema !== "object") {
+    if ((schema as unknown) === CIRCULAR_MARKER) return { type: "object" };
     return { type: "string" };
   }
 
   const resolved = resolveSchema(schema, spec);
 
+  // A schema that contains itself (an in-memory circular spec) stops at the
+  // first repeat on the current path as an untyped object instead of
+  // overflowing the stack. Ancestors only: a schema shared by siblings is
+  // normalized in full each time. A disjunction re-entered while its union is
+  // being built keeps its own recursion handling below.
+  const unionRecursion = normalizingUnions.has(schema) ||
+    normalizingUnions.has(resolved);
+  if (
+    !unionRecursion &&
+    (normalizingPath.has(schema) || normalizingPath.has(resolved))
+  ) {
+    return { type: "object", description: resolved.description };
+  }
+  // Only entries added here are removed here, so a union re-entry does not
+  // take its ancestor off the path.
+  const added = [schema, resolved].filter((s) => !normalizingPath.has(s));
+  added.forEach((s) => normalizingPath.add(s));
+  try {
+    return normalizeResolvedProperty(schema, resolved, spec);
+  } finally {
+    added.forEach((s) => normalizingPath.delete(s));
+  }
+}
+
+/** What fetchCloudflareSchema writes in place of a true cycle. */
+const CIRCULAR_MARKER = "[Circular]";
+
+/** Schemas normalizeProperty is currently normalizing (cycle guard). */
+const normalizingPath = new Set<OApiSchema>();
+
+function normalizeResolvedProperty(
+  schema: OApiSchema,
+  resolved: OApiSchema,
+  spec: OApiSpec,
+): CloudflareProperty {
   // Distinct object shapes collected by flattenDisjunction: normalize each
   // one independently so every variant keeps its own fields and types.
   const variantSchemas = resolved["x-swamp-variants"];

@@ -475,9 +475,19 @@ export function generateCloudflareExtensionModel(
     // silently revert changes made outside swamp since the last get/sync.
     // Create-only required fields are optional in GlobalArgsSchema, so the
     // update still throws if one is unset in both globalArgs and the live
-    // resource.
+    // resource. When the update body declares its own `required` list, only
+    // a field that list also names is guarded: one that create requires but
+    // the PUT body does not (dlp entries `pattern`, needed by custom entries
+    // only) is still filled from the live resource, but its absence is not an
+    // error. A body that declares no `required` keeps the full guard.
     const isFullReplacement = resource.updateMethod === "PUT";
     const createRequiredSet = new Set(resource.createRequiredProperties);
+    const ownRequired = resource.updateRequiredProperties;
+    const guardedSet = new Set(
+      resource.createRequiredProperties.filter((k) =>
+        !ownRequired || ownRequired.includes(k)
+      ),
+    );
     const updateRequired: string[] = [];
     for (const name of updateKeys) {
       const access = VALID_JS_IDENT.test(name)
@@ -486,7 +496,7 @@ export function generateCloudflareExtensionModel(
       lines.push(
         `        if (g${access} !== undefined) body${access} = g${access};`,
       );
-      if (isFullReplacement && createRequiredSet.has(name)) {
+      if (isFullReplacement && guardedSet.has(name)) {
         updateRequired.push(name);
       }
     }
@@ -501,7 +511,7 @@ export function generateCloudflareExtensionModel(
         ),
         unionFitShapes(requestProps, resource.resourceProperties),
         resource.resourceProperties,
-        new Set(updateRequired),
+        new Set(updateKeys.filter((k) => createRequiredSet.has(k))),
       )
       : [];
     if (liveFill.length > 0) {

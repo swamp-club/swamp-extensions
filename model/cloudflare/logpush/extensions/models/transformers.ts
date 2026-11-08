@@ -89,7 +89,7 @@ const InputsSchema = z.object({
 /** Swamp extension model for Cloudflare Transformers. Registered at `@swamp/cloudflare/logpush/transformers`. */
 export const model = {
   type: "@swamp/cloudflare/logpush/transformers",
-  version: "2026.10.23.1",
+  version: "2026.11.08.1",
   upgrades: [
     {
       toVersion: "2026.09.29.1",
@@ -113,6 +113,11 @@ export const model = {
     },
     {
       toVersion: "2026.10.23.1",
+      description: "No schema changes",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.08.1",
       description: "No schema changes",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
@@ -352,9 +357,7 @@ export const model = {
             if (live[k] !== undefined && live[k] !== null) body[k] = live[k];
           }
         }
-        const missingForUpdate = ["code", "name"].filter((k) =>
-          body[k] === undefined
-        );
+        const missingForUpdate = ["name"].filter((k) => body[k] === undefined);
         if (missingForUpdate.length > 0) {
           throw new Error(
             "update requires global arguments: " + missingForUpdate.join(", "),
