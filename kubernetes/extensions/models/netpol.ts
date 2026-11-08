@@ -6,10 +6,15 @@ import type {
 } from "npm:@kubernetes/client-node@1.4.0";
 import {
   buildClient,
+  callForObject,
   type DataHandle,
+  describeTarget,
   type K8sContext,
   K8sGlobalArgsSchema,
   normalizeMeta,
+  PatchFields,
+  patchOptions,
+  refinePatchArgs,
   sanitizeInstanceName,
 } from "./_lib/helpers.ts";
 
@@ -95,6 +100,12 @@ const DeleteArgsSchema = z.object({
   namespace: z.string().optional(),
 });
 
+const PatchArgsSchema = refinePatchArgs(z.object({
+  policyName: z.string(),
+  namespace: z.string().optional(),
+  ...PatchFields,
+}));
+
 // --- Helpers ---
 
 function normalizePeer(peer: V1NetworkPolicyPeer) {
@@ -174,7 +185,7 @@ function buildPeer(peer: PeerInputType) {
 /** Kubernetes NetworkPolicy model. */
 export const model = {
   type: "@swamp/kubernetes/netpol",
-  version: "2026.08.01.1",
+  version: "2026.11.07.1",
   globalArguments: K8sGlobalArgsSchema,
   upgrades: [
     {
@@ -211,6 +222,12 @@ export const model = {
       toVersion: "2026.08.01.1",
       description: "Bump @kubernetes/client-node from 1.0.0 to 1.4.0 and " +
         "add statefulset model type. No schema or behavior change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
+      description: "Add patch (merge, strategic merge or JSON patch). " +
+        "No change to global arguments or existing resources.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -372,6 +389,45 @@ export const model = {
           ns,
         });
         return { dataHandles: [] };
+      },
+    },
+
+    patch: {
+      description:
+        "Patch a NetworkPolicy in place with a merge, strategic merge or JSON " +
+        "patch, without replacing the whole object",
+      arguments: PatchArgsSchema,
+      execute: async (
+        args: z.infer<typeof PatchArgsSchema>,
+        context: K8sContext,
+      ): Promise<{ dataHandles: DataHandle[] }> => {
+        const { networkingApi } = buildClient(context.globalArgs);
+        const ns = args.namespace ?? context.globalArgs.namespace;
+
+        const patched = await callForObject(
+          "Patching",
+          describeTarget("NetworkPolicy", args.policyName, ns),
+          () =>
+            networkingApi.patchNamespacedNetworkPolicy({
+              name: args.policyName,
+              namespace: ns,
+              body: args.patch,
+            }, patchOptions(args.patchType)),
+        );
+        const normalized = normalizeNetPol(patched);
+
+        context.logger.info("Patched NetworkPolicy {name} in {ns} ({type})", {
+          name: args.policyName,
+          ns,
+          type: args.patchType,
+        });
+
+        const handle = await context.writeResource(
+          "netpol",
+          sanitizeInstanceName(normalized.name),
+          normalized,
+        );
+        return { dataHandles: [handle] };
       },
     },
   },

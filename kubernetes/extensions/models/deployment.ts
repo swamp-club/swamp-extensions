@@ -2,15 +2,22 @@ import { z } from "npm:zod@4.6.7";
 import type {
   V1Container,
   V1Deployment,
+  V1LabelSelector,
+  V1Pod,
   V1ReplicaSet,
   V1Volume,
 } from "npm:@kubernetes/client-node@1.4.0";
 import {
   buildClient,
+  callForObject,
   type DataHandle,
+  describeTarget,
   type K8sContext,
   K8sGlobalArgsSchema,
   normalizeMeta,
+  PatchFields,
+  patchOptions,
+  refinePatchArgs,
   sanitizeInstanceName,
 } from "./_lib/helpers.ts";
 
@@ -131,12 +138,113 @@ const GetRolloutStatusArgsSchema = z.object({
   deploymentName: z.string(),
   namespace: z.string().optional(),
 });
+const GetLogsArgsSchema = z.object({
+  deploymentName: z.string(),
+  container: z.string().optional().describe(
+    "Container to read; defaults to the pod's " +
+      "kubectl.kubernetes.io/default-container annotation, then its first " +
+      "container",
+  ),
+  tailLines: z.number().int().min(1).default(100),
+  previous: z.boolean().default(false).describe(
+    "Read the previous (crashed) container instance's logs",
+  ),
+  namespace: z.string().optional(),
+});
 const GetReplicaSetsArgsSchema = z.object({
   deploymentName: z.string(),
   namespace: z.string().optional(),
 });
 
+const PatchArgsSchema = refinePatchArgs(z.object({
+  deploymentName: z.string(),
+  namespace: z.string().optional(),
+  ...PatchFields,
+}));
+
 // --- Helpers ---
+
+const DEFAULT_CONTAINER_ANNOTATION = "kubectl.kubernetes.io/default-container";
+
+/** Equality selector from a label map, as kubectl writes it: a=b,c=d. */
+function labelSelector(labels: Record<string, string>): string {
+  return Object.entries(labels).map(([k, v]) => `${k}=${v}`).join(",");
+}
+
+/**
+ * A LabelSelector as a query string: matchLabels as k=v, matchExpressions as
+ * `k in (a,b)`, `k notin (a,b)`, `k` and `!k`. Empty when it selects nothing.
+ */
+function selectorString(selector: V1LabelSelector | undefined): string {
+  const terms = [
+    labelSelector(selector?.matchLabels ?? {}),
+    ...(selector?.matchExpressions ?? []).map((e) => {
+      const values = (e.values ?? []).join(",");
+      switch (e.operator) {
+        case "In":
+          return `${e.key} in (${values})`;
+        case "NotIn":
+          return `${e.key} notin (${values})`;
+        case "Exists":
+          return e.key;
+        case "DoesNotExist":
+          return `!${e.key}`;
+        default:
+          throw new Error(
+            `Unsupported selector operator ${e.operator} on ${e.key}`,
+          );
+      }
+    }),
+  ];
+  return terms.filter((t) => t !== "").join(",");
+}
+
+function isReady(pod: V1Pod): boolean {
+  return (pod.status?.conditions ?? []).some((c) =>
+    c.type === "Ready" && c.status === "True"
+  );
+}
+
+/** Ready first, then Running (e.g. crash-looping), then Pending or Unknown. */
+function podRank(pod: V1Pod): number {
+  if (isReady(pod)) return 2;
+  return pod.status?.phase === "Running" ? 1 : 0;
+}
+
+/**
+ * The deployment's current pod among those still live: not terminating and
+ * not finished (an evicted pod is Failed). Ranked by podRank, then newest.
+ * Undefined when no pod qualifies.
+ */
+function pickCurrentPod(pods: V1Pod[]): V1Pod | undefined {
+  const created = (p: V1Pod) =>
+    p.metadata?.creationTimestamp
+      ? new Date(p.metadata.creationTimestamp).getTime()
+      : 0;
+  return pods
+    .filter((p) =>
+      !p.metadata?.deletionTimestamp &&
+      p.status?.phase !== "Failed" && p.status?.phase !== "Succeeded"
+    )
+    .sort((a, b) => podRank(b) - podRank(a) || created(b) - created(a))[0];
+}
+
+/** The uid of the object's controller (its managing owner), if any. */
+function controllerUid(
+  obj: {
+    metadata?: {
+      ownerReferences?: { controller?: boolean; uid: string }[];
+    };
+  },
+): string | undefined {
+  return obj.metadata?.ownerReferences?.find((r) => r.controller)?.uid;
+}
+
+/** kubectl's choice when no container is named. */
+function defaultContainer(pod: V1Pod): string | undefined {
+  return pod.metadata?.annotations?.[DEFAULT_CONTAINER_ANNOTATION] ??
+    pod.spec?.containers[0]?.name;
+}
 
 function normalizeVolume(vol: V1Volume) {
   if (vol.configMap) {
@@ -249,7 +357,7 @@ function normalizeReplicaSet(raw: V1ReplicaSet) {
 /** Kubernetes Deployment model. */
 export const model = {
   type: "@swamp/kubernetes/deployment",
-  version: "2026.08.01.1",
+  version: "2026.11.07.1",
   globalArguments: K8sGlobalArgsSchema,
   upgrades: [
     {
@@ -288,6 +396,13 @@ export const model = {
         "add statefulset model type. No schema or behavior change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.07.1",
+      description:
+        "Add patch (merge, strategic merge or JSON patch) and getLogs (tail the logs of the deployment's current pod). " +
+        "No change to global arguments or existing resources.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     deployment: {
@@ -303,6 +418,16 @@ export const model = {
       schema: ReplicaSetSchema,
       lifetime: "1h",
       garbageCollection: 10,
+    },
+  },
+  files: {
+    logs: {
+      description:
+        "Raw container stdout/stderr logs of the deployment's current pod",
+      contentType: "text/plain",
+      lifetime: "7d",
+      garbageCollection: 5,
+      streaming: true,
     },
   },
   methods: {
@@ -717,6 +842,147 @@ export const model = {
           handles.push(handle);
         }
         return { dataHandles: handles };
+      },
+    },
+
+    getLogs: {
+      description:
+        "Tail the logs of the deployment's current pod, found from its pod " +
+        "template labels: Ready pods first, then the newest",
+      arguments: GetLogsArgsSchema,
+      execute: async (
+        args: z.infer<typeof GetLogsArgsSchema>,
+        context: K8sContext,
+      ): Promise<{ dataHandles: DataHandle[] }> => {
+        const { appsApi, coreApi } = buildClient(context.globalArgs);
+        const ns = args.namespace ?? context.globalArgs.namespace;
+        const target = describeTarget("Deployment", args.deploymentName, ns);
+
+        const dep = await callForObject(
+          "Reading",
+          target,
+          () =>
+            appsApi.readNamespacedDeployment({
+              name: args.deploymentName,
+              namespace: ns,
+            }),
+        );
+        const templateLabels = dep.spec?.template?.metadata?.labels ?? {};
+        const selector = Object.keys(templateLabels).length > 0
+          ? labelSelector(templateLabels)
+          : selectorString(dep.spec?.selector);
+        if (selector === "") {
+          throw new Error(
+            `${target} has no pod template labels or selector to find its ` +
+              "pods by",
+          );
+        }
+
+        const pods = await callForObject(
+          `Listing pods matching ${selector} for`,
+          target,
+          () =>
+            coreApi.listNamespacedPod({
+              namespace: ns,
+              labelSelector: selector,
+            }),
+        );
+        // Labels can overlap another workload's (a canary sharing app=web),
+        // so keep only pods of a ReplicaSet this Deployment controls.
+        const replicaSets = await callForObject(
+          `Listing ReplicaSets matching ${selector} for`,
+          target,
+          () =>
+            appsApi.listNamespacedReplicaSet({
+              namespace: ns,
+              labelSelector: selector,
+            }),
+        );
+        const ownedReplicaSets = new Set(
+          (replicaSets.items ?? [])
+            .filter((rs) => controllerUid(rs) === dep.metadata?.uid)
+            .map((rs) => rs.metadata?.uid),
+        );
+        const owned = (pods.items ?? []).filter((p) =>
+          ownedReplicaSets.has(controllerUid(p))
+        );
+        const pod = pickCurrentPod(owned);
+        if (!pod) {
+          throw new Error(
+            `${target} has no pods of its own ReplicaSets matching ` +
+              `${selector} that are not terminating or finished`,
+          );
+        }
+        const podName = pod.metadata?.name ?? "";
+        const container = args.container ?? defaultContainer(pod);
+
+        const resp = await callForObject(
+          `Reading logs${container ? ` of container "${container}"` : ""} of`,
+          describeTarget("Pod", podName, ns),
+          () =>
+            coreApi.readNamespacedPodLog({
+              name: podName,
+              namespace: ns,
+              container,
+              tailLines: args.tailLines,
+              previous: args.previous,
+            }),
+        );
+        const logText = typeof resp === "string" ? resp : String(resp);
+
+        context.logger.info(
+          "Read logs of deployment {name} from pod {pod} container {container}",
+          { name: args.deploymentName, pod: podName, container },
+        );
+
+        const writer = context.createFileWriter(
+          "logs",
+          // "_" cannot occur in a namespace, Deployment or container name.
+          sanitizeInstanceName(
+            `${ns}_${args.deploymentName}${container ? `_${container}` : ""}`,
+          ),
+        );
+        const handle = await writer.writeText(logText);
+        return { dataHandles: [handle] };
+      },
+    },
+
+    patch: {
+      description:
+        "Patch a Deployment in place with a merge, strategic merge or JSON " +
+        "patch, without replacing the whole object",
+      arguments: PatchArgsSchema,
+      execute: async (
+        args: z.infer<typeof PatchArgsSchema>,
+        context: K8sContext,
+      ): Promise<{ dataHandles: DataHandle[] }> => {
+        const { appsApi } = buildClient(context.globalArgs);
+        const ns = args.namespace ?? context.globalArgs.namespace;
+
+        const patched = await callForObject(
+          "Patching",
+          describeTarget("Deployment", args.deploymentName, ns),
+          () =>
+            appsApi.patchNamespacedDeployment({
+              name: args.deploymentName,
+              namespace: ns,
+              body: args.patch,
+            }, patchOptions(args.patchType)),
+        );
+        const normalized = normalizeDeployment(patched);
+
+        context.logger.info("Patched Deployment {name} in {ns} ({type})", {
+          name: args.deploymentName,
+          ns,
+          type: args.patchType,
+        });
+
+        const handle = await context.writeResource(
+          "deployment",
+          sanitizeInstanceName(normalized.name),
+          normalized,
+        );
+        return { dataHandles: [handle] };
       },
     },
   },

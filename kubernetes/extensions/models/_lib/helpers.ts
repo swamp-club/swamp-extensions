@@ -33,6 +33,7 @@ export interface K8sContext {
     specName: string,
     instanceName: string,
     data: Record<string, unknown>,
+    overrides?: { lifetime?: string },
   ): Promise<DataHandle>;
   deleteResource?(instanceName: string): Promise<void>;
   readModelData?(
@@ -162,6 +163,10 @@ export function buildClient(globalArgs: K8sGlobalArgs) {
     kc.makeApiClient(k8s.RbacAuthorizationV1Api),
     clusterInfo,
   );
+  const authorizationApi = wrapApiClient(
+    kc.makeApiClient(k8s.AuthorizationV1Api),
+    clusterInfo,
+  );
   const customApi = wrapApiClient(
     kc.makeApiClient(k8s.CustomObjectsApi),
     clusterInfo,
@@ -179,6 +184,7 @@ export function buildClient(globalArgs: K8sGlobalArgs) {
     networkingApi,
     autoscalingApi,
     rbacApi,
+    authorizationApi,
     customApi,
     metricsClient,
   };
@@ -235,4 +241,154 @@ export function listKubeContexts(kc: k8s.KubeConfig) {
       isCurrentContext: ctx.name === currentContext,
     };
   });
+}
+
+// --- Generic patch ---
+
+const JsonPatchOpSchema = z.object({
+  op: z.enum(["add", "remove", "replace", "move", "copy", "test"]),
+  path: z.string(),
+  value: z.unknown().optional(),
+  from: z.string().optional(),
+});
+
+/** JSON text becomes its value; anything else, or invalid JSON, is unchanged. */
+function parseJsonText(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return value;
+  }
+}
+
+/**
+ * Argument fields shared by every model's patch method. Merge and strategic
+ * patches take an object; a JSON Patch takes an array of RFC 6902 operations.
+ * Wrap the model's schema with refinePatchArgs so the shapes are checked.
+ */
+export const PatchFields = {
+  patchType: z.enum(["merge", "strategic", "json"]).default("merge")
+    .describe(
+      "merge (RFC 7386), strategic (Kubernetes strategic merge patch, " +
+        "merges lists by key such as containers by name) or json " +
+        "(RFC 6902 operations)",
+    ),
+  // The CLI parses --input JSON only for plain object and array fields, so a
+  // union arrives as a string: accept JSON text and parse it here.
+  patch: z.preprocess(
+    parseJsonText,
+    z.union([
+      z.record(z.string(), z.unknown()),
+      z.array(JsonPatchOpSchema).min(1),
+    ]),
+  ).describe(
+    "The patch body: an object for merge and strategic, an array of " +
+      "operations for json",
+  ),
+};
+
+export type PatchType = "merge" | "strategic" | "json";
+
+export function refinePatchArgs<
+  T extends z.ZodType<{ patchType: PatchType; patch: unknown }>,
+>(schema: T): T {
+  return schema.superRefine((args, ctx) => {
+    const isOps = Array.isArray(args.patch);
+    if (args.patchType === "json" && !isOps) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["patch"],
+        message: "patchType json needs an array of JSON Patch operations",
+      });
+    } else if (args.patchType !== "json" && isOps) {
+      ctx.addIssue({
+        code: "custom",
+        path: ["patch"],
+        message:
+          `patchType ${args.patchType} needs an object; use patchType json ` +
+          "for an array of operations",
+      });
+    }
+  }) as unknown as T;
+}
+
+const PATCH_CONTENT_TYPES: Record<PatchType, k8s.PatchStrategy> = {
+  merge: k8s.PatchStrategy.MergePatch,
+  strategic: k8s.PatchStrategy.StrategicMergePatch,
+  json: k8s.PatchStrategy.JsonPatch,
+};
+
+/**
+ * Request options that set the patch Content-Type. client-node defaults
+ * every patch to JSON Patch, so a patch call must always pass these.
+ */
+export function patchOptions(patchType: PatchType) {
+  return k8s.setHeaderOptions("Content-Type", PATCH_CONTENT_TYPES[patchType]);
+}
+
+/** The API server's Status message from a client-node ApiException. */
+export function apiErrorMessage(err: unknown): string {
+  let body = (err as { body?: unknown }).body;
+  if (typeof body === "string") {
+    const text = body;
+    try {
+      body = JSON.parse(text);
+    } catch {
+      return text;
+    }
+  }
+  if (
+    typeof body === "object" && body !== null &&
+    typeof (body as { message?: unknown }).message === "string"
+  ) {
+    return (body as { message: string }).message;
+  }
+  return err instanceof Error ? err.message : String(err);
+}
+
+/** The HTTP status of a client-node ApiException, if err is one. */
+export function apiErrorCode(err: unknown): number | undefined {
+  if (typeof err !== "object" || err === null) return undefined;
+  const code = (err as { code?: unknown }).code;
+  return typeof code === "number" ? code : undefined;
+}
+
+/**
+ * Describe the object a call targets, for error messages: `Deployment
+ * "web" in namespace "default"`, or without a namespace when cluster-scoped.
+ */
+export function describeTarget(
+  kind: string,
+  name: string,
+  namespace?: string,
+): string {
+  return namespace
+    ? `${kind} "${name}" in namespace "${namespace}"`
+    : `${kind} "${name}"`;
+}
+
+/**
+ * Run a call against one named object, turning API errors into messages that
+ * name the object: a 404 says it was not found, anything else carries the
+ * API server's own reason.
+ */
+export async function callForObject<T>(
+  action: string,
+  target: string,
+  call: () => Promise<T>,
+): Promise<T> {
+  try {
+    return await call();
+  } catch (err) {
+    const code = apiErrorCode(err);
+    if (code === undefined) throw err;
+    if (code === 404) {
+      throw new Error(`${target} not found`, { cause: err });
+    }
+    throw new Error(
+      `${action} ${target} failed (HTTP ${code}): ${apiErrorMessage(err)}`,
+      { cause: err },
+    );
+  }
 }

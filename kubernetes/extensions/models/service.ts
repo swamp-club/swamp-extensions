@@ -2,10 +2,15 @@ import { z } from "npm:zod@4.6.7";
 import type { V1Endpoints, V1Service } from "npm:@kubernetes/client-node@1.4.0";
 import {
   buildClient,
+  callForObject,
   type DataHandle,
+  describeTarget,
   type K8sContext,
   K8sGlobalArgsSchema,
   normalizeMeta,
+  PatchFields,
+  patchOptions,
+  refinePatchArgs,
 } from "./_lib/helpers.ts";
 
 // --- Schemas ---
@@ -122,6 +127,12 @@ const DiagnoseServiceArgsSchema = z.object({
 
 type PortInputType = z.infer<typeof PortInput>;
 
+const PatchArgsSchema = refinePatchArgs(z.object({
+  serviceName: z.string(),
+  namespace: z.string().optional(),
+  ...PatchFields,
+}));
+
 // --- Helpers ---
 
 function normalizeService(raw: V1Service) {
@@ -193,7 +204,7 @@ function mapPortToK8s(p: PortInputType) {
 /** Kubernetes Service model. */
 export const model = {
   type: "@swamp/kubernetes/service",
-  version: "2026.08.01.1",
+  version: "2026.11.07.1",
   globalArguments: K8sGlobalArgsSchema,
   upgrades: [
     {
@@ -230,6 +241,12 @@ export const model = {
       toVersion: "2026.08.01.1",
       description: "Bump @kubernetes/client-node from 1.0.0 to 1.4.0 and " +
         "add statefulset model type. No schema or behavior change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
+      description: "Add patch (merge, strategic merge or JSON patch). " +
+        "No change to global arguments or existing resources.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -588,6 +605,45 @@ export const model = {
           "diagnosis",
           args.serviceName,
           diagnosis,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+
+    patch: {
+      description:
+        "Patch a Service in place with a merge, strategic merge or JSON " +
+        "patch, without replacing the whole object",
+      arguments: PatchArgsSchema,
+      execute: async (
+        args: z.infer<typeof PatchArgsSchema>,
+        context: K8sContext,
+      ): Promise<{ dataHandles: DataHandle[] }> => {
+        const { coreApi } = buildClient(context.globalArgs);
+        const ns = args.namespace ?? context.globalArgs.namespace;
+
+        const patched = await callForObject(
+          "Patching",
+          describeTarget("Service", args.serviceName, ns),
+          () =>
+            coreApi.patchNamespacedService({
+              name: args.serviceName,
+              namespace: ns,
+              body: args.patch,
+            }, patchOptions(args.patchType)),
+        );
+        const normalized = normalizeService(patched);
+
+        context.logger.info("Patched Service {name} in {ns} ({type})", {
+          name: args.serviceName,
+          ns,
+          type: args.patchType,
+        });
+
+        const handle = await context.writeResource(
+          "service",
+          normalized.name,
+          normalized,
         );
         return { dataHandles: [handle] };
       },

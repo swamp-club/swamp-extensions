@@ -2,12 +2,17 @@ import { z } from "npm:zod@4.6.7";
 import type { V1Pod } from "npm:@kubernetes/client-node@1.4.0";
 import {
   buildClient,
+  callForObject,
   ContextInfoSchema,
   type DataHandle,
+  describeTarget,
   type K8sContext,
   K8sGlobalArgsSchema,
   listKubeContexts,
   normalizeMeta,
+  PatchFields,
+  patchOptions,
+  refinePatchArgs,
   sanitizeInstanceName,
 } from "./_lib/helpers.ts";
 
@@ -101,6 +106,12 @@ const ExecArgsSchema = z.object({
 
 // --- Pod-specific helpers ---
 
+const PatchArgsSchema = refinePatchArgs(z.object({
+  podName: z.string(),
+  namespace: z.string().optional(),
+  ...PatchFields,
+}));
+
 function normalizePod(raw: V1Pod) {
   const meta = normalizeMeta(raw);
 
@@ -142,7 +153,7 @@ function normalizePod(raw: V1Pod) {
 /** Kubernetes Pod model. */
 export const model = {
   type: "@swamp/kubernetes/pod",
-  version: "2026.08.01.1",
+  version: "2026.11.07.1",
   globalArguments: K8sGlobalArgsSchema,
   upgrades: [
     {
@@ -179,6 +190,12 @@ export const model = {
       toVersion: "2026.08.01.1",
       description: "Bump @kubernetes/client-node from 1.0.0 to 1.4.0 and " +
         "add statefulset model type. No schema or behavior change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
+      description: "Add patch (merge, strategic merge or JSON patch). " +
+        "No change to global arguments or existing resources.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -563,6 +580,45 @@ export const model = {
           "execResult",
           sanitizeInstanceName(`${args.podName}-exec`),
           result,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+
+    patch: {
+      description:
+        "Patch a Pod in place with a merge, strategic merge or JSON " +
+        "patch, without replacing the whole object",
+      arguments: PatchArgsSchema,
+      execute: async (
+        args: z.infer<typeof PatchArgsSchema>,
+        context: K8sContext,
+      ): Promise<{ dataHandles: DataHandle[] }> => {
+        const { coreApi } = buildClient(context.globalArgs);
+        const ns = args.namespace ?? context.globalArgs.namespace;
+
+        const patched = await callForObject(
+          "Patching",
+          describeTarget("Pod", args.podName, ns),
+          () =>
+            coreApi.patchNamespacedPod({
+              name: args.podName,
+              namespace: ns,
+              body: args.patch,
+            }, patchOptions(args.patchType)),
+        );
+        const normalized = normalizePod(patched);
+
+        context.logger.info("Patched Pod {name} in {ns} ({type})", {
+          name: args.podName,
+          ns,
+          type: args.patchType,
+        });
+
+        const handle = await context.writeResource(
+          "pod",
+          normalized.name,
+          normalized,
         );
         return { dataHandles: [handle] };
       },

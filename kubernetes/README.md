@@ -48,7 +48,7 @@ Cluster-scoped models (`namespace`, `node`) omit the `namespace` field.
 | ----- | ---- | ----------- |
 | `pod` | `@swamp/kubernetes/pod` | Pod lifecycle, logs, metrics, and exec |
 | `pod_summary` | `@swamp/kubernetes/pod-summary` | Aggregated pod statistics from stored data |
-| `deployment` | `@swamp/kubernetes/deployment` | Deployment CRUD, scaling, rolling restart, pause/resume, rollout status |
+| `deployment` | `@swamp/kubernetes/deployment` | Deployment CRUD, scaling, rolling restart, pause/resume, rollout status, `getLogs` from the current pod |
 | `statefulset` | `@swamp/kubernetes/statefulset` | StatefulSet listing, scaling, rolling restart, and delete |
 | `service` | `@swamp/kubernetes/service` | Service CRUD, endpoint inspection, and selector diagnosis |
 | `namespace` | `@swamp/kubernetes/namespace` | Namespace CRUD, resource quotas, limit ranges, resource counts, health |
@@ -60,7 +60,7 @@ Cluster-scoped models (`namespace`, `node`) omit the `namespace` field.
 | `hpa` | `@swamp/kubernetes/hpa` | HorizontalPodAutoscaler CRUD and status |
 | `job` | `@swamp/kubernetes/job` | Job CRUD, log retrieval, and cleanup |
 | `netpol` | `@swamp/kubernetes/netpol` | NetworkPolicy listing, analysis, and connectivity testing |
-| `rbac` | `@swamp/kubernetes/rbac` | Roles, ClusterRoles, bindings, and ServiceAccounts |
+| `rbac` | `@swamp/kubernetes/rbac` | Roles, ClusterRoles, bindings; ServiceAccount create/update/delete, expiring token requests, and access checks |
 | `event` | `@swamp/kubernetes/event` | Cluster events with filtering by type and involved object |
 | `externalsecret` | `@swamp/kubernetes/externalsecret` | External Secrets Operator ExternalSecrets: list, get, and `forceSync` to request an immediate resync |
 
@@ -87,6 +87,111 @@ does not wait for the controller. Check
 uses `external-secrets.io/v1` and falls back to `v1beta1` when `v1` is not
 served; pass `apiVersion` to pin one. It never reads secret values, and it does
 not store the `data` entries or their remote keys.
+
+### Patching resources in place
+
+`deployment`, `statefulset`, `service`, `ingress`, `pod`, `configmap`,
+`namespace`, `netpol`, `hpa` and `pvc` have a `patch` method; `job` has
+`patchJob` and `patchCronJob`, and `rbac` has `patchServiceAccount`. A patch
+changes only the fields it names, so it does not fight a GitOps controller
+over the rest of the object the way a full replace does. Pick the format with
+`patchType`:
+
+- `merge` (default): an RFC 7386 JSON merge patch object. `null` removes a key.
+  Lists are replaced whole.
+- `strategic`: a Kubernetes strategic merge patch object. Lists such as
+  `containers` merge by key, so one container can change without restating the
+  others.
+- `json`: an RFC 6902 array of operations (`add`, `remove`, `replace`, `move`,
+  `copy`, `test`). A failed `test` rejects the whole patch.
+
+```bash
+# Point a Deployment's pods at another ServiceAccount
+swamp model method run my-deployments patch \
+  --input deploymentName=api \
+  --input-file patch.yaml   # patch: {spec: {template: {spec: {serviceAccountName: api}}}}
+
+# Scale to zero only if the replica count is still 3
+swamp model method run my-deployments patch \
+  --input deploymentName=api --input patchType=json \
+  --input 'patch=[{"op":"test","path":"/spec/replicas","value":3},{"op":"replace","path":"/spec/replicas","value":0}]'
+```
+
+Each method needs `patch` permission on its resource. The patched object is
+written to the model's usual resource, as `get` would. `secret` has no `patch`:
+the patch body would carry secret values in the method arguments, which are not
+stored as sensitive. Use `secret` `update` or `ensure` instead.
+
+### ServiceAccounts, expiring tokens and access checks
+
+`rbac` creates, updates and deletes ServiceAccounts:
+
+- `createServiceAccount` takes optional `annotations`, `labels` and
+  `automountToken`. Use it for an IRSA or workload-identity account, e.g.
+  `annotations: {"eks.amazonaws.com/role-arn": "arn:aws:iam::123456789012:role/app"}`.
+- `updateServiceAccount` sets keys with `setAnnotations` / `setLabels`, removes
+  them with `removeAnnotations` / `removeLabels`, and can change
+  `automountToken`. It sends a merge patch, so keys you do not name are left as
+  they are.
+- `deleteServiceAccount` deletes one.
+
+`requestServiceAccountToken` asks the TokenRequest API for a token that expires,
+instead of a long-lived token Secret. `expirationSeconds` defaults to 3600 and
+must be at least 600. The API server may issue a shorter token than requested,
+and `expirationTimestamp` records the expiry it actually issued. The token is a
+sensitive field, so swamp stores it in the vault, never in plain data. Each
+ServiceAccount has one `serviceAccountToken` record, named `<namespace>_<name>`,
+which the next request replaces. The record expires when the token does.
+`audiences` defaults to the API server's own.
+
+`checkServiceAccountAccess` asks the API server what a ServiceAccount may do,
+with one SubjectAccessReview per entry in `checks` (up to 100):
+
+```bash
+swamp model method run my-rbac checkServiceAccountAccess \
+  --input serviceAccountName=dashboard --input-file checks.yaml
+# checks:
+#   - {verb: list, resource: pods}
+#   - {verb: get, resource: deployments, group: apps, namespace: web}
+#   - {verb: list, resource: nodes, clusterScoped: true}
+```
+
+Each check writes an `accessReview` record with `allowed`, `denied` and
+`reason`. A check runs in the ServiceAccount's namespace unless it names
+another `namespace`. Set `clusterScoped: true` for cluster-scoped resources
+such as nodes, or to ask whether access holds in every namespace; a check
+cannot set both, and `namespace` cannot be empty. Without it, a RoleBinding in one namespace can grant a check
+that does not hold cluster-wide. A check cannot be evaluated when the review
+request fails, or when the API server answers with an `evaluationError` and
+neither allows nor explicitly denies (an authorizer webhook timing out, say).
+Its record then carries `evaluationError`, the remaining checks still run, and
+the method then fails. An explicit deny is an answer, even with an
+`evaluationError` alongside it.
+
+Permissions: `requestServiceAccountToken` needs `create` on
+`serviceaccounts/token`; `checkServiceAccountAccess` needs `create` on
+`subjectaccessreviews.authorization.k8s.io`, which is cluster-wide.
+
+### Logs from a deployment
+
+`deployment` `getLogs` reads a deployment's logs without knowing a pod name.
+It finds the pods by the deployment's pod-template labels (falling back to
+the whole `spec.selector`, `matchExpressions` included), and keeps only pods
+whose ReplicaSet this deployment owns, so a second deployment with overlapping
+labels (a canary, say) is never read. It skips pods that are
+terminating or finished, such as evicted pods, and takes a Ready pod first, then
+a Running one (crash-looping, say), then a Pending one, newest first within
+each. With no `container` it uses
+the pod's `kubectl.kubernetes.io/default-container` annotation, then its first
+container, as `kubectl logs` does. `tailLines` defaults to 100, and
+`previous: true` reads the crashed instance. During a rollout this is usually
+a pod from the new ReplicaSet. It needs `list` on `pods` and `get` on
+`pods/log`, and `list` on `replicasets` in the `apps` group.
+
+```bash
+swamp model method run my-deployments getLogs \
+  --input deploymentName=api --input tailLines=200
+```
 
 ### Secrets without stored values
 

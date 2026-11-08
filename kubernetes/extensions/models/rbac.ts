@@ -8,11 +8,18 @@ import type {
   V1ServiceAccount,
 } from "npm:@kubernetes/client-node@1.4.0";
 import {
+  apiErrorCode,
+  apiErrorMessage,
   buildClient,
+  callForObject,
   type DataHandle,
+  describeTarget,
   type K8sContext,
   K8sGlobalArgsSchema,
   normalizeMeta,
+  PatchFields,
+  patchOptions,
+  refinePatchArgs,
   sanitizeInstanceName,
 } from "./_lib/helpers.ts";
 
@@ -86,6 +93,34 @@ const ServiceAccountSchema = z.object({
   createdAt: z.string(),
 }).passthrough();
 
+const ServiceAccountTokenSchema = z.object({
+  serviceAccount: z.string(),
+  namespace: z.string(),
+  token: z.string().meta({ sensitive: true }),
+  audiences: z.array(z.string()),
+  requestedExpirationSeconds: z.number(),
+  expirationTimestamp: z.string(),
+  issuedAt: z.string(),
+}).passthrough();
+
+const AccessReviewSchema = z.object({
+  serviceAccount: z.string(),
+  serviceAccountNamespace: z.string(),
+  user: z.string(),
+  verb: z.string(),
+  group: z.string(),
+  resource: z.string(),
+  subresource: z.string(),
+  name: z.string(),
+  namespace: z.string(),
+  clusterScoped: z.boolean(),
+  allowed: z.boolean(),
+  denied: z.boolean(),
+  reason: z.string(),
+  evaluationError: z.string(),
+  checkedAt: z.string(),
+}).passthrough();
+
 // --- Method Arg Schemas ---
 
 const ListRolesArgsSchema = z.object({ namespace: z.string().optional() });
@@ -115,6 +150,80 @@ const GetServiceAccountArgsSchema = z.object({
   serviceAccountName: z.string(),
   namespace: z.string().optional(),
 });
+const RequestTokenArgsSchema = z.object({
+  serviceAccountName: z.string(),
+  namespace: z.string().optional(),
+  expirationSeconds: z.number().int().min(600).default(3600).describe(
+    "Requested token lifetime in seconds (minimum 600, the API floor). The " +
+      "API server may issue a shorter one; the stored expirationTimestamp is " +
+      "what it actually issued.",
+  ),
+  audiences: z.array(z.string()).optional().describe(
+    "Intended audiences; defaults to the API server's own audience",
+  ),
+});
+const AccessCheckSchema = z.object({
+  verb: z.string().describe("get, list, watch, create, update, patch, delete"),
+  resource: z.string().describe("Plural resource, e.g. pods or deployments"),
+  group: z.string().default("").describe(
+    "API group; empty for the core group, e.g. apps for deployments",
+  ),
+  subresource: z.string().optional(),
+  name: z.string().optional().describe("A single object's name"),
+  // min(1): an empty namespace would silently ask cluster-wide while the
+  // record claims a namespaced check; clusterScoped is the explicit way.
+  namespace: z.string().min(1).optional().describe(
+    "Namespace to check in; defaults to the service account's namespace",
+  ),
+  clusterScoped: z.boolean().default(false).describe(
+    "Check without a namespace: for cluster-scoped resources such as nodes, " +
+      "or to ask whether access holds in every namespace",
+  ),
+}).refine((c) => !(c.clusterScoped && c.namespace !== undefined), {
+  message: "A check takes namespace or clusterScoped, not both",
+  path: ["namespace"],
+});
+const CheckAccessArgsSchema = z.object({
+  serviceAccountName: z.string(),
+  namespace: z.string().optional(),
+  checks: z.array(AccessCheckSchema).min(1).max(100),
+});
+const CreateServiceAccountArgsSchema = z.object({
+  serviceAccountName: z.string(),
+  namespace: z.string().optional(),
+  annotations: z.record(z.string(), z.string()).optional(),
+  labels: z.record(z.string(), z.string()).optional(),
+  automountToken: z.boolean().optional(),
+});
+const UpdateServiceAccountArgsSchema = z.object({
+  serviceAccountName: z.string(),
+  namespace: z.string().optional(),
+  setAnnotations: z.record(z.string(), z.string()).optional(),
+  removeAnnotations: z.array(z.string()).optional(),
+  setLabels: z.record(z.string(), z.string()).optional(),
+  removeLabels: z.array(z.string()).optional(),
+  automountToken: z.boolean().optional(),
+}).refine(
+  (a) =>
+    Object.keys(a.setAnnotations ?? {}).length > 0 ||
+    (a.removeAnnotations ?? []).length > 0 ||
+    Object.keys(a.setLabels ?? {}).length > 0 ||
+    (a.removeLabels ?? []).length > 0 ||
+    a.automountToken !== undefined,
+  {
+    message: "Nothing to update: pass at least one annotation or label to " +
+      "set or remove, or automountToken",
+  },
+);
+const DeleteServiceAccountArgsSchema = z.object({
+  serviceAccountName: z.string(),
+  namespace: z.string().optional(),
+});
+const PatchServiceAccountArgsSchema = refinePatchArgs(z.object({
+  serviceAccountName: z.string(),
+  namespace: z.string().optional(),
+  ...PatchFields,
+}));
 
 // --- Helpers ---
 
@@ -203,12 +312,40 @@ function normalizeServiceAccount(raw: V1ServiceAccount) {
   };
 }
 
+/** The username the API server authenticates a ServiceAccount token as. */
+function serviceAccountUser(namespace: string, name: string) {
+  return `system:serviceaccount:${namespace}:${name}`;
+}
+
+/** Merge-patch map: set the given keys, null out the removed ones. */
+function keyChanges(
+  set: Record<string, string> | undefined,
+  remove: string[] | undefined,
+): Record<string, string | null> | undefined {
+  if (!set && !remove) return undefined;
+  const out: Record<string, string | null> = {};
+  for (const k of remove ?? []) out[k] = null;
+  return { ...out, ...(set ?? {}) };
+}
+
+async function writeServiceAccount(
+  context: K8sContext,
+  raw: V1ServiceAccount,
+): Promise<DataHandle> {
+  const normalized = normalizeServiceAccount(raw);
+  return await context.writeResource(
+    "serviceAccount",
+    sanitizeInstanceName(normalized.name),
+    normalized,
+  );
+}
+
 // --- Model ---
 
 /** Kubernetes RBAC model. */
 export const model = {
   type: "@swamp/kubernetes/rbac",
-  version: "2026.08.01.1",
+  version: "2026.11.07.1",
   globalArguments: K8sGlobalArgsSchema,
   upgrades: [
     {
@@ -247,6 +384,15 @@ export const model = {
         "add statefulset model type. No schema or behavior change.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
+    {
+      toVersion: "2026.11.07.1",
+      description:
+        "Add requestServiceAccountToken (expiring, vaulted token), " +
+        "checkServiceAccountAccess (SubjectAccessReview), and " +
+        "create/update/patch/deleteServiceAccount. No change to global " +
+        "arguments or existing resources.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
   ],
   resources: {
     role: {
@@ -281,6 +427,22 @@ export const model = {
       description:
         "ServiceAccount with auto-mount token status and associated secret count",
       schema: ServiceAccountSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    serviceAccountToken: {
+      description:
+        "Expiring ServiceAccount token from the TokenRequest API (token is " +
+        "sensitive, stored in vault)",
+      schema: ServiceAccountTokenSchema,
+      lifetime: "infinite",
+      garbageCollection: 10,
+    },
+    accessReview: {
+      description:
+        "SubjectAccessReview result: whether a ServiceAccount may perform " +
+        "one verb on one resource",
+      schema: AccessReviewSchema,
       lifetime: "infinite",
       garbageCollection: 10,
     },
@@ -586,6 +748,365 @@ export const model = {
           normalized,
         );
         return { dataHandles: [handle] };
+      },
+    },
+
+    requestServiceAccountToken: {
+      description:
+        "Request an expiring token for a ServiceAccount via the TokenRequest " +
+        "API. The token is stored as a sensitive field (vaulted), with its " +
+        "expiration; no long-lived token Secret is created.",
+      arguments: RequestTokenArgsSchema,
+      execute: async (
+        args: z.infer<typeof RequestTokenArgsSchema>,
+        context: K8sContext,
+      ): Promise<{ dataHandles: DataHandle[] }> => {
+        const { coreApi } = buildClient(context.globalArgs);
+        const ns = args.namespace ?? context.globalArgs.namespace;
+        const target = describeTarget(
+          "ServiceAccount",
+          args.serviceAccountName,
+          ns,
+        );
+
+        const resp = await callForObject(
+          "Requesting a token for",
+          target,
+          () =>
+            coreApi.createNamespacedServiceAccountToken({
+              name: args.serviceAccountName,
+              namespace: ns,
+              body: {
+                spec: {
+                  expirationSeconds: args.expirationSeconds,
+                  audiences: args.audiences ?? [],
+                },
+              },
+            }),
+        );
+        const token = resp.status?.token;
+        if (!token) {
+          throw new Error(`TokenRequest for ${target} returned no token`);
+        }
+        const expiration = resp.status?.expirationTimestamp;
+        const expirationTimestamp = expiration
+          ? new Date(expiration).toISOString()
+          : "";
+
+        context.logger.info(
+          "Issued token for ServiceAccount {name} in {ns}, expires {expires}",
+          { name: args.serviceAccountName, ns, expires: expirationTimestamp },
+        );
+
+        // The record expires with the token it holds.
+        const minutesLeft = expiration
+          ? Math.max(
+            1,
+            Math.ceil((new Date(expiration).getTime() - Date.now()) / 60_000),
+          )
+          : Math.ceil(args.expirationSeconds / 60);
+
+        // "_" cannot occur in a namespace or ServiceAccount name.
+        const handle = await context.writeResource(
+          "serviceAccountToken",
+          sanitizeInstanceName(`${ns}_${args.serviceAccountName}`),
+          {
+            serviceAccount: args.serviceAccountName,
+            namespace: ns,
+            token,
+            audiences: resp.spec?.audiences ?? args.audiences ?? [],
+            requestedExpirationSeconds: args.expirationSeconds,
+            expirationTimestamp,
+            issuedAt: new Date().toISOString(),
+          },
+          { lifetime: `${minutesLeft}m` },
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+
+    checkServiceAccountAccess: {
+      description:
+        "Check what a ServiceAccount may do: one SubjectAccessReview per " +
+        "check, one accessReview record each. Fails after recording all " +
+        "checks if any check could not be evaluated.",
+      arguments: CheckAccessArgsSchema,
+      execute: async (
+        args: z.infer<typeof CheckAccessArgsSchema>,
+        context: K8sContext,
+      ): Promise<{ dataHandles: DataHandle[] }> => {
+        const { authorizationApi } = buildClient(context.globalArgs);
+        const saNs = args.namespace ?? context.globalArgs.namespace;
+        const user = serviceAccountUser(saNs, args.serviceAccountName);
+        const groups = [
+          "system:serviceaccounts",
+          `system:serviceaccounts:${saNs}`,
+          "system:authenticated",
+        ];
+
+        const handles: DataHandle[] = [];
+        const failures: string[] = [];
+        for (const check of args.checks) {
+          const targetNs = check.clusterScoped ? "" : check.namespace ?? saNs;
+          const label = [
+            `${check.verb} `,
+            check.group ? `${check.resource}.${check.group}` : check.resource,
+            check.subresource ? `/${check.subresource}` : "",
+            check.name ? ` ${check.name}` : "",
+            targetNs ? ` in ${targetNs}` : " cluster-wide",
+          ].join("");
+
+          let allowed = false;
+          let denied = false;
+          let reason = "";
+          let evaluationError = "";
+          try {
+            const review = await authorizationApi.createSubjectAccessReview({
+              body: {
+                spec: {
+                  user,
+                  groups,
+                  resourceAttributes: {
+                    verb: check.verb,
+                    group: check.group,
+                    resource: check.resource,
+                    ...(check.subresource &&
+                      { subresource: check.subresource }),
+                    ...(check.name && { name: check.name }),
+                    ...(targetNs && { namespace: targetNs }),
+                  },
+                },
+              },
+            });
+            allowed = review.status?.allowed ?? false;
+            denied = review.status?.denied ?? false;
+            reason = review.status?.reason ?? "";
+            evaluationError = review.status?.evaluationError ?? "";
+            // An authorizer that errored (a webhook timeout, a binding to a
+            // missing role) answers with evaluationError and no decision:
+            // that is an unanswered check. An allow, or an explicit deny from
+            // a later authorizer, is a decision and stands.
+            if (evaluationError && !allowed && !denied) {
+              failures.push(`${label}: ${evaluationError}`);
+            }
+          } catch (err) {
+            evaluationError = apiErrorCode(err) === 403
+              ? "Forbidden: the caller needs create on " +
+                "subjectaccessreviews.authorization.k8s.io (cluster-wide) " +
+                `to check access: ${apiErrorMessage(err)}`
+              : apiErrorMessage(err);
+            failures.push(`${label}: ${evaluationError}`);
+          }
+
+          context.logger.info("{user} {verb}: {result}", {
+            user,
+            verb: label,
+            result: evaluationError ? "error" : allowed ? "allowed" : "denied",
+          });
+
+          // "_" cannot occur in Kubernetes names, namespaces, groups or
+          // resources, so distinct checks always get distinct names. The
+          // core group is an empty segment, so it cannot meet a group "core".
+          const instance = [
+            saNs,
+            args.serviceAccountName,
+            check.verb,
+            check.group,
+            check.subresource
+              ? `${check.resource}.${check.subresource}`
+              : check.resource,
+            check.name ?? "",
+            check.clusterScoped ? "" : targetNs,
+          ].join("_");
+
+          handles.push(
+            await context.writeResource(
+              "accessReview",
+              sanitizeInstanceName(instance),
+              {
+                serviceAccount: args.serviceAccountName,
+                serviceAccountNamespace: saNs,
+                user,
+                verb: check.verb,
+                group: check.group,
+                resource: check.resource,
+                subresource: check.subresource ?? "",
+                name: check.name ?? "",
+                namespace: targetNs,
+                clusterScoped: check.clusterScoped,
+                allowed,
+                denied,
+                reason,
+                evaluationError,
+                checkedAt: new Date().toISOString(),
+              },
+            ),
+          );
+        }
+
+        if (failures.length > 0) {
+          throw new Error(
+            `${failures.length} of ${args.checks.length} access checks for ` +
+              `${user} could not be evaluated:\n${failures.join("\n")}`,
+          );
+        }
+        return { dataHandles: handles };
+      },
+    },
+
+    createServiceAccount: {
+      description:
+        "Create a ServiceAccount with optional annotations (e.g. an IRSA " +
+        "eks.amazonaws.com/role-arn), labels and auto-mount setting",
+      arguments: CreateServiceAccountArgsSchema,
+      execute: async (
+        args: z.infer<typeof CreateServiceAccountArgsSchema>,
+        context: K8sContext,
+      ): Promise<{ dataHandles: DataHandle[] }> => {
+        const { coreApi } = buildClient(context.globalArgs);
+        const ns = args.namespace ?? context.globalArgs.namespace;
+        const target = describeTarget(
+          "ServiceAccount",
+          args.serviceAccountName,
+          ns,
+        );
+
+        const created = await callForObject(
+          "Creating",
+          target,
+          () =>
+            coreApi.createNamespacedServiceAccount({
+              namespace: ns,
+              body: {
+                metadata: {
+                  name: args.serviceAccountName,
+                  namespace: ns,
+                  ...(args.annotations && { annotations: args.annotations }),
+                  ...(args.labels && { labels: args.labels }),
+                },
+                ...(args.automountToken !== undefined &&
+                  { automountServiceAccountToken: args.automountToken }),
+              },
+            }),
+        );
+
+        context.logger.info("Created ServiceAccount {name} in {ns}", {
+          name: args.serviceAccountName,
+          ns,
+        });
+        return { dataHandles: [await writeServiceAccount(context, created)] };
+      },
+    },
+
+    updateServiceAccount: {
+      description:
+        "Set or remove annotations and labels, or change the auto-mount " +
+        "setting, with a merge patch: keys not named are left as they are",
+      arguments: UpdateServiceAccountArgsSchema,
+      execute: async (
+        args: z.infer<typeof UpdateServiceAccountArgsSchema>,
+        context: K8sContext,
+      ): Promise<{ dataHandles: DataHandle[] }> => {
+        const { coreApi } = buildClient(context.globalArgs);
+        const ns = args.namespace ?? context.globalArgs.namespace;
+        const target = describeTarget(
+          "ServiceAccount",
+          args.serviceAccountName,
+          ns,
+        );
+
+        const annotations = keyChanges(
+          args.setAnnotations,
+          args.removeAnnotations,
+        );
+        const labels = keyChanges(args.setLabels, args.removeLabels);
+        const body = {
+          ...((annotations || labels) && {
+            metadata: {
+              ...(annotations && { annotations }),
+              ...(labels && { labels }),
+            },
+          }),
+          ...(args.automountToken !== undefined &&
+            { automountServiceAccountToken: args.automountToken }),
+        };
+
+        const patched = await callForObject(
+          "Updating",
+          target,
+          () =>
+            coreApi.patchNamespacedServiceAccount(
+              { name: args.serviceAccountName, namespace: ns, body },
+              patchOptions("merge"),
+            ),
+        );
+
+        context.logger.info("Updated ServiceAccount {name} in {ns}", {
+          name: args.serviceAccountName,
+          ns,
+        });
+        return { dataHandles: [await writeServiceAccount(context, patched)] };
+      },
+    },
+
+    patchServiceAccount: {
+      description:
+        "Patch a ServiceAccount with a merge, strategic merge or JSON patch",
+      arguments: PatchServiceAccountArgsSchema,
+      execute: async (
+        args: z.infer<typeof PatchServiceAccountArgsSchema>,
+        context: K8sContext,
+      ): Promise<{ dataHandles: DataHandle[] }> => {
+        const { coreApi } = buildClient(context.globalArgs);
+        const ns = args.namespace ?? context.globalArgs.namespace;
+
+        const patched = await callForObject(
+          "Patching",
+          describeTarget("ServiceAccount", args.serviceAccountName, ns),
+          () =>
+            coreApi.patchNamespacedServiceAccount(
+              {
+                name: args.serviceAccountName,
+                namespace: ns,
+                body: args.patch,
+              },
+              patchOptions(args.patchType),
+            ),
+        );
+
+        context.logger.info("Patched ServiceAccount {name} in {ns} ({type})", {
+          name: args.serviceAccountName,
+          ns,
+          type: args.patchType,
+        });
+        return { dataHandles: [await writeServiceAccount(context, patched)] };
+      },
+    },
+
+    deleteServiceAccount: {
+      description: "Delete a ServiceAccount",
+      arguments: DeleteServiceAccountArgsSchema,
+      execute: async (
+        args: z.infer<typeof DeleteServiceAccountArgsSchema>,
+        context: K8sContext,
+      ): Promise<{ dataHandles: DataHandle[] }> => {
+        const { coreApi } = buildClient(context.globalArgs);
+        const ns = args.namespace ?? context.globalArgs.namespace;
+
+        await callForObject(
+          "Deleting",
+          describeTarget("ServiceAccount", args.serviceAccountName, ns),
+          () =>
+            coreApi.deleteNamespacedServiceAccount({
+              name: args.serviceAccountName,
+              namespace: ns,
+            }),
+        );
+        context.logger.info("Deleted ServiceAccount {name} in {ns}", {
+          name: args.serviceAccountName,
+          ns,
+        });
+        return { dataHandles: [] };
       },
     },
   },

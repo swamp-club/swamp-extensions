@@ -6,10 +6,15 @@ import type {
 } from "npm:@kubernetes/client-node@1.4.0";
 import {
   buildClient,
+  callForObject,
   type DataHandle,
+  describeTarget,
   isNotFound,
   type K8sGlobalArgs,
   normalizeMeta,
+  PatchFields,
+  patchOptions,
+  refinePatchArgs,
 } from "./_lib/helpers.ts";
 
 // --- Global Args (cluster-scoped, no namespace field) ---
@@ -181,6 +186,11 @@ const HealthArgsSchema = z.object({
   namespaceName: z.string(),
 });
 
+const PatchArgsSchema = refinePatchArgs(z.object({
+  namespaceName: z.string(),
+  ...PatchFields,
+}));
+
 // --- Helpers ---
 
 function toK8sGlobalArgs(globalArgs: NamespaceGlobalArgs): K8sGlobalArgs {
@@ -262,7 +272,7 @@ function normalizeLimitRange(raw: V1LimitRange) {
 /** Kubernetes Namespace model. */
 export const model = {
   type: "@swamp/kubernetes/namespace",
-  version: "2026.10.20.1",
+  version: "2026.11.07.1",
   globalArguments: GlobalArgsSchema,
   upgrades: [
     {
@@ -306,6 +316,12 @@ export const model = {
       description: "setResourceQuota and setLimitRange now create the " +
         "object when it does not exist (404 detection fixed for " +
         "client-node 1.x). No schema change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
+      description: "Add patch (merge, strategic merge or JSON patch). " +
+        "No change to global arguments or existing resources.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -981,6 +997,42 @@ export const model = {
           "namespaceHealth",
           ns,
           health,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+
+    patch: {
+      description:
+        "Patch a Namespace in place with a merge, strategic merge or JSON " +
+        "patch, without replacing the whole object",
+      arguments: PatchArgsSchema,
+      execute: async (
+        args: z.infer<typeof PatchArgsSchema>,
+        context: NamespaceContext,
+      ): Promise<{ dataHandles: DataHandle[] }> => {
+        const { coreApi } = buildClient(toK8sGlobalArgs(context.globalArgs));
+
+        const patched = await callForObject(
+          "Patching",
+          describeTarget("Namespace", args.namespaceName),
+          () =>
+            coreApi.patchNamespace({
+              name: args.namespaceName,
+              body: args.patch,
+            }, patchOptions(args.patchType)),
+        );
+        const normalized = normalizeNamespace(patched);
+
+        context.logger.info("Patched Namespace {name} ({type})", {
+          name: args.namespaceName,
+          type: args.patchType,
+        });
+
+        const handle = await context.writeResource(
+          "namespace",
+          normalized.name,
+          normalized,
         );
         return { dataHandles: [handle] };
       },

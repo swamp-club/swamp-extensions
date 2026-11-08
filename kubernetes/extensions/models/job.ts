@@ -2,10 +2,15 @@ import { z } from "npm:zod@4.6.7";
 import type { V1CronJob, V1Job } from "npm:@kubernetes/client-node@1.4.0";
 import {
   buildClient,
+  callForObject,
   type DataHandle,
+  describeTarget,
   type K8sContext,
   K8sGlobalArgsSchema,
   normalizeMeta,
+  PatchFields,
+  patchOptions,
+  refinePatchArgs,
   sanitizeInstanceName,
 } from "./_lib/helpers.ts";
 
@@ -82,6 +87,17 @@ const DeleteCronJobArgsSchema = z.object({
   cronJobName: z.string(),
   namespace: z.string().optional(),
 });
+
+const PatchJobArgsSchema = refinePatchArgs(z.object({
+  jobName: z.string(),
+  namespace: z.string().optional(),
+  ...PatchFields,
+}));
+const PatchCronJobArgsSchema = refinePatchArgs(z.object({
+  cronJobName: z.string(),
+  namespace: z.string().optional(),
+  ...PatchFields,
+}));
 
 // --- Helpers ---
 
@@ -164,7 +180,7 @@ function normalizeCronJob(raw: V1CronJob) {
 /** Kubernetes Job and CronJob model. */
 export const model = {
   type: "@swamp/kubernetes/job",
-  version: "2026.08.01.1",
+  version: "2026.11.07.1",
   globalArguments: K8sGlobalArgsSchema,
   upgrades: [
     {
@@ -201,6 +217,13 @@ export const model = {
       toVersion: "2026.08.01.1",
       description: "Bump @kubernetes/client-node from 1.0.0 to 1.4.0 and " +
         "add statefulset model type. No schema or behavior change.",
+      upgradeAttributes: (old: Record<string, unknown>) => old,
+    },
+    {
+      toVersion: "2026.11.07.1",
+      description:
+        "Add patchJob and patchCronJob (merge, strategic merge or JSON patch). " +
+        "No change to global arguments or existing resources.",
       upgradeAttributes: (old: Record<string, unknown>) => old,
     },
   ],
@@ -392,6 +415,84 @@ export const model = {
           ns,
         });
         return { dataHandles: [] };
+      },
+    },
+
+    patchJob: {
+      description:
+        "Patch a Job in place with a merge, strategic merge or JSON " +
+        "patch, without replacing the whole object",
+      arguments: PatchJobArgsSchema,
+      execute: async (
+        args: z.infer<typeof PatchJobArgsSchema>,
+        context: K8sContext,
+      ): Promise<{ dataHandles: DataHandle[] }> => {
+        const { batchApi } = buildClient(context.globalArgs);
+        const ns = args.namespace ?? context.globalArgs.namespace;
+
+        const patched = await callForObject(
+          "Patching",
+          describeTarget("Job", args.jobName, ns),
+          () =>
+            batchApi.patchNamespacedJob({
+              name: args.jobName,
+              namespace: ns,
+              body: args.patch,
+            }, patchOptions(args.patchType)),
+        );
+        const normalized = normalizeJob(patched);
+
+        context.logger.info("Patched Job {name} in {ns} ({type})", {
+          name: args.jobName,
+          ns,
+          type: args.patchType,
+        });
+
+        const handle = await context.writeResource(
+          "job",
+          sanitizeInstanceName(normalized.name),
+          normalized,
+        );
+        return { dataHandles: [handle] };
+      },
+    },
+
+    patchCronJob: {
+      description:
+        "Patch a CronJob in place with a merge, strategic merge or JSON " +
+        "patch, without replacing the whole object",
+      arguments: PatchCronJobArgsSchema,
+      execute: async (
+        args: z.infer<typeof PatchCronJobArgsSchema>,
+        context: K8sContext,
+      ): Promise<{ dataHandles: DataHandle[] }> => {
+        const { batchApi } = buildClient(context.globalArgs);
+        const ns = args.namespace ?? context.globalArgs.namespace;
+
+        const patched = await callForObject(
+          "Patching",
+          describeTarget("CronJob", args.cronJobName, ns),
+          () =>
+            batchApi.patchNamespacedCronJob({
+              name: args.cronJobName,
+              namespace: ns,
+              body: args.patch,
+            }, patchOptions(args.patchType)),
+        );
+        const normalized = normalizeCronJob(patched);
+
+        context.logger.info("Patched CronJob {name} in {ns} ({type})", {
+          name: args.cronJobName,
+          ns,
+          type: args.patchType,
+        });
+
+        const handle = await context.writeResource(
+          "cronJob",
+          sanitizeInstanceName(normalized.name),
+          normalized,
+        );
+        return { dataHandles: [handle] };
       },
     },
   },
